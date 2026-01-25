@@ -1,0 +1,34 @@
+﻿
+> discovery-hub-nextjs@0.1.0 lint
+> eslint
+
+
+C:\Users\pksaf\OneDrive\Desktop\discovery-hub-premium\discovery-hub-nextjs\src\components\home\FeaturedCarousel.tsx
+  5:37  warning  'Star' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pksaf\OneDrive\Desktop\discovery-hub-premium\discovery-hub-nextjs\src\components\home\FeaturedOffers.tsx
+  31:9  warning  'getVisibleOffers' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pksaf\OneDrive\Desktop\discovery-hub-premium\discovery-hub-nextjs\src\components\home\OfferGrid.tsx
+  58:19  warning  'randomStyle' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pksaf\OneDrive\Desktop\discovery-hub-premium\discovery-hub-nextjs\src\components\layout\Header.tsx
+  4:24  warning  'LogIn' is defined but never used        @typescript-eslint/no-unused-vars
+  4:40  warning  'MapIcon' is defined but never used      @typescript-eslint/no-unused-vars
+  4:49  warning  'MapPinCheck' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pksaf\OneDrive\Desktop\discovery-hub-premium\discovery-hub-nextjs\src\components\offer\OfferCard.tsx
+  6:37  warning  'Heart' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pksaf\OneDrive\Desktop\discovery-hub-premium\discovery-hub-nextjs\src\components\ui\calendar.tsx
+  45:25  warning  '_props' is defined but never used  @typescript-eslint/no-unused-vars
+  46:26  warning  '_props' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pksaf\OneDrive\Desktop\discovery-hub-premium\discovery-hub-nextjs\src\components\ui\chart.tsx
+  62:55  warning  '_' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pksaf\OneDrive\Desktop\discovery-hub-premium\discovery-hub-nextjs\src\hooks\use-toast.ts
+  15:7  warning  'actionTypes' is assigned a value but only used as a type  @typescript-eslint/no-unused-vars
+
+Γ£û 11 problems (0 errors, 11 warnings)
+

@@ -1,0 +1,72 @@
+﻿
+> discovery-hub-nextjs@0.1.0 lint
+> eslint
+
+
+C:\Users\pksaf\OneDrive\Desktop\discovery-hub-premium\discovery-hub-nextjs\src\components\home\FeaturedCarousel.tsx
+   5:37  warning  'Star' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+  25:33  error    Compilation Skipped: Existing memoization could not be preserved
+
+React Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. The inferred dependencies did not match the manually specified dependencies, which could cause the value to change more or less frequently than expected. The inferred dependency was `shops.length`, but the source dependencies were []. Inferred dependency not present in source.
+
+C:\Users\pksaf\OneDrive\Desktop\discovery-hub-premium\discovery-hub-nextjs\src\components\home\FeaturedCarousel.tsx:25:33
+  23 |   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  24 |
+> 25 |   const nextSlide = useCallback(() => {
+     |                                 ^^^^^^^
+> 26 |     setCurrentIndex((prev) => (prev + 1) % shops.length);
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 27 |   }, []);
+     | ^^^^ Could not preserve existing manual memoization
+  28 |
+  29 |   const prevSlide = () => {
+  30 |     setCurrentIndex((prev) => (prev - 1 + shops.length) % shops.length);  react-hooks/preserve-manual-memoization
+  27:6   warning  React Hook useCallback has a missing dependency: 'shops.length'. Either include it or remove the dependency array. If 'setCurrentIndex' needs the current value of 'shops.length', you can also switch to useReducer instead of useState and read 'shops.length' in the reducer                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          react-hooks/exhaustive-deps
+
+C:\Users\pksaf\OneDrive\Desktop\discovery-hub-premium\discovery-hub-nextjs\src\components\home\FeaturedOffers.tsx
+  31:9  warning  'getVisibleOffers' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pksaf\OneDrive\Desktop\discovery-hub-premium\discovery-hub-nextjs\src\components\home\OfferGrid.tsx
+  58:19  warning  'randomStyle' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pksaf\OneDrive\Desktop\discovery-hub-premium\discovery-hub-nextjs\src\components\layout\Header.tsx
+   4:24  warning  'LogIn' is defined but never used         @typescript-eslint/no-unused-vars
+   4:40  warning  'MapIcon' is defined but never used       @typescript-eslint/no-unused-vars
+   4:49  warning  'MapPinCheck' is defined but never used   @typescript-eslint/no-unused-vars
+  48:59  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\pksaf\OneDrive\Desktop\discovery-hub-premium\discovery-hub-nextjs\src\components\ui\calendar.tsx
+  45:25  warning  '_props' is defined but never used  @typescript-eslint/no-unused-vars
+  46:26  warning  '_props' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pksaf\OneDrive\Desktop\discovery-hub-premium\discovery-hub-nextjs\src\components\ui\chart.tsx
+  62:55  warning  '_' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\pksaf\OneDrive\Desktop\discovery-hub-premium\discovery-hub-nextjs\src\components\ui\command.tsx
+  24:11  error  An interface declaring no members is equivalent to its supertype  @typescript-eslint/no-empty-object-type
+
+C:\Users\pksaf\OneDrive\Desktop\discovery-hub-premium\discovery-hub-nextjs\src\components\ui\sidebar.tsx
+  536:26  error  Error: Cannot call impure function during render
+
+`Math.random` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+C:\Users\pksaf\OneDrive\Desktop\discovery-hub-premium\discovery-hub-nextjs\src\components\ui\sidebar.tsx:536:26
+  534 |   // Random width between 50 to 90%.
+  535 |   const width = React.useMemo(() => {
+> 536 |     return `${Math.floor(Math.random() * 40) + 50}%`;
+      |                          ^^^^^^^^^^^^^ Cannot call impure function
+  537 |   }, []);
+  538 |
+  539 |   return (  react-hooks/purity
+
+C:\Users\pksaf\OneDrive\Desktop\discovery-hub-premium\discovery-hub-nextjs\src\components\ui\textarea.tsx
+  5:18  error  An interface declaring no members is equivalent to its supertype  @typescript-eslint/no-empty-object-type
+
+C:\Users\pksaf\OneDrive\Desktop\discovery-hub-premium\discovery-hub-nextjs\src\hooks\use-toast.ts
+  15:7  warning  'actionTypes' is assigned a value but only used as a type  @typescript-eslint/no-unused-vars
+
+C:\Users\pksaf\OneDrive\Desktop\discovery-hub-premium\discovery-hub-nextjs\tailwind.config.ts
+  145:15  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+Γ£û 17 problems (6 errors, 11 warnings)
+
