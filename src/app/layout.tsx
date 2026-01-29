@@ -1,21 +1,18 @@
 import type { Metadata } from "next";
-import { Inter, Playfair_Display } from "next/font/google";
+import { Rubik } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 
-const inter = Inter({
+import Header from "@/components/layout/Header";
+
+const rubik = Rubik({
   subsets: ["latin"],
   variable: "--font-sans",
   display: "swap",
 });
 
-const playfair = Playfair_Display({
-  subsets: ["latin"],
-  variable: "--font-serif",
-  display: "swap",
-});
-
 export const metadata: Metadata = {
+  metadataBase: new URL('http://localhost:3000'),
   title: "OfferKart - Discover Local Deals & Offers",
   description: "Find the best local deals, coupons, and exclusive offers from trusted businesses in your neighborhood. Save money with OfferKart.",
   keywords: ["local deals", "coupons", "offers", "discounts", "local businesses", "savings"],
@@ -34,8 +31,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${playfair.variable} antialiased`}>
+      <body className={`${rubik.variable} antialiased`}>
         <Providers>
+          <Header />
           {children}
         </Providers>
       </body>

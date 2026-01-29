@@ -1,23 +1,26 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, User, LogIn, Menu, X, MapIcon, MapPinCheck, PlusCircle, MapPin, ChevronDown } from "lucide-react";
+import { Search, User, LogIn, Menu, X, MapIcon, MapPinCheck, PlusCircle, MapPin, ChevronDown, ChevronUp, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import Link from "next/link";
+import { useRegistration } from "@/hooks/useRegistration";
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { PremiumButton } from "@/components/shared/PremiumButton";
 
 const locations = [
     "All",
-    "Kochi",
-    "Trivandrum",
-    "Kozhikode",
-    "Thrissur",
-    "Kollam",
+    "City Alpha",
+    "City Beta",
+    "City Gamma",
+    "City Delta",
+    "City Epsilon",
 ];
 
 const Header = () => {
@@ -25,10 +28,12 @@ const Header = () => {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [searchOpen, setSearchOpen] = useState(false);
     const [selectedLocation, setSelectedLocation] = useState("Location");
+    const [accountOpen, setAccountOpen] = useState(false);
     const [pincode, setPincode] = useState("");
     const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(null);
     const [dropdownLocations, setDropdownLocations] = useState(locations);
     const [loading, setLoading] = useState(false);
+    const { isRegistered, setRegistrationStatus } = useRegistration();
 
     useEffect(() => {
         const handleScroll = () => {
@@ -82,12 +87,12 @@ const Header = () => {
                         <div className="flex items-center gap-3">
                             <div className="relative">
                                 <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl gradient-futuristic flex items-center justify-center transform transition-transform group-hover:scale-110 group-hover:rotate-3">
-                                    <span className="text-primary-foreground font-bold text-lg sm:text-xl">O</span>
+                                    <span className="text-primary font-bold text-lg sm:text-xl">O</span>
                                 </div>
                                 <div className="absolute -inset-1 rounded-2xl border border-primary/30 animate-pulse" />
                                 <div className="absolute -inset-2 rounded-2xl border border-primary/10 animate-pulse delay-300" />
                             </div>
-                            <span className="font-sans text-lg sm:text-xl font-bold block text-primary">
+                            <span className="font-sans text-lg sm:text-xl font-bold block text-orange-500">
                                 OfferKart
                             </span>
                         </div>
@@ -107,7 +112,7 @@ const Header = () => {
                             <span className="relative z-10">Coupon</span>
                             <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-primary to-secondary group-hover:w-full transition-all duration-300" />
                         </a>
-                        <DropdownMenu>
+                        <DropdownMenu modal={false}>
                             <DropdownMenuTrigger asChild>
                                 <button className="relative text-foreground hover:text-primary transition-all font-medium flex items-center gap-2 group border-0 outline-none">
                                     <MapPin className="w-4 h-4 text-orange-500 group-hover:scale-110 transition-transform" />
@@ -161,9 +166,9 @@ const Header = () => {
                     {/* Action Buttons */}
                     <div className="flex items-center gap-2 sm:gap-3">
                         <div className="lg:hidden">
-                            <DropdownMenu>
+                            <DropdownMenu modal={false}>
                                 <DropdownMenuTrigger asChild>
-                                    <button className="relative text-foreground hover:text-primary transition-all font-medium flex items-center gap-2 group border-0 outline-none">
+                                    <button className="relative text-foreground hover:text-primary transition-all font-medium flex items-center gap-2 group border-0 outline-none focus:ring-0 focus:ring-offset-0 focus:outline-none">
                                         <MapPin className="w-4 h-4 text-orange-500 group-hover:scale-110 transition-transform" />
                                         <span className="relative z-10">{selectedLocation}</span>
                                         <ChevronDown className="w-4 h-4 transition-transform group-hover:scale-110" />
@@ -211,21 +216,83 @@ const Header = () => {
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </div>
-                        <Button
-                            variant="ghost"
+                        <DropdownMenu onOpenChange={setAccountOpen} modal={false}>
+                            <DropdownMenuTrigger asChild>
+                                <PremiumButton
+                                    variant="ghost"
+                                    size="sm"
+                                    leftIcon={User}
+                                    rightIcon={accountOpen ? ChevronUp : ChevronDown}
+                                    className="hidden md:flex text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-xl transition-all group focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 outline-none focus:outline-none"
+                                >
+                                    <span>Account</span>
+                                </PremiumButton>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56 p-2 bg-white/95 backdrop-blur-md border-primary/10 rounded-2xl shadow-xl">
+                                <div className="px-2 py-2 mb-1 border-b border-primary/5">
+                                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">User Account</p>
+                                </div>
+                                {isRegistered ? (
+                                    <>
+                                        <DropdownMenuItem asChild className="rounded-xl focus:bg-primary/5 cursor-pointer py-2.5">
+                                            <Link href="/shop-manager" className="flex items-center w-full">
+                                                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center mr-3">
+                                                    <LayoutDashboard className="w-4 h-4 text-primary" />
+                                                </div>
+                                                <span className="font-medium">Shop Dashboard</span>
+                                            </Link>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem asChild className="rounded-xl focus:bg-primary/5 cursor-pointer py-2.5">
+                                            <Link href="/shop-manager/create-offer" className="flex items-center w-full">
+                                                <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center mr-3">
+                                                    <PlusCircle className="w-4 h-4 text-orange-500" />
+                                                </div>
+                                                <span className="font-medium">Create New Offer</span>
+                                            </Link>
+                                        </DropdownMenuItem>
+                                    </>
+                                ) : (
+                                    <DropdownMenuItem asChild className="rounded-xl focus:bg-primary/5 cursor-pointer py-2.5">
+                                        <Link href="/shop-registration" className="flex items-center w-full">
+                                            <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center mr-3">
+                                                <MapPinCheck className="w-4 h-4 text-orange-500" />
+                                            </div>
+                                            <span className="font-medium">Join as Partner</span>
+                                        </Link>
+                                    </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem className="rounded-xl focus:bg-primary/5 cursor-pointer py-2.5">
+                                    <div className="w-8 h-8 rounded-lg bg-secondary/10 flex items-center justify-center mr-3">
+                                        <User className="w-4 h-4 text-secondary" />
+                                    </div>
+                                    <span className="font-medium">Profile Settings</span>
+                                </DropdownMenuItem>
+                                <div className="my-1 border-t border-primary/5" />
+                                <DropdownMenuItem
+                                    className="rounded-xl focus:bg-destructive/5 text-destructive cursor-pointer py-2.5"
+                                    onClick={() => {
+                                        setRegistrationStatus(false);
+                                        window.location.href = "/";
+                                    }}
+                                >
+                                    <div className="w-8 h-8 rounded-lg bg-destructive/10 flex items-center justify-center mr-3">
+                                        <LogIn className="w-4 h-4" />
+                                    </div>
+                                    <span className="font-medium">Log Out</span>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+
+                        <PremiumButton
+                            asChild
                             size="sm"
-                            className="hidden md:flex items-center gap-2 text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-xl transition-all"
+                            className="hidden md:flex rounded-2xl px-3 sm:px-4 lg:px-6"
                         >
-                            <User className="w-4 h-4" />
-                            <span>Account</span>
-                        </Button>
-                        <Button
-                            size="sm"
-                            className="hidden md:flex gradient-futuristic text-primary-foreground border border-primary/30 rounded-2xl px-3 sm:px-4 lg:px-6 hover:scale-105 hover:shadow-lg hover:shadow-primary/25 transition-all duration-300"
-                        >
-                            <PlusCircle className="w-4 h-4 mr-1 sm:mr-2" />
-                            <span className="inline">Add your shop</span>
-                        </Button>
+                            <Link href={isRegistered ? "/shop-manager" : "/shop-registration"} className="flex items-center">
+                                <PlusCircle className="w-4 h-4 mr-2" />
+                                <span className="inline">{isRegistered ? "Manage your shop" : "Add your shop"}</span>
+                            </Link>
+                        </PremiumButton>
                     </div>
                 </div>
 
@@ -279,13 +346,40 @@ const Header = () => {
                             <a href="#" className="px-4 py-3 rounded-xl hover:bg-gradient-to-r hover:from-primary/10 hover:to-secondary/10 transition-all duration-300 border border-transparent hover:border-primary/20">
                                 Coupon
                             </a>
-                            <Button
+                            <a href="#" className="px-4 py-3 rounded-xl hover:bg-gradient-to-r hover:from-primary/10 hover:to-secondary/10 transition-all duration-300 border border-transparent hover:border-primary/20 flex items-center">
+                                <User className="w-4 h-4 mr-3 text-muted-foreground" />
+                                Profile
+                            </a>
+                            {isRegistered && (
+                                <Link
+                                    href="/shop-manager"
+                                    className="px-4 py-3 rounded-xl hover:bg-gradient-to-r hover:from-primary/10 hover:to-secondary/10 transition-all duration-300 border border-transparent hover:border-primary/20 flex items-center"
+                                >
+                                    <LayoutDashboard className="w-4 h-4 mr-3 text-primary" />
+                                    Shop Dashboard
+                                </Link>
+                            )}
+                            <PremiumButton
+                                asChild
                                 size="sm"
-                                className="gradient-futuristic text-primary-foreground border border-primary/30 rounded-2xl px-3 sm:px-4 lg:px-6 hover:scale-105 hover:shadow-lg hover:shadow-primary/25 transition-all duration-300 w-full justify-center"
+                                className="rounded-2xl px-3 sm:px-4 lg:px-6 w-full justify-center mt-2"
                             >
-                                <PlusCircle className="w-4 h-4 mr-1 sm:mr-2" />
-                                <span className="inline">Add your shop</span>
-                            </Button>
+                                <Link href={isRegistered ? "/shop-manager" : "/shop-registration"} className="flex items-center justify-center">
+                                    <PlusCircle className="w-4 h-4 mr-2" />
+                                    <span className="inline">{isRegistered ? "Manage your shop" : "Add your shop"}</span>
+                                </Link>
+                            </PremiumButton>
+
+                            <button
+                                onClick={() => {
+                                    setRegistrationStatus(false);
+                                    window.location.href = "/";
+                                }}
+                                className="px-4 py-3 rounded-xl hover:bg-destructive/10 text-destructive transition-all duration-300 border border-transparent hover:border-destructive/20 flex items-center mt-1 w-full text-left"
+                            >
+                                <LogIn className="w-4 h-4 mr-3" />
+                                <span className="font-medium">Log Out</span>
+                            </button>
                         </nav>
                     </div>
                 )}

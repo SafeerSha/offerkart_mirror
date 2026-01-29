@@ -111,7 +111,7 @@ export default {
             },
             fontFamily: {
                 sans: [
-                    'Roboto',
+                    'Rubik',
                     'ui-sans-serif',
                     'system-ui',
                     '-apple-system',
@@ -123,7 +123,7 @@ export default {
                     'sans-serif'
                 ],
                 serif: [
-                    'Libre Caslon Text',
+                    'Rubik',
                     'ui-serif',
                     'Georgia',
                     'Cambria',
