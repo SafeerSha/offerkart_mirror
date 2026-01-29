@@ -4,17 +4,14 @@ import { FEATURED_SHOPS, FEATURED_OFFERS, ALL_OFFERS } from './mockData';
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export async function getFeaturedShops() {
-    await delay(100); // Simulate network latency
     return FEATURED_SHOPS;
 }
 
 export async function getFeaturedOffers() {
-    await delay(100);
     return FEATURED_OFFERS;
 }
 
 export async function getAllOffers() {
-    await delay(100);
     return ALL_OFFERS;
 }
 

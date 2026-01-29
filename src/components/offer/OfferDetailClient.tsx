@@ -4,9 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image, { StaticImageData } from "next/image";
 import { ArrowLeft, Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import Header from "@/components/layout/Header";
+import { PremiumButton } from "@/components/shared/PremiumButton";
+import { Subheading, Text } from "@/components/shared/Typography";
+
 import OfferCard from "@/components/offer/OfferCard";
 
 interface OfferDetail {
@@ -66,21 +66,21 @@ export default function OfferDetailClient({ offer, similarOffers }: OfferDetailC
 
     return (
         <div className="min-h-screen bg-background">
-            <Header />
+
 
             {/* Hero Spacer */}
             <div className="h-32 lg:h-24" />
 
             {/* Back Button */}
             <div className="container mx-auto px-4 py-4">
-                <Button
+                <PremiumButton
                     variant="ghost"
                     onClick={() => router.back()}
                     className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
                 >
                     <ArrowLeft className="w-4 h-4" />
                     Back to Offers
-                </Button>
+                </PremiumButton>
             </div>
 
             <div className="container mx-auto px-4 pb-16">
@@ -95,31 +95,31 @@ export default function OfferDetailClient({ offer, similarOffers }: OfferDetailC
                             className="object-cover transition-opacity duration-300"
                         />
                         <div className="absolute top-4 left-4">
-                            <Badge className="badge-futuristic">
+                            <span className="badge-futuristic">
                                 <Sparkles className="w-3 h-3 mr-1" />
                                 {offer.discount}
-                            </Badge>
+                            </span>
                         </div>
 
                         {/* Carousel Navigation */}
                         {offer.images.length > 1 && (
                             <>
-                                <Button
+                                <PremiumButton
                                     variant="secondary"
                                     size="icon"
                                     onClick={prevPoster}
-                                    className="absolute left-4 top-1/2 -translate-y-1/2 backdrop-blur-sm"
+                                    className="absolute left-4 top-1/2 -translate-y-1/2 backdrop-blur-sm h-10 w-10 rounded-full"
                                 >
                                     <ChevronLeft className="w-4 h-4" />
-                                </Button>
-                                <Button
+                                </PremiumButton>
+                                <PremiumButton
                                     variant="secondary"
                                     size="icon"
                                     onClick={nextPoster}
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 backdrop-blur-sm"
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 backdrop-blur-sm h-10 w-10 rounded-full"
                                 >
                                     <ChevronRight className="w-4 h-4" />
-                                </Button>
+                                </PremiumButton>
 
                                 {/* Dots Indicator */}
                                 <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
@@ -140,24 +140,24 @@ export default function OfferDetailClient({ offer, similarOffers }: OfferDetailC
                 {/* Similar Offers Carousel */}
                 <div className="mt-16">
                     <div className="flex items-center justify-between mb-8">
-                        <h3 className="text-2xl font-bold">Similar Offers</h3>
+                        <Subheading className="text-2xl font-bold">Similar Offers</Subheading>
                         <div className="flex items-center gap-2">
-                            <Button
+                            <PremiumButton
                                 variant="outline"
                                 size="icon"
                                 onClick={prevSimilarSlide}
-                                className="rounded-full border-border/50 hover:bg-primary hover:text-primary-foreground hover:border-primary"
+                                className="rounded-full border-border/50 h-10 w-10"
                             >
                                 <ChevronLeft className="w-4 h-4" />
-                            </Button>
-                            <Button
+                            </PremiumButton>
+                            <PremiumButton
                                 variant="outline"
                                 size="icon"
                                 onClick={nextSimilarSlide}
-                                className="rounded-full border-border/50 hover:bg-primary hover:text-primary-foreground hover:border-primary"
+                                className="rounded-full border-border/50 h-10 w-10"
                             >
                                 <ChevronRight className="w-4 h-4" />
-                            </Button>
+                            </PremiumButton>
                         </div>
                     </div>
 

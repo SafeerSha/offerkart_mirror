@@ -1,8 +1,10 @@
 "use client";
 
-import OfferCard from "../offer/OfferCard"; // Corrected import path
-import { Loader2 } from "lucide-react";
+import React, { useState } from "react";
+import OfferCard from "../offer/OfferCard";
 import { StaticImageData } from "next/image";
+import { Subheading, Text } from "@/components/shared/Typography";
+import { PremiumButton } from "@/components/shared/PremiumButton";
 
 interface Offer {
   id: number;
@@ -21,6 +23,16 @@ interface OfferGridProps {
 }
 
 const OfferGrid = ({ isLoading = false, offers }: OfferGridProps) => {
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  const handleLoadMore = () => {
+    setIsLoadingMore(true);
+    // Simulate API call
+    setTimeout(() => {
+      setIsLoadingMore(false);
+    }, 2000);
+  };
+
   if (isLoading) {
     return (
       <section className="py-8">
@@ -40,27 +52,19 @@ const OfferGrid = ({ isLoading = false, offers }: OfferGridProps) => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="font-serif text-2xl font-semibold">Discover Offers</h2>
-            <p className="text-muted-foreground text-sm mt-1">
+            <Subheading className="text-2xl font-semibold">Discover Offers</Subheading>
+            <Text className="text-sm mt-1">
               {offers.length} amazing deals near you
-            </p>
+            </Text>
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {offers.map((offer, index) => {
-            const cardStyles = [
-              "aspect-[4/3]",
-              "aspect-[3/4]",
-              "aspect-[5/4]",
-              "aspect-[4/5]"
-            ];
-            const randomStyle = cardStyles[index % cardStyles.length];
-
             return (
               <div
                 key={offer.id}
-                className={`animate-fade-up`}
+                className="animate-fade-up"
                 style={{ animationDelay: `${index * 0.05}s`, aspectRatio: '4/5' }}
               >
                 <div className="h-full">
@@ -73,10 +77,14 @@ const OfferGrid = ({ isLoading = false, offers }: OfferGridProps) => {
 
         {/* Load More */}
         <div className="flex justify-center mt-12">
-          <button className="px-8 py-3 rounded-xl border-2 border-primary text-primary font-medium hover:bg-primary hover:text-primary-foreground transition-all duration-300 flex items-center gap-2">
+          <PremiumButton
+            variant="outline"
+            className="px-8 h-12 rounded-xl group"
+            isLoading={isLoadingMore}
+            onClick={handleLoadMore}
+          >
             Load More Offers
-            <Loader2 className="w-4 h-4 animate-spin hidden" />
-          </button>
+          </PremiumButton>
         </div>
       </div>
     </section>
@@ -84,4 +92,3 @@ const OfferGrid = ({ isLoading = false, offers }: OfferGridProps) => {
 };
 
 export default OfferGrid;
-

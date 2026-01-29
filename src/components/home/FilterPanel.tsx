@@ -2,7 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { Filter, Tag, TrendingUp, X, ChevronDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { PremiumButton } from "@/components/shared/PremiumButton";
+import { PremiumCard } from "@/components/shared/PremiumCard";
+import { Label } from "@/components/shared/Typography";
+import { cn } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -89,118 +92,119 @@ const FilterPanel = ({ onFilterChange }: FilterPanelProps) => {
     <div className="py-6">
       <div className="container mx-auto px-4">
         {/* Main Filter Bar */}
-        <div className="glass-card rounded-2xl p-4 mb-4">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            {/* Left: Filter Toggle & Active Filters */}
-            <div className="flex items-center gap-3 flex-wrap">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowFilters(!showFilters)}
-                className={`rounded-xl border-border/50 ${showFilters ? "bg-primary text-primary-foreground" : ""}`}
-              >
-                <Filter className="w-4 h-4 mr-2" />
-                Filters
-                <ChevronDown className={`w-4 h-4 ml-2 transition-transform ${showFilters ? "rotate-180" : ""}`} />
-              </Button>
-
-              {/* Active Filter Tags */}
-              {activeCategory !== "All" && (
-                <span className="inline-flex items-center gap-1 px-3 py-1 bg-primary/10 text-primary rounded-full text-sm">
-                  {activeCategory}
-                  {activeSubcategory !== "All" && ` > ${activeSubcategory}`}
-                  <button
-                    onClick={() => {
-                      setActiveCategory("All");
-                      setActiveSubcategory("All");
-                      onFilterChange?.({ category: "All", subcategory: "All", sort: activeSort });
-                    }}
-                    className="ml-1 hover:bg-primary/20 rounded-full p-0.5"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              )}
-
-              {hasActiveFilters && (
-                <Button
-                  variant="ghost"
+        <PremiumCard variant="glass" padding="none" className="mb-4">
+          <div className="p-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              {/* Left: Filter Toggle & Active Filters */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <PremiumButton
+                  variant="outline"
                   size="sm"
-                  onClick={clearFilters}
-                  className="text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={cn("rounded-xl border-border/50 transition-all", showFilters && "bg-primary text-primary-foreground")}
                 >
-                  <X className="w-4 h-4 mr-1" />
-                  Clear All
-                </Button>
-              )}
-            </div>
+                  <Filter className="w-4 h-4 mr-2" />
+                  Filters
+                  <ChevronDown className={cn("w-4 h-4 ml-2 transition-transform", showFilters && "rotate-180")} />
+                </PremiumButton>
 
-            {/* Right: Sort Dropdown */}
-            <div className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-muted-foreground" />
-              <Select value={activeSort} onValueChange={setActiveSort}>
-                <SelectTrigger className="w-40 border-border/50 rounded-xl">
-                  <SelectValue placeholder="Sort by" />
-                </SelectTrigger>
-                <SelectContent>
-                  {sortOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+                {/* Active Filter Tags */}
+                {activeCategory !== "All" && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-primary/10 text-primary rounded-full text-sm">
+                    {activeCategory}
+                    {activeSubcategory !== "All" && ` > ${activeSubcategory}`}
+                    <button
+                      onClick={() => {
+                        setActiveCategory("All");
+                        setActiveSubcategory("All");
+                        onFilterChange?.({ category: "All", subcategory: "All", sort: activeSort });
+                      }}
+                      className="ml-1 hover:bg-primary/20 rounded-full p-0.5"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
 
-          {/* Expanded Filters */}
-          {showFilters && (
-            <div className="mt-4 pt-4 border-t border-border/50 animate-fade-in">
-              <div className="grid gap-6">
-                {/* Categories */}
-                <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <Tag className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-medium">Categories</span>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {categories.map((category) => (
-                      <button
-                        key={category}
-                        onClick={() => handleCategoryChange(category)}
-                        className={`filter-chip ${activeCategory === category ? "active" : ""}`}
-                      >
-                        {category}
-                      </button>
+                {hasActiveFilters && (
+                  <PremiumButton
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearFilters}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="w-4 h-4 mr-1" />
+                    Clear All
+                  </PremiumButton>
+                )}
+              </div>
+
+              {/* Right: Sort Dropdown */}
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-muted-foreground" />
+                <Select value={activeSort} onValueChange={setActiveSort}>
+                  <SelectTrigger className="w-40 border-border/50 rounded-xl">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sortOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
                     ))}
-                  </div>
-                  {/* Subcategories */}
-                  <div className="mt-4">
-                    <span className="text-xs font-medium text-muted-foreground mb-2 block">Subcategories</span>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Expanded Filters */}
+            {showFilters && (
+              <div className="mt-4 pt-4 border-t border-border/50 animate-fade-in">
+                <div className="grid gap-6">
+                  {/* Categories */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Tag className="w-4 h-4 text-primary" />
+                      <Label className="text-sm font-medium">Categories</Label>
+                    </div>
                     <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={() => handleSubcategoryChange("All")}
-                        className={`filter-chip ${activeSubcategory === "All" ? "active" : ""}`}
-                      >
-                        All
-                      </button>
-                      {activeCategory !== "All" && subcategories[activeCategory as keyof typeof subcategories]?.map((sub) => (
+                      {categories.map((category) => (
                         <button
-                          key={sub}
-                          onClick={() => handleSubcategoryChange(sub)}
-                          className={`filter-chip ${activeSubcategory === sub ? "active" : ""}`}
+                          key={category}
+                          onClick={() => handleCategoryChange(category)}
+                          className={`filter-chip ${activeCategory === category ? "active" : ""}`}
                         >
-                          {sub}
+                          {category}
                         </button>
                       ))}
+                    </div>
+                    {/* Subcategories */}
+                    <div className="mt-4">
+                      <Label className="text-xs font-medium text-muted-foreground mb-2 block">Subcategories</Label>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() => handleSubcategoryChange("All")}
+                          className={`filter-chip ${activeSubcategory === "All" ? "active" : ""}`}
+                        >
+                          All
+                        </button>
+                        {activeCategory !== "All" && subcategories[activeCategory as keyof typeof subcategories]?.map((sub) => (
+                          <button
+                            key={sub}
+                            onClick={() => handleSubcategoryChange(sub)}
+                            className={`filter-chip ${activeSubcategory === sub ? "active" : ""}`}
+                          >
+                            {sub}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
-
+            )}
+          </div>
+        </PremiumCard>
       </div>
     </div>
   );
