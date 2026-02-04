@@ -29,11 +29,20 @@ export default async function HomePage() {
       {/* Featured Offers */}
       <FeaturedOffers offers={featuredOffers} />
 
-      {/* Filter & Sorting Panel */}
-      <FilterPanel />
+      {/* Offers Section */}
+      <section className="py-12 md:py-16">
+        <div className="container mx-auto px-4">
+          {/* Filter & Sorting Panel */}
+          <FilterPanel />
 
-      {/* Main Offer Grid */}
-      <OfferGrid offers={allOffers} />
+          {/* Main Offer Grid */}
+          <OfferGrid
+            offers={allOffers}
+            redirectToOffers={true}
+            buttonText="Explore All Offers"
+          />
+        </div>
+      </section>
 
       {/* Shop Registration Section */}
       <ShopRegistrationSection />

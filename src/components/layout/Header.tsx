@@ -13,6 +13,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { PremiumButton } from "@/components/shared/PremiumButton";
+import { cn } from "@/lib/utils";
 
 const locations = [
     "All",
@@ -100,10 +101,10 @@ const Header = () => {
 
                     {/* Navigation Menu - Desktop */}
                     <nav className="hidden lg:flex items-center gap-6 xl:gap-8">
-                        <a href="#" className="relative text-foreground hover:text-primary transition-all font-medium group">
+                        <Link href="/offers" className="relative text-foreground hover:text-primary transition-all font-medium group">
                             <span className="relative z-10">Offers</span>
                             <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-primary to-secondary group-hover:w-full transition-all duration-300" />
-                        </a>
+                        </Link>
                         <a href="#" className="relative text-foreground hover:text-primary transition-all font-medium group">
                             <span className="relative z-10">Products</span>
                             <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-primary to-secondary group-hover:w-full transition-all duration-300" />
@@ -216,7 +217,8 @@ const Header = () => {
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </div>
-                        <DropdownMenu onOpenChange={setAccountOpen} modal={false}>
+
+                        {/* <DropdownMenu onOpenChange={setAccountOpen} modal={false}>
                             <DropdownMenuTrigger asChild>
                                 <PremiumButton
                                     variant="ghost"
@@ -281,12 +283,26 @@ const Header = () => {
                                     <span className="font-medium">Log Out</span>
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
-                        </DropdownMenu>
+                        </DropdownMenu> */}
+
+                        {!isRegistered && (
+                            <PremiumButton
+                                variant="outline"
+                                size="sm"
+                                className="hidden md:flex rounded-2xl px-3 sm:px-4 lg:px-6 border-primary/20 hover:bg-primary/5 transition-all duration-300"
+                                asChild
+                            >
+                                <Link href="/login" className="flex items-center">
+                                    <LogIn className="w-4 h-4 mr-2" />
+                                    <span className="inline">Login</span>
+                                </Link>
+                            </PremiumButton>
+                        )}
 
                         <PremiumButton
                             asChild
                             size="sm"
-                            className="hidden md:flex rounded-2xl px-3 sm:px-4 lg:px-6"
+                            className="hidden md:flex rounded-2xl px-3 sm:px-4 lg:px-6 shadow-lg shadow-primary/20"
                         >
                             <Link href={isRegistered ? "/shop-manager" : "/shop-registration"} className="flex items-center">
                                 <PlusCircle className="w-4 h-4 mr-2" />
@@ -296,39 +312,76 @@ const Header = () => {
                     </div>
                 </div>
 
-                {/* Second Row - Search */}
+                {/* Second Row - Search Field */}
                 {!scrolled && (
                     <div className="mt-4 flex justify-end hidden md:flex">
-                        <div className={`transition-all duration-300 ease-in-out ${searchOpen ? 'w-full max-w-2xl' : 'w-auto'}`}>
-                            {!searchOpen ? (
-                                <Button
-                                    variant="outline"
-                                    onClick={() => setSearchOpen(true)}
-                                    className="flex items-center gap-2 bg-card/80 backdrop-blur-sm border border-primary/20 rounded-2xl shadow-lg hover:border-primary/40 transition-all"
-                                >
-                                    <Search className="w-5 h-5" />
-                                    <span className="hidden sm:inline">Search shops, offers, deals...</span>
-                                </Button>
-                            ) : (
-                                <div className="relative w-full group">
-                                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-primary/5 to-secondary/5 opacity-0 group-focus-within:opacity-100 transition-opacity" />
-                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                                    <Input
-                                        type="text"
-                                        placeholder="Search shops, offers, deals..."
-                                        className="w-full pl-12 pr-12 py-3 h-12 bg-card/80 backdrop-blur-sm border border-primary/20 rounded-2xl shadow-lg focus:ring-2 focus:ring-primary/30 focus:border-primary focus:bg-card transition-all hover:border-primary/40"
-                                        autoFocus
-                                        onBlur={() => setSearchOpen(false)}
-                                    />
-                                    <button
-                                        onClick={() => setSearchOpen(false)}
-                                        className="absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-secondary rounded-lg transition-colors"
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </button>
-                                    <div className="absolute inset-0 rounded-2xl border border-primary/10 pointer-events-none group-focus-within:border-primary/30 transition-colors" />
-                                </div>
+                        <div
+                            className={cn(
+                                "relative h-11 flex items-center transition-all duration-500 ease-[cubic-bezier(0.2,0,0,1)] w-full",
+                                searchOpen ? "max-w-2xl" : "max-w-[280px]"
                             )}
+                        >
+                            {/* Persistent Glass Container */}
+                            <div
+                                onClick={() => !searchOpen && setSearchOpen(true)}
+                                className={cn(
+                                    "absolute inset-0 rounded-2xl border transition-all duration-500 overflow-hidden",
+                                    searchOpen
+                                        ? "bg-white border-primary shadow-xl shadow-primary/10 cursor-default"
+                                        : "bg-white/80 backdrop-blur-sm border-primary/20 shadow-md hover:border-primary/40 hover:bg-white cursor-pointer"
+                                )}
+                            >
+                                {/* Subtle inner glow on focus */}
+                                <div className={cn(
+                                    "absolute inset-0 bg-primary/[0.03] opacity-0 transition-opacity duration-500",
+                                    searchOpen && "opacity-100"
+                                )} />
+                            </div>
+
+                            {/* Icons Layer */}
+                            <Search className={cn(
+                                "absolute left-4 w-4 h-4 z-20 transition-colors duration-300 pointer-events-none",
+                                searchOpen ? "text-primary" : "text-muted-foreground"
+                            )} />
+
+                            {/* Clean Transitioning Input */}
+                            <input
+                                type="text"
+                                placeholder={searchOpen ? "Search for shops, offers, deals..." : ""}
+                                onFocus={() => setSearchOpen(true)}
+                                onBlur={(e) => {
+                                    // Don't close if we clicked the clear button
+                                    if (e.relatedTarget?.getAttribute('data-clear') === 'true') return;
+                                    setSearchOpen(false);
+                                }}
+                                className={cn(
+                                    "relative z-10 w-full h-full pl-11 pr-11 bg-transparent border-none focus:ring-0 outline-none transition-all duration-500 text-sm font-medium",
+                                    !searchOpen && "cursor-pointer"
+                                )}
+                            />
+
+                            {/* Placeholder that mimics the input's text when closed */}
+                            {!searchOpen && (
+                                <span className="absolute left-11 text-sm font-medium text-muted-foreground opacity-70 pointer-events-none transition-opacity duration-300">
+                                    Search shops, offers, deals...
+                                </span>
+                            )}
+
+                            {/* Clear Button */}
+                            <button
+                                data-clear="true"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setSearchOpen(false);
+                                }}
+                                className={cn(
+                                    "absolute right-3 z-20 p-1 rounded-full hover:bg-secondary transition-all duration-300",
+                                    searchOpen ? "opacity-100 scale-100" : "opacity-0 scale-75 pointer-events-none"
+                                )}
+                            >
+                                <X className="w-3.5 h-3.5 text-muted-foreground" />
+                            </button>
                         </div>
                     </div>
                 )}

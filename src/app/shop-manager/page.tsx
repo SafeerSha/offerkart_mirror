@@ -10,13 +10,22 @@ import {
     Settings,
     Plus,
     BarChart3,
-    MessageSquare,
+    MousePointer2,
     Store,
-    Home
+    Home,
+    LogOut
 } from "lucide-react";
 import Link from "next/link";
+import { useRegistration } from "@/hooks/useRegistration";
 
 export default function ShopManagerPage() {
+    const { setRegistrationStatus } = useRegistration();
+
+    const handleLogout = () => {
+        setRegistrationStatus(false);
+        window.location.href = "/";
+    };
+
     return (
         <main className="min-h-screen pt-24 pb-12 bg-[radial-gradient(circle_at_top_right,hsl(var(--color-primary)/0.05)_0%,transparent_50%)]">
             <div className="container mx-auto px-4">
@@ -41,7 +50,10 @@ export default function ShopManagerPage() {
                             <Link href="/">Go Home</Link>
                         </PremiumButton>
                         <PremiumButton asChild className="rounded-full shadow-lg shadow-primary/20" leftIcon={Plus}>
-                            <Link href="/shop-manager/create-offer">Create New Offer</Link>
+                            <Link href="/shop-manager/create-offer">Add New Offer</Link>
+                        </PremiumButton>
+                        <PremiumButton asChild className="rounded-full shadow-lg shadow-primary/20" leftIcon={Plus}>
+                            <Link href="/shop-manager/create-offer">Add Product</Link>
                         </PremiumButton>
                     </div>
                 </div>
@@ -61,8 +73,8 @@ export default function ShopManagerPage() {
                         trend="+15% vs last month"
                     />
                     <StatCard
-                        icon={MessageSquare}
-                        label="Inquiries"
+                        icon={MousePointer2}
+                        label="Audience Engagement"
                         value="48"
                         trend="8 new today"
                     />
@@ -76,8 +88,43 @@ export default function ShopManagerPage() {
 
                 {/* Main Content Areas */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Left Column: Recent Offers */}
-                    <div className="lg:col-span-2 space-y-6">
+                    {/* Quick Links & Actions - Shows first on mobile */}
+                    <div className="lg:col-span-1 space-y-6 order-1 lg:order-2">
+                        <PremiumCard variant="glass" padding="none">
+                            <div className="p-6">
+                                <SectionTitle>Quick Actions</SectionTitle>
+                                <div className="grid grid-cols-1 gap-3">
+                                    <ActionButton icon={Settings} label="Shop Settings" href="/shop-manager/shop-settings" />
+                                    <ActionButton icon={Store} label="View Public Profile" />
+                                    <ActionButton icon={Package} label="Inventory Manager" />
+                                    <div className="pt-3 mt-3 border-t border-primary/10">
+                                        <button
+                                            onClick={handleLogout}
+                                            className="flex items-center gap-3 p-4 rounded-xl bg-gradient-to-r from-rose-500/10 to-orange-500/10 border border-rose-500/20 hover:border-rose-500/40 hover:from-rose-500/20 hover:to-orange-500/20 transition-all w-full text-left group cursor-pointer"
+                                        >
+                                            <LogOut className="w-5 h-5 text-rose-500 group-hover:scale-110 transition-transform" />
+                                            <span className="font-medium bg-gradient-to-r from-rose-500 to-orange-500 bg-clip-text text-transparent">Logout</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </PremiumCard>
+
+                        <PremiumCard className="bg-primary/5 border-primary/20">
+                            <div className="p-6">
+                                <h4 className="font-bold mb-2 flex items-center gap-2">
+                                    <Tag className="w-4 h-4 text-primary" />
+                                    Pro Tip
+                                </h4>
+                                <Text className="text-sm leading-relaxed">
+                                    Adding high-quality images to your offers increases customer engagement by up to 40%.
+                                </Text>
+                            </div>
+                        </PremiumCard>
+                    </div>
+
+                    {/* Recent Offers - Shows second on mobile */}
+                    <div className="lg:col-span-2 space-y-6 order-2 lg:order-1">
                         <PremiumCard variant="glass" className="overflow-hidden">
                             <div className="p-6">
                                 <div className="flex items-center justify-between mb-6">
@@ -110,32 +157,6 @@ export default function ShopManagerPage() {
                             </div>
                         </PremiumCard>
                     </div>
-
-                    {/* Right Column: Quick Links & Actions */}
-                    <div className="space-y-6">
-                        <PremiumCard variant="glass" padding="none">
-                            <div className="p-6">
-                                <SectionTitle>Quick Actions</SectionTitle>
-                                <div className="grid grid-cols-1 gap-3">
-                                    <ActionButton icon={Settings} label="Shop Settings" />
-                                    <ActionButton icon={Store} label="View Public Profile" />
-                                    <ActionButton icon={Package} label="Inventory Manager" />
-                                </div>
-                            </div>
-                        </PremiumCard>
-
-                        <PremiumCard className="bg-primary/5 border-primary/20">
-                            <div className="p-6">
-                                <h4 className="font-bold mb-2 flex items-center gap-2">
-                                    <Tag className="w-4 h-4 text-primary" />
-                                    Pro Tip
-                                </h4>
-                                <Text className="text-sm leading-relaxed">
-                                    Adding high-quality images to your offers increases customer engagement by up to 40%.
-                                </Text>
-                            </div>
-                        </PremiumCard>
-                    </div>
                 </div>
             </div>
         </main>
@@ -161,11 +182,25 @@ function StatCard({ icon: Icon, label, value, trend }: { icon: any, label: strin
     );
 }
 
-function ActionButton({ icon: Icon, label }: { icon: any, label: string }) {
-    return (
-        <button className="flex items-center gap-3 p-4 rounded-xl bg-background/40 border border-primary/5 hover:border-primary/30 hover:bg-primary/5 transition-all w-full text-left group">
+function ActionButton({ icon: Icon, label, href }: { icon: any, label: string, href?: string }) {
+    const content = (
+        <>
             <Icon className="w-5 h-5 text-primary group-hover:scale-110 transition-transform" />
             <span className="font-medium">{label}</span>
+        </>
+    );
+
+    if (href) {
+        return (
+            <Link href={href} className="flex items-center gap-3 p-4 rounded-xl bg-background/40 border border-primary/5 hover:border-primary/30 hover:bg-primary/5 transition-all w-full text-left group">
+                {content}
+            </Link>
+        );
+    }
+
+    return (
+        <button className="flex items-center gap-3 p-4 rounded-xl bg-background/40 border border-primary/5 hover:border-primary/30 hover:bg-primary/5 transition-all w-full text-left group">
+            {content}
         </button>
     );
 }
