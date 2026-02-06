@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { Search, User, LogIn, Menu, X, MapIcon, MapPinCheck, PlusCircle, MapPin, ChevronDown, ChevronUp, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { PremiumButton } from "@/components/shared/PremiumButton";
+import { cn } from "@/lib/utils";
 
 const locations = [
     "All",
@@ -34,6 +36,7 @@ const Header = () => {
     const [dropdownLocations, setDropdownLocations] = useState(locations);
     const [loading, setLoading] = useState(false);
     const { isRegistered, setRegistrationStatus } = useRegistration();
+    const pathname = usePathname();
 
     useEffect(() => {
         const handleScroll = () => {
@@ -83,35 +86,47 @@ const Header = () => {
                     </button>
 
                     {/* Logo */}
-                    <div className="flex items-center justify-center flex-shrink-0 group cursor-pointer">
+                    <Link href="/" className="flex items-center justify-center flex-shrink-0 group cursor-pointer border-0 outline-none focus:ring-0">
                         <div className="flex items-center gap-3">
                             <div className="relative">
-                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl gradient-futuristic flex items-center justify-center transform transition-transform group-hover:scale-110 group-hover:rotate-3">
+                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl gradient-futuristic flex items-center justify-center transform transition-all duration-500 group-hover:scale-110 group-hover:rotate-3 group-hover:shadow-lg group-hover:shadow-primary/20">
                                     <span className="text-primary font-bold text-lg sm:text-xl">O</span>
                                 </div>
                                 <div className="absolute -inset-1 rounded-2xl border border-primary/30 animate-pulse" />
                                 <div className="absolute -inset-2 rounded-2xl border border-primary/10 animate-pulse delay-300" />
                             </div>
-                            <span className="font-sans text-lg sm:text-xl font-bold block text-orange-500">
+                            <span className="font-sans text-lg sm:text-xl font-bold block text-orange-500 transition-colors group-hover:text-primary">
                                 OfferKart
                             </span>
                         </div>
-                    </div>
+                    </Link>
 
                     {/* Navigation Menu - Desktop */}
                     <nav className="hidden lg:flex items-center gap-6 xl:gap-8">
-                        <a href="#" className="relative text-foreground hover:text-primary transition-all font-medium group">
+                        <Link href="/" className={cn(
+                            "relative transition-all font-medium group text-sm xl:text-base",
+                            pathname === "/" ? "text-orange-500 font-bold" : "text-foreground hover:text-orange-500"
+                        )}>
+                            <span className="relative z-10">Home</span>
+                        </Link>
+                        <Link href="/offers" className={cn(
+                            "relative transition-all font-medium group text-sm xl:text-base",
+                            (pathname === "/offers" || pathname.startsWith('/offer/')) ? "text-orange-500 font-bold" : "text-foreground hover:text-orange-500"
+                        )}>
                             <span className="relative z-10">Offers</span>
-                            <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-primary to-secondary group-hover:w-full transition-all duration-300" />
-                        </a>
-                        <a href="#" className="relative text-foreground hover:text-primary transition-all font-medium group">
+                        </Link>
+                        <Link href="/products" className={cn(
+                            "relative transition-all font-medium group text-sm xl:text-base",
+                            pathname.startsWith("/products") ? "text-orange-500 font-bold" : "text-foreground hover:text-orange-500"
+                        )}>
                             <span className="relative z-10">Products</span>
-                            <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-primary to-secondary group-hover:w-full transition-all duration-300" />
-                        </a>
-                        <a href="#" className="relative text-foreground hover:text-primary transition-all font-medium group">
+                        </Link>
+                        <Link href="/#" className={cn(
+                            "relative transition-all font-medium group text-sm xl:text-base",
+                            pathname.startsWith("/coupons") ? "text-orange-500 font-bold" : "text-foreground hover:text-orange-500"
+                        )}>
                             <span className="relative z-10">Coupon</span>
-                            <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-primary to-secondary group-hover:w-full transition-all duration-300" />
-                        </a>
+                        </Link>
                         <DropdownMenu modal={false}>
                             <DropdownMenuTrigger asChild>
                                 <button className="relative text-foreground hover:text-primary transition-all font-medium flex items-center gap-2 group border-0 outline-none">
@@ -121,44 +136,98 @@ const Header = () => {
                                     <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-primary to-secondary group-hover:w-full transition-all duration-300" />
                                 </button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent className="w-64 p-2 max-h-64 overflow-y-auto scrollbar-hide bg-white" align="start">
-                                <div className="mb-2 sticky top-0 bg-popover z-10">
-                                    <input
-                                        type="text"
-                                        placeholder="Enter pincode"
-                                        value={pincode}
-                                        onChange={(e) => {
-                                            const value = e.target.value;
-                                            setPincode(value);
-                                            if (value === '') {
-                                                setDropdownLocations(locations);
-                                            }
-                                            if (debounceTimer) clearTimeout(debounceTimer);
-                                            const timer = setTimeout(() => {
-                                                if (value.length === 6 && /^\d+$/.test(value)) {
-                                                    fetchLocations(value);
+                            <DropdownMenuContent className="w-80 p-0 overflow-hidden bg-white/95 backdrop-blur-md border border-primary/10 rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200" align="start">
+                                {/* Search Section */}
+                                <div className="p-4 border-b border-primary/5 bg-primary/5">
+                                    <div className="relative group">
+                                        <div className="absolute left-3 top-1/2 -translate-y-1/2">
+                                            {loading ? (
+                                                <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                                            ) : (
+                                                <Search className="w-4 h-4 text-primary opacity-50 group-hover:opacity-100 transition-opacity" />
+                                            )}
+                                        </div>
+                                        <input
+                                            type="text"
+                                            placeholder="Enter 6-digit pincode..."
+                                            value={pincode}
+                                            maxLength={6}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                if (value && !/^\d*$/.test(value)) return;
+                                                setPincode(value);
+                                                if (value === '') {
+                                                    setDropdownLocations(locations);
                                                 }
-                                            }, 500);
-                                            setDebounceTimer(timer);
-                                        }}
-                                        className="w-full pl-3 pr-3 py-2 text-sm border border-orange-500 rounded focus:ring-2 focus:ring-orange-500 focus:border-orange-600 focus:outline-none"
-                                    />
+                                                if (debounceTimer) clearTimeout(debounceTimer);
+                                                const timer = setTimeout(() => {
+                                                    if (value.length === 6) {
+                                                        fetchLocations(value);
+                                                    }
+                                                }, 500);
+                                                setDebounceTimer(timer);
+                                            }}
+                                            className="w-full pl-10 pr-10 py-2.5 text-sm bg-white border border-primary/10 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none transition-all shadow-inner"
+                                        />
+                                        {pincode && (
+                                            <button
+                                                onClick={() => { setPincode(""); setDropdownLocations(locations); }}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-primary/10 rounded-full transition-colors"
+                                            >
+                                                <X className="w-3 h-3 text-muted-foreground" />
+                                            </button>
+                                        )}
+                                    </div>
+                                    <p className="text-[10px] text-muted-foreground mt-2 px-1 font-medium italic">
+                                        Detecting your city via pincode for local deals
+                                    </p>
                                 </div>
-                                <div className="text-xs text-muted-foreground mb-2 px-2 sticky top-10 bg-popover z-10">Select Location</div>
-                                {loading ? (
-                                    <div className="text-sm text-muted-foreground px-2 py-1">Loading...</div>
-                                ) : (
-                                    dropdownLocations.map((location) => (
-                                        <DropdownMenuItem
-                                            key={location}
-                                            onClick={() => setSelectedLocation(location)}
-                                            className={`cursor-pointer ${selectedLocation === location ? "bg-primary/10 text-primary" : ""}`}
-                                        >
-                                            <MapPin className="w-4 h-4 mr-2" />
-                                            {location}
-                                        </DropdownMenuItem>
-                                    ))
-                                )}
+
+                                {/* Results Section */}
+                                <div className="max-h-72 overflow-y-auto py-2 scrollbar-thin scrollbar-thumb-primary/10 scrollbar-track-transparent">
+                                    <div className="flex items-center justify-between px-4 py-1 mb-1">
+                                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                                            {pincode.length === 6 ? "Search Results" : "Suggested Locations"}
+                                        </span>
+                                    </div>
+                                    {loading ? (
+                                        <div className="px-4 py-8 text-center animate-pulse">
+                                            <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin mx-auto mb-3" />
+                                            <p className="text-sm text-muted-foreground font-medium">Searching for local deals...</p>
+                                        </div>
+                                    ) : dropdownLocations.length === 0 ? (
+                                        <div className="px-4 py-8 text-center animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                            <MapPin className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
+                                            <p className="text-sm text-muted-foreground">No locations found</p>
+                                        </div>
+                                    ) : (
+                                        dropdownLocations.map((location) => (
+                                            <DropdownMenuItem
+                                                key={location}
+                                                onClick={() => setSelectedLocation(location)}
+                                                className={cn(
+                                                    "mx-2 rounded-xl cursor-pointer py-3 px-3 transition-all duration-200",
+                                                    selectedLocation === location
+                                                        ? "bg-primary/10 text-primary font-semibold"
+                                                        : "hover:bg-primary/5 focus:bg-primary/5"
+                                                )}
+                                            >
+                                                <div className="flex items-center w-full">
+                                                    <div className={cn(
+                                                        "w-8 h-8 rounded-lg flex items-center justify-center mr-3 transition-colors",
+                                                        selectedLocation === location ? "bg-primary/20" : "bg-secondary"
+                                                    )}>
+                                                        <MapPin className={cn("w-4 h-4", selectedLocation === location ? "text-primary" : "text-muted-foreground")} />
+                                                    </div>
+                                                    <span className="text-sm">{location}</span>
+                                                    {selectedLocation === location && (
+                                                        <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                                                    )}
+                                                </div>
+                                            </DropdownMenuItem>
+                                        ))
+                                    )}
+                                </div>
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </nav>
@@ -175,48 +244,97 @@ const Header = () => {
                                         <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-primary to-secondary group-hover:w-full transition-all duration-300" />
                                     </button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent className="w-80 p-2 max-h-64 overflow-y-auto scrollbar-hide bg-white" align="start">
-                                    <div className="mb-2 sticky top-0 bg-popover z-10">
-                                        <input
-                                            type="text"
-                                            placeholder="Enter pincode"
-                                            value={pincode}
-                                            onChange={(e) => {
-                                                const value = e.target.value;
-                                                setPincode(value);
-                                                if (value === '') {
-                                                    setDropdownLocations(locations);
-                                                }
-                                                if (debounceTimer) clearTimeout(debounceTimer);
-                                                const timer = setTimeout(() => {
-                                                    if (value.length === 6 && /^\d+$/.test(value)) {
-                                                        fetchLocations(value);
+                                <DropdownMenuContent className="w-[calc(100vw-2rem)] sm:w-80 p-0 overflow-hidden bg-white/95 backdrop-blur-md border border-primary/10 rounded-2xl shadow-2xl" align="start">
+                                    {/* Search Section */}
+                                    <div className="p-4 border-b border-primary/5 bg-primary/5">
+                                        <div className="relative group">
+                                            <div className="absolute left-3 top-1/2 -translate-y-1/2">
+                                                {loading ? (
+                                                    <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                                                ) : (
+                                                    <Search className="w-4 h-4 text-primary opacity-50 transition-opacity" />
+                                                )}
+                                            </div>
+                                            <input
+                                                type="text"
+                                                placeholder="Enter 6-digit pincode..."
+                                                value={pincode}
+                                                maxLength={6}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    if (value && !/^\d*$/.test(value)) return;
+                                                    setPincode(value);
+                                                    if (value === '') {
+                                                        setDropdownLocations(locations);
                                                     }
-                                                }, 500);
-                                                setDebounceTimer(timer);
-                                            }}
-                                            className="w-full pl-3 pr-3 py-2 text-sm border border-orange-500 rounded focus:ring-2 focus:ring-orange-500 focus:border-orange-600 focus:outline-none"
-                                        />
+                                                    if (debounceTimer) clearTimeout(debounceTimer);
+                                                    const timer = setTimeout(() => {
+                                                        if (value.length === 6) {
+                                                            fetchLocations(value);
+                                                        }
+                                                    }, 500);
+                                                    setDebounceTimer(timer);
+                                                }}
+                                                className="w-full pl-10 pr-10 py-2.5 text-sm bg-white border border-primary/10 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none transition-all shadow-inner"
+                                            />
+                                            {pincode && (
+                                                <button
+                                                    onClick={() => { setPincode(""); setDropdownLocations(locations); }}
+                                                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-primary/10 rounded-full transition-colors"
+                                                >
+                                                    <X className="w-3 h-3 text-muted-foreground" />
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
-                                    <div className="text-xs text-muted-foreground mb-2 px-2 sticky top-10 bg-popover z-10">Select Location</div>
-                                    {loading ? (
-                                        <div className="text-sm text-muted-foreground px-2 py-1">Loading...</div>
-                                    ) : (
-                                        dropdownLocations.map((location) => (
-                                            <DropdownMenuItem
-                                                key={location}
-                                                onClick={() => setSelectedLocation(location)}
-                                                className={`cursor-pointer ${selectedLocation === location ? "bg-primary/10 text-primary" : ""}`}
-                                            >
-                                                <MapPin className="w-4 h-4 mr-2" />
-                                                {location}
-                                            </DropdownMenuItem>
-                                        ))
-                                    )}
+
+                                    {/* Results Section */}
+                                    <div className="max-h-72 overflow-y-auto py-2 scrollbar-hide">
+                                        <div className="flex items-center justify-between px-4 py-1 mb-1">
+                                            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                                                {pincode.length === 6 ? "Search Results" : "Suggested Locations"}
+                                            </span>
+                                        </div>
+                                        {loading ? (
+                                            <div className="px-4 py-8 text-center animate-pulse">
+                                                <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin mx-auto mb-3" />
+                                                <p className="text-sm text-muted-foreground font-medium">Searching for local deals...</p>
+                                            </div>
+                                        ) : dropdownLocations.length === 0 ? (
+                                            <div className="px-4 py-8 text-center animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                                <MapPin className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
+                                                <p className="text-sm text-muted-foreground">No locations found</p>
+                                            </div>
+                                        ) : (
+                                            dropdownLocations.map((location) => (
+                                                <DropdownMenuItem
+                                                    key={location}
+                                                    onClick={() => setSelectedLocation(location)}
+                                                    className={cn(
+                                                        "mx-2 rounded-xl cursor-pointer py-3 px-3 transition-all duration-200",
+                                                        selectedLocation === location
+                                                            ? "bg-primary/10 text-primary font-semibold"
+                                                            : "hover:bg-primary/5"
+                                                    )}
+                                                >
+                                                    <div className="flex items-center w-full">
+                                                        <div className={cn(
+                                                            "w-8 h-8 rounded-lg flex items-center justify-center mr-3",
+                                                            selectedLocation === location ? "bg-primary/20" : "bg-secondary"
+                                                        )}>
+                                                            <MapPin className={cn("w-4 h-4", selectedLocation === location ? "text-primary" : "text-muted-foreground")} />
+                                                        </div>
+                                                        <span className="text-sm">{location}</span>
+                                                    </div>
+                                                </DropdownMenuItem>
+                                            ))
+                                        )}
+                                    </div>
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </div>
-                        <DropdownMenu onOpenChange={setAccountOpen} modal={false}>
+
+                        {/* <DropdownMenu onOpenChange={setAccountOpen} modal={false}>
                             <DropdownMenuTrigger asChild>
                                 <PremiumButton
                                     variant="ghost"
@@ -281,12 +399,29 @@ const Header = () => {
                                     <span className="font-medium">Log Out</span>
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
-                        </DropdownMenu>
+                        </DropdownMenu> */}
+
+                        {!isRegistered && (
+                            <PremiumButton
+                                variant="outline"
+                                size="sm"
+                                className="hidden md:flex rounded-2xl px-3 sm:px-4 lg:px-6 border-primary/20 hover:bg-primary/5 transition-all duration-300"
+                                asChild
+                            >
+                                <Link href="/login" className="flex items-center">
+                                    <LogIn className="w-4 h-4 mr-2" />
+                                    <span className="inline">Login</span>
+                                </Link>
+                            </PremiumButton>
+                        )}
 
                         <PremiumButton
                             asChild
                             size="sm"
-                            className="hidden md:flex rounded-2xl px-3 sm:px-4 lg:px-6"
+                            className={cn(
+                                "hidden md:flex rounded-2xl px-3 sm:px-4 lg:px-6 shadow-lg shadow-primary/20 transition-all duration-300",
+                                (pathname.startsWith("/shop-manager") || pathname.startsWith("/shop-registration")) && "ring-2 ring-primary ring-offset-2 scale-105"
+                            )}
                         >
                             <Link href={isRegistered ? "/shop-manager" : "/shop-registration"} className="flex items-center">
                                 <PlusCircle className="w-4 h-4 mr-2" />
@@ -296,39 +431,76 @@ const Header = () => {
                     </div>
                 </div>
 
-                {/* Second Row - Search */}
+                {/* Second Row - Search Field */}
                 {!scrolled && (
                     <div className="mt-4 flex justify-end hidden md:flex">
-                        <div className={`transition-all duration-300 ease-in-out ${searchOpen ? 'w-full max-w-2xl' : 'w-auto'}`}>
-                            {!searchOpen ? (
-                                <Button
-                                    variant="outline"
-                                    onClick={() => setSearchOpen(true)}
-                                    className="flex items-center gap-2 bg-card/80 backdrop-blur-sm border border-primary/20 rounded-2xl shadow-lg hover:border-primary/40 transition-all"
-                                >
-                                    <Search className="w-5 h-5" />
-                                    <span className="hidden sm:inline">Search shops, offers, deals...</span>
-                                </Button>
-                            ) : (
-                                <div className="relative w-full group">
-                                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-primary/5 to-secondary/5 opacity-0 group-focus-within:opacity-100 transition-opacity" />
-                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                                    <Input
-                                        type="text"
-                                        placeholder="Search shops, offers, deals..."
-                                        className="w-full pl-12 pr-12 py-3 h-12 bg-card/80 backdrop-blur-sm border border-primary/20 rounded-2xl shadow-lg focus:ring-2 focus:ring-primary/30 focus:border-primary focus:bg-card transition-all hover:border-primary/40"
-                                        autoFocus
-                                        onBlur={() => setSearchOpen(false)}
-                                    />
-                                    <button
-                                        onClick={() => setSearchOpen(false)}
-                                        className="absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-secondary rounded-lg transition-colors"
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </button>
-                                    <div className="absolute inset-0 rounded-2xl border border-primary/10 pointer-events-none group-focus-within:border-primary/30 transition-colors" />
-                                </div>
+                        <div
+                            className={cn(
+                                "relative h-11 flex items-center transition-all duration-500 ease-[cubic-bezier(0.2,0,0,1)] w-full",
+                                searchOpen ? "max-w-2xl" : "max-w-[280px]"
                             )}
+                        >
+                            {/* Persistent Glass Container */}
+                            <div
+                                onClick={() => !searchOpen && setSearchOpen(true)}
+                                className={cn(
+                                    "absolute inset-0 rounded-2xl border transition-all duration-500 overflow-hidden",
+                                    searchOpen
+                                        ? "bg-white border-primary shadow-xl shadow-primary/10 cursor-default"
+                                        : "bg-white/80 backdrop-blur-sm border-primary/20 shadow-md hover:border-primary/40 hover:bg-white cursor-pointer"
+                                )}
+                            >
+                                {/* Subtle inner glow on focus */}
+                                <div className={cn(
+                                    "absolute inset-0 bg-primary/[0.03] opacity-0 transition-opacity duration-500",
+                                    searchOpen && "opacity-100"
+                                )} />
+                            </div>
+
+                            {/* Icons Layer */}
+                            <Search className={cn(
+                                "absolute left-4 w-4 h-4 z-20 transition-colors duration-300 pointer-events-none",
+                                searchOpen ? "text-primary" : "text-muted-foreground"
+                            )} />
+
+                            {/* Clean Transitioning Input */}
+                            <input
+                                type="text"
+                                placeholder={searchOpen ? "Search for shops, offers, products..." : ""}
+                                onFocus={() => setSearchOpen(true)}
+                                onBlur={(e) => {
+                                    // Don't close if we clicked the clear button
+                                    if (e.relatedTarget?.getAttribute('data-clear') === 'true') return;
+                                    setSearchOpen(false);
+                                }}
+                                className={cn(
+                                    "relative z-10 w-full h-full pl-11 pr-11 bg-transparent border-none focus:ring-0 outline-none transition-all duration-500 text-sm font-medium",
+                                    !searchOpen && "cursor-pointer"
+                                )}
+                            />
+
+                            {/* Placeholder that mimics the input's text when closed */}
+                            {!searchOpen && (
+                                <span className="absolute left-11 text-sm font-medium text-muted-foreground opacity-70 pointer-events-none transition-opacity duration-300">
+                                    Search shops, offers, deals...
+                                </span>
+                            )}
+
+                            {/* Clear Button */}
+                            <button
+                                data-clear="true"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setSearchOpen(false);
+                                }}
+                                className={cn(
+                                    "absolute right-3 z-20 p-1 rounded-full hover:bg-secondary transition-all duration-300",
+                                    searchOpen ? "opacity-100 scale-100" : "opacity-0 scale-75 pointer-events-none"
+                                )}
+                            >
+                                <X className="w-3.5 h-3.5 text-muted-foreground" />
+                            </button>
                         </div>
                     </div>
                 )}
@@ -337,26 +509,80 @@ const Header = () => {
                 {mobileMenuOpen && (
                     <div className="lg:hidden mt-4 p-6 glass-card rounded-2xl animate-fade-in border border-primary/10">
                         <nav className="flex flex-col gap-3">
-                            <a href="#" className="px-4 py-3 rounded-xl hover:bg-gradient-to-r hover:from-primary/10 hover:to-secondary/10 transition-all duration-300 border border-transparent hover:border-primary/20">
-                                Offers
-                            </a>
-                            <a href="#" className="px-4 py-3 rounded-xl hover:bg-gradient-to-r hover:from-primary/10 hover:to-secondary/10 transition-all duration-300 border border-transparent hover:border-primary/20">
-                                Products
-                            </a>
-                            <a href="#" className="px-4 py-3 rounded-xl hover:bg-gradient-to-r hover:from-primary/10 hover:to-secondary/10 transition-all duration-300 border border-transparent hover:border-primary/20">
-                                Coupon
-                            </a>
-                            <a href="#" className="px-4 py-3 rounded-xl hover:bg-gradient-to-r hover:from-primary/10 hover:to-secondary/10 transition-all duration-300 border border-transparent hover:border-primary/20 flex items-center">
-                                <User className="w-4 h-4 mr-3 text-muted-foreground" />
-                                Profile
+                            <Link
+                                href="/"
+                                onClick={() => setMobileMenuOpen(false)}
+                                className={cn(
+                                    "px-4 py-3 rounded-xl transition-all duration-300 border flex items-center justify-between",
+                                    pathname === "/"
+                                        ? "bg-orange-500/10 border-orange-500/20 text-orange-500 font-bold shadow-sm"
+                                        : "hover:bg-orange-500/5 hover:text-orange-500 border-transparent hover:border-orange-500/20"
+                                )}
+                            >
+                                <span>Home</span>
+                            </Link>
+                            <Link
+                                href="/offers"
+                                onClick={() => setMobileMenuOpen(false)}
+                                className={cn(
+                                    "px-4 py-3 rounded-xl transition-all duration-300 border flex items-center justify-between",
+                                    (pathname === "/offers" || pathname.startsWith('/offer/'))
+                                        ? "bg-orange-500/10 border-orange-500/20 text-orange-500 font-bold shadow-sm"
+                                        : "hover:bg-orange-500/5 hover:text-orange-500 border-transparent hover:border-orange-500/20"
+                                )}
+                            >
+                                <span>Offers</span>
+                            </Link>
+                            <Link
+                                href="/products"
+                                onClick={() => setMobileMenuOpen(false)}
+                                className={cn(
+                                    "px-4 py-3 rounded-xl transition-all duration-300 border flex items-center justify-between",
+                                    pathname.startsWith("/products")
+                                        ? "bg-orange-500/10 border-orange-500/20 text-orange-500 font-bold shadow-sm"
+                                        : "hover:bg-orange-500/5 hover:text-orange-500 border-transparent hover:border-orange-500/20"
+                                )}
+                            >
+                                <span>Products</span>
+                            </Link>
+                            <Link
+                                href="/#"
+                                onClick={() => setMobileMenuOpen(false)}
+                                className={cn(
+                                    "px-4 py-3 rounded-xl transition-all duration-300 border flex items-center justify-between",
+                                    pathname.startsWith("/coupons")
+                                        ? "bg-orange-500/10 border-orange-500/20 text-orange-500 font-bold shadow-sm"
+                                        : "hover:bg-orange-500/5 hover:text-orange-500 border-transparent hover:border-orange-500/20"
+                                )}
+                            >
+                                <span>Coupon</span>
+                            </Link>
+                            <a href="#" className={cn(
+                                "px-4 py-3 rounded-xl transition-all duration-300 border flex items-center justify-between",
+                                pathname === "/profile" // Assuming a profile page path
+                                    ? "bg-orange-500/10 border-orange-500/20 text-orange-500 font-bold shadow-sm"
+                                    : "hover:bg-orange-500/5 hover:text-orange-500 border-transparent hover:border-orange-500/20"
+                            )}>
+                                <div className="flex items-center">
+                                    <User className={cn("w-4 h-4 mr-3", pathname === "/profile" ? "text-orange-500" : "text-muted-foreground")} />
+                                    Profile
+                                </div>
                             </a>
                             {isRegistered && (
                                 <Link
                                     href="/shop-manager"
-                                    className="px-4 py-3 rounded-xl hover:bg-gradient-to-r hover:from-primary/10 hover:to-secondary/10 transition-all duration-300 border border-transparent hover:border-primary/20 flex items-center"
+                                    onClick={() => setMobileMenuOpen(false)}
+                                    className={cn(
+                                        "px-4 py-3 rounded-xl transition-all duration-300 border flex items-center justify-between",
+                                        pathname.startsWith("/shop-manager")
+                                            ? "bg-orange-500/10 border-orange-500/20 text-orange-500 font-bold shadow-sm"
+                                            : "hover:bg-orange-500/5 hover:text-orange-500 border-transparent hover:border-orange-500/20"
+                                    )}
                                 >
-                                    <LayoutDashboard className="w-4 h-4 mr-3 text-primary" />
-                                    Shop Dashboard
+                                    <div className="flex items-center">
+                                        <LayoutDashboard className={cn("w-4 h-4 mr-3", pathname.startsWith("/shop-manager") ? "text-orange-500" : "text-muted-foreground")} />
+                                        Shop Dashboard
+                                    </div>
                                 </Link>
                             )}
                             <PremiumButton

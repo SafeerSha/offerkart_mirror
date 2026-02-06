@@ -1,7 +1,8 @@
 import CreateOfferForm from "@/components/shop-manager/CreateOfferForm";
 import Link from "next/link";
-import { ChevronLeft, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { Heading, Text } from "@/components/shared/Typography";
+import Breadcrumbs from "@/components/shared/Breadcrumbs";
 
 export default function CreateOfferPage() {
     return (
@@ -15,13 +16,12 @@ export default function CreateOfferPage() {
                 <div className="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/2 w-[250px] md:w-[400px] h-[250px] md:h-[400px] bg-secondary/5 rounded-full blur-3xl pointer-events-none" />
 
                 <div className="max-w-3xl mx-auto mb-8 md:mb-12 relative">
-                    <Link
-                        href="/shop-manager"
-                        className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-primary transition-colors mb-4 md:mb-6"
-                    >
-                        <ChevronLeft className="w-4 h-4 mr-1" />
-                        Back to Dashboard
-                    </Link>
+                    <Breadcrumbs
+                        items={[
+                            { label: "Shop Dashboard", href: "/shop-manager" },
+                            { label: "Create Offer" }
+                        ]}
+                    />
 
                     <div className="flex flex-col md:flex-row md:items-center gap-4 mb-2">
                         <div className="w-12 h-12 rounded-2xl gradient-futuristic flex items-center justify-center shadow-lg shadow-primary/20">

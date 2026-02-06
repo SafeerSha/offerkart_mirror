@@ -3,7 +3,7 @@ import { Rubik } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 
-import Header from "@/components/layout/Header";
+import { ConditionalHeader } from "@/components/layout/ConditionalHeader";
 
 const rubik = Rubik({
   subsets: ["latin"],
@@ -33,7 +33,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${rubik.variable} antialiased`}>
         <Providers>
-          <Header />
+          <ConditionalHeader />
           {children}
         </Providers>
       </body>

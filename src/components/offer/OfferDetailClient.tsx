@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import Image, { StaticImageData } from "next/image";
-import { ArrowLeft, Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
+import { Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { Subheading, Text } from "@/components/shared/Typography";
 
+import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import OfferCard from "@/components/offer/OfferCard";
 
 interface OfferDetail {
@@ -41,9 +41,32 @@ interface OfferDetailClientProps {
 }
 
 export default function OfferDetailClient({ offer, similarOffers }: OfferDetailClientProps) {
-    const router = useRouter();
     const [posterIndex, setPosterIndex] = useState(0);
     const [similarCarouselIndex, setSimilarCarouselIndex] = useState(0);
+
+    const [breadcrumbItems, setBreadcrumbItems] = useState([
+        { label: "Offers", href: "/offers" },
+        { label: offer.offerName }
+    ]);
+
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const referrer = document.referrer;
+            const origin = window.location.origin;
+
+            if (referrer === origin || referrer === origin + "/") {
+                // If coming from Home, show simple Home > [Offer] path
+                setBreadcrumbItems([{ label: offer.offerName }]);
+            } else if (referrer.includes("/offers")) {
+                // If coming from Offers list, preserve filters in the breadcrumb link
+                const path = referrer.replace(origin, "");
+                setBreadcrumbItems([
+                    { label: "Offers", href: path },
+                    { label: offer.offerName }
+                ]);
+            }
+        }
+    }, [offer.offerName]);
 
     const nextPoster = () => {
         setPosterIndex((prev) => (prev + 1) % offer.images.length);
@@ -69,18 +92,11 @@ export default function OfferDetailClient({ offer, similarOffers }: OfferDetailC
 
 
             {/* Hero Spacer */}
-            <div className="h-32 lg:h-24" />
+            <div className="h-40 lg:h-36" />
 
-            {/* Back Button */}
+            {/* Breadcrumbs */}
             <div className="container mx-auto px-4 py-4">
-                <PremiumButton
-                    variant="ghost"
-                    onClick={() => router.back()}
-                    className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
-                >
-                    <ArrowLeft className="w-4 h-4" />
-                    Back to Offers
-                </PremiumButton>
+                <Breadcrumbs items={breadcrumbItems} />
             </div>
 
             <div className="container mx-auto px-4 pb-16">
