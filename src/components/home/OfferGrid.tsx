@@ -26,6 +26,7 @@ interface OfferGridProps {
   className?: string;
   redirectToOffers?: boolean;
   buttonText?: string;
+  columns?: 3 | 4;
 }
 
 const OfferGrid = ({
@@ -33,7 +34,8 @@ const OfferGrid = ({
   offers,
   className,
   redirectToOffers = false,
-  buttonText = "Load More Offers"
+  buttonText = "Load More Offers",
+  columns = 3
 }: OfferGridProps) => {
   const router = useRouter();
   const [visibleCount, setVisibleCount] = useState(8);
@@ -59,7 +61,11 @@ const OfferGrid = ({
 
   if (isLoading) {
     return (
-      <div className={cn("grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6", className)}>
+      <div className={cn(
+        "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6",
+        columns === 4 ? "xl:grid-cols-4" : "xl:grid-cols-3",
+        className
+      )}>
         {[...Array(6)].map((_, i) => (
           <div key={i} className="bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-sm animate-pulse">
             <div className="aspect-[4/3] bg-gray-200" />
@@ -91,7 +97,10 @@ const OfferGrid = ({
 
   return (
     <div className={className}>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-fr">
+      <div className={cn(
+        "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 auto-rows-fr",
+        columns === 4 ? "xl:grid-cols-4" : "xl:grid-cols-3"
+      )}>
         {visibleOffers.map((offer, index) => {
           return (
             <div

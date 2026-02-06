@@ -1,6 +1,7 @@
 import ShopRegistrationForm from "@/components/shop-registration/ShopRegistrationForm";
 import Link from "next/link";
-import { ArrowLeft, Rocket, BarChart3, Gem, Store } from "lucide-react";
+import { Rocket, BarChart3, Gem, Store } from "lucide-react";
+import Breadcrumbs from "@/components/shared/Breadcrumbs";
 
 export default function ShopRegistrationPage() {
     return (
@@ -51,13 +52,9 @@ export default function ShopRegistrationPage() {
             <div className="w-full lg:w-3/5 flex flex-col min-h-screen bg-white">
                 {/* Back to Home */}
                 <div className="p-6 lg:p-8">
-                    <Link
-                        href="/"
-                        className="inline-flex items-center gap-2 text-gray-600 hover:text-orange-500 transition-colors font-medium group"
-                    >
-                        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                        Back to Home
-                    </Link>
+                    <Breadcrumbs
+                        items={[{ label: "Shop Registration" }]}
+                    />
                 </div>
 
                 {/* Form Container */}

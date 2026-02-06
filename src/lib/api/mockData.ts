@@ -282,3 +282,123 @@ export const ALL_OFFERS = [
         rating: 4.8,
     },
 ];
+
+export const ALL_PRODUCTS = [
+    {
+        id: 1,
+        name: "Premium Arabica Coffee Beans",
+        shopName: "Artisan Coffee House",
+        price: 899,
+        originalPrice: 1200,
+        image: "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?q=80&w=800&auto=format&fit=crop",
+        category: "Food & Dining",
+        subcategory: ["Cafes"],
+        rating: 4.8,
+        reviews: 124,
+        discount: "25% OFF"
+    },
+    {
+        id: 2,
+        name: "Vintage Denim Jacket",
+        shopName: "Bella Boutique",
+        price: 2499,
+        originalPrice: 4999,
+        image: "https://images.unsplash.com/photo-1523205771623-e0faa4d2813d?q=80&w=800&auto=format&fit=crop",
+        category: "Fashion",
+        subcategory: ["Clothing"],
+        rating: 4.9,
+        reviews: 86,
+        discount: "50% OFF"
+    },
+    {
+        id: 3,
+        name: "Organic Essential Oils Set",
+        shopName: "Zen Spa & Wellness",
+        price: 1599,
+        originalPrice: 1999,
+        image: "https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?q=80&w=800&auto=format&fit=crop",
+        category: "Wellness",
+        subcategory: ["Spa"],
+        rating: 4.7,
+        reviews: 215,
+        discount: "₹400 OFF"
+    },
+    {
+        id: 4,
+        name: "Smart Wireless Headphones",
+        shopName: "Tech Haven",
+        price: 5999,
+        originalPrice: 8999,
+        image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=800&auto=format&fit=crop",
+        category: "Electronics",
+        subcategory: ["Laptops"], // Close enough
+        rating: 4.6,
+        reviews: 156,
+        discount: "33% OFF"
+    },
+    {
+        id: 5,
+        name: "Professional Yoga Mat",
+        shopName: "FitLife Gym",
+        price: 1299,
+        originalPrice: 1800,
+        image: "https://images.unsplash.com/photo-1592432678016-e910b452f9a2?q=80&w=800&auto=format&fit=crop",
+        category: "Fitness",
+        subcategory: ["Gym"],
+        rating: 4.8,
+        reviews: 92,
+        discount: "28% OFF"
+    },
+    {
+        id: 6,
+        name: "18K Gold Plated Necklace",
+        shopName: "Royal Jewels",
+        price: 3499,
+        originalPrice: 4500,
+        image: "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?q=80&w=800&auto=format&fit=crop",
+        category: "Jewelry",
+        subcategory: ["Gold"],
+        rating: 4.9,
+        reviews: 45,
+        discount: "₹1001 OFF"
+    },
+    {
+        id: 7,
+        name: "Hydrating Face Serum",
+        shopName: "Style Hub",
+        price: 799,
+        originalPrice: 999,
+        image: "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?q=80&w=800&auto=format&fit=crop",
+        category: "Beauty",
+        subcategory: ["Skincare"],
+        rating: 4.5,
+        reviews: 210,
+        discount: "20% OFF"
+    },
+    {
+        id: 8,
+        name: "Gourmet Dark Chocolate Box",
+        shopName: "Fresh Bakery",
+        price: 499,
+        originalPrice: 650,
+        image: "https://images.unsplash.com/photo-1548907040-4bb42b2648fb?q=80&w=800&auto=format&fit=crop",
+        category: "Food & Dining",
+        subcategory: ["Bakeries"],
+        rating: 4.7,
+        reviews: 128,
+        discount: "23% OFF"
+    },
+    {
+        id: 10,
+        name: "Bluetooth Smart Watch",
+        shopName: "Gadget World",
+        price: 2999,
+        originalPrice: 4500,
+        image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=800&auto=format&fit=crop",
+        category: "Electronics",
+        subcategory: ["Mobile"],
+        rating: 4.4,
+        reviews: 98,
+        discount: "33% OFF"
+    }
+];

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { StaticImageData } from "next/image";
 import { getAllOffers } from "@/lib/api/offers";
 import OfferGrid from "@/components/home/OfferGrid";
@@ -14,8 +15,9 @@ import {
     SheetTitle,
     SheetTrigger,
 } from "@/components/ui/sheet";
-import { ChevronLeft, Filter } from "lucide-react";
+import { Filter } from "lucide-react";
 import { PremiumButton } from "@/components/shared/PremiumButton";
+import Breadcrumbs from "@/components/shared/Breadcrumbs";
 
 interface Offer {
     id: number;
@@ -29,7 +31,10 @@ interface Offer {
     rating?: number;
 }
 
-export default function OffersPage() {
+function OffersContent() {
+    const searchParams = useSearchParams();
+    const initialCategory = searchParams.get("category") || "All";
+
     const [offers, setOffers] = useState<Offer[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
@@ -38,10 +43,18 @@ export default function OffersPage() {
         subcategory: string[];
         sort: string;
     }>({
-        category: "All",
+        category: initialCategory,
         subcategory: [],
         sort: "latest"
     });
+
+    // Sync category from URL if it changes
+    useEffect(() => {
+        const cat = searchParams.get("category");
+        if (cat) {
+            setActiveFilters(prev => ({ ...prev, category: cat, subcategory: [] }));
+        }
+    }, [searchParams]);
 
     // Stable Change Handlers
     const handleCategoryChange = useCallback((category: string) => {
@@ -73,20 +86,13 @@ export default function OffersPage() {
 
     return (
         <div className="min-h-screen bg-gray-50/50">
-            {/* Simple Header */}
-            <div className="pt-28 pb-6 lg:pt-36 lg:pb-8">
-                <div className="container mx-auto px-4">
-                    <Link
-                        href="/"
-                        className="inline-flex items-center text-sm font-medium text-gray-600 hover:text-orange-600 transition-colors group"
-                    >
-                        <ChevronLeft className="w-4 h-4 mr-1 group-hover:-translate-x-1 transition-transform" />
-                        Back to Home
-                    </Link>
-                </div>
-            </div>
+            <div className="pt-28"></div> {/* Spacing for the fixed header */}
 
-            <main className="container mx-auto px-4 py-12">
+            <main className="container mx-auto px-4 py-8">
+                <Breadcrumbs
+                    items={[{ label: "Offers" }]}
+                />
+
                 <div className="flex flex-col lg:flex-row gap-10">
                     {/* Left Sidebar - Desktop */}
                     <aside className="hidden lg:block w-72 flex-shrink-0">
@@ -189,5 +195,13 @@ export default function OffersPage() {
             {/* Bottom Spacer */}
             <div className="py-20" />
         </div>
+    );
+}
+
+export default function OffersPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-gray-50/50 pt-28 flex items-center justify-center">Loading...</div>}>
+            <OffersContent />
+        </Suspense>
     );
 }

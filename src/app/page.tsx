@@ -40,6 +40,7 @@ export default async function HomePage() {
             offers={allOffers}
             redirectToOffers={true}
             buttonText="Explore All Offers"
+            columns={4}
           />
         </div>
       </section>

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRegistration } from "@/hooks/useRegistration";
+import Breadcrumbs from "@/components/shared/Breadcrumbs";
 
 export default function ShopManagerPage() {
     const { setRegistrationStatus } = useRegistration();
@@ -29,6 +30,9 @@ export default function ShopManagerPage() {
     return (
         <main className="min-h-screen pt-24 pb-12 bg-[radial-gradient(circle_at_top_right,hsl(var(--color-primary)/0.05)_0%,transparent_50%)]">
             <div className="container mx-auto px-4">
+                <Breadcrumbs
+                    items={[{ label: "Shop Dashboard" }]}
+                />
                 {/* Header Section */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
                     <div>
@@ -117,7 +121,7 @@ export default function ShopManagerPage() {
                                     Pro Tip
                                 </h4>
                                 <Text className="text-sm leading-relaxed">
-                                    Adding high-quality images to your offers increases customer engagement by up to 40%.
+                                    Keep your offers fresh! Updating your deals weekly signals to customers that your shop is active, leading to higher trust and repeat visits.
                                 </Text>
                             </div>
                         </PremiumCard>

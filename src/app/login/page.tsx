@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Eye, EyeOff, Mail, Lock, ArrowLeft, ArrowRight } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, ArrowRight } from "lucide-react";
+import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -76,13 +77,9 @@ export default function LoginPage() {
             <div className="w-full lg:w-1/2 flex flex-col min-h-screen bg-white">
                 {/* Back to Home */}
                 <div className="p-6 lg:p-8">
-                    <Link
-                        href="/"
-                        className="inline-flex items-center gap-2 text-gray-600 hover:text-orange-500 transition-colors font-medium group"
-                    >
-                        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                        Back to Home
-                    </Link>
+                    <Breadcrumbs
+                        items={[{ label: "Login" }]}
+                    />
                 </div>
 
                 {/* Form Container */}
