@@ -27,7 +27,7 @@ export const FEATURED_SHOPS = [
     {
         id: 3,
         name: "Zen Spa & Wellness",
-        offer: "Couples Massage Package - $99",
+        offer: "Couples Massage Package - ₹99",
         image: "https://images.unsplash.com/photo-1544161515-4ae6ce6fe858?q=80&w=800&auto=format&fit=crop",
         badge: "Limited Time",
         rating: 4.9,
@@ -35,7 +35,7 @@ export const FEATURED_SHOPS = [
     {
         id: 4,
         name: "The Grand Bistro",
-        offer: "3-Course Dinner for Two - $75",
+        offer: "3-Course Dinner for Two - ₹75",
         image: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=800&auto=format&fit=crop",
         badge: "Exclusive",
         rating: 4.7,
@@ -91,7 +91,7 @@ export const ALL_OFFERS = [
         category: "Wellness",
         location: "Uptown, Mumbai",
         validUntil: "5 days left",
-        discount: "Save $50",
+        discount: "Save ₹50",
         rating: 4.9,
     },
     {

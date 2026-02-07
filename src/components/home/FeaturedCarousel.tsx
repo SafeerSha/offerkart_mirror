@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Image, { StaticImageData } from "next/image";
-import { ChevronLeft, ChevronRight, Star, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, Star, Zap, Rocket } from "lucide-react";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { Heading, Subheading, Text } from "@/components/shared/Typography";
 
@@ -59,7 +59,7 @@ const FeaturedCarousel = ({ shops }: FeaturedCarouselProps) => {
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
             <div className="p-3 rounded-2xl bg-primary/10 border border-primary/20">
-              <Sparkles className="w-6 h-6 text-primary" />
+              <Zap className="w-6 h-6 text-primary" />
             </div>
             <div>
               <Subheading className="text-3xl font-bold mb-0">
@@ -151,7 +151,7 @@ const FeaturedCarousel = ({ shops }: FeaturedCarouselProps) => {
 
                   <div className="absolute top-4 left-4">
                     <span className="badge-futuristic">
-                      <Sparkles className="w-3 h-3 mr-1" />
+                      <Rocket className="w-3 h-3 mr-1" />
                       {offer.badge}
                     </span>
                   </div>

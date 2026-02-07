@@ -4,7 +4,7 @@ import FilterPanel from "@/components/home/FilterPanel";
 import OfferGrid from "@/components/home/OfferGrid";
 import ShopRegistrationSection from "@/components/home/ShopRegistrationSection";
 import { getFeaturedShops, getFeaturedOffers, getAllOffers } from "@/lib/api/offers";
-import { Store, Ticket, MapPin, Sparkles } from "lucide-react";
+import { Store, Ticket, MapPin, Award } from "lucide-react";
 import { Heading, Subheading, Text } from "@/components/shared/Typography";
 import { cn } from "@/lib/utils";
 
@@ -57,7 +57,7 @@ export default async function HomePage() {
         <div className="container mx-auto px-4 relative z-10">
           <div className="text-center mb-16 md:mb-20">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/5 text-primary text-xs font-bold uppercase tracking-[0.2em] mb-6 animate-fade-in border border-primary/10">
-              <Sparkles className="w-4 h-4" />
+              <Award className="w-4 h-4" />
               <span>Premium Features</span>
             </div>
             <Heading className="text-4xl md:text-5xl lg:text-6xl mb-6">Why Choose <span className="text-gradient">OfferKart?</span></Heading>

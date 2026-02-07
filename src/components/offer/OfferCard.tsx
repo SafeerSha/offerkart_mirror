@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image, { StaticImageData } from "next/image";
 import { useRouter } from "next/navigation";
-import { MapPin, Clock, ArrowRight, Heart, Sparkles } from "lucide-react";
+import { MapPin, Clock, ArrowRight, Heart, Tag } from "lucide-react";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { PremiumCard } from "@/components/shared/PremiumCard";
 
@@ -60,7 +60,7 @@ const OfferCard = ({
           <div className="flex flex-col gap-2 items-start">
             {discount && (
               <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-orange-500 text-white shadow-lg shadow-orange-500/20 flex items-center gap-1 animate-pulse">
-                <Sparkles className="w-3 h-3" />
+                <Tag className="w-3 h-3" />
                 {discount}
               </span>
             )}
