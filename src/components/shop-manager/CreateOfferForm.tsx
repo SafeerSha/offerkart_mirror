@@ -10,7 +10,7 @@ import {
     Image as ImageIcon,
     Calendar,
     Percent,
-    DollarSign,
+    IndianRupee,
     AlertCircle,
     CheckCircle2,
     Loader2,

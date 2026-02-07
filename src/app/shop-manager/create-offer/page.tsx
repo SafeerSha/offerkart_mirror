@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Sparkles, ArrowRight, X, Image as ImageIcon, Clock, FileEdit, Trash2, LayoutGrid } from "lucide-react";
+import { Zap, ArrowRight, X, Image as ImageIcon, Clock, FileEdit, Trash2, LayoutGrid } from "lucide-react";
 import { Heading, Subheading, Text } from "@/components/shared/Typography";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import { FileUpload } from "@/components/shared/FileUpload";
@@ -29,6 +29,7 @@ export default function CreateOfferPage() {
     const [drafts, setDrafts] = useState<Draft[]>([]);
     const [showDiscardModal, setShowDiscardModal] = useState(false);
     const [draftToDiscard, setDraftToDiscard] = useState<string | null>(null);
+    const [offerTitle, setOfferTitle] = useState("");
 
     // Load drafts from localStorage
     useEffect(() => {
@@ -122,11 +123,14 @@ export default function CreateOfferPage() {
                                     }}
                                     label=""
                                     className="w-full"
+                                    showTitleInput={true}
+                                    title={offerTitle}
+                                    onTitleChange={setOfferTitle}
                                 >
                                     {/* Publication Options inside hover overlay */}
                                     <div className="w-full space-y-4 max-w-md mx-auto">
                                         <div className="flex items-center justify-center gap-2 mb-2">
-                                            <Sparkles className="w-4 h-4 text-primary" />
+                                            <Zap className="w-4 h-4 text-primary" />
                                             <Text className="text-sm font-bold uppercase tracking-wider text-white">Select Action</Text>
                                         </div>
 
@@ -135,6 +139,10 @@ export default function CreateOfferPage() {
                                             <div
                                                 onClick={(e) => {
                                                     e.stopPropagation();
+                                                    if (!offerTitle.trim()) {
+                                                        toast.error("Please enter a campaign title first");
+                                                        return;
+                                                    }
                                                     setPublishMethod('direct');
                                                     // Simulate navigation to details form
                                                     setTimeout(() => router.push('/shop-manager/create-offer/details'), 400);
@@ -165,6 +173,10 @@ export default function CreateOfferPage() {
                                             <div
                                                 onClick={(e) => {
                                                     e.stopPropagation();
+                                                    if (!offerTitle.trim()) {
+                                                        toast.error("Please enter a campaign title first");
+                                                        return;
+                                                    }
                                                     setPublishMethod('hotspot');
 
                                                     // Save image to localStorage for the editor
@@ -173,7 +185,8 @@ export default function CreateOfferPage() {
                                                         reader.onload = () => {
                                                             localStorage.setItem('currentEditingPoster', JSON.stringify({
                                                                 posterSrc: reader.result as string,
-                                                                markedItems: []
+                                                                markedItems: [],
+                                                                title: offerTitle
                                                             }));
                                                             router.push('/shop-manager/create-offer/editor');
                                                         };
@@ -233,7 +246,7 @@ export default function CreateOfferPage() {
                             </div>
 
                             <div className="grid grid-cols-1 gap-4">
-                                {drafts.map((draft) => (
+                                {drafts.length > 0 ? drafts.map((draft) => (
                                     <div
                                         key={draft.id}
                                         className="group relative flex gap-4 p-4 rounded-3xl bg-card border border-border/50 hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 overflow-hidden"
@@ -289,18 +302,20 @@ export default function CreateOfferPage() {
                                             </div>
                                         </div>
                                     </div>
-                                ))}
+                                )) : (
+                                    <div className="p-8 rounded-3xl border-2 border-dashed border-primary/10 bg-primary/5 flex flex-col items-center justify-center text-center space-y-3 mt-4">
+                                        {/* Empty State Suggestion */}
+                                        <div className="w-12 h-12 rounded-full bg-background flex items-center justify-center shadow-sm">
+                                            <LayoutGrid className="w-6 h-6 text-primary/40" />
+                                        </div>
+                                        <div>
+                                            <Text className="text-sm font-semibold opacity-60">No drafts found</Text>
+                                            {/* <Text className="text-xs opacity-40">Your partially completed posters will automatically appear here.</Text> */}
+                                        </div>
+                                    </div>
+                                )}
 
-                                {/* Empty State Suggestion */}
-                                <div className="p-8 rounded-3xl border-2 border-dashed border-primary/10 bg-primary/5 flex flex-col items-center justify-center text-center space-y-3 mt-4">
-                                    <div className="w-12 h-12 rounded-full bg-background flex items-center justify-center shadow-sm">
-                                        <LayoutGrid className="w-6 h-6 text-primary/40" />
-                                    </div>
-                                    <div>
-                                        <Text className="text-sm font-semibold opacity-60">No more drafts found</Text>
-                                        <Text className="text-xs opacity-40">Your partially completed posters will automatically appear here.</Text>
-                                    </div>
-                                </div>
+
                             </div>
                         </div>
                     </div>

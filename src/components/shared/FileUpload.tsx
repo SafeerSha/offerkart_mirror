@@ -14,6 +14,9 @@ interface FileUploadProps {
     maxSizeMB?: number;
     className?: string;
     children?: React.ReactNode;
+    title?: string;
+    onTitleChange?: (title: string) => void;
+    showTitleInput?: boolean;
 }
 
 export const FileUpload = ({
@@ -23,7 +26,10 @@ export const FileUpload = ({
     acceptedTypes = "image/*",
     maxSizeMB = 5,
     className,
-    children
+    children,
+    title = "",
+    onTitleChange,
+    showTitleInput = false
 }: FileUploadProps) => {
     const [isDragging, setIsDragging] = useState(false);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -127,12 +133,13 @@ export const FileUpload = ({
                 onDrop={onDrop}
                 className={cn(
                     "relative group cursor-pointer transition-all duration-300",
-                    "min-h-[220px] rounded-3xl overflow-hidden",
+                    !previewUrl && "min-h-[220px]",
+                    "rounded-3xl overflow-hidden",
                     "border-2 border-dashed",
                     isDragging
                         ? "border-primary bg-primary/10 scale-[1.01] shadow-glow"
                         : previewUrl
-                            ? "border-primary/20 bg-background"
+                            ? "border-primary/20 bg-card"
                             : "border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/40",
                 )}
             >
@@ -146,15 +153,17 @@ export const FileUpload = ({
 
                 {previewUrl ? (
                     <div className={cn(
-                        "relative w-full h-full min-h-[220px] group/preview animate-fade-in",
+                        "relative w-full h-auto group/preview animate-fade-in",
                         showOverlay && "overlay-active"
                     )}>
                         {/* Image Preview */}
-                        <img
-                            src={previewUrl}
-                            alt="Preview"
-                            className="w-full h-full object-cover rounded-[1.4rem]"
-                        />
+                        <div className="w-full h-auto p-4 flex items-center justify-center">
+                            <img
+                                src={previewUrl}
+                                alt="Preview"
+                                className="w-full h-auto max-h-[800px] object-contain rounded-2xl shadow-2xl transition-all duration-500 group-hover/preview:scale-[1.01]"
+                            />
+                        </div>
 
                         {/* Options Overlay (Blurred Backdrop) */}
                         <div className={cn(
@@ -163,8 +172,29 @@ export const FileUpload = ({
                                 ? "opacity-100 pointer-events-auto"
                                 : "opacity-0 pointer-events-none",
                         )}>
-                            <div className={cn("transition-all duration-300", !showOverlay && "opacity-0 scale-95")}>
-                                {children}
+                            <div className={cn("transition-all duration-500 w-full max-w-lg", !showOverlay && "opacity-0 scale-95")}>
+                                {showTitleInput && (
+                                    <div className="mb-8 space-y-3">
+                                        <label className="text-xs font-bold uppercase tracking-widest text-white/50 block text-left ml-1">
+                                            Campaign Title *
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={title}
+                                            onChange={(e) => {
+                                                e.stopPropagation();
+                                                onTitleChange?.(e.target.value);
+                                            }}
+                                            onClick={(e) => e.stopPropagation()}
+                                            placeholder="e.g., Weekend Mega Sale 2024"
+                                            className="w-full px-5 py-4 rounded-2xl border-2 border-white/10 bg-white/5 backdrop-blur-md text-white placeholder:text-white/20 focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none font-bold text-lg"
+                                            required
+                                        />
+                                    </div>
+                                )}
+                                <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
+                                    {children}
+                                </div>
                             </div>
                         </div>
 
@@ -250,7 +280,7 @@ export const FileUpload = ({
                                 {isDragging ? "Drop your image here" : "Click or drag image to upload"}
                             </Text>
                             <Text className="text-sm opacity-60">
-                                Support for JPG, PNG and WEBP. Max size {maxSizeMB}MB
+                                Support for JPG, PNG and WEBP. <span className="text-red-500 font-bold">Max size {maxSizeMB}MB</span>
                             </Text>
                         </div>
 
@@ -262,7 +292,7 @@ export const FileUpload = ({
             </div>
 
             {error && (
-                <div className="flex items-center gap-2 text-destructive text-sm font-medium animate-slide-in">
+                <div className="flex items-center gap-2 text-destructive text-sm font-medium animate-slide-in text-red">
                     <X className="w-4 h-4" />
                     {error}
                 </div>

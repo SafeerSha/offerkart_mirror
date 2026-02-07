@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image, { StaticImageData } from "next/image";
-import { Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
+import { Tag, ChevronLeft, ChevronRight } from "lucide-react";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { Subheading, Text } from "@/components/shared/Typography";
 
@@ -112,7 +112,7 @@ export default function OfferDetailClient({ offer, similarOffers }: OfferDetailC
                         />
                         <div className="absolute top-4 left-4">
                             <span className="badge-futuristic">
-                                <Sparkles className="w-3 h-3 mr-1" />
+                                <Tag className="w-3 h-3 mr-1" />
                                 {offer.discount}
                             </span>
                         </div>

@@ -3,8 +3,8 @@
 import { useState, useRef, useEffect, MouseEvent, TouchEvent, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
-    ChevronLeft, Save, Info, Sparkles,
-    Trash2, Eye, Plus, DollarSign,
+    ChevronLeft, Save, Info, Send, CheckSquare, Rocket, Zap,
+    Trash2, Eye, Plus, IndianRupee,
     Type, AlignLeft, RefreshCcw,
     CheckCircle2, AlertCircle, FileEdit, X,
     Image as ImageIcon
@@ -14,6 +14,8 @@ import { Heading, Subheading, Text } from "@/components/shared/Typography";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import { PremiumCard } from "@/components/shared/PremiumCard";
 import { PremiumButton } from "@/components/shared/PremiumButton";
+import { PremiumInput } from "@/components/shared/PremiumInput";
+import { AppModal } from "@/components/shared/AppModal";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { storage } from "@/lib/storage";
@@ -78,6 +80,7 @@ export default function HotspotEditorPage() {
     const [cropRect, setCropRect] = useState<Rect | null>(null);
     const [isCropping, setIsCropping] = useState(false);
     const [cropStartPos, setCropStartPos] = useState<Position | null>(null);
+    const [showBackWarning, setShowBackWarning] = useState(false);
 
     // Refs
     const containerRef = useRef<HTMLDivElement>(null);
@@ -90,8 +93,11 @@ export default function HotspotEditorPage() {
     useEffect(() => {
         const data = localStorage.getItem('currentEditingPoster');
         if (data) {
-            setPosterData(JSON.parse(data));
-            // localStorage.removeItem('currentEditingPoster'); // Keep it for session persistence?
+            const parsedData = JSON.parse(data);
+            setPosterData(parsedData);
+            if (parsedData.title) {
+                setOfferTitle(parsedData.title);
+            }
         } else {
             router.push('/shop-manager/create-offer');
         }
@@ -407,6 +413,23 @@ export default function HotspotEditorPage() {
         }
     };
 
+    const handleDiscardSession = async () => {
+        try {
+            const draftId = (posterData as any).id;
+            if (draftId) {
+                const draftsArr = await storage.getItem<any[]>('offerDrafts') || [];
+                const filtered = draftsArr.filter((d: any) => d.id !== draftId);
+                await storage.setItem('offerDrafts', filtered);
+            }
+            localStorage.removeItem('currentEditingPoster');
+            toast.success("Changes discarded");
+            router.push('/shop-manager/create-offer');
+        } catch (error) {
+            console.error("Failed to discard session:", error);
+            toast.error("Failed to discard session cleanly");
+        }
+    };
+
     return (
         <div className="min-h-screen bg-background">
             <div className="h-24 lg:h-32" />
@@ -430,7 +453,7 @@ export default function HotspotEditorPage() {
                             </div>
 
                             <div className="flex gap-3 shrink-0">
-                                <PremiumButton variant="outline" onClick={() => router.back()} leftIcon={ChevronLeft}>
+                                <PremiumButton variant="outline" onClick={() => setShowBackWarning(true)} leftIcon={ChevronLeft}>
                                     Back
                                 </PremiumButton>
                                 <PremiumButton
@@ -443,7 +466,7 @@ export default function HotspotEditorPage() {
                                 <PremiumButton
                                     variant="default"
                                     onClick={handleFinish}
-                                    leftIcon={Sparkles}
+                                    leftIcon={Send}
                                     disabled={posterData.markedItems.length === 0}
                                 >
                                     Publish Offer
@@ -554,7 +577,7 @@ export default function HotspotEditorPage() {
                             <div className="flex items-center justify-between mb-6">
                                 <div className="flex items-center gap-2">
                                     <div className="p-2 bg-primary/10 rounded-lg">
-                                        <Sparkles className="w-5 h-5 text-primary" />
+                                        <CheckSquare className="w-5 h-5 text-primary" />
                                     </div>
                                     <Subheading className="m-0">Marked Items</Subheading>
                                 </div>
@@ -655,23 +678,25 @@ export default function HotspotEditorPage() {
                                     </button>
                                 </div>
 
-                                <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
+                                <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
                                     {/* Product Image Section */}
-                                    <div className="flex gap-6 items-start">
-                                        <div className="relative group">
-                                            <div className="w-32 h-32 rounded-3xl overflow-hidden bg-black/5 border-2 border-dashed border-primary/30 flex items-center justify-center">
+                                    <div className="flex gap-6 items-center p-4 bg-primary/5 rounded-3xl border border-primary/10">
+                                        <div className="relative group shrink-0">
+                                            <div className="w-24 h-24 rounded-2xl overflow-hidden bg-white shadow-sm border border-border group-hover:border-primary/50 transition-colors">
                                                 {formData.productImage ? (
                                                     <img src={formData.productImage} className="w-full h-full object-cover" alt="" />
                                                 ) : (
-                                                    <ImageIcon className="w-8 h-8 opacity-20" />
+                                                    <div className="w-full h-full flex items-center justify-center bg-muted">
+                                                        <ImageIcon className="w-8 h-8 opacity-20" />
+                                                    </div>
                                                 )}
                                             </div>
                                             <button
                                                 type="button"
                                                 onClick={startProductImageUpload}
-                                                className="absolute inset-0 bg-black/40 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-3xl"
+                                                className="absolute inset-0 bg-primary/40 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-300 rounded-2xl backdrop-blur-[2px]"
                                             >
-                                                <RefreshCcw className="w-6 h-6" />
+                                                <RefreshCcw className="w-6 h-6 animate-spin-slow" />
                                             </button>
                                             <input
                                                 ref={productFileInputRef}
@@ -679,76 +704,74 @@ export default function HotspotEditorPage() {
                                                 onChange={handleProductFileChange}
                                             />
                                         </div>
-                                        <div className="flex-1 space-y-3 pt-2">
-                                            <Subheading className="text-sm uppercase tracking-widest opacity-50 m-0">Product Display</Subheading>
-                                            <Text className="text-xs opacity-60">This image will be shown as the main item in the popup. Tap to replace or re-crop.</Text>
-                                            <PremiumButton
+                                        <div className="flex-1 min-w-0">
+                                            <Text className="text-xs font-bold uppercase tracking-widest text-primary mb-1">Product Display</Text>
+                                            <Text className="text-[11px] opacity-60 leading-tight mb-2">Main image for the popup. Click to replace or re-crop.</Text>
+                                            <button
                                                 type="button"
-                                                variant="outline"
-                                                className="h-9 px-4 text-xs"
                                                 onClick={startProductImageUpload}
-                                                leftIcon={RefreshCcw}
+                                                className="text-[11px] font-bold text-primary hover:underline flex items-center gap-1"
                                             >
-                                                Replace Image
-                                            </PremiumButton>
+                                                <RefreshCcw className="w-3 h-3" /> Change Image
+                                            </button>
                                         </div>
                                     </div>
 
-                                    <div className="space-y-4">
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs font-bold uppercase tracking-wider opacity-60 flex items-center gap-2">
-                                                <Type className="w-3 h-3 text-primary" /> Product Name
-                                            </label>
-                                            <input
-                                                type="text" value={formData.name} required
-                                                onChange={(e) => setFormData(p => ({ ...p, name: e.target.value }))}
-                                                className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium"
-                                                placeholder="e.g. Delicious Weekend Brunch"
-                                            />
-                                        </div>
+                                    <div className="space-y-5">
+                                        <PremiumInput
+                                            label="Product Name"
+                                            icon={Type}
+                                            value={formData.name}
+                                            required
+                                            onChange={(e) => setFormData(p => ({ ...p, name: e.target.value }))}
+                                            placeholder="e.g. Delicious Weekend Brunch"
+                                            className="h-12"
+                                        />
 
-                                        <div className="space-y-1.5 relative">
-                                            <label className="text-xs font-bold uppercase tracking-wider opacity-60 flex items-center justify-between">
-                                                <div className="flex items-center gap-2"><AlignLeft className="w-3 h-3 text-primary" /> Full Description</div>
-                                                <button
+                                        <div className="space-y-2">
+                                            <div className="flex items-center justify-between px-1">
+                                                <label className="text-[11px] font-bold uppercase tracking-wider opacity-60 flex items-center gap-2">
+                                                    <AlignLeft className="w-3 h-3 text-primary" /> Full Description
+                                                </label>
+                                                {/* <button
                                                     type="button" onClick={handleAIFill}
-                                                    className="text-primary hover:underline flex items-center gap-1"
+                                                    className="text-[11px] font-bold text-primary hover:text-primary/70 flex items-center gap-1 transition-colors"
                                                 >
-                                                    <Sparkles className="w-3 h-3" /> AI Price Refill
-                                                </button>
-                                            </label>
+                                                    <Zap className="w-3 h-3" /> AI PRICE REFILL
+                                                </button> */}
+                                            </div>
                                             <textarea
                                                 value={formData.description} rows={3}
                                                 onChange={(e) => setFormData(p => ({ ...p, description: e.target.value }))}
-                                                className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium text-sm"
+                                                className="w-full bg-background/40 border border-primary/10 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all font-medium text-sm min-h-[100px] resize-none"
                                                 placeholder="Paste any additional details or let the AI fill it..."
                                             />
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-4">
-                                            <div className="space-y-1.5">
-                                                <label className="text-xs font-bold uppercase tracking-wider opacity-60 flex items-center gap-2 text-red-400">
-                                                    <DollarSign className="w-3 h-3" /> Old Price
+                                            <div className="space-y-2">
+                                                <label className="text-[11px] font-bold uppercase tracking-wider opacity-60 flex items-center gap-2 px-1 text-destructive">
+                                                    <IndianRupee className="w-3 h-3" /> Old Price
                                                 </label>
-                                                <div className="relative">
-                                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold opacity-30">{currentMarkedItem.currency}</span>
+                                                <div className="relative group">
+                                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold opacity-30 group-focus-within:opacity-60 transition-opacity">₹</span>
                                                     <input
                                                         type="number" step="0.01" value={formData.oldPrice}
                                                         onChange={(e) => setFormData(p => ({ ...p, oldPrice: e.target.value }))}
-                                                        className="w-full bg-muted/50 border border-border rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-bold"
+                                                        className="w-full bg-background/40 border border-primary/10 rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all font-bold text-sm"
                                                     />
                                                 </div>
                                             </div>
-                                            <div className="space-y-1.5">
-                                                <label className="text-xs font-bold uppercase tracking-wider opacity-60 flex items-center gap-2 text-green-500">
-                                                    <DollarSign className="w-3 h-3" /> Offer Price
+                                            <div className="space-y-2">
+                                                <label className="text-[11px] font-bold uppercase tracking-wider opacity-60 flex items-center gap-2 px-1 text-green-500">
+                                                    <IndianRupee className="w-3 h-3" /> Offer Price
                                                 </label>
-                                                <div className="relative">
-                                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold opacity-30">{currentMarkedItem.currency}</span>
+                                                <div className="relative group">
+                                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold opacity-30 group-focus-within:opacity-100 transition-opacity">₹</span>
                                                     <input
                                                         type="number" step="0.01" value={formData.offerPrice}
                                                         onChange={(e) => setFormData(p => ({ ...p, offerPrice: e.target.value }))}
-                                                        className="w-full bg-muted/50 border border-border rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-bold text-green-600"
+                                                        className="w-full bg-background/40 border border-primary/10 rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all font-bold text-sm text-green-600 shadow-sm shadow-green-500/5"
                                                     />
                                                 </div>
                                             </div>
@@ -756,24 +779,26 @@ export default function HotspotEditorPage() {
                                     </div>
                                 </div>
 
-                                <div className="p-6 bg-muted/30 border-t border-border/50 flex gap-3">
-                                    <PremiumButton type="submit" variant="default" className="flex-1" leftIcon={CheckCircle2}>
-                                        Save Changes
-                                    </PremiumButton>
-                                    <PremiumButton
-                                        type="button"
-                                        variant="outline"
-                                        className="flex-1"
-                                        onClick={() => { setShowModal(false); setHighlightedId(null); }}
-                                    >
-                                        Cancel
-                                    </PremiumButton>
+                                <div className="p-6 bg-muted/30 border-t border-border/50 flex flex-col gap-3">
+                                    <div className="flex gap-3">
+                                        <PremiumButton type="submit" variant="default" className="flex-1 h-12 rounded-2xl shadow-lg shadow-primary/20" leftIcon={CheckCircle2}>
+                                            Save Changes
+                                        </PremiumButton>
+                                        <PremiumButton
+                                            type="button"
+                                            variant="outline"
+                                            className="flex-1 h-12 rounded-2xl"
+                                            onClick={() => { setShowModal(false); setHighlightedId(null); }}
+                                        >
+                                            Cancel
+                                        </PremiumButton>
+                                    </div>
                                     <button
                                         type="button"
                                         onClick={() => handleDeleteItem(currentMarkedItem.id)}
-                                        className="p-3 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-xl transition-all border border-red-500/20"
+                                        className="w-full py-2.5 text-[10px] font-bold uppercase tracking-widest text-destructive hover:text-white hover:bg-destructive transition-all rounded-xl flex items-center justify-center gap-2 mt-1 border border-destructive/20 hover:border-destructive"
                                     >
-                                        <Trash2 className="w-6 h-6" />
+                                        <Trash2 className="w-3 h-3" /> Remove Item from Poster
                                     </button>
                                 </div>
                             </form>
@@ -854,7 +879,7 @@ export default function HotspotEditorPage() {
                             <div className="p-6 border-b border-border/50 flex justify-between items-center bg-muted/30">
                                 <div className="flex items-center gap-3">
                                     <div className="p-2 bg-primary/10 rounded-lg">
-                                        <Sparkles className="w-5 h-5 text-primary" />
+                                        <Rocket className="w-5 h-5 text-primary" />
                                     </div>
                                     <Subheading className="m-0">Finalize Publication</Subheading>
                                 </div>
@@ -910,6 +935,45 @@ export default function HotspotEditorPage() {
                     </div>
                 )}
             </main>
+
+            {/* Back Warning Modal */}
+            <AppModal
+                open={showBackWarning}
+                onOpenChange={setShowBackWarning}
+                title="Unsaved Changes"
+                description="You have unsaved changes. Would you like to save this as a draft before leaving?"
+            >
+                <div className="flex flex-col gap-3">
+                    <PremiumButton
+                        variant="default"
+                        onClick={async () => {
+                            await handleSaveDraft();
+                            setShowBackWarning(false);
+                        }}
+                        className="rounded-xl w-full"
+                        leftIcon={Save}
+                    >
+                        Save as Draft & Exit
+                    </PremiumButton>
+                    <div className="grid grid-cols-2 gap-3">
+                        <PremiumButton
+                            variant="outline"
+                            onClick={handleDiscardSession}
+                            className="rounded-xl"
+                            leftIcon={Trash2}
+                        >
+                            Discard
+                        </PremiumButton>
+                        <PremiumButton
+                            variant="outline"
+                            onClick={() => setShowBackWarning(false)}
+                            className="rounded-xl font-bold"
+                        >
+                            Cancel
+                        </PremiumButton>
+                    </div>
+                </div>
+            </AppModal>
         </div>
     );
 }
