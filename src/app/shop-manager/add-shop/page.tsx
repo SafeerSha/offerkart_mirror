@@ -1,11 +1,7 @@
 "use client";
 
-import React from "react";
-import { ChevronLeft, Store } from "lucide-react";
-import Link from "next/link";
-import { Heading, Text } from "@/components/shared/Typography";
-import { PremiumButton } from "@/components/shared/PremiumButton";
-import Breadcrumbs from "@/components/shared/Breadcrumbs";
+import { Suspense } from "react";
+import { Loader2 } from "lucide-react";
 import AddShopForm from "@/components/shop-manager/AddShopForm";
 
 export default function AddShopPage() {
@@ -16,7 +12,14 @@ export default function AddShopPage() {
 
             <main className="container mx-auto px-4 py-8 md:py-12">
                 <div className="max-w-7xl mx-auto">
-                    <AddShopForm />
+                    <Suspense fallback={
+                        <div className="w-full h-[60vh] flex flex-col items-center justify-center gap-4 text-gray-400">
+                            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                            <p className="text-sm font-medium">Loading form...</p>
+                        </div>
+                    }>
+                        <AddShopForm />
+                    </Suspense>
                 </div>
             </main>
 
