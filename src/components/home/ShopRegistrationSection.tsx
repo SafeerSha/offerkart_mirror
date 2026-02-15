@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useRegistration } from "@/hooks/useRegistration";
+import { useSession } from "next-auth/react";
 import { MoveRight, Store, Rocket, BarChart3, ShieldCheck } from "lucide-react";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { PremiumCard } from "@/components/shared/PremiumCard";
@@ -10,7 +10,9 @@ import { Heading, Text, SectionTitle } from "@/components/shared/Typography";
 import { cn } from "@/lib/utils";
 
 export default function ShopRegistrationSection() {
-    const { isRegistered, isLoading } = useRegistration();
+    const { data: session, status } = useSession();
+    const isShopOwner = !!(session?.user as any)?.business_name;
+    const isLoading = status === "loading";
 
     if (isLoading) return null;
 
@@ -52,10 +54,10 @@ export default function ShopRegistrationSection() {
                         <div className="flex flex-wrap gap-4">
                             <PremiumButton asChild size="lg" className="h-14 px-8 rounded-full shadow-xl shadow-primary/20">
                                 <Link
-                                    href={isRegistered ? "/shop-manager" : "/shop-registration"}
+                                    href={isShopOwner ? "/shop-manager" : "/shop-registration"}
                                     className="flex items-center"
                                 >
-                                    {isRegistered ? "Manage your shop" : "Add your shop"}
+                                    {isShopOwner ? "Manage your shop" : "Add your shop"}
                                     <MoveRight className="ml-2 w-5 h-5 transition-transform group-hover:translate-x-1" />
                                 </Link>
                             </PremiumButton>

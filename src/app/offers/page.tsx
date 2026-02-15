@@ -3,9 +3,11 @@
 import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { StaticImageData } from "next/image";
-import { getAllOffers } from "@/lib/api/offers";
+import { getAllOffers, getPaginatedOffers, getFeaturedOffers } from "@/lib/api/offers";
 import OfferGrid from "@/components/home/OfferGrid";
 import FilterPanel from "@/components/home/FilterPanel";
+import FeaturedOffers from "@/components/home/FeaturedOffers";
+import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import {
     Sheet,
@@ -25,6 +27,7 @@ interface Offer {
     offerName: string;
     image: string | StaticImageData;
     category: string;
+    subcategory?: string;
     location: string;
     validUntil: string;
     discount?: string;
@@ -36,7 +39,11 @@ function OffersContent() {
     const initialCategory = searchParams.get("category") || "All";
 
     const [offers, setOffers] = useState<Offer[]>([]);
+    const [featuredShops, setFeaturedShops] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
     const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
     const [activeFilters, setActiveFilters] = useState<{
         category: string;
@@ -57,32 +64,90 @@ function OffersContent() {
     }, [searchParams]);
 
     // Stable Change Handlers
+    // Reset pagination when filters change
     const handleCategoryChange = useCallback((category: string) => {
         setActiveFilters(prev => ({ ...prev, category, subcategory: [] }));
+        setPage(1);
+        setOffers([]);
+        setHasMore(true);
     }, []);
 
     const handleSubcategoryChange = useCallback((subcategory: string[]) => {
         setActiveFilters(prev => ({ ...prev, subcategory }));
+        setPage(1);
+        setOffers([]);
+        setHasMore(true);
     }, []);
 
     const handleSortChange = useCallback((sort: string) => {
         setActiveFilters(prev => ({ ...prev, sort }));
+        setPage(1);
+        setOffers([]);
+        setHasMore(true);
     }, []);
 
+    // Initial fetch and pagination handler
+    const fetchMoreOffers = useCallback(async (isInitial: boolean = false) => {
+        if (!hasMore && !isInitial) return;
+
+        const targetPage = isInitial ? 1 : page + 1;
+
+        if (isInitial) setIsLoading(true);
+        else setIsFetchingNextPage(true);
+
+        try {
+            const result = await getPaginatedOffers(targetPage, 8);
+
+            // Cast to Offer[] to ensure subcategory existence
+            let processedData = result.data as unknown as Offer[];
+            if (activeFilters.category !== "All") {
+                processedData = processedData.filter(o => o.category === activeFilters.category);
+            }
+            if (activeFilters.subcategory.length > 0) {
+                processedData = processedData.filter(o => activeFilters.subcategory.includes(o.subcategory || ""));
+            }
+
+            setOffers(prev => isInitial ? processedData : [...prev, ...processedData]);
+            setHasMore(result.hasMore);
+            setPage(targetPage);
+        } catch (error) {
+            console.error("Failed to fetch offers:", error);
+        } finally {
+            setIsLoading(false);
+            setIsFetchingNextPage(false);
+        }
+    }, [page, hasMore, activeFilters]);
+
+    // Initial Load
     useEffect(() => {
-        async function fetchOffers() {
+        async function loadFeatured() {
             try {
-                const data = await getAllOffers();
-                setOffers(data);
-            } catch (error) {
-                console.error("Failed to fetch offers:", error);
-            } finally {
-                setIsLoading(false);
+                const shops = await getFeaturedOffers();
+                setFeaturedShops(shops);
+            } catch (err) {
+                console.error("Failed to load featured shops:", err);
             }
         }
+        loadFeatured();
+        fetchMoreOffers(true);
+    }, [activeFilters]); // Refetch when filters change
 
-        fetchOffers();
-    }, []);
+    // Infinite Scroll Observer
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting && hasMore && !isFetchingNextPage && !isLoading) {
+                    fetchMoreOffers();
+                }
+            },
+            { threshold: 0.1, rootMargin: "100px" }
+        );
+
+        const target = document.querySelector("#scroll-trigger");
+        if (target) observer.observe(target);
+
+        return () => observer.disconnect();
+    }, [fetchMoreOffers, hasMore, isFetchingNextPage, isLoading]);
 
     return (
         <div className="min-h-screen bg-gray-50/50">
@@ -92,6 +157,7 @@ function OffersContent() {
                 <Breadcrumbs
                     items={[{ label: "Offers" }]}
                 />
+
 
                 <div className="flex flex-col lg:flex-row gap-10">
                     {/* Left Sidebar - Desktop */}
@@ -115,8 +181,7 @@ function OffersContent() {
                         </div>
                     </aside>
 
-                    {/* Content Section */}
-                    <div className="flex-1">
+                    <div className="flex-1 w-full overflow-hidden">
                         {/* Mobile Filter Button */}
                         <div className="lg:hidden mb-8">
                             <Sheet open={mobileFilterOpen} onOpenChange={setMobileFilterOpen}>
@@ -150,6 +215,13 @@ function OffersContent() {
                                 </SheetContent>
                             </Sheet>
                         </div>
+
+                        {/* Featured Shops Listing - Above Grid Header */}
+                        {featuredShops.length > 0 && (
+                            <div className="mb-3">
+                                <FeaturedOffers offers={featuredShops} variant="minimal" />
+                            </div>
+                        )}
 
                         {/* Grid Header */}
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
@@ -187,7 +259,30 @@ function OffersContent() {
                         </div>
 
                         {/* Grid Content */}
-                        <OfferGrid isLoading={isLoading} offers={offers} />
+                        <OfferGrid isLoading={isLoading} offers={offers} disablePagination={true} />
+
+                        {/* Pagination Trigger/Loader */}
+                        <div id="scroll-trigger" className="w-full py-12 flex items-center justify-center">
+                            {isFetchingNextPage && (
+                                <div className="flex flex-col items-center gap-4 animate-in fade-in duration-500">
+                                    <div className="relative">
+                                        <div className="w-12 h-12 rounded-full border-2 border-orange-100 border-t-orange-500 animate-spin" />
+                                        <Loader2 className="w-5 h-5 text-orange-500 absolute inset-0 m-auto animate-pulse" />
+                                    </div>
+                                    <p className="text-sm font-medium text-gray-500 animate-pulse">
+                                        Discovering more amazing deals...
+                                    </p>
+                                </div>
+                            )}
+                            {!hasMore && !isLoading && offers.length > 0 && (
+                                <div className="text-center py-8">
+                                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 text-gray-500 text-sm font-medium">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+                                        You've caught up with all current deals
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </main>

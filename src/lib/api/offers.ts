@@ -1,4 +1,5 @@
 import { FEATURED_SHOPS, FEATURED_OFFERS, ALL_OFFERS } from './mockData';
+import { Offer } from '../types/product';
 
 // Simulate API delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -13,6 +14,18 @@ export async function getFeaturedOffers() {
 
 export async function getAllOffers() {
     return ALL_OFFERS;
+}
+
+export async function getPaginatedOffers(page: number = 1, limit: number = 8) {
+    await delay(800); // Simulate network latency
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedItems = ALL_OFFERS.slice(startIndex, endIndex);
+
+    return {
+        data: paginatedItems,
+        hasMore: endIndex < ALL_OFFERS.length
+    };
 }
 
 export async function getOfferById(id: string) {
