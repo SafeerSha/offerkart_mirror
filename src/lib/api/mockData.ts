@@ -53,11 +53,16 @@ export const FEATURED_OFFERS = [
     { id: 8, name: "Malabar Gold", logo: "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?q=80&w=200&auto=format&fit=crop" },
     { id: 9, name: "Starbucks", logo: "https://images.unsplash.com/photo-1544787210-2211d44b565a?q=80&w=200&auto=format&fit=crop" },
     { id: 10, name: "Nike Store", logo: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=200&auto=format&fit=crop" },
-    { id: 11, name: "McDonald's", logo: "https://images.unsplash.com/photo-1561758033-d89a9ad46330?q=80&w=200&auto=format&fit=crop" },
-    { id: 12, name: "Adidas", logo: "https://images.unsplash.com/photo-1628253747716-0c4f5c90f753?q=80&w=200&auto=format&fit=crop" },
-    { id: 13, name: "Pizza Hut", logo: "https://images.unsplash.com/photo-1590947132387-155cc02f3212?q=80&w=200&auto=format&fit=crop" },
+    { id: 11, name: "McDonald's", logo: "https://images.unsplash.com/photo-1594212699903-ec8a3ecc50f6?q=80&w=200&auto=format&fit=crop" },
+    { id: 12, name: "Adidas", logo: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=200&auto=format&fit=crop" },
+    { id: 13, name: "Pizza Hut", logo: "https://images.unsplash.com/photo-1513104890138-7c749659a591?q=80&w=200&auto=format&fit=crop" },
     { id: 14, name: "Big Bazaar", logo: "https://images.unsplash.com/photo-1534452203294-46c8ad093716?q=80&w=200&auto=format&fit=crop" },
     { id: 15, name: "Croma", logo: "https://images.unsplash.com/photo-1526738549149-8e07eca0395c?q=80&w=200&auto=format&fit=crop" },
+    { id: 16, name: "PVR Cinemas", logo: "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=200&auto=format&fit=crop" },
+    { id: 17, name: "Zudio", logo: "https://images.unsplash.com/photo-1567401893414-76b7b1e5a7a5?q=80&w=200&auto=format&fit=crop" },
+    { id: 18, name: "Westside", logo: "https://images.unsplash.com/photo-1441984904996-e0b6ba687e12?q=80&w=200&auto=format&fit=crop" },
+    { id: 19, name: "FabIndia", logo: "https://images.unsplash.com/photo-1583316174775-bd6dc0e9f298?q=80&w=200&auto=format&fit=crop" },
+    { id: 20, name: "Jockey", logo: "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?q=80&w=200&auto=format&fit=crop" },
 ];
 
 export const ALL_OFFERS = [

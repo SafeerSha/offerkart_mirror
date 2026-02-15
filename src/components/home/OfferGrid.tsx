@@ -15,6 +15,7 @@ interface Offer {
   offerName: string;
   image: string | StaticImageData;
   category: string;
+  subcategory?: string;
   location: string;
   validUntil: string;
   discount?: string;
@@ -27,6 +28,7 @@ interface OfferGridProps {
   redirectToOffers?: boolean;
   buttonText?: string;
   columns?: 3 | 4;
+  disablePagination?: boolean;
 }
 
 const OfferGrid = ({
@@ -35,13 +37,14 @@ const OfferGrid = ({
   className,
   redirectToOffers = false,
   buttonText = "Load More Offers",
-  columns = 3
+  columns = 3,
+  disablePagination = false
 }: OfferGridProps) => {
   const router = useRouter();
   const [visibleCount, setVisibleCount] = useState(8);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  const visibleOffers = offers.slice(0, visibleCount);
+  const visibleOffers = disablePagination ? offers : offers.slice(0, visibleCount);
 
   const handleLoadMore = () => {
     if (redirectToOffers) {
@@ -117,7 +120,7 @@ const OfferGrid = ({
       </div>
 
       {/* Load More */}
-      {hasMore && (
+      {!disablePagination && hasMore && (
         <div className="flex justify-center mt-12 pb-8">
           <PremiumButton
             variant="outline"

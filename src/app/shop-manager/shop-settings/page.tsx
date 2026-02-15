@@ -12,27 +12,7 @@ export default function ShopSettingsPage() {
 
             <main className="container mx-auto px-4 py-8 md:py-12">
                 <div className="w-full">
-                    {/* Header */}
-                    <div className="mb-8">
-                        <Breadcrumbs
-                            items={[
-                                { label: "Shop Dashboard", href: "/shop-manager" },
-                                { label: "Shop Settings" }
-                            ]}
-                        />
-
-                        <div className="flex flex-col md:flex-row md:items-center gap-4">
-                            <div className="w-12 h-12 rounded-xl bg-white border border-gray-200 flex items-center justify-center shadow-sm">
-                                <Settings className="w-6 h-6 text-gray-700" />
-                            </div>
-                            <div>
-                                <h1 className="text-3xl md:text-4xl font-bold text-gray-900">Shop Settings</h1>
-                                <p className="text-gray-600 mt-1">Update your business information and security settings</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Form */}
+                    {/* Form (Includes Header & Breadcrumbs) */}
                     <ShopSettingsForm />
                 </div>
             </main>

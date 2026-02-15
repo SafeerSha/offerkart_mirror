@@ -7,24 +7,52 @@ import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { useRegistration } from "@/hooks/useRegistration";
+import { signIn, getSession } from "next-auth/react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { hasSuspiciousPattern } from "@/lib/security";
 
 export default function LoginPage() {
     const [showPassword, setShowPassword] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
-    const { setRegistrationStatus } = useRegistration();
+    const [formData, setFormData] = useState({ email: "", password: "" });
     const router = useRouter();
+    const [isLoading, setIsLoading] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Security check
+        if (hasSuspiciousPattern(formData.email) || hasSuspiciousPattern(formData.password)) {
+            toast.error("Suspicious active content detected. Please review your input.");
+            return;
+        }
+
         setIsLoading(true);
-        // Fake login - accept any credentials for testing
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setRegistrationStatus(true);
-        toast.success("Login successful! Welcome back.");
-        router.push("/shop-manager");
+        try {
+            const result = await signIn("credentials", {
+                email: formData.email,
+                password: formData.password,
+                redirect: false,
+            });
+
+            if (result?.error) {
+                toast.error(result.error || "Invalid credentials. Please try again.");
+            } else if (result?.ok) {
+                const session = await getSession();
+                toast.success("Login successful! Welcome back.");
+
+                if ((session?.user as any)?.business_name) {
+                    router.push("/shop-manager");
+                } else {
+                    router.push("/");
+                }
+                router.refresh();
+            }
+        } catch (error) {
+            toast.error("Network error. Please try again later.");
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -112,6 +140,8 @@ export default function LoginPage() {
                                         type="email"
                                         placeholder="name@example.com"
                                         className="pl-12 h-12 bg-gray-50 border-gray-200 focus:border-orange-500 focus:ring-orange-500 rounded-xl text-base"
+                                        value={formData.email}
+                                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                         required
                                     />
                                 </div>
@@ -136,6 +166,8 @@ export default function LoginPage() {
                                         type={showPassword ? "text" : "password"}
                                         placeholder="Enter your password"
                                         className="pl-12 pr-12 h-12 bg-gray-50 border-gray-200 focus:border-orange-500 focus:ring-orange-500 rounded-xl text-base"
+                                        value={formData.password}
+                                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                                         required
                                     />
                                     <button

@@ -10,48 +10,45 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { registerShop } from "@/lib/api/shop";
 import { useRouter } from "next/navigation";
-import { useRegistration } from "@/hooks/useRegistration";
-import { Building2, User, Mail, Phone, MapPin, MessageSquare, ArrowRight } from "lucide-react";
+import { Building2, User, Mail, Phone, Lock, ArrowRight } from "lucide-react";
+import { hasSuspiciousPattern } from "@/lib/security";
 
 const formSchema = z.object({
-    name: z.string().min(2, "Name must be at least 2 characters"),
-    companyName: z.string().min(2, "Company name must be at least 2 characters"),
-    phone: z.string().min(10, "Phone number must be at least 10 digits"),
+    full_name: z.string().min(2, "Full name must be at least 2 characters"),
+    business_name: z.string().min(2, "Business name must be at least 2 characters"),
     email: z.string().email("Invalid email address"),
-    state: z.string().min(2, "State is required"),
-    district: z.string().min(2, "District is required"),
-    locality: z.string().min(2, "Locality is required"),
-    message: z.string().optional(),
+    phone: z.string().min(10, "Phone number must be at least 10 digits"),
+    password: z.string().min(4, "Password must be at least 4 characters"),
 });
 
 export default function ShopRegistrationForm() {
     const router = useRouter();
-    const { setRegistrationStatus } = useRegistration();
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
-            name: "",
-            companyName: "",
-            phone: "",
+            full_name: "",
+            business_name: "",
             email: "",
-            state: "",
-            district: "",
-            locality: "",
-            message: "",
+            phone: "",
+            password: "",
         },
     });
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
-        try {
-            const response = await registerShop({ ...values, message: values.message || "" });
-            if (response.success) {
-                toast.success(response.message);
-                setRegistrationStatus(true);
-                router.push("/shop-manager");
-            }
-        } catch (error) {
-            toast.error("Something went wrong. Please try again.");
+        // Additional security check for suspicious patterns
+        const payloadValues = Object.values(values);
+        if (payloadValues.some(val => hasSuspiciousPattern(val))) {
+            toast.error("Suspicious active content detected. Please review your input.");
+            return;
+        }
+
+        const response = await registerShop(values);
+        if (response.success) {
+            toast.success(response.message || "Shop registered successfully! Please log in.");
+            router.push("/login");
+        } else {
+            toast.error(response.error || "Something went wrong. Please try again.");
         }
     }
 
@@ -69,10 +66,10 @@ export default function ShopRegistrationForm() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField
                             control={form.control}
-                            name="name"
+                            name="full_name"
                             render={({ field, fieldState: { error } }) => (
                                 <div className="space-y-2">
-                                    <Label className={labelClassName}>Contact Name</Label>
+                                    <Label className={labelClassName}>Full Name</Label>
                                     <div className="relative">
                                         <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                                         <Input
@@ -87,7 +84,7 @@ export default function ShopRegistrationForm() {
                         />
                         <FormField
                             control={form.control}
-                            name="companyName"
+                            name="business_name"
                             render={({ field, fieldState: { error } }) => (
                                 <div className="space-y-2">
                                     <Label className={labelClassName}>Business Name</Label>
@@ -117,7 +114,7 @@ export default function ShopRegistrationForm() {
                             name="email"
                             render={({ field, fieldState: { error } }) => (
                                 <div className="space-y-2">
-                                    <Label className={labelClassName}>Business Email</Label>
+                                    <Label className={labelClassName}>Email</Label>
                                     <div className="relative">
                                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                                         <Input
@@ -152,75 +149,26 @@ export default function ShopRegistrationForm() {
                     </div>
                 </div>
 
-                {/* Location Details */}
+                {/* Security */}
                 <div className="space-y-4">
                     <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                        <MapPin className="w-4 h-4" /> Location Details
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <FormField
-                            control={form.control}
-                            name="state"
-                            render={({ field, fieldState: { error } }) => (
-                                <div className="space-y-2">
-                                    <Label className={labelClassName}>State</Label>
-                                    <Input
-                                        placeholder="Kerala"
-                                        className="h-12 bg-gray-50 border-gray-200 focus:border-orange-500 focus:ring-orange-500 rounded-xl text-base"
-                                        {...field}
-                                    />
-                                    {error && <p className="text-xs text-red-500">{error.message}</p>}
-                                </div>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="district"
-                            render={({ field, fieldState: { error } }) => (
-                                <div className="space-y-2">
-                                    <Label className={labelClassName}>District</Label>
-                                    <Input
-                                        placeholder="Ernakulam"
-                                        className="h-12 bg-gray-50 border-gray-200 focus:border-orange-500 focus:ring-orange-500 rounded-xl text-base"
-                                        {...field}
-                                    />
-                                    {error && <p className="text-xs text-red-500">{error.message}</p>}
-                                </div>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="locality"
-                            render={({ field, fieldState: { error } }) => (
-                                <div className="space-y-2">
-                                    <Label className={labelClassName}>Locality</Label>
-                                    <Input
-                                        placeholder="Kochi"
-                                        className="h-12 bg-gray-50 border-gray-200 focus:border-orange-500 focus:ring-orange-500 rounded-xl text-base"
-                                        {...field}
-                                    />
-                                    {error && <p className="text-xs text-red-500">{error.message}</p>}
-                                </div>
-                            )}
-                        />
-                    </div>
-                </div>
-
-                {/* Message */}
-                <div className="space-y-4">
-                    <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                        <MessageSquare className="w-4 h-4" /> Tell us what you list
+                        <Lock className="w-4 h-4" /> Security
                     </h3>
                     <FormField
                         control={form.control}
-                        name="message"
+                        name="password"
                         render={({ field, fieldState: { error } }) => (
                             <div className="space-y-2">
-                                <Textarea
-                                    placeholder="Example: We sell handmade ceramic pottery and lifestyle products..."
-                                    className="min-h-[100px] bg-gray-50 border-gray-200 focus:border-orange-500 focus:ring-orange-500 rounded-xl text-base resize-none p-4"
-                                    {...field}
-                                />
+                                <Label className={labelClassName}>Password</Label>
+                                <div className="relative">
+                                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                    <Input
+                                        type="password"
+                                        placeholder="Min 4 characters"
+                                        className={inputClassName}
+                                        {...field}
+                                    />
+                                </div>
                                 {error && <p className="text-xs text-red-500">{error.message}</p>}
                             </div>
                         )}

@@ -1,24 +1,55 @@
-// Simulate API delay
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-export interface RegisterShopRequest {
-    name: string;
-    companyName: string;
-    phone: string;
-    email: string;
-    state: string;
-    district: string;
-    locality: string;
-    message: string;
-}
+import { apiClient } from "./apiClient";
+import { RegisterShopRequest, LoginShopRequest, LoginResponse } from "../types/auth";
+import { ENDPOINTS } from "./endpoints";
 
 export async function registerShop(data: RegisterShopRequest) {
-    console.log("Registering shop:", data);
-    await delay(1500); // Simulate network latency
+    const endpoint = ENDPOINTS.AUTH.REGISTER;
 
-    // In a real app, this would be a POST request to your backend
-    return {
-        success: true,
-        message: "Shop registration request submitted successfully!",
-    };
+    return await apiClient(endpoint, {
+        method: "POST",
+        body: JSON.stringify(data),
+    });
+}
+
+export async function loginShop(data: LoginShopRequest) {
+    const endpoint = ENDPOINTS.AUTH.LOGIN;
+
+    return await apiClient<LoginResponse>(endpoint, {
+        method: "POST",
+        body: JSON.stringify(data),
+    });
+}
+
+export async function addShop(data: FormData) {
+    const endpoint = ENDPOINTS.SHOP.BASE;
+
+    return await apiClient(endpoint, {
+        method: "POST",
+        body: data,
+    });
+}
+
+export async function updateShop(shopId: string, data: FormData) {
+    const endpoint = ENDPOINTS.SHOP.DETAILS(shopId);
+
+    return await apiClient(endpoint, {
+        method: "PUT",
+        body: data,
+    });
+}
+
+export async function getShops() {
+    const endpoint = ENDPOINTS.SHOP.BASE;
+
+    return await apiClient(endpoint, {
+        method: "GET",
+    });
+}
+
+export async function getShopDetails(shopId: string) {
+    const endpoint = ENDPOINTS.SHOP.DETAILS(shopId);
+
+    return await apiClient(endpoint, {
+        method: "GET",
+    });
 }
