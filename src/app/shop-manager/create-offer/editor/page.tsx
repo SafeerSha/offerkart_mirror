@@ -432,9 +432,9 @@ export default function HotspotEditorPage() {
 
     return (
         <div className="min-h-screen bg-background">
-            <div className="h-24 lg:h-32" />
+            <div className="h-16 lg:h-32" />
 
-            <main className="container mx-auto px-4 py-8 relative">
+            <main className="container mx-auto px-4 py-4 relative">
                 <Breadcrumbs
                     items={[
                         { label: "Dashboard", href: "/shop-manager" },

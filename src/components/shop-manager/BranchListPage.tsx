@@ -216,15 +216,22 @@ export default function BranchListPage({ shopId }: BranchListPageProps) {
                                                 <GitBranch className="w-5 h-5 text-primary" />
                                             </div>
                                             <div className="min-w-0 flex-1">
-                                                <div className="flex items-center gap-2 mb-1">
+                                                <div className="flex flex-wrap items-center gap-2 mb-1">
                                                     <h4 className="font-bold text-base sm:text-lg leading-tight truncate text-gray-900">
                                                         {branch.branch_name}
                                                     </h4>
-                                                    {branch.is_active ? (
-                                                        <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)] shrink-0" title="Active" />
-                                                    ) : (
-                                                        <span className="w-2 h-2 rounded-full bg-gray-300 shrink-0" title="Inactive" />
-                                                    )}
+                                                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-gray-50 border border-gray-100">
+                                                        <span className={cn(
+                                                            "text-[9px] font-bold uppercase tracking-tight",
+                                                            branch.is_active ? "text-emerald-600" : "text-gray-400"
+                                                        )}>
+                                                            {branch.is_active ? "Active" : "Inactive"}
+                                                        </span>
+                                                        <span className={cn(
+                                                            "w-1.5 h-1.5 rounded-full shrink-0",
+                                                            branch.is_active ? "bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]" : "bg-gray-300"
+                                                        )} />
+                                                    </div>
                                                 </div>
                                                 <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
                                                     <div className="flex items-center gap-1">
@@ -242,13 +249,28 @@ export default function BranchListPage({ shopId }: BranchListPageProps) {
                                         </div>
 
                                         <div className="flex items-center gap-3 shrink-0">
-                                            <div className="flex items-center gap-3">
-                                                <span className={cn(
-                                                    "text-[10px] font-bold uppercase tracking-wider",
-                                                    branch.is_active ? "text-emerald-600" : "text-gray-400"
-                                                )}>
-                                                    {branch.is_active ? "Active" : "Inactive"}
-                                                </span>
+                                            <Link href={`/shop-manager/${shopId}/add-branch?branchId=${branch.id}`}>
+                                                <PremiumButton variant="ghost" size="sm" className="h-9 px-3 gap-1.5 border border-gray-100 hover:border-primary/20 hover:bg-primary/5">
+                                                    <Pencil className="w-3.5 h-3.5" />
+                                                    <span className="text-xs font-medium">Edit</span>
+                                                </PremiumButton>
+                                            </Link>
+                                            <PremiumButton
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-9 px-3 gap-1.5 border border-gray-100 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                                                onClick={() => handleDelete(branch.id)}
+                                                disabled={deletingId === branch.id}
+                                            >
+                                                {deletingId === branch.id ? (
+                                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                ) : (
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                )}
+                                                <span className="text-xs font-medium">Delete</span>
+                                            </PremiumButton>
+
+                                            <div className="flex items-center gap-3 pl-1 border-l border-gray-100">
                                                 <button
                                                     onClick={() => handleToggleActive(branch.id, branch.is_active)}
                                                     className={cn(
@@ -274,26 +296,6 @@ export default function BranchListPage({ shopId }: BranchListPageProps) {
                                                     </div>
                                                 </button>
                                             </div>
-                                            <Link href={`/shop-manager/${shopId}/add-branch?branchId=${branch.id}`}>
-                                                <PremiumButton variant="ghost" size="sm" className="h-9 px-3 gap-1.5 border border-gray-100 hover:border-primary/20 hover:bg-primary/5">
-                                                    <Pencil className="w-3.5 h-3.5" />
-                                                    <span className="text-xs font-medium">Edit</span>
-                                                </PremiumButton>
-                                            </Link>
-                                            <PremiumButton
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-9 px-3 gap-1.5 border border-gray-100 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
-                                                onClick={() => handleDelete(branch.id)}
-                                                disabled={deletingId === branch.id}
-                                            >
-                                                {deletingId === branch.id ? (
-                                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                                ) : (
-                                                    <Trash2 className="w-3.5 h-3.5" />
-                                                )}
-                                                <span className="text-xs font-medium">Delete</span>
-                                            </PremiumButton>
                                         </div>
                                     </div>
                                 </div>

@@ -92,9 +92,9 @@ export default function CreateOfferPage() {
     return (
         <div className="min-h-screen bg-background">
             {/* Spacer for Fixed Header */}
-            <div className="h-24 lg:h-32" />
+            <div className="h-20 lg:h-32" />
 
-            <main className="container mx-auto px-4 py-8 md:py-12 relative overflow-hidden">
+            <main className="container mx-auto px-4 py-4 md:py-12 relative overflow-hidden">
                 {/* Background Decor */}
                 <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-[300px] md:w-[500px] h-[300px] md:h-[500px] bg-primary/5 rounded-full blur-3xl pointer-events-none" />
                 <div className="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/2 w-[250px] md:w-[400px] h-[250px] md:h-[400px] bg-secondary/5 rounded-full blur-3xl pointer-events-none" />

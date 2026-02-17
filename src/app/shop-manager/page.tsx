@@ -86,7 +86,7 @@ export default function ShopManagerPage() {
     };
 
     return (
-        <main className="min-h-screen pt-24 pb-12 bg-[radial-gradient(circle_at_top_right,hsl(var(--color-primary)/0.05)_0%,transparent_50%)]">
+        <main className="min-h-screen pt-20 lg:pt-32 pb-12 bg-[radial-gradient(circle_at_top_right,hsl(var(--color-primary)/0.05)_0%,transparent_50%)]">
             <div className="container mx-auto px-4">
                 <Breadcrumbs
                     items={[{ label: "Shop Dashboard" }]}
@@ -457,13 +457,15 @@ export default function ShopManagerPage() {
                                                             </div>
                                                             <div className="flex flex-col xs:flex-row w-full sm:w-auto gap-2">
                                                                 <Link href={`/shop-manager/${shop.id}/branches`} className="w-full sm:w-auto">
-                                                                    <PremiumButton variant="ghost" size="sm" className="w-full sm:w-auto h-9 px-5 gap-2 transition-all duration-200 bg-orange-50 hover:bg-orange-100 text-orange-600 rounded-lg border border-orange-200/60 hover:border-orange-300 hover:-translate-y-0.5 shadow-sm">
+                                                                    <PremiumButton variant="ghost" size="sm" className="w-full sm:w-auto h-9 px-5 gap-2 transition-all duration-200 bg-orange-50 hover:bg-orange-100 text-orange-600 rounded-lg border border-orange-200/60 hover:border-orange-300 hover:-translate-y-0.5 shadow-sm group/branches">
                                                                         <GitBranch className="w-3.5 h-3.5" />
                                                                         <span className="text-xs font-semibold uppercase tracking-wider">Branches</span>
+                                                                        <ChevronRight className="w-4 h-4 transition-transform duration-200 group-hover/branches:translate-x-0.5" />
                                                                     </PremiumButton>
                                                                 </Link>
                                                                 <Link href={`/shop-manager/add-shop?id=${shop.id}`} className="w-full sm:w-auto group/manage">
                                                                     <PremiumButton variant="ghost" size="sm" className="w-full sm:w-auto h-9 px-5 gap-2 transition-all duration-200 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg border border-gray-200/60 hover:border-gray-300 hover:-translate-y-0.5 shadow-sm">
+                                                                        <Settings className="w-3.5 h-3.5" />
                                                                         <span className="text-xs font-semibold uppercase tracking-wider">Manage</span>
                                                                         <ChevronRight className="w-4 h-4 transition-transform duration-200 group-hover/manage:translate-x-0.5" />
                                                                     </PremiumButton>
