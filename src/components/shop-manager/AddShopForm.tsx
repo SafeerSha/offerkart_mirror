@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -26,6 +26,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { addShop, updateShop, getShopDetails } from "@/lib/api/shop";
 import { Shop } from "@/lib/types/shop";
+import { useLocation } from "@/hooks/useLocation";
+import { SearchableSelect } from "@/components/shared/SearchableSelect";
 
 const MapPicker = dynamic(() => import("@/components/shared/MapPicker"), {
     ssr: false,
@@ -49,7 +51,7 @@ import { cn } from "@/lib/utils";
 
 const formSchema = z.object({
     shop_name: z.string().min(2, "Shop name must be at least 2 characters"),
-    description: z.string().min(10, "Please tell us a bit more about what you list"),
+    // description: z.string().min(10, "Please tell us a bit more about what you list"),
     email: z.string().email("Invalid email address"),
     phone: z.string().min(10, "Invalid phone number"),
     address: z.string().min(5, "Address must be at least 5 characters"),
@@ -81,7 +83,7 @@ export default function AddShopForm() {
         resolver: zodResolver(formSchema),
         defaultValues: {
             shop_name: "",
-            description: "",
+            // description: "",
             email: "",
             phone: "",
             address: "",
@@ -94,6 +96,36 @@ export default function AddShopForm() {
             isActive: true,
         },
     });
+
+    const locations = useLocation();
+
+    // When state changes, load districts instantly (offline)
+    const handleStateChange = useCallback((stateName: string) => {
+        form.setValue("state", stateName);
+        form.setValue("district", "");
+        form.setValue("city", "");
+        form.setValue("pincode", "");
+        locations.selectState(stateName);
+    }, [form, locations]);
+
+    // When district changes, load cities (offline)
+    const handleDistrictChange = useCallback((districtName: string) => {
+        form.setValue("district", districtName);
+        form.setValue("city", "");
+        form.setValue("pincode", "");
+        locations.selectDistrict(districtName);
+    }, [form, locations]);
+
+    // When city changes, auto-fill pincode
+    const handleCityChange = useCallback((cityName: string) => {
+        form.setValue("city", cityName);
+        if (cityName) {
+            const pincode = locations.lookupPincode(cityName);
+            if (pincode) {
+                form.setValue("pincode", pincode);
+            }
+        }
+    }, [form, locations]);
 
     // Fetch shop details if in edit mode
     useEffect(() => {
@@ -110,7 +142,7 @@ export default function AddShopForm() {
                     // Populate form with existing data
                     form.reset({
                         shop_name: shop.shop_name || "",
-                        description: shop.description || "",
+                        // description: shop.description || "",
                         email: shop.email || "",
                         phone: shop.phone || "",
                         address: shop.address || "",
@@ -160,40 +192,31 @@ export default function AddShopForm() {
     const onSubmit = async (values: FormValues) => {
         setIsSubmitting(true);
         try {
-            console.log("Submitting values:", values);
-            console.log("Edit mode:", isEditMode, "Shop ID:", shopId);
+            console.log("Submitting values (JSON):", values);
 
-            // Construct FormData as per CURL spec
-            const formData = new FormData();
-            formData.append("shop_name", values.shop_name);
-            formData.append("email", values.email || "");
-            formData.append("latitude", values.latitude?.toString() || "");
-            formData.append("longitude", values.longitude?.toString() || "");
-            formData.append("state", values.state);
-            formData.append("district", values.district);
-            formData.append("city", values.city);
-            formData.append("pincode", values.pincode);
-            formData.append("address", values.address);
-            formData.append("phone", values.phone);
-
-            if (logoFile) {
-                formData.append("file", logoFile);
-            }
-
-            formData.append("is_active", values.isActive.toString());
-
-            console.log("FormData contents:");
-            for (const [key, value] of formData.entries()) {
-                console.log(`${key}:`, value);
-            }
-
+            // NOTE: Using JSON payload because backend FormData parsing is currently failing.
+            // This means logo upload is temporarily skipped to ensure shop creation/update works.
+            const payload = {
+                shop_name: values.shop_name,
+                email: values.email || "",
+                phone: values.phone,
+                address: values.address,
+                city: values.city,
+                district: values.district,
+                state: values.state,
+                pincode: values.pincode,
+                latitude: values.latitude,
+                longitude: values.longitude,
+                is_active: values.isActive,
+                file: logoFile
+            };
             let response;
             if (isEditMode && shopId) {
                 console.log("Calling updateShop with ID:", shopId);
-                response = await updateShop(shopId, formData);
+                response = await updateShop(shopId, payload);
             } else {
                 console.log("Calling addShop");
-                response = await addShop(formData);
+                response = await addShop(payload);
             }
 
             console.log("API Response:", response);
@@ -500,15 +523,21 @@ export default function AddShopForm() {
                                 )}
                             />
 
+                            {/* State → District → City → Pincode */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <FormField
                                     control={form.control}
-                                    name="city"
+                                    name="state"
                                     render={({ field }) => (
                                         <FormItem className="space-y-2">
-                                            <FormLabel className="text-sm font-medium text-gray-700">City</FormLabel>
+                                            <FormLabel className="text-sm font-medium text-gray-700">State</FormLabel>
                                             <FormControl>
-                                                <PremiumInput placeholder="Enter city" {...field} />
+                                                <SearchableSelect
+                                                    options={locations.states}
+                                                    value={field.value}
+                                                    onChange={(val) => handleStateChange(val)}
+                                                    placeholder="Select state"
+                                                />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -521,7 +550,13 @@ export default function AddShopForm() {
                                         <FormItem className="space-y-2">
                                             <FormLabel className="text-sm font-medium text-gray-700">District</FormLabel>
                                             <FormControl>
-                                                <PremiumInput placeholder="Enter district" {...field} />
+                                                <SearchableSelect
+                                                    options={locations.districts}
+                                                    value={field.value}
+                                                    onChange={(val) => handleDistrictChange(val)}
+                                                    placeholder={form.getValues("state") ? "Select district" : "Select state first"}
+                                                    disabled={!form.getValues("state")}
+                                                />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -532,12 +567,18 @@ export default function AddShopForm() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <FormField
                                     control={form.control}
-                                    name="state"
+                                    name="city"
                                     render={({ field }) => (
                                         <FormItem className="space-y-2">
-                                            <FormLabel className="text-sm font-medium text-gray-700">State</FormLabel>
+                                            <FormLabel className="text-sm font-medium text-gray-700">City</FormLabel>
                                             <FormControl>
-                                                <PremiumInput placeholder="Enter state" {...field} />
+                                                <SearchableSelect
+                                                    options={locations.cities.map(c => c.name)}
+                                                    value={field.value}
+                                                    onChange={(val) => handleCityChange(val)}
+                                                    placeholder={form.getValues("district") ? "Select city" : "Select district first"}
+                                                    disabled={!form.getValues("district")}
+                                                />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -550,7 +591,11 @@ export default function AddShopForm() {
                                         <FormItem className="space-y-2">
                                             <FormLabel className="text-sm font-medium text-gray-700">Pincode</FormLabel>
                                             <FormControl>
-                                                <PremiumInput placeholder="6-digit code" maxLength={6} {...field} />
+                                                <PremiumInput
+                                                    placeholder="Auto-filled or enter manually"
+                                                    maxLength={6}
+                                                    {...field}
+                                                />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>

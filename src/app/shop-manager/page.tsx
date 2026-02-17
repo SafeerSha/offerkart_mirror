@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Heading, Text, SectionTitle } from "@/components/shared/Typography";
-import { getShops } from "@/lib/api/shop";
+import { getMyShops } from "@/lib/api/shop";
 import { toast } from "sonner";
 import { PremiumCard } from "@/components/shared/PremiumCard";
 import { PremiumButton } from "@/components/shared/PremiumButton";
@@ -14,6 +14,7 @@ import {
     Clock,
     Eye,
     Filter,
+    GitBranch,
     Info,
     LayoutDashboard,
     LogOut,
@@ -45,8 +46,16 @@ export default function ShopManagerPage() {
 
     useEffect(() => {
         async function fetchShops() {
+            // Debugging: Check for access token
+            console.log("Session:", session);
+            console.log("Access Token available:", !!(session as any)?.accessToken);
+            if ((session as any)?.accessToken) {
+                console.log("Token sample:", (session as any).accessToken.substring(0, 10) + "...");
+            }
+
             try {
-                const response = await getShops();
+                const response = await getMyShops();
+
                 if (response.success && response.data) {
                     const result = response.data as any;
                     // Handle both { data: [...] } and direct [...] response structures
@@ -54,9 +63,11 @@ export default function ShopManagerPage() {
                     setShops(Array.isArray(shopList) ? shopList : []);
                 } else {
                     console.error("Failed to fetch shops:", response.error);
+                    toast.error(`Failed to load shops: ${response.error || "Unknown error"}`);
                 }
-            } catch (error) {
+            } catch (error: any) {
                 console.error("Error fetching shops:", error);
+                toast.error(`Network error: ${error.message || "Could not reach server"}`);
             } finally {
                 setIsLoadingShops(false);
             }
@@ -64,6 +75,9 @@ export default function ShopManagerPage() {
 
         if (session) {
             fetchShops();
+        } else if (status === "unauthenticated") {
+            // Optional: Handle unauthenticated state if needed, though middleware should handle this
+            setIsLoadingShops(false);
         }
     }, [session]);
 
@@ -372,15 +386,29 @@ export default function ShopManagerPage() {
 
                                         <div className="space-y-4">
                                             {isLoadingShops ? (
-                                                <div className="space-y-4">
-                                                    {[1, 2].map((i) => (
-                                                        <div key={i} className="p-4 rounded-xl border border-primary/5 bg-primary/5 animate-pulse flex items-center justify-between">
-                                                            <div className="flex items-center gap-4">
-                                                                <div className="w-12 h-12 rounded-lg bg-primary/10" />
+                                                <div className="space-y-3">
+                                                    {[1, 2, 3].map((i) => (
+                                                        <div key={i} className="p-3 sm:p-4 rounded-xl border border-primary/5 bg-background/40 animate-pulse flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                                            <div className="flex items-center gap-3 sm:gap-4">
+                                                                {/* Logo placeholder */}
+                                                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gray-200 shrink-0" />
                                                                 <div className="space-y-2">
-                                                                    <div className="h-4 w-32 bg-primary/10 rounded" />
-                                                                    <div className="h-3 w-24 bg-primary/10 rounded" />
+                                                                    {/* Shop name */}
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="h-5 w-28 sm:w-36 bg-gray-200 rounded" />
+                                                                        <div className="w-2 h-2 rounded-full bg-gray-200" />
+                                                                    </div>
+                                                                    {/* Location + badge */}
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="h-3 w-20 bg-gray-200 rounded" />
+                                                                        <div className="h-4 w-14 bg-gray-200 rounded-full" />
+                                                                    </div>
                                                                 </div>
+                                                            </div>
+                                                            {/* Action buttons */}
+                                                            <div className="flex items-center gap-2 sm:gap-3">
+                                                                <div className="h-9 w-24 bg-gray-200 rounded-lg" />
+                                                                <div className="h-9 w-24 bg-gray-200 rounded-lg" />
                                                             </div>
                                                         </div>
                                                     ))}
@@ -427,12 +455,20 @@ export default function ShopManagerPage() {
                                                                     </div>
                                                                 </div>
                                                             </div>
-                                                            <Link href={`/shop-manager/add-shop?id=${shop.id}`} className="w-full sm:w-auto">
-                                                                <PremiumButton variant="ghost" size="sm" className="w-full sm:w-auto h-9 px-4 gap-2 transition-all border border-primary/10 bg-primary/5 hover:bg-primary/10 hover:border-primary/20">
-                                                                    <span className="text-xs font-bold uppercase tracking-wider">Manage</span>
-                                                                    <ChevronRight className="w-4 h-4" />
-                                                                </PremiumButton>
-                                                            </Link>
+                                                            <div className="flex flex-col xs:flex-row w-full sm:w-auto gap-2">
+                                                                <Link href={`/shop-manager/${shop.id}/branches`} className="w-full sm:w-auto">
+                                                                    <PremiumButton variant="ghost" size="sm" className="w-full sm:w-auto h-9 px-5 gap-2 transition-all duration-200 bg-orange-50 hover:bg-orange-100 text-orange-600 rounded-lg border border-orange-200/60 hover:border-orange-300 hover:-translate-y-0.5 shadow-sm">
+                                                                        <GitBranch className="w-3.5 h-3.5" />
+                                                                        <span className="text-xs font-semibold uppercase tracking-wider">Branches</span>
+                                                                    </PremiumButton>
+                                                                </Link>
+                                                                <Link href={`/shop-manager/add-shop?id=${shop.id}`} className="w-full sm:w-auto group/manage">
+                                                                    <PremiumButton variant="ghost" size="sm" className="w-full sm:w-auto h-9 px-5 gap-2 transition-all duration-200 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg border border-gray-200/60 hover:border-gray-300 hover:-translate-y-0.5 shadow-sm">
+                                                                        <span className="text-xs font-semibold uppercase tracking-wider">Manage</span>
+                                                                        <ChevronRight className="w-4 h-4 transition-transform duration-200 group-hover/manage:translate-x-0.5" />
+                                                                    </PremiumButton>
+                                                                </Link>
+                                                            </div>
                                                         </div>
                                                     ))}
                                                 </div>
