@@ -51,7 +51,7 @@ import { cn } from "@/lib/utils";
 
 const formSchema = z.object({
     shop_name: z.string().min(2, "Shop name must be at least 2 characters"),
-    // description: z.string().min(10, "Please tell us a bit more about what you list"),
+    description: z.string().min(5, "Please tell us a bit more about what you list"),
     email: z.string().email("Invalid email address"),
     phone: z.string().min(10, "Invalid phone number"),
     address: z.string().min(5, "Address must be at least 5 characters"),
@@ -83,7 +83,7 @@ export default function AddShopForm() {
         resolver: zodResolver(formSchema),
         defaultValues: {
             shop_name: "",
-            // description: "",
+            description: "",
             email: "",
             phone: "",
             address: "",
@@ -142,7 +142,7 @@ export default function AddShopForm() {
                     // Populate form with existing data
                     form.reset({
                         shop_name: shop.shop_name || "",
-                        // description: shop.description || "",
+                        description: shop.description || "",
                         email: shop.email || "",
                         phone: shop.phone || "",
                         address: shop.address || "",
@@ -192,34 +192,32 @@ export default function AddShopForm() {
     const onSubmit = async (values: FormValues) => {
         setIsSubmitting(true);
         try {
-            console.log("Submitting values (JSON):", values);
+            const formData = new FormData();
+            formData.append("shop_name", values.shop_name);
+            formData.append("description", values.description);
+            formData.append("email", values.email || "");
+            formData.append("phone", values.phone);
+            formData.append("address", values.address);
+            formData.append("city", values.city);
+            formData.append("district", values.district);
+            formData.append("state", values.state);
+            formData.append("pincode", values.pincode);
 
-            // NOTE: Using JSON payload because backend FormData parsing is currently failing.
-            // This means logo upload is temporarily skipped to ensure shop creation/update works.
-            const payload = {
-                shop_name: values.shop_name,
-                email: values.email || "",
-                phone: values.phone,
-                address: values.address,
-                city: values.city,
-                district: values.district,
-                state: values.state,
-                pincode: values.pincode,
-                latitude: values.latitude,
-                longitude: values.longitude,
-                is_active: values.isActive,
-                file: logoFile
-            };
-            let response;
-            if (isEditMode && shopId) {
-                console.log("Calling updateShop with ID:", shopId);
-                response = await updateShop(shopId, payload);
-            } else {
-                console.log("Calling addShop");
-                response = await addShop(payload);
+            if (values.latitude) formData.append("latitude", values.latitude.toString());
+            if (values.longitude) formData.append("longitude", values.longitude.toString());
+
+            formData.append("is_active", String(values.isActive));
+
+            if (logoFile) {
+                formData.append("file", logoFile);
             }
 
-            console.log("API Response:", response);
+            let response;
+            if (isEditMode && shopId) {
+                response = await updateShop(shopId, formData);
+            } else {
+                response = await addShop(formData);
+            }
 
             if (response.success || (response as any).status === "success" || (response as any).status === 200) {
                 toast.success(isEditMode ? "Shop updated successfully!" : "Shop added successfully!");
@@ -413,7 +411,7 @@ export default function AddShopForm() {
                                 />
                             </div>
 
-                            {/* <FormField
+                            <FormField
                                 control={form.control}
                                 name="description"
                                 render={({ field }) => (
@@ -430,7 +428,7 @@ export default function AddShopForm() {
                                         <FormMessage />
                                     </FormItem>
                                 )}
-                            /> */}
+                            />
                         </div>
                     </PremiumCard>
 
