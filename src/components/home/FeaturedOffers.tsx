@@ -129,7 +129,7 @@ const FeaturedOffers = ({ offers, variant = "full" }: FeaturedOffersProps) => {
                     key={offer.id}
                     className="flex flex-col items-center group cursor-pointer transition-all duration-300 hover:scale-105 hover:-translate-y-1 flex-shrink-0"
                     style={{ minWidth: variant === "full" ? '80px' : '64px' }}
-                    onClick={() => console.log(`Clicked ${offer.name}`)} // Placeholder for navigation
+                    onClick={() => {}}
                   >
                     <div className={cn(
                       "rounded-full overflow-hidden border-2 border-primary/20 group-hover:border-primary group-hover:shadow-lg transition-all duration-300 relative bg-muted/10",
@@ -155,7 +155,7 @@ const FeaturedOffers = ({ offers, variant = "full" }: FeaturedOffersProps) => {
                   <button
                     className="flex flex-col items-center group cursor-pointer transition-all duration-300 hover:scale-105 hover:-translate-y-1 flex-shrink-0"
                     style={{ minWidth: '64px' }}
-                    onClick={() => console.log("Show more shops")}
+                    onClick={() => {}}
                   >
                     <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full border-2 border-dashed border-primary/30 group-hover:border-primary bg-primary/5 flex items-center justify-center transition-all duration-300 group-hover:shadow-md">
                       <Plus className="w-6 h-6 text-primary group-hover:scale-110 transition-transform" />

@@ -5,7 +5,7 @@ import { MapContainer, TileLayer, Marker, useMapEvents, useMap, ZoomControl } fr
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import debounce from "lodash.debounce";
-import { Search, Loader2, X, MapPin, Target } from "lucide-react";
+import { Search, Loader2, X, MapPin, Target, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +16,24 @@ const icon = L.icon({
     iconSize: [25, 41],
     iconAnchor: [12, 41],
 });
+
+const INDIA_BOUNDS = {
+    north: 35.5,
+    south: 6.5,
+    west: 68.0,
+    east: 97.5,
+};
+
+const KERALA_DEFAULT: [number, number] = [10.7867, 76.6548];
+
+function isInsideIndia(lat: number, lng: number): boolean {
+    return (
+        lat >= INDIA_BOUNDS.south &&
+        lat <= INDIA_BOUNDS.north &&
+        lng >= INDIA_BOUNDS.west &&
+        lng <= INDIA_BOUNDS.east
+    );
+}
 
 interface SearchResult {
     place_id: number;
@@ -31,10 +49,14 @@ interface MapPickerProps {
     zoom?: number;
 }
 
-function MapEvents({ onChange }: { onChange: (coords: { lat: number; lng: number }) => void }) {
+function MapEvents({ onChange, onWarning }: { onChange: (coords: { lat: number; lng: number }) => void; onWarning: (msg: string) => void }) {
     useMapEvents({
         click(e) {
-            onChange({ lat: e.latlng.lat, lng: e.latlng.lng });
+            if (isInsideIndia(e.latlng.lat, e.latlng.lng)) {
+                onChange({ lat: e.latlng.lat, lng: e.latlng.lng });
+            } else {
+                onWarning("Please select a location within India");
+            }
         },
     });
     return null;
@@ -66,12 +88,19 @@ export default function MapPicker({
     const [mapCenter, setMapCenter] = useState<[number, number]>(
         value ? [value.lat, value.lng] : center
     );
+    const [warningMessage, setWarningMessage] = useState<string | null>(null);
+    const warningTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+
+    const showWarning = useCallback((msg: string) => {
+        setWarningMessage(msg);
+        if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
+        warningTimerRef.current = setTimeout(() => setWarningMessage(null), 4000);
+    }, []);
 
     useEffect(() => {
         setMounted(true);
     }, []);
 
-    // Update position when value prop changes (important for edit mode)
     useEffect(() => {
         if (value && value.lat && value.lng) {
             const newPos: [number, number] = [value.lat, value.lng];
@@ -98,16 +127,22 @@ export default function MapPicker({
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 const { latitude, longitude } = position.coords;
-                console.log("Got location:", latitude, longitude);
 
-                // Only update if position actually changed significantly (micro-movements filter)
-                const newPos: [number, number] = [latitude, longitude];
-
-                setPosition(newPos);
-                setMapCenter(newPos);
-                onChange({ lat: latitude, lng: longitude });
-                setIsLocating(false);
-                toast.success("Location updated to your current position");
+                if (isInsideIndia(latitude, longitude)) {
+                    const newPos: [number, number] = [latitude, longitude];
+                    setPosition(newPos);
+                    setMapCenter(newPos);
+                    onChange({ lat: latitude, lng: longitude });
+                    setIsLocating(false);
+                    toast.success("Location updated to your current position");
+                } else {
+                    // Outside India — default to Kerala
+                    showWarning("Your current location is outside India. Defaulting to Kerala.");
+                    setPosition(KERALA_DEFAULT);
+                    setMapCenter(KERALA_DEFAULT);
+                    onChange({ lat: KERALA_DEFAULT[0], lng: KERALA_DEFAULT[1] });
+                    setIsLocating(false);
+                }
             },
             (error) => {
                 console.error("Geolocation error:", error);
@@ -128,7 +163,7 @@ export default function MapPicker({
             },
             options
         );
-    }, [onChange]);
+    }, [onChange, showWarning]);
 
     // Nominatim Search Function
     const handleSearch = async (query: string) => {
@@ -176,14 +211,19 @@ export default function MapPicker({
     const handleMarkerDrag = useCallback((e: L.LeafletEvent) => {
         const marker = e.target;
         const { lat, lng } = marker.getLatLng();
-        const newPos: [number, number] = [lat, lng];
-        setPosition(newPos);
-        debouncedOnChange({ lat, lng });
-    }, [debouncedOnChange]);
+        if (isInsideIndia(lat, lng)) {
+            const newPos: [number, number] = [lat, lng];
+            setPosition(newPos);
+            debouncedOnChange({ lat, lng });
+        } else {
+            showWarning("Please select a location within India");
+            const fallback = position || KERALA_DEFAULT;
+            marker.setLatLng(fallback);
+            setPosition(fallback);
+        }
+    }, [debouncedOnChange, position, showWarning]);
 
     if (!mounted) return <div className="h-full w-full bg-gray-100 animate-pulse rounded-xl" />;
-
-    // const mapCenter = position || center; // This line is replaced by the state variable mapCenter
 
     return (
         <div className="h-full w-full relative rounded-xl overflow-hidden border border-gray-200 group">
@@ -257,6 +297,9 @@ export default function MapPicker({
                 className="h-full w-full z-0"
                 attributionControl={false}
                 zoomControl={false}
+                maxBounds={[[INDIA_BOUNDS.south - 2, INDIA_BOUNDS.west - 2], [INDIA_BOUNDS.north + 2, INDIA_BOUNDS.east + 2]]}
+                maxBoundsViscosity={0.8}
+                minZoom={4}
             >
                 <TileLayer
                     attribution=''
@@ -270,7 +313,7 @@ export default function MapPicker({
                 <MapEvents onChange={(coords) => {
                     setPosition([coords.lat, coords.lng]);
                     debouncedOnChange(coords);
-                }} />
+                }} onWarning={showWarning} />
 
                 {position && (
                     <Marker
@@ -317,6 +360,23 @@ export default function MapPicker({
                     </div>
                 )}
             </MapContainer>
+
+            {/* Warning Banner */}
+            {warningMessage && (
+                <div className="absolute top-14 sm:top-16 left-2 sm:left-4 right-2 sm:right-4 z-[1001] max-w-md mx-auto animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="flex items-center gap-2.5 px-4 py-3 bg-amber-50 border border-amber-300 rounded-xl shadow-lg">
+                        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                        <p className="text-xs font-medium text-amber-800 flex-1">{warningMessage}</p>
+                        <button
+                            type="button"
+                            onClick={() => setWarningMessage(null)}
+                            className="p-0.5 hover:bg-amber-100 rounded-full text-amber-500 hover:text-amber-700 transition-colors"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Instruction Overlay */}
             <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-[10] bg-white/95 backdrop-blur-md px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-[9px] sm:text-[11px] font-medium text-gray-600 border border-gray-200 shadow-xl pointer-events-none whitespace-nowrap">

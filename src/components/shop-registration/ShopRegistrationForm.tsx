@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -12,6 +13,7 @@ import { registerShop } from "@/lib/api/shop";
 import { useRouter } from "next/navigation";
 import { Building2, User, Mail, Phone, Lock, ArrowRight } from "lucide-react";
 import { hasSuspiciousPattern } from "@/lib/security";
+import OtpVerificationModal from "./OtpVerificationModal";
 
 const formSchema = z.object({
     full_name: z.string().min(2, "Full name must be at least 2 characters"),
@@ -23,6 +25,8 @@ const formSchema = z.object({
 
 export default function ShopRegistrationForm() {
     const router = useRouter();
+    const [showOtpModal, setShowOtpModal] = useState(false);
+    const [pendingValues, setPendingValues] = useState<z.infer<typeof formSchema> | null>(null);
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -35,19 +39,28 @@ export default function ShopRegistrationForm() {
         },
     });
 
+    // Step 1: Validate form and show OTP modal
     async function onSubmit(values: z.infer<typeof formSchema>) {
-        // Additional security check for suspicious patterns
         const payloadValues = Object.values(values);
         if (payloadValues.some(val => hasSuspiciousPattern(val))) {
             toast.error("Suspicious active content detected. Please review your input.");
             return;
         }
+        setPendingValues(values);
+        setShowOtpModal(true);
+    }
 
-        const response = await registerShop(values);
+    // Step 2: After OTP verification, complete registration
+    async function handleOtpVerified() {
+        if (!pendingValues) return;
+
+        const response = await registerShop(pendingValues);
         if (response.success) {
+            setShowOtpModal(false);
             toast.success(response.message || "Shop registered successfully! Please log in.");
             router.push("/login");
         } else {
+            setShowOtpModal(false);
             toast.error(response.error || "Something went wrong. Please try again.");
         }
     }
@@ -189,6 +202,16 @@ export default function ShopRegistrationForm() {
                         </>
                     )}
                 </button>
+
+                {/* OTP Verification Modal */}
+                <OtpVerificationModal
+                    open={showOtpModal}
+                    onOpenChange={setShowOtpModal}
+                    email={form.getValues("email")}
+                    phone={form.getValues("phone")}
+                    onVerified={handleOtpVerified}
+                    isSubmitting={form.formState.isSubmitting}
+                />
             </form>
         </Form>
     );

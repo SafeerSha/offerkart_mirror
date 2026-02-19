@@ -23,6 +23,7 @@ import {
 import Link from "next/link";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import dynamic from "next/dynamic";
 import { addShop, updateShop, getShopDetails } from "@/lib/api/shop";
 import { Shop } from "@/lib/types/shop";
@@ -70,6 +71,7 @@ type FormValues = z.infer<typeof formSchema>;
 
 export default function AddShopForm() {
     const router = useRouter();
+    const { data: session } = useSession();
     const searchParams = useSearchParams();
     const shopId = searchParams.get('id');
     const isEditMode = !!shopId;
@@ -177,12 +179,10 @@ export default function AddShopForm() {
 
     const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        console.log("File selected:", file);
         if (file) {
             setLogoFile(file);
             const reader = new FileReader();
             reader.onloadend = () => {
-                console.log("Reader result:", reader.result ? "Result exists" : "No result");
                 setLogoPreview(reader.result as string);
             };
             reader.readAsDataURL(file);
@@ -374,13 +374,29 @@ export default function AddShopForm() {
                                 )}
                             />
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
                                 <FormField
                                     control={form.control}
                                     name="email"
                                     render={({ field }) => (
                                         <FormItem className="space-y-2">
-                                            <FormLabel className="text-sm font-medium text-gray-700">Shop Email</FormLabel>
+                                            <div className="flex items-center justify-between">
+                                                <FormLabel className="text-sm font-medium text-gray-700">Shop Email</FormLabel>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (session?.user?.email) {
+                                                            form.setValue("email", session.user.email);
+                                                            toast.success("Email filled from account");
+                                                        } else {
+                                                            toast.error("No registered email found");
+                                                        }
+                                                    }}
+                                                    className="text-[11px] font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:underline transition-colors"
+                                                >
+                                                    <CheckCircle2 className="w-3 h-3" />
+                                                    Fill from profile
+                                                </button>
+                                            </div>
                                             <FormControl>
                                                 <PremiumInput
                                                     placeholder="shop@example.com"
@@ -397,7 +413,24 @@ export default function AddShopForm() {
                                     name="phone"
                                     render={({ field }) => (
                                         <FormItem className="space-y-2">
-                                            <FormLabel className="text-sm font-medium text-gray-700">Phone Number</FormLabel>
+                                            <div className="flex items-center justify-between">
+                                                <FormLabel className="text-sm font-medium text-gray-700">Phone Number</FormLabel>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (session?.user?.phone) {
+                                                            form.setValue("phone", session.user.phone);
+                                                            toast.success("Phone filled from account");
+                                                        } else {
+                                                            toast.error("No registered phone found");
+                                                        }
+                                                    }}
+                                                    className="text-[11px] font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:underline transition-colors"
+                                                >
+                                                    <CheckCircle2 className="w-3 h-3" />
+                                                    Fill from profile
+                                                </button>
+                                            </div>
                                             <FormControl>
                                                 <PremiumInput
                                                     placeholder="+91 00000 00000"

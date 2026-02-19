@@ -5,10 +5,15 @@ import { useRouter } from "next/navigation";
 import {
     ChevronLeft, Save, Info, Send, CheckSquare, Rocket, Zap,
     Trash2, Eye, Plus, IndianRupee,
-    Type, AlignLeft, RefreshCcw,
+    Type, AlignLeft, RefreshCcw, Tag, ChevronDown, Check, Search,
     CheckCircle2, AlertCircle, FileEdit, X,
     Image as ImageIcon
 } from "lucide-react";
+
+const CATEGORIES = [
+    "Food & Dining", "Fashion", "Electronics", "Wellness",
+    "Fitness", "Jewelry", "Beauty", "Grocery", "Other"
+];
 import { createWorker } from 'tesseract.js';
 import { Heading, Subheading, Text } from "@/components/shared/Typography";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
@@ -29,6 +34,7 @@ interface MarkedItem {
     width: number;
     height: number;
     name: string;
+    category: string;
     description: string;
     productImage: string;
     oldPrice: number;
@@ -64,6 +70,7 @@ export default function HotspotEditorPage() {
     // Form State
     const [formData, setFormData] = useState({
         name: '',
+        category: '',
         description: '',
         productImage: '',
         oldPrice: '',
@@ -81,6 +88,8 @@ export default function HotspotEditorPage() {
     const [isCropping, setIsCropping] = useState(false);
     const [cropStartPos, setCropStartPos] = useState<Position | null>(null);
     const [showBackWarning, setShowBackWarning] = useState(false);
+    const [categoryOpen, setCategoryOpen] = useState(false);
+    const [categorySearch, setCategorySearch] = useState('');
 
     // Refs
     const containerRef = useRef<HTMLDivElement>(null);
@@ -150,7 +159,7 @@ export default function HotspotEditorPage() {
         const id = crypto.randomUUID();
         const tempItem: MarkedItem = {
             id, x: relX, y: relY, width: relW, height: relH,
-            name: 'Processing...', description: '', productImage: '',
+            name: 'Processing...', category: '', description: '', productImage: '',
             oldPrice: 0, offerPrice: 0, currency: posterData.currency
         };
 
@@ -227,6 +236,7 @@ export default function HotspotEditorPage() {
         setCurrentMarkedItem(item);
         setFormData({
             name: item.name === 'Processing...' ? '' : item.name,
+            category: item.category || '',
             description: item.description,
             productImage: item.productImage,
             oldPrice: item.oldPrice ? String(item.oldPrice) : '',
@@ -252,6 +262,7 @@ export default function HotspotEditorPage() {
         const updatedItem: MarkedItem = {
             ...currentMarkedItem,
             name: formData.name,
+            category: formData.category,
             description: formData.description,
             productImage: formData.productImage,
             oldPrice: parseFloat(formData.oldPrice) || 0,
@@ -659,12 +670,12 @@ export default function HotspotEditorPage() {
 
                 {/* --- Edit Modal --- */}
                 {showModal && currentMarkedItem && (
-                    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex justify-center items-center z-[100] p-4">
-                        <PremiumCard className="w-full max-w-lg p-0 overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
-                            <form onSubmit={handleSaveForm}>
-                                <div className="p-6 border-b border-border/50 flex justify-between items-center bg-muted/30">
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-[100] px-4 py-8 md:py-12">
+                        <PremiumCard className="w-full max-w-2xl lg:max-w-3xl p-0 overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 my-auto max-h-[calc(100vh-4rem)] md:max-h-[calc(100vh-6rem)] flex flex-col bg-white">
+                            <form onSubmit={handleSaveForm} className="flex flex-col flex-1 overflow-hidden">
+                                <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-white shrink-0">
                                     <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-primary/10 rounded-lg">
+                                        <div className="p-2 bg-orange-50 rounded-lg">
                                             <FileEdit className="w-5 h-5 text-primary" />
                                         </div>
                                         <Subheading className="m-0">Refine Item Details</Subheading>
@@ -672,31 +683,32 @@ export default function HotspotEditorPage() {
                                     <button
                                         type="button"
                                         onClick={() => { setShowModal(false); setHighlightedId(null); }}
-                                        className="p-2 hover:bg-black/10 rounded-full transition-colors"
+                                        className="p-2 hover:bg-gray-100 rounded-full transition-colors"
                                     >
                                         <X className="w-5 h-5" />
                                     </button>
                                 </div>
 
-                                <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
-                                    {/* Product Image Section */}
-                                    <div className="flex gap-6 items-center p-4 bg-primary/5 rounded-3xl border border-primary/10">
-                                        <div className="relative group shrink-0">
-                                            <div className="w-24 h-24 rounded-2xl overflow-hidden bg-white shadow-sm border border-border group-hover:border-primary/50 transition-colors">
+                                <div className="px-6 py-4 space-y-4 overflow-y-auto custom-scrollbar flex-1 bg-white">
+                                    {/* Product Image Section - Minimal */}
+                                    <div className="flex items-center gap-5 p-4 bg-gray-50 rounded-2xl border border-gray-100 group transition-all duration-300">
+
+                                        <div className="relative group/img shrink-0">
+                                            <div className="w-20 h-20 rounded-xl overflow-hidden bg-white shadow-sm border border-gray-200 group-hover/img:border-orange-400 transition-all duration-300">
                                                 {formData.productImage ? (
                                                     <img src={formData.productImage} className="w-full h-full object-cover" alt="" />
                                                 ) : (
-                                                    <div className="w-full h-full flex items-center justify-center bg-muted">
-                                                        <ImageIcon className="w-8 h-8 opacity-20" />
+                                                    <div className="w-full h-full flex items-center justify-center">
+                                                        <ImageIcon className="w-8 h-8 text-gray-200" />
                                                     </div>
                                                 )}
                                             </div>
                                             <button
                                                 type="button"
                                                 onClick={startProductImageUpload}
-                                                className="absolute inset-0 bg-primary/40 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-300 rounded-2xl backdrop-blur-[2px]"
+                                                className="absolute inset-0 bg-black/40 text-white opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition-all duration-300 rounded-xl backdrop-blur-[1px]"
                                             >
-                                                <RefreshCcw className="w-6 h-6 animate-spin-slow" />
+                                                <RefreshCcw className="w-5 h-5" />
                                             </button>
                                             <input
                                                 ref={productFileInputRef}
@@ -704,34 +716,90 @@ export default function HotspotEditorPage() {
                                                 onChange={handleProductFileChange}
                                             />
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                            <Text className="text-xs font-bold uppercase tracking-widest text-primary mb-1">Product Display</Text>
-                                            <Text className="text-[11px] opacity-60 leading-tight mb-2">Main image for the popup. Click to replace or re-crop.</Text>
+
+                                        <div className="flex-1">
+                                            <h4 className="text-sm font-bold text-gray-800 mb-1">Product Image</h4>
                                             <button
                                                 type="button"
                                                 onClick={startProductImageUpload}
-                                                className="text-[11px] font-bold text-primary hover:underline flex items-center gap-1"
+                                                className="inline-flex items-center gap-1.5 text-xs font-bold text-orange-600 hover:text-orange-700 transition-colors"
                                             >
-                                                <RefreshCcw className="w-3 h-3" /> Change Image
+                                                <RefreshCcw className="w-3.5 h-3.5" /> Change Image
                                             </button>
                                         </div>
                                     </div>
 
                                     <div className="space-y-5">
-                                        <PremiumInput
-                                            label="Product Name"
-                                            icon={Type}
-                                            value={formData.name}
-                                            required
-                                            onChange={(e) => setFormData(p => ({ ...p, name: e.target.value }))}
-                                            placeholder="e.g. Delicious Weekend Brunch"
-                                            className="h-12"
-                                        />
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <PremiumInput
+                                                label="Product Name"
+                                                icon={Type}
+                                                value={formData.name}
+                                                required
+                                                onChange={(e) => setFormData(p => ({ ...p, name: e.target.value }))}
+                                                placeholder="e.g. Delicious Weekend Brunch"
+                                                className="h-12"
+                                            />
+
+                                            <div className="space-y-2 relative">
+                                                <label className="text-xs font-semibold text-gray-600 flex items-center gap-2 px-1">
+                                                    <Tag className="w-3.5 h-3.5 text-orange-500" /> Category
+                                                </label>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { setCategoryOpen(!categoryOpen); setCategorySearch(''); }}
+                                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-300 transition-all font-medium text-sm text-left flex items-center justify-between cursor-pointer hover:border-gray-300"
+                                                >
+                                                    <span className={formData.category ? 'text-gray-800' : 'text-gray-400'}>
+                                                        {formData.category || 'Select a category'}
+                                                    </span>
+                                                    <ChevronDown className={cn("w-4 h-4 text-gray-400 transition-transform", categoryOpen && "rotate-180")} />
+                                                </button>
+                                                {categoryOpen && (
+                                                    <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
+                                                        <div className="flex items-center gap-2 px-3 py-2.5 border-b border-gray-100">
+                                                            <Search className="w-3.5 h-3.5 text-gray-400" />
+                                                            <input
+                                                                type="text"
+                                                                value={categorySearch}
+                                                                onChange={(e) => setCategorySearch(e.target.value)}
+                                                                placeholder="Search categories..."
+                                                                className="flex-1 text-sm outline-none bg-transparent placeholder:text-gray-400 text-gray-800"
+                                                                autoFocus
+                                                            />
+                                                        </div>
+                                                        <div className="max-h-48 overflow-y-auto">
+                                                            {CATEGORIES.filter(c => c.toLowerCase().includes(categorySearch.toLowerCase())).map(cat => (
+                                                                <button
+                                                                    key={cat}
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setFormData(p => ({ ...p, category: cat }));
+                                                                        setCategoryOpen(false);
+                                                                        setCategorySearch('');
+                                                                    }}
+                                                                    className={cn(
+                                                                        "w-full text-left px-4 py-2.5 text-sm flex items-center justify-between hover:bg-orange-50 transition-colors cursor-pointer text-gray-700",
+                                                                        formData.category === cat && "bg-orange-50 font-semibold text-orange-600"
+                                                                    )}
+                                                                >
+                                                                    {cat}
+                                                                    {formData.category === cat && <Check className="w-4 h-4 text-orange-500" />}
+                                                                </button>
+                                                            ))}
+                                                            {CATEGORIES.filter(c => c.toLowerCase().includes(categorySearch.toLowerCase())).length === 0 && (
+                                                                <p className="px-4 py-3 text-xs text-center text-gray-400">No matching categories</p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
 
                                         <div className="space-y-2">
                                             <div className="flex items-center justify-between px-1">
-                                                <label className="text-[11px] font-bold uppercase tracking-wider opacity-60 flex items-center gap-2">
-                                                    <AlignLeft className="w-3 h-3 text-primary" /> Full Description
+                                                <label className="text-xs font-semibold text-gray-600 flex items-center gap-2">
+                                                    <AlignLeft className="w-3.5 h-3.5 text-orange-500" /> Full Description
                                                 </label>
                                                 {/* <button
                                                     type="button" onClick={handleAIFill}
@@ -743,35 +811,35 @@ export default function HotspotEditorPage() {
                                             <textarea
                                                 value={formData.description} rows={3}
                                                 onChange={(e) => setFormData(p => ({ ...p, description: e.target.value }))}
-                                                className="w-full bg-background/40 border border-primary/10 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all font-medium text-sm min-h-[100px] resize-none"
+                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-300 transition-all text-sm text-gray-800 min-h-[100px] resize-none placeholder:text-gray-400"
                                                 placeholder="Paste any additional details or let the AI fill it..."
                                             />
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-2">
-                                                <label className="text-[11px] font-bold uppercase tracking-wider opacity-60 flex items-center gap-2 px-1 text-destructive">
-                                                    <IndianRupee className="w-3 h-3" /> Old Price
+                                                <label className="text-xs font-semibold text-red-500 flex items-center gap-2 px-1">
+                                                    <IndianRupee className="w-3.5 h-3.5" /> Old Price
                                                 </label>
                                                 <div className="relative group">
-                                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold opacity-30 group-focus-within:opacity-60 transition-opacity">₹</span>
+                                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 group-focus-within:text-gray-600 transition-colors">₹</span>
                                                     <input
                                                         type="number" step="0.01" value={formData.oldPrice}
                                                         onChange={(e) => setFormData(p => ({ ...p, oldPrice: e.target.value }))}
-                                                        className="w-full bg-background/40 border border-primary/10 rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all font-bold text-sm"
+                                                        className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-300 transition-all font-semibold text-sm text-gray-800"
                                                     />
                                                 </div>
                                             </div>
                                             <div className="space-y-2">
-                                                <label className="text-[11px] font-bold uppercase tracking-wider opacity-60 flex items-center gap-2 px-1 text-green-500">
-                                                    <IndianRupee className="w-3 h-3" /> Offer Price
+                                                <label className="text-xs font-semibold text-green-600 flex items-center gap-2 px-1">
+                                                    <IndianRupee className="w-3.5 h-3.5" /> Offer Price
                                                 </label>
                                                 <div className="relative group">
-                                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold opacity-30 group-focus-within:opacity-100 transition-opacity">₹</span>
+                                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 group-focus-within:text-green-600 transition-colors">₹</span>
                                                     <input
                                                         type="number" step="0.01" value={formData.offerPrice}
                                                         onChange={(e) => setFormData(p => ({ ...p, offerPrice: e.target.value }))}
-                                                        className="w-full bg-background/40 border border-primary/10 rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all font-bold text-sm text-green-600 shadow-sm shadow-green-500/5"
+                                                        className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-300 transition-all font-semibold text-sm text-green-700"
                                                     />
                                                 </div>
                                             </div>
@@ -779,7 +847,7 @@ export default function HotspotEditorPage() {
                                     </div>
                                 </div>
 
-                                <div className="p-6 bg-muted/30 border-t border-border/50 flex flex-col gap-3">
+                                <div className="px-6 py-3.5 bg-gray-50 border-t border-gray-200 flex flex-col gap-3 shrink-0">
                                     <div className="flex gap-3">
                                         <PremiumButton type="submit" variant="default" className="flex-1 h-12 rounded-2xl shadow-lg shadow-primary/20" leftIcon={CheckCircle2}>
                                             Save Changes
@@ -796,7 +864,7 @@ export default function HotspotEditorPage() {
                                     <button
                                         type="button"
                                         onClick={() => handleDeleteItem(currentMarkedItem.id)}
-                                        className="w-full py-2.5 text-[10px] font-bold uppercase tracking-widest text-destructive hover:text-white hover:bg-destructive transition-all rounded-xl flex items-center justify-center gap-2 mt-1 border border-destructive/20 hover:border-destructive"
+                                        className="w-full py-2.5 text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-white hover:bg-red-500 transition-all rounded-xl flex items-center justify-center gap-2 border border-red-200 hover:border-red-500"
                                     >
                                         <Trash2 className="w-3 h-3" /> Remove Item from Poster
                                     </button>

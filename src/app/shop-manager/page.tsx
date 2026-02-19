@@ -46,13 +46,6 @@ export default function ShopManagerPage() {
 
     useEffect(() => {
         async function fetchShops() {
-            // Debugging: Check for access token
-            console.log("Session:", session);
-            console.log("Access Token available:", !!(session as any)?.accessToken);
-            if ((session as any)?.accessToken) {
-                console.log("Token sample:", (session as any).accessToken.substring(0, 10) + "...");
-            }
-
             try {
                 const response = await getMyShops();
 
@@ -335,7 +328,7 @@ export default function ShopManagerPage() {
                                             </TabsTrigger>
                                             <TabsTrigger value="shops" className="flex-1 xs:flex-none data-[state=active]:bg-orange-500 data-[state=active]:text-white gap-2 transition-all">
                                                 <Store className="w-4 h-4" />
-                                                Shops
+                                                Shop
                                             </TabsTrigger>
                                         </TabsList>
                                         <Link href="#" className="text-sm font-medium text-primary hover:underline px-1">View All</Link>
@@ -370,19 +363,21 @@ export default function ShopManagerPage() {
                                     </TabsContent>
 
                                     <TabsContent value="shops" className="mt-0 space-y-4 focus-visible:ring-0">
-                                        {/* Add Shop Button */}
-                                        <Link href="/shop-manager/add-shop" className="block">
-                                            <div className="p-1 rounded-xl border-2 border-dashed border-primary/20 hover:border-primary/40 bg-primary/5 hover:bg-primary/10 transition-all group cursor-pointer">
-                                                <div className="flex items-center justify-center gap-3">
-                                                    <div className="w-10 h-10 rounded-xl bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center transition-colors">
-                                                        <Plus className="w-5 h-5 text-primary" />
-                                                    </div>
-                                                    <div className="text-left">
-                                                        <h4 className="font-bold text-gray-900 group-hover:text-primary transition-colors">Add New Shop</h4>
+                                        {/* Add Shop Button - Only show if no shops exist */}
+                                        {shops.length === 0 && (
+                                            <Link href="/shop-manager/add-shop" className="block">
+                                                <div className="p-1 rounded-xl border-2 border-dashed border-primary/20 hover:border-primary/40 bg-primary/5 hover:bg-primary/10 transition-all group cursor-pointer">
+                                                    <div className="flex items-center justify-center gap-3">
+                                                        <div className="w-10 h-10 rounded-xl bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center transition-colors">
+                                                            <Plus className="w-5 h-5 text-primary" />
+                                                        </div>
+                                                        <div className="text-left">
+                                                            <h4 className="font-bold text-gray-900 group-hover:text-primary transition-colors">Add New Shop</h4>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        </Link>
+                                            </Link>
+                                        )}
 
                                         <div className="space-y-4">
                                             {isLoadingShops ? (

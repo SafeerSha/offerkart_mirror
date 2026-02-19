@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import { ENDPOINTS } from "@/lib/api/endpoints";
 
 const handler = NextAuth({
     providers: [
@@ -13,8 +14,7 @@ const handler = NextAuth({
                 if (!credentials?.email || !credentials?.password) return null;
 
                 try {
-                    // Call the production API directly from the server
-                    const response = await fetch("https://offersnearu.vercel.app/api/business/auth/login", {
+                    const response = await fetch(ENDPOINTS.AUTH.LOGIN, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
@@ -27,12 +27,12 @@ const handler = NextAuth({
 
                     if (response.ok && result.status === "success") {
                         const { token, ...user } = result.data;
-                        // Return user object + token for the JWT callback
                         return {
                             id: user.id,
                             name: user.full_name,
                             full_name: user.full_name,
                             email: user.email,
+                            phone: user.phone || "",
                             business_name: user.business_name,
                             accessToken: token,
                         };

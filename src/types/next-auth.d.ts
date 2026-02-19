@@ -7,6 +7,7 @@ declare module "next-auth" {
             id: string;
             full_name: string;
             business_name: string;
+            phone?: string;
         } & DefaultSession["user"];
     }
 
@@ -14,6 +15,7 @@ declare module "next-auth" {
         id: string;
         full_name: string;
         business_name: string;
+        phone?: string;
         accessToken?: string;
     }
 }

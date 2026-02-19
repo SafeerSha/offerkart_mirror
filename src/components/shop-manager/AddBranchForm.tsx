@@ -13,10 +13,13 @@ import {
     Loader2,
     Save,
     GitBranch,
+    CheckCircle2,
+    FileText,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import dynamic from "next/dynamic";
 import { addBranch, updateBranch, getBranchDetails } from "@/lib/api/branch";
 import { getShopDetails } from "@/lib/api/shop";
@@ -45,7 +48,7 @@ import {
 const branchSchema = z.object({
     branch_name: z.string().min(2, "Branch name must be at least 2 characters"),
     email: z.string().email("Invalid email address").or(z.literal("")),
-    phone: z.string().min(10, "Invalid phone number"),
+    phone: z.string().min(10, "Invalid phone number").or(z.literal("")),
     address: z.string().min(5, "Address must be at least 5 characters"),
     city: z.string().min(2, "City is required"),
     district: z.string().min(2, "District is required"),
@@ -64,6 +67,7 @@ interface AddBranchFormProps {
 
 export default function AddBranchForm({ shopId }: AddBranchFormProps) {
     const router = useRouter();
+    const { data: session } = useSession();
     const searchParams = useSearchParams();
     const branchId = searchParams.get("branchId");
     const isEditMode = !!branchId;
@@ -313,7 +317,24 @@ export default function AddBranchForm({ shopId }: AddBranchFormProps) {
                                     name="email"
                                     render={({ field }) => (
                                         <FormItem className="space-y-2">
-                                            <FormLabel className="text-sm font-medium text-gray-700">Branch Email</FormLabel>
+                                            <div className="flex items-center justify-between">
+                                                <FormLabel className="text-sm font-medium text-gray-700">Branch Email <span className="text-gray-400 font-normal">(optional)</span></FormLabel>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (session?.user?.email) {
+                                                            form.setValue("email", session.user.email);
+                                                            toast.success("Email filled from account");
+                                                        } else {
+                                                            toast.error("No registered email found");
+                                                        }
+                                                    }}
+                                                    className="text-[11px] font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:underline transition-colors"
+                                                >
+                                                    <CheckCircle2 className="w-3 h-3" />
+                                                    Fill from profile
+                                                </button>
+                                            </div>
                                             <FormControl>
                                                 <PremiumInput
                                                     placeholder="branch@example.com"
@@ -330,7 +351,24 @@ export default function AddBranchForm({ shopId }: AddBranchFormProps) {
                                     name="phone"
                                     render={({ field }) => (
                                         <FormItem className="space-y-2">
-                                            <FormLabel className="text-sm font-medium text-gray-700">Phone Number</FormLabel>
+                                            <div className="flex items-center justify-between">
+                                                <FormLabel className="text-sm font-medium text-gray-700">Phone Number <span className="text-gray-400 font-normal">(optional)</span></FormLabel>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (session?.user?.phone) {
+                                                            form.setValue("phone", session.user.phone);
+                                                            toast.success("Phone filled from account");
+                                                        } else {
+                                                            toast.error("No registered phone found");
+                                                        }
+                                                    }}
+                                                    className="text-[11px] font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1 hover:underline transition-colors"
+                                                >
+                                                    <CheckCircle2 className="w-3 h-3" />
+                                                    Fill from profile
+                                                </button>
+                                            </div>
                                             <FormControl>
                                                 <PremiumInput
                                                     placeholder="+91 00000 00000"
@@ -346,7 +384,7 @@ export default function AddBranchForm({ shopId }: AddBranchFormProps) {
                         </div>
                     </PremiumCard>
 
-                    {/* Status Card */}
+                    {/* Status & Verification Card */}
                     <PremiumCard padding="none" className="lg:col-span-4 overflow-hidden">
                         <div className="px-8 py-6 border-b border-gray-100 bg-white">
                             <div className="flex items-center gap-3">
@@ -354,13 +392,13 @@ export default function AddBranchForm({ shopId }: AddBranchFormProps) {
                                     <AlertCircle className="w-5 h-5 text-orange-600" />
                                 </div>
                                 <div>
-                                    <h2 className="text-xl font-semibold text-gray-900">Status</h2>
-                                    <p className="text-sm text-gray-600">Branch visibility</p>
+                                    <h2 className="text-xl font-semibold text-gray-900">Status & Verification</h2>
+                                    <p className="text-sm text-gray-600">Visibility & compliance</p>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="p-8 bg-white">
+                        <div className="p-8 space-y-6 bg-white">
                             <FormField
                                 control={form.control}
                                 name="isActive"
@@ -386,10 +424,33 @@ export default function AddBranchForm({ shopId }: AddBranchFormProps) {
                                 )}
                             />
 
-                            <div className="mt-6 p-4 rounded-xl bg-gray-50 border border-gray-100">
+                            <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
                                 <p className="text-xs text-gray-500 leading-relaxed">
                                     <span className="font-semibold text-gray-700">Tip:</span> Each branch operates independently. You can activate or deactivate branches without affecting the parent shop.
                                 </p>
+                            </div>
+
+                            {/* Divider */}
+                            <div className="border-t border-gray-100"></div>
+
+                            {/* License Section */}
+                            <div className="space-y-4 opacity-60 grayscale pointer-events-none">
+                                <div className="flex items-center justify-between">
+                                    <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                                        <FileText className="w-4 h-4" />
+                                        Branch License
+                                    </label>
+                                    <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full uppercase tracking-wider">Coming Soon</span>
+                                </div>
+                                <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50/50 transition-all group">
+                                    <FileText className="w-10 h-10 mb-2 text-gray-300" />
+                                    <span className="text-xs text-center text-gray-500 mb-4 px-2">
+                                        Upload trade license or certificate (PDF, JPG, PNG)
+                                    </span>
+                                    <PremiumButton type="button" variant="outline" size="sm" className="rounded-full bg-white" disabled>
+                                        Select File
+                                    </PremiumButton>
+                                </div>
                             </div>
                         </div>
                     </PremiumCard>
@@ -539,6 +600,7 @@ export default function AddBranchForm({ shopId }: AddBranchFormProps) {
                             </div>
                         </div>
                     </PremiumCard>
+
                 </div>
 
                 {/* Actions */}

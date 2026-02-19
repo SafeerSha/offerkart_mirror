@@ -23,11 +23,6 @@ export async function apiClient<T>(
         const session = await getSession();
         const tokenValue = (session as any)?.accessToken;
 
-        console.log(`[API Request] ${options.method || 'GET'} ${endpoint}`, {
-            hasToken: !!tokenValue,
-            isFormData: body instanceof FormData
-        });
-
         const isFormData = body instanceof FormData;
 
         const response = await fetch(endpoint, {
@@ -41,12 +36,9 @@ export async function apiClient<T>(
             },
         });
 
-        console.log(`[API Response] ${response.status} ${response.statusText} from ${endpoint}`);
-
         const result = await response.json();
 
         if (!response.ok) {
-            console.warn(`[API Response Error] ${response.status}:`, result);
             return {
                 success: false,
                 error: result.message || result.error || "An error occurred during the request",

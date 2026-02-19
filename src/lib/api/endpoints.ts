@@ -1,4 +1,7 @@
-export const API_BASE_URL = "/api/proxy";
+const IS_SERVER = typeof window === 'undefined';
+export const API_BASE_URL = IS_SERVER
+    ? "https://offersnearu.vercel.app/api"
+    : "/api/proxy";
 // export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export const ENDPOINTS = {
