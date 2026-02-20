@@ -29,7 +29,7 @@ export async function apiClient<T>(
             ...options,
             body,
             headers: {
-                ...(isFormData ? {} : { "Content-Type": "application/json" }),
+                ...(isFormData ? {} : body ? { "Content-Type": "application/json" } : {}),
                 "Accept": "application/json",
                 ...(tokenValue ? { "Authorization": `Bearer ${tokenValue}` } : {}),
                 ...options.headers,

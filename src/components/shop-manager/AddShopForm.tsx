@@ -18,7 +18,8 @@ import {
     ChevronLeft,
     Save,
     Building2,
-    Settings
+    Settings,
+    X
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -209,7 +210,11 @@ export default function AddShopForm() {
             formData.append("is_active", String(values.isActive));
 
             if (logoFile) {
-                formData.append("file", logoFile);
+                if (isEditMode) {
+                    formData.append("logo_url", logoFile);
+                } else {
+                    formData.append("file", logoFile);
+                }
             }
 
             let response;
@@ -503,8 +508,8 @@ export default function AddShopForm() {
                                     <Store className="w-10 h-10 sm:w-12 sm:h-12 text-gray-300" />
                                 )}
                             </div>
-                            <div className="w-full">
-                                <label htmlFor="logo-upload" className="cursor-pointer">
+                            <div className="w-full flex gap-2">
+                                <label htmlFor="logo-upload" className="flex-1 cursor-pointer">
                                     <div className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl bg-gray-50 border border-gray-200 hover:bg-gray-100 transition-colors">
                                         <Upload className="w-4 h-4 sm:w-5 sm:h-5 mb-1 sm:mb-2 text-gray-600" />
                                         <span className="text-xs sm:text-sm font-medium text-gray-700">Select Logo</span>
@@ -517,6 +522,19 @@ export default function AddShopForm() {
                                     className="hidden"
                                     onChange={handleLogoChange}
                                 />
+                                {logoPreview && (
+                                    <button
+                                        type="button"
+                                        className="flex-1 flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl bg-red-50 border border-red-200 hover:bg-red-100 transition-colors text-red-600"
+                                        onClick={() => {
+                                            setLogoPreview(null);
+                                            setLogoFile(null);
+                                        }}
+                                    >
+                                        <X className="w-4 h-4 sm:w-5 sm:h-5 mb-1 sm:mb-2" />
+                                        <span className="text-xs sm:text-sm font-medium">Remove</span>
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </PremiumCard>

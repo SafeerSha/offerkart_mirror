@@ -14,7 +14,7 @@ import {
     Loader2,
     Power,
 } from "lucide-react";
-import { getBranches, deleteBranch } from "@/lib/api/branch";
+import { getBranches, deleteBranch, updateBranch } from "@/lib/api/branch";
 import { getShopDetails } from "@/lib/api/shop";
 import { Branch } from "@/lib/types/branch";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
@@ -22,72 +22,28 @@ import { PremiumCard } from "@/components/shared/PremiumCard";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { Heading, Text } from "@/components/shared/Typography";
 import { cn } from "@/lib/utils";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface BranchListPageProps {
     shopId: string;
 }
 
-// Mock data for testing
-const MOCK_BRANCHES: Branch[] = [
-    {
-        id: 1,
-        branch_name: "Downtown Branch",
-        city: "Mumbai",
-        district: "Mumbai City",
-        state: "Maharashtra",
-        pincode: "400001",
-        phone: "+91 98765 43210",
-        email: "downtown@testshop.com",
-        is_active: true,
-        address: "123 Main Street",
-        shop_id: 1,
-        latitude: 18.9388,
-        longitude: 72.8354,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-    },
-    {
-        id: 2,
-        branch_name: "Suburb Branch",
-        city: "Thane",
-        district: "Thane",
-        state: "Maharashtra",
-        pincode: "400601",
-        phone: "+91 98765 43211",
-        email: "suburb@testshop.com",
-        is_active: false,
-        address: "456 Park Avenue",
-        shop_id: 1,
-        latitude: 19.2183,
-        longitude: 72.9781,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-    },
-    {
-        id: 3,
-        branch_name: "Airport Branch",
-        city: "Mumbai",
-        district: "Mumbai Suburban",
-        state: "Maharashtra",
-        pincode: "400099",
-        phone: "+91 98765 43212",
-        email: "airport@testshop.com",
-        is_active: true,
-        address: "789 Airport Road",
-        shop_id: 1,
-        latitude: 19.0896,
-        longitude: 72.8656,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-    },
-];
-
 export default function BranchListPage({ shopId }: BranchListPageProps) {
     const router = useRouter();
-    const [branches, setBranches] = useState<Branch[]>(MOCK_BRANCHES);
+    const [branches, setBranches] = useState<Branch[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [shopName, setShopName] = useState("test Shop");
     const [deletingId, setDeletingId] = useState<number | null>(null);
+    const [branchToDelete, setBranchToDelete] = useState<Branch | null>(null);
 
     useEffect(() => {
         fetchData();
@@ -121,17 +77,40 @@ export default function BranchListPage({ shopId }: BranchListPageProps) {
     };
 
     const handleDelete = async (branchId: number) => {
-        if (!confirm("Are you sure you want to delete this branch?")) return;
+        const index = branches.findIndex(b => b.id === branchId);
+        const deletedBranch = branches[index];
+
+        // Optimistically update UI
+        setBranches((prev) => prev.filter((b) => b.id !== branchId));
+
+        // Reset dialog state
+        setBranchToDelete(null);
         setDeletingId(branchId);
+
         try {
             const response = await deleteBranch(shopId, branchId.toString());
-            if (response.success) {
+            if (response.success || (response as any).status === "success") {
                 toast.success("Branch deleted successfully");
-                setBranches((prev) => prev.filter((b) => b.id !== branchId));
             } else {
+                // Revert on failure
+                if (deletedBranch) {
+                    setBranches((prev) => {
+                        const newBranches = [...prev];
+                        newBranches.splice(index, 0, deletedBranch);
+                        return newBranches;
+                    });
+                }
                 toast.error(response.error || "Failed to delete branch");
             }
         } catch {
+            // Revert on error
+            if (deletedBranch) {
+                setBranches((prev) => {
+                    const newBranches = [...prev];
+                    newBranches.splice(index, 0, deletedBranch);
+                    return newBranches;
+                });
+            }
             toast.error("An error occurred while deleting");
         } finally {
             setDeletingId(null);
@@ -139,14 +118,36 @@ export default function BranchListPage({ shopId }: BranchListPageProps) {
     };
 
     const handleToggleActive = async (branchId: number, currentStatus: boolean) => {
+        const newStatus = !currentStatus;
         // Optimistically update UI
         setBranches((prev) =>
             prev.map((b) =>
-                b.id === branchId ? { ...b, is_active: !currentStatus } : b
+                b.id === branchId ? { ...b, is_active: newStatus } : b
             )
         );
-        toast.success(`Branch ${!currentStatus ? 'activated' : 'deactivated'} successfully`);
-        // TODO: Add API call to update branch status on backend
+
+        try {
+            const response = await updateBranch(shopId, branchId.toString(), { is_active: newStatus });
+            if (response.success || (response as any).status === "success") {
+                toast.success(`Branch ${newStatus ? 'activated' : 'deactivated'} successfully`);
+            } else {
+                // Revert on failure
+                setBranches((prev) =>
+                    prev.map((b) =>
+                        b.id === branchId ? { ...b, is_active: currentStatus } : b
+                    )
+                );
+                toast.error(response.error || "Failed to update branch status");
+            }
+        } catch (error) {
+            // Revert on error
+            setBranches((prev) =>
+                prev.map((b) =>
+                    b.id === branchId ? { ...b, is_active: currentStatus } : b
+                )
+            );
+            toast.error("An error occurred while updating status");
+        }
     };
 
     return (
@@ -259,7 +260,7 @@ export default function BranchListPage({ shopId }: BranchListPageProps) {
                                                 variant="ghost"
                                                 size="sm"
                                                 className="h-9 px-3 gap-1.5 border border-gray-100 hover:border-red-200 hover:bg-red-50 hover:text-red-600"
-                                                onClick={() => handleDelete(branch.id)}
+                                                onClick={() => setBranchToDelete(branch)}
                                                 disabled={deletingId === branch.id}
                                             >
                                                 {deletingId === branch.id ? (
@@ -320,6 +321,27 @@ export default function BranchListPage({ shopId }: BranchListPageProps) {
                     )}
                 </div>
             </PremiumCard>
+            {/* Delete Confirmation Dialog */}
+            <AlertDialog open={!!branchToDelete} onOpenChange={(open) => !open && setBranchToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will permanently delete the branch "{branchToDelete?.branch_name}".
+                            This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => branchToDelete && handleDelete(branchToDelete.id)}
+                            className="bg-red-600 hover:bg-red-700 text-white focus:ring-red-600"
+                        >
+                            Delete Branch
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

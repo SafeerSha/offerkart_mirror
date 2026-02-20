@@ -31,7 +31,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${rubik.variable} antialiased`}>
+      <body className={`${rubik.variable} antialiased`} suppressHydrationWarning>
         <Providers>
           <ConditionalHeader />
           {children}

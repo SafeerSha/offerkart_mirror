@@ -56,6 +56,7 @@ const branchSchema = z.object({
     pincode: z.string().length(6, "Pincode must be 6 digits"),
     latitude: z.number().optional(),
     longitude: z.number().optional(),
+    licence_no: z.string().optional(),
     isActive: z.boolean(),
 });
 
@@ -89,6 +90,7 @@ export default function AddBranchForm({ shopId }: AddBranchFormProps) {
             pincode: "",
             latitude: undefined,
             longitude: undefined,
+            licence_no: "",
             isActive: true,
         },
     });
@@ -160,6 +162,7 @@ export default function AddBranchForm({ shopId }: AddBranchFormProps) {
                         pincode: branchData.pincode || "",
                         latitude: branchData.latitude || undefined,
                         longitude: branchData.longitude || undefined,
+                        licence_no: branchData.licence_no || "",
                         isActive: branchData.is_active ?? true,
                     });
                 } else {
@@ -191,6 +194,7 @@ export default function AddBranchForm({ shopId }: AddBranchFormProps) {
                 pincode: values.pincode,
                 latitude: values.latitude,
                 longitude: values.longitude,
+                licence_no: values.licence_no,
                 is_active: values.isActive,
             };
 
@@ -434,24 +438,28 @@ export default function AddBranchForm({ shopId }: AddBranchFormProps) {
                             <div className="border-t border-gray-100"></div>
 
                             {/* License Section */}
-                            <div className="space-y-4 opacity-60 grayscale pointer-events-none">
-                                <div className="flex items-center justify-between">
-                                    <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                                        <FileText className="w-4 h-4" />
-                                        Branch License
-                                    </label>
-                                    <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full uppercase tracking-wider">Coming Soon</span>
-                                </div>
-                                <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50/50 transition-all group">
-                                    <FileText className="w-10 h-10 mb-2 text-gray-300" />
-                                    <span className="text-xs text-center text-gray-500 mb-4 px-2">
-                                        Upload trade license or certificate (PDF, JPG, PNG)
-                                    </span>
-                                    <PremiumButton type="button" variant="outline" size="sm" className="rounded-full bg-white" disabled>
-                                        Select File
-                                    </PremiumButton>
-                                </div>
-                            </div>
+                            <FormField
+                                control={form.control}
+                                name="licence_no"
+                                render={({ field }) => (
+                                    <FormItem className="space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                                                <FileText className="w-4 h-4" />
+                                                Branch License Number
+                                            </label>
+                                        </div>
+                                        <FormControl>
+                                            <PremiumInput
+                                                placeholder="e.g. KER123456"
+                                                icon={FileText}
+                                                {...field}
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
                         </div>
                     </PremiumCard>
 
