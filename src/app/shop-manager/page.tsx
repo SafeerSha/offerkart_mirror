@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { Heading, Text, SectionTitle } from "@/components/shared/Typography";
 import { getMyShops } from "@/lib/api/shop";
 import { toast } from "sonner";
@@ -28,20 +28,34 @@ import {
     Settings,
     Store,
     Tag,
-    Ticket
+    Ticket,
+    Loader2
 } from "lucide-react";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { ImagePreviewModal } from "@/components/shared/ImagePreviewModal";
 
-export default function ShopManagerPage() {
+function DashboardContent() {
     const { data: session } = useSession();
+    const searchParams = useSearchParams();
+    const [activeTab, setActiveTab] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            return params.get("tab") === "shops" ? "shops" : "offers";
+        }
+        return "offers";
+    });
+
     const [isShopActive, setIsShopActive] = useState(true);
     const [shops, setShops] = useState<any[]>([]);
     const [isLoadingShops, setIsLoadingShops] = useState(true);
+    const [previewLogo, setPreviewLogo] = useState<{ src: string, name: string } | null>(null);
+    const tabsRef = useRef<HTMLDivElement>(null);
     const user = session?.user as any;
 
     useEffect(() => {
@@ -68,11 +82,30 @@ export default function ShopManagerPage() {
 
         if (session) {
             fetchShops();
-        } else if (status === "unauthenticated") {
-            // Optional: Handle unauthenticated state if needed, though middleware should handle this
-            setIsLoadingShops(false);
         }
     }, [session]);
+
+    useEffect(() => {
+        const tab = searchParams.get("tab");
+        if (tab === "shops") {
+            setActiveTab("shops");
+
+            const scrollTimeout = setTimeout(() => {
+                if (tabsRef.current) {
+                    const elementPosition = tabsRef.current.getBoundingClientRect().top + window.pageYOffset;
+                    const offsetPosition = elementPosition - 120;
+
+                    window.scrollTo({
+                        top: offsetPosition,
+                        behavior: "smooth"
+                    });
+                }
+            }, 800);
+            return () => clearTimeout(scrollTimeout);
+        } else if (tab === "offers") {
+            setActiveTab("offers");
+        }
+    }, [searchParams]);
 
     const handleLogout = () => {
         signOut({ callbackUrl: "/" });
@@ -110,24 +143,6 @@ export default function ShopManagerPage() {
                         <PremiumButton asChild className="rounded-full shadow-lg shadow-primary/20">
                             <Link href="/shop-manager/create-offer">Add Product</Link>
                         </PremiumButton>
-                        {/* <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <div>
-                                        <PremiumButton
-                                            disabled
-                                            variant="outline"
-                                            className="rounded-full opacity-50 cursor-not-allowed border-primary/20"
-                                        >
-                                            Add Coupon
-                                        </PremiumButton>
-                                    </div>
-                                </TooltipTrigger>
-                                <TooltipContent className="bg-slate-900 border-slate-800 text-white font-medium px-4 py-2 shadow-xl">
-                                    <p>Coming Soon</p>
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider> */}
                     </div>
                 </div>
 
@@ -285,9 +300,8 @@ export default function ShopManagerPage() {
                             <div className="p-6">
                                 <SectionTitle>Quick Actions</SectionTitle>
                                 <div className="grid grid-cols-1 gap-3">
-                                    <ActionButton icon={Settings} label="Shop Settings" href="/shop-manager/shop-settings" />
+                                    <ActionButton icon={Settings} label="Business Settings" href="/shop-manager/shop-settings" />
                                     <ActionButton icon={Store} label="View Public Profile" />
-                                    {/* <ActionButton icon={Package} label="Inventory Manager" /> */}
                                     <div className="pt-3 mt-3 border-t border-primary/10">
                                         <button
                                             onClick={handleLogout}
@@ -314,10 +328,9 @@ export default function ShopManagerPage() {
                         </PremiumCard>
                     </div>
 
-                    {/* Recent Offers - Shows second on mobile */}
                     {/* Main Content Tabs - Shows first on mobile, first on desktop */}
-                    <div className="lg:col-span-2 space-y-6 order-1">
-                        <Tabs defaultValue="offers" className="w-full">
+                    <div className="lg:col-span-2 space-y-6 order-1 scroll-mt-24 md:scroll-mt-32" ref={tabsRef}>
+                        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                             <PremiumCard variant="glass" padding="none" className="overflow-hidden">
                                 <div className="p-6 pb-0 border-b border-primary/5">
                                     <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-3 mb-2">
@@ -413,19 +426,27 @@ export default function ShopManagerPage() {
                                                     {shops.map((shop) => (
                                                         <div key={shop.id} className="p-3 sm:p-4 rounded-xl bg-background/40 border border-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:border-primary/20 hover:bg-background/60 transition-all">
                                                             <div className="flex items-center gap-3 sm:gap-4">
-                                                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-primary/5 flex items-center justify-center overflow-hidden border border-primary/10 relative shadow-sm shrink-0">
+                                                                <div
+                                                                    className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-primary/5 flex items-center justify-center overflow-hidden border border-primary/10 relative shadow-sm shrink-0 cursor-pointer group/logo"
+                                                                    onClick={() => shop.logo_url && setPreviewLogo({ src: shop.logo_url, name: shop.shop_name })}
+                                                                >
                                                                     <div className="absolute inset-0 flex items-center justify-center text-primary/20">
                                                                         <Store className="w-5 h-5 sm:w-6 sm:h-6" />
                                                                     </div>
                                                                     {shop.logo_url && (
-                                                                        <img
-                                                                            src={shop.logo_url}
-                                                                            alt={shop.shop_name}
-                                                                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300 relative z-10"
-                                                                            onError={(e) => {
-                                                                                (e.currentTarget as HTMLImageElement).classList.add('opacity-0');
-                                                                            }}
-                                                                        />
+                                                                        <>
+                                                                            <img
+                                                                                src={shop.logo_url}
+                                                                                alt={shop.shop_name}
+                                                                                className="w-full h-full object-cover group-hover/logo:scale-110 transition-transform duration-300 relative z-10"
+                                                                                onError={(e) => {
+                                                                                    (e.currentTarget as HTMLImageElement).classList.add('opacity-0');
+                                                                                }}
+                                                                            />
+                                                                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/logo:opacity-100 transition-opacity z-20">
+                                                                                <Eye className="w-5 h-5 text-white" />
+                                                                            </div>
+                                                                        </>
                                                                     )}
                                                                 </div>
                                                                 <div className="min-w-0 flex-1">
@@ -484,7 +505,29 @@ export default function ShopManagerPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Image Preview Modal */}
+            {previewLogo && (
+                <ImagePreviewModal
+                    src={previewLogo.src}
+                    alt={previewLogo.name}
+                    isOpen={!!previewLogo}
+                    onClose={() => setPreviewLogo(null)}
+                />
+            )}
         </main>
+    );
+}
+
+export default function ShopManagerPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center">
+                <Loader2 className="w-10 h-10 text-primary animate-spin" />
+            </div>
+        }>
+            <DashboardContent />
+        </Suspense>
     );
 }
 

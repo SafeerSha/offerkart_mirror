@@ -37,6 +37,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { ImagePreviewModal } from "@/components/shared/ImagePreviewModal";
 
 export default function ShopSettingsForm() {
     const router = useRouter();
@@ -46,6 +47,7 @@ export default function ShopSettingsForm() {
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [logoFile, setLogoFile] = useState<File | null>(null);
+    const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
     const [formData, setFormData] = useState({
         // Shop Details
@@ -159,8 +161,10 @@ export default function ShopSettingsForm() {
             if (response.success || (response as any).status === "success") {
                 setIsSuccess(true);
                 toast.success("Shop settings updated successfully!");
-                // Reset success state after 3 seconds
-                setTimeout(() => setIsSuccess(false), 3000);
+
+                setTimeout(() => {
+                    router.push("/shop-manager?tab=shops");
+                }, 500);
             } else {
                 toast.error(response.error || "Failed to update shop settings. Please try again.");
             }
@@ -179,7 +183,7 @@ export default function ShopSettingsForm() {
                 <Breadcrumbs
                     items={[
                         { label: "Shop Dashboard", href: "/shop-manager" },
-                        { label: "Shop Settings" }
+                        { label: "Business Settings" }
                     ]}
                 />
 
@@ -189,7 +193,7 @@ export default function ShopSettingsForm() {
                             <Settings className="w-6 h-6 text-gray-700" />
                         </div>
                         <div>
-                            <h1 className="text-3xl md:text-4xl font-bold text-gray-900">Shop Settings</h1>
+                            <h1 className="text-3xl md:text-4xl font-bold text-gray-900">Business Settings</h1>
                             <p className="text-gray-600 mt-1">Update your shop information and security settings</p>
                         </div>
                     </div>
@@ -239,10 +243,10 @@ export default function ShopSettingsForm() {
                                             <Building2 className="w-8 h-8 text-gray-300" />
                                         )}
                                         <div
-                                            onClick={() => fileInputRef.current?.click()}
                                             className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                                            onClick={() => setIsPreviewOpen(true)}
                                         >
-                                            <Camera className="w-6 h-6 text-white" />
+                                            <Eye className="w-6 h-6 text-white" />
                                         </div>
                                     </div>
                                     <input
@@ -255,14 +259,34 @@ export default function ShopSettingsForm() {
                                 </div>
                                 <div>
                                     <p className="text-sm font-medium text-gray-900">Shop Logo</p>
-                                    <button
-                                        onClick={() => fileInputRef.current?.click()}
-                                        className="text-xs text-blue-600 font-semibold hover:text-blue-700 transition-colors flex items-center gap-1 mt-1"
-                                    >
-                                        <Upload className="w-3 h-3" />
-                                        Update Logo
-                                    </button>
+                                    <div className="flex flex-wrap items-center gap-3 mt-1">
+                                        <button
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className="text-xs text-blue-600 font-semibold hover:text-blue-700 transition-colors flex items-center gap-1"
+                                        >
+                                            <Upload className="w-3 h-3" />
+                                            Update Logo
+                                        </button>
+                                        {formData.logo && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsPreviewOpen(true)}
+                                                className="text-xs text-gray-600 font-semibold hover:text-gray-900 transition-colors flex items-center gap-1"
+                                            >
+                                                <Eye className="w-3 h-3" />
+                                                View Large
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
+                                {formData.logo && (
+                                    <ImagePreviewModal
+                                        src={formData.logo}
+                                        alt="Shop Logo"
+                                        isOpen={isPreviewOpen}
+                                        onClose={() => setIsPreviewOpen(false)}
+                                    />
+                                )}
                             </div>
                         </div>
                     </div>

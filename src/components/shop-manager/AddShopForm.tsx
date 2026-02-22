@@ -15,11 +15,17 @@ import {
     AlertCircle,
     FileText,
     Loader2,
-    ChevronLeft,
+    Eye,
+    Plus,
     Save,
     Building2,
     Settings,
-    X
+    X,
+    ChevronLeft,
+    Power,
+    Search,
+    Tag,
+    Ticket
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -30,6 +36,7 @@ import { addShop, updateShop, getShopDetails } from "@/lib/api/shop";
 import { Shop } from "@/lib/types/shop";
 import { useLocation } from "@/hooks/useLocation";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
+import { ImagePreviewModal } from "@/components/shared/ImagePreviewModal";
 
 const MapPicker = dynamic(() => import("@/components/shared/MapPicker"), {
     ssr: false,
@@ -81,6 +88,7 @@ export default function AddShopForm() {
     const [isLoading, setIsLoading] = useState(isEditMode);
     const [logoPreview, setLogoPreview] = useState<string | null>(null);
     const [logoFile, setLogoFile] = useState<File | null>(null);
+    const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
     const form = useForm<FormValues>({
         resolver: zodResolver(formSchema),
@@ -226,8 +234,7 @@ export default function AddShopForm() {
 
             if (response.success || (response as any).status === "success" || (response as any).status === 200) {
                 toast.success(isEditMode ? "Shop updated successfully!" : "Shop added successfully!");
-                router.push("/shop-manager");
-                router.refresh();
+                router.push("/shop-manager?tab=shops");
             } else {
                 const errorMessage = response.error || (response as any).message || `Failed to ${isEditMode ? 'update' : 'add'} shop. Please check the details.`;
                 console.error("API Error:", errorMessage);
@@ -497,17 +504,26 @@ export default function AddShopForm() {
                                         <img
                                             src={logoPreview}
                                             alt="Logo preview"
-                                            className="w-full h-full object-cover relative z-10"
-                                            onError={(e) => {
-                                                console.error("Image load error:", e);
-                                                // (e.currentTarget as HTMLImageElement).style.display = 'none';
-                                            }}
                                         />
+                                        <div
+                                            className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-20"
+                                            onClick={() => setIsPreviewOpen(true)}
+                                        >
+                                            <Eye className="w-8 h-8 text-white" />
+                                        </div>
                                     </>
                                 ) : (
                                     <Store className="w-10 h-10 sm:w-12 sm:h-12 text-gray-300" />
                                 )}
                             </div>
+                            {logoPreview && (
+                                <ImagePreviewModal
+                                    src={logoPreview}
+                                    alt="Logo Preview"
+                                    isOpen={isPreviewOpen}
+                                    onClose={() => setIsPreviewOpen(false)}
+                                />
+                            )}
                             <div className="w-full flex gap-2">
                                 <label htmlFor="logo-upload" className="flex-1 cursor-pointer">
                                     <div className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl bg-gray-50 border border-gray-200 hover:bg-gray-100 transition-colors">
