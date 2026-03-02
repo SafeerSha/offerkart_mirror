@@ -89,6 +89,7 @@ export default function AddShopForm() {
     const [logoPreview, setLogoPreview] = useState<string | null>(null);
     const [logoFile, setLogoFile] = useState<File | null>(null);
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+    const [isLogoRemoved, setIsLogoRemoved] = useState(false);
 
     const form = useForm<FormValues>({
         resolver: zodResolver(formSchema),
@@ -166,8 +167,7 @@ export default function AddShopForm() {
                         isActive: shop.is_active ?? true,
                     });
 
-                    // Set logo preview if exists
-                    if (shop.logo_url) {
+                    if (shop.logo_url && shop.logo_url !== "null") {
                         setLogoPreview(shop.logo_url);
                     }
                 } else {
@@ -189,7 +189,16 @@ export default function AddShopForm() {
     const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
+            // Check file size (100KB = 102400 bytes)
+            if (file.size > 102400) {
+                toast.error("Logo file size must be less than 100KB");
+                // Clear the input value so the same file doesn't trigger the event again if selected after clearing
+                e.target.value = "";
+                return;
+            }
+
             setLogoFile(file);
+            setIsLogoRemoved(false);
             const reader = new FileReader();
             reader.onloadend = () => {
                 setLogoPreview(reader.result as string);
@@ -217,11 +226,18 @@ export default function AddShopForm() {
 
             formData.append("is_active", String(values.isActive));
 
-            if (logoFile) {
+            if (!isLogoRemoved) {
                 if (isEditMode) {
-                    formData.append("logo_url", logoFile);
+                    formData.append("logo_url", logoFile || "");
                 } else {
-                    formData.append("file", logoFile);
+                    formData.append("file", logoFile || "");
+                }
+            }
+            else {
+                if (isEditMode) {
+                    formData.append("logo_url", "");
+                } else {
+                    formData.append("file", "");
                 }
             }
 
@@ -498,12 +514,10 @@ export default function AddShopForm() {
                             )}>
                                 {logoPreview ? (
                                     <>
-                                        <div className="absolute inset-0 flex items-center justify-center text-gray-300 z-0">
-                                            <Store className="w-10 h-10 sm:w-12 sm:h-12" />
-                                        </div>
                                         <img
                                             src={logoPreview}
                                             alt="Logo preview"
+                                            className="w-full h-full object-cover relative z-10"
                                         />
                                         <div
                                             className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-20"
@@ -545,6 +559,7 @@ export default function AddShopForm() {
                                         onClick={() => {
                                             setLogoPreview(null);
                                             setLogoFile(null);
+                                            setIsLogoRemoved(true);
                                         }}
                                     >
                                         <X className="w-4 h-4 sm:w-5 sm:h-5 mb-1 sm:mb-2" />
