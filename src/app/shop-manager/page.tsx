@@ -39,6 +39,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { ImagePreviewModal } from "@/components/shared/ImagePreviewModal";
+import { storage } from "@/lib/storage";
 
 function DashboardContent() {
     const { data: session } = useSession();
@@ -54,6 +55,8 @@ function DashboardContent() {
     const [isShopActive, setIsShopActive] = useState(true);
     const [shops, setShops] = useState<any[]>([]);
     const [isLoadingShops, setIsLoadingShops] = useState(true);
+    const [publishedOffers, setPublishedOffers] = useState<any[]>([]);
+    const [isLoadingOffers, setIsLoadingOffers] = useState(true);
     const [previewLogo, setPreviewLogo] = useState<{ src: string, name: string } | null>(null);
     const tabsRef = useRef<HTMLDivElement>(null);
     const user = session?.user as any;
@@ -84,6 +87,22 @@ function DashboardContent() {
             fetchShops();
         }
     }, [session]);
+
+    useEffect(() => {
+        async function fetchOffers() {
+            try {
+                const stored = await storage.getItem<any[]>("markedPosters");
+                if (stored) {
+                    setPublishedOffers(stored);
+                }
+            } catch (error) {
+                console.error("Error fetching offers:", error);
+            } finally {
+                setIsLoadingOffers(false);
+            }
+        }
+        fetchOffers();
+    }, []);
 
     useEffect(() => {
         const tab = searchParams.get("tab");
@@ -351,27 +370,47 @@ function DashboardContent() {
                                 <div className="p-6">
                                     <TabsContent value="offers" className="mt-0 space-y-4 focus-visible:ring-0">
                                         <div className="space-y-4">
-                                            <div className="p-3 sm:p-4 rounded-xl bg-background/40 border border-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:border-primary/20 transition-all">
-                                                <div className="flex items-center gap-3 sm:gap-4">
-                                                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                                                        <Store className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+                                            {isLoadingOffers ? (
+                                                <div className="p-4 flex items-center justify-center">
+                                                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                                                </div>
+                                            ) : publishedOffers.length > 0 ? (
+                                                publishedOffers.map((offer, idx) => (
+                                                    <div key={offer.batchId || idx} className="p-3 sm:p-4 rounded-xl bg-background/40 border border-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:border-primary/20 transition-all">
+                                                        <div className="flex items-center gap-3 sm:gap-4">
+                                                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
+                                                                {offer.posters?.[0]?.posterSrc || offer.posterSrc ? (
+                                                                    <img
+                                                                        src={offer.posters?.[0]?.posterSrc || offer.posterSrc}
+                                                                        className="w-full h-full object-cover"
+                                                                        alt=""
+                                                                    />
+                                                                ) : (
+                                                                    <Store className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+                                                                )}
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <h4 className="font-semibold text-base sm:text-lg truncate">{offer.title || "Untitled Offer"}</h4>
+                                                                <p className="text-[11px] sm:text-sm opacity-60">
+                                                                    {offer.createdAt ? `Posted ${new Date(offer.createdAt).toLocaleDateString()}` : "Active"} • {offer.status || "Active"}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 pt-3 sm:pt-0 border-primary/5">
+                                                            <div className="font-bold text-primary text-base sm:text-lg">
+                                                                {offer.posters?.length || 1} {(offer.posters?.length || 1) === 1 ? 'Poster' : 'Posters'}
+                                                            </div>
+                                                            <span className="text-[10px] uppercase font-bold tracking-widest opacity-40">Classification</span>
+                                                        </div>
                                                     </div>
-                                                    <div className="min-w-0">
-                                                        <h4 className="font-semibold text-base sm:text-lg truncate">Seasonal Clearance Sale</h4>
-                                                        <p className="text-[11px] sm:text-sm opacity-60">Posted 2 days ago • Active</p>
-                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div className="p-8 rounded-xl border border-dashed border-primary/10 opacity-60 flex flex-col items-center justify-center text-center">
+                                                    <Tag className="w-12 h-12 mb-4 text-primary/30" />
+                                                    <p className="text-sm font-medium mb-1">No offers published yet</p>
+                                                    <p className="text-xs opacity-60 italic">Your active offers will appear here</p>
                                                 </div>
-                                                <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 pt-3 sm:pt-0 border-primary/5">
-                                                    <div className="font-bold text-primary text-base sm:text-lg">50% OFF</div>
-                                                    <span className="text-[10px] uppercase font-bold tracking-widest opacity-40">Discount</span>
-                                                </div>
-                                            </div>
-                                            {/* Placeholder for more items */}
-                                            {[1, 2].map((i) => (
-                                                <div key={i} className="p-4 rounded-xl border border-dashed border-primary/10 opacity-40 flex items-center justify-center">
-                                                    <span className="text-sm">Additional offers will appear here</span>
-                                                </div>
-                                            ))}
+                                            )}
                                         </div>
                                     </TabsContent>
 

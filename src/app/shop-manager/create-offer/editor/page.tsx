@@ -34,7 +34,7 @@ interface MarkedItem {
     width: number;
     height: number;
     name: string;
-    category: string;
+    categories: string[];
     description: string;
     productImage: string;
     oldPrice: number;
@@ -56,6 +56,10 @@ interface Rect { x: number; y: number; width: number; height: number; }
 export default function HotspotEditorPage() {
     const router = useRouter();
 
+    // Multi-poster state
+    const [allPosters, setAllPosters] = useState<{ id: string; posterSrc: string; type: string; markedItems: any[] }[]>([]);
+    const [activePosterIndex, setActivePosterIndex] = useState(0);
+
     // State
     const [posterData, setPosterData] = useState<PosterData>({ posterSrc: '', markedItems: [], currency: 'BD' });
     const [isDrawing, setIsDrawing] = useState(false);
@@ -70,7 +74,7 @@ export default function HotspotEditorPage() {
     // Form State
     const [formData, setFormData] = useState({
         name: '',
-        category: '',
+        categories: [] as string[],
         description: '',
         productImage: '',
         oldPrice: '',
@@ -98,19 +102,60 @@ export default function HotspotEditorPage() {
     const cropperImgRef = useRef<HTMLImageElement>(null);
     const cropperContainerRef = useRef<HTMLDivElement>(null);
 
-    // Initial Load
+    // Initial Load — support both multi-poster and single-poster
     useEffect(() => {
-        const data = localStorage.getItem('currentEditingPoster');
-        if (data) {
-            const parsedData = JSON.parse(data);
-            setPosterData(parsedData);
-            if (parsedData.title) {
-                setOfferTitle(parsedData.title);
+        const loadInitialData = async () => {
+            const multiData = await storage.getItem<any[]>('currentEditingPosters');
+            const singleData = await storage.getItem<any>('currentEditingPoster');
+
+            if (multiData) {
+                setAllPosters(multiData);
+
+                // Load the first interactive poster (or first poster)
+                const firstInteractive = multiData.find((p: any) => p.type === 'mark_products') || multiData[0];
+                const firstIndex = multiData.indexOf(firstInteractive);
+                setActivePosterIndex(firstIndex >= 0 ? firstIndex : 0);
+                setPosterData({
+                    posterSrc: firstInteractive.posterSrc,
+                    markedItems: firstInteractive.markedItems || [],
+                    currency: 'BD',
+                });
+                if (firstInteractive.title) setOfferTitle(firstInteractive.title);
+            } else if (singleData) {
+                setPosterData(singleData);
+                if (singleData.title) setOfferTitle(singleData.title);
+            } else {
+                router.push('/shop-manager/create-offer');
             }
-        } else {
-            router.push('/shop-manager/create-offer');
-        }
+        };
+        loadInitialData();
     }, [router]);
+
+    // Switch poster — saves current marked items before switching
+    const switchPoster = (index: number) => {
+        if (index === activePosterIndex || !allPosters.length) return;
+
+        // Save current poster's marked items
+        setAllPosters((prev) =>
+            prev.map((p, i) =>
+                i === activePosterIndex
+                    ? { ...p, markedItems: posterData.markedItems }
+                    : p
+            )
+        );
+
+        // Load new poster
+        const target = allPosters[index];
+        setActivePosterIndex(index);
+        setPosterData({
+            posterSrc: target.posterSrc,
+            markedItems: target.markedItems || [],
+            currency: 'BD',
+        });
+        setImageSize({ width: 0, height: 0 });
+        setShowModal(false);
+        setHighlightedId(null);
+    };
 
     // --- Drawing Logic ---
 
@@ -159,7 +204,7 @@ export default function HotspotEditorPage() {
         const id = crypto.randomUUID();
         const tempItem: MarkedItem = {
             id, x: relX, y: relY, width: relW, height: relH,
-            name: 'Processing...', category: '', description: '', productImage: '',
+            name: 'Processing...', categories: [], description: '', productImage: '',
             oldPrice: 0, offerPrice: 0, currency: posterData.currency
         };
 
@@ -236,7 +281,7 @@ export default function HotspotEditorPage() {
         setCurrentMarkedItem(item);
         setFormData({
             name: item.name === 'Processing...' ? '' : item.name,
-            category: item.category || '',
+            categories: item.categories || [],
             description: item.description,
             productImage: item.productImage,
             oldPrice: item.oldPrice ? String(item.oldPrice) : '',
@@ -262,7 +307,7 @@ export default function HotspotEditorPage() {
         const updatedItem: MarkedItem = {
             ...currentMarkedItem,
             name: formData.name,
-            category: formData.category,
+            categories: formData.categories,
             description: formData.description,
             productImage: formData.productImage,
             oldPrice: parseFloat(formData.oldPrice) || 0,
@@ -361,8 +406,8 @@ export default function HotspotEditorPage() {
             return;
         }
 
-        const existingData = localStorage.getItem('markedPosters');
-        let allPosters = existingData ? JSON.parse(existingData) : [];
+        const existingData = await storage.getItem<any[]>('markedPosters');
+        let allPostersArr = existingData || [];
 
         const finalPosterData = {
             ...posterData,
@@ -372,11 +417,12 @@ export default function HotspotEditorPage() {
             status: 'active'
         };
 
-        allPosters.push(finalPosterData);
-        localStorage.setItem('markedPosters', JSON.stringify(allPosters));
+        allPostersArr.push(finalPosterData);
+        await storage.setItem('markedPosters', allPostersArr);
 
         // Remove from current editing and also from drafts if it was one
-        localStorage.removeItem('currentEditingPoster');
+        await storage.removeItem('currentEditingPoster');
+        await storage.removeItem('currentEditingPosters');
 
         try {
             const draftsArr = await storage.getItem<any[]>('offerDrafts') || [];
@@ -415,7 +461,8 @@ export default function HotspotEditorPage() {
             }
 
             await storage.setItem('offerDrafts', allDrafts);
-            localStorage.removeItem('currentEditingPoster');
+            await storage.removeItem('currentEditingPoster');
+            await storage.removeItem('currentEditingPosters');
             toast.success("Draft saved successfully!");
             router.push('/shop-manager/create-offer');
         } catch (error) {
@@ -432,7 +479,8 @@ export default function HotspotEditorPage() {
                 const filtered = draftsArr.filter((d: any) => d.id !== draftId);
                 await storage.setItem('offerDrafts', filtered);
             }
-            localStorage.removeItem('currentEditingPoster');
+            await storage.removeItem('currentEditingPoster');
+            await storage.removeItem('currentEditingPosters');
             toast.success("Changes discarded");
             router.push('/shop-manager/create-offer');
         } catch (error) {
@@ -445,7 +493,7 @@ export default function HotspotEditorPage() {
         <div className="min-h-screen bg-background">
             <div className="h-16 lg:h-32" />
 
-            <main className="container mx-auto px-4 py-4 relative">
+            <main className="max-w-7xl mx-auto px-4 py-4 relative">
                 <Breadcrumbs
                     items={[
                         { label: "Dashboard", href: "/shop-manager" },
@@ -485,28 +533,7 @@ export default function HotspotEditorPage() {
                             </div>
                         </div>
 
-                        <div className="max-w-2xl">
-                            <div className="relative group">
-                                <div className="absolute left-4 top-1/2 -translate-y-1/2">
-                                    <Type className="w-4 h-4 text-primary group-focus-within:scale-110 transition-transform" />
-                                </div>
-                                <input
-                                    type="text"
-                                    value={offerTitle}
-                                    onChange={(e) => setOfferTitle(e.target.value)}
-                                    className="w-full bg-card/50 border border-border/50 rounded-2xl pl-11 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium text-lg placeholder:opacity-90"
-                                    placeholder="Enter Offer Campaign Title..."
-                                />
-                                {offerTitle && (
-                                    <button
-                                        onClick={() => setOfferTitle('')}
-                                        className="absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full transition-colors"
-                                    >
-                                        <X className="w-3 h-3 opacity-40" />
-                                    </button>
-                                )}
-                            </div>
-                        </div>
+
 
                         <PremiumCard className="relative overflow-hidden bg-black/5 border-primary/20 p-2 sm:p-4">
                             <div
@@ -580,9 +607,53 @@ export default function HotspotEditorPage() {
                                 )}
                             </div>
                         </PremiumCard>
-                    </div>
 
-                    {/* Sidebar: Marked Items List */}
+                        {/* Multi-poster thumbnail navigator strip */}
+                        {allPosters.length > 1 && (
+                            <div className="mt-4">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Text className="text-xs font-bold uppercase tracking-wider opacity-40">
+                                        All Posters ({activePosterIndex + 1} of {allPosters.length})
+                                    </Text>
+                                </div>
+                                <div className="flex items-center gap-4 overflow-x-auto pb-4 px-1 scrollbar-hide">
+                                    {allPosters.map((poster, idx) => (
+                                        <button
+                                            key={poster.id}
+                                            onClick={() => switchPoster(idx)}
+                                            className={cn(
+                                                "relative w-20 h-24 sm:w-24 sm:h-28 rounded-2xl overflow-hidden border-2 transition-all duration-300 shrink-0 group",
+                                                idx === activePosterIndex
+                                                    ? "border-primary ring-[3px] ring-primary/20 ring-offset-2 ring-offset-background scale-105 shadow-xl shadow-primary/10"
+                                                    : "border-border/40 hover:border-primary/30 opacity-60 hover:opacity-100 hover:scale-[1.02]"
+                                            )}
+                                        >
+                                            <img
+                                                src={poster.posterSrc}
+                                                alt={`Poster ${idx + 1}`}
+                                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                            />
+                                            {/* Type badge */}
+                                            <div className={cn(
+                                                "absolute bottom-1.5 left-1.5 right-1.5 text-[9px] font-black uppercase text-center py-1 rounded-lg backdrop-blur-md shadow-lg",
+                                                poster.type === "mark_products"
+                                                    ? "bg-primary text-white"
+                                                    : "bg-black/60 text-white"
+                                            )}>
+                                                {poster.type === "mark_products" ? "Mark" : "Post"}
+                                            </div>
+                                            {/* Done badge */}
+                                            {poster.markedItems && poster.markedItems.length > 0 && idx !== activePosterIndex && (
+                                                <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center">
+                                                    <Check className="w-2.5 h-2.5 text-white" />
+                                                </div>
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
                     <div className="w-full xl:w-96 space-y-6">
                         <PremiumCard className="p-6">
                             <div className="flex items-center justify-between mb-6">
@@ -632,6 +703,20 @@ export default function HotspotEditorPage() {
                                                     <span className="text-xs line-through opacity-40">{item.currency} {item.oldPrice}</span>
                                                     <span className="text-sm font-bold text-green-500">{item.currency} {item.offerPrice}</span>
                                                 </div>
+                                                {item.categories && item.categories.length > 0 && (
+                                                    <div className="flex flex-wrap gap-1 mt-1.5 auto-rows-min">
+                                                        {item.categories.slice(0, 2).map(cat => (
+                                                            <span key={cat} className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/5 text-primary border border-primary/10 font-bold whitespace-nowrap">
+                                                                {cat}
+                                                            </span>
+                                                        ))}
+                                                        {item.categories.length > 2 && (
+                                                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border font-bold">
+                                                                +{item.categories.length - 2}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); handleDeleteItem(item.id); }}
                                                     className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 p-1.5 text-destructive rounded-lg hover:bg-destructive/10 transition-all"
@@ -743,20 +828,43 @@ export default function HotspotEditorPage() {
 
                                             <div className="space-y-2 relative">
                                                 <label className="text-xs font-semibold text-gray-600 flex items-center gap-2 px-1">
-                                                    <Tag className="w-3.5 h-3.5 text-orange-500" /> Category
+                                                    <Tag className="w-3.5 h-3.5 text-orange-500" /> Categories
                                                 </label>
+
                                                 <button
                                                     type="button"
                                                     onClick={() => { setCategoryOpen(!categoryOpen); setCategorySearch(''); }}
-                                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-300 transition-all font-medium text-sm text-left flex items-center justify-between cursor-pointer hover:border-gray-300"
+                                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 min-h-[48px] focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-300 transition-all font-medium text-sm text-left flex items-center justify-between cursor-pointer hover:border-gray-300"
                                                 >
-                                                    <span className={formData.category ? 'text-gray-800' : 'text-gray-400'}>
-                                                        {formData.category || 'Select a category'}
-                                                    </span>
-                                                    <ChevronDown className={cn("w-4 h-4 text-gray-400 transition-transform", categoryOpen && "rotate-180")} />
+                                                    <div className="flex flex-wrap gap-1.5 flex-1">
+                                                        {formData.categories.length === 0 ? (
+                                                            <span className="text-gray-400 px-1">Select categories</span>
+                                                        ) : (
+                                                            formData.categories.map(cat => (
+                                                                <div
+                                                                    key={cat}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    className="flex items-center gap-1 bg-white text-orange-600 px-2 py-1 rounded-lg text-[10px] font-bold border border-orange-100 shadow-sm transition-all hover:bg-orange-50"
+                                                                >
+                                                                    {cat}
+                                                                    <X
+                                                                        className="w-2.5 h-2.5 cursor-pointer hover:text-orange-800"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setFormData(p => ({
+                                                                                ...p,
+                                                                                categories: p.categories.filter(c => c !== cat)
+                                                                            }));
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                            ))
+                                                        )}
+                                                    </div>
+                                                    <ChevronDown className={cn("w-4 h-4 text-gray-400 shrink-0 transition-transform ml-2", categoryOpen && "rotate-180")} />
                                                 </button>
                                                 {categoryOpen && (
-                                                    <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
+                                                    <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                                                         <div className="flex items-center gap-2 px-3 py-2.5 border-b border-gray-100">
                                                             <Search className="w-3.5 h-3.5 text-gray-400" />
                                                             <input
@@ -769,24 +877,30 @@ export default function HotspotEditorPage() {
                                                             />
                                                         </div>
                                                         <div className="max-h-48 overflow-y-auto">
-                                                            {CATEGORIES.filter(c => c.toLowerCase().includes(categorySearch.toLowerCase())).map(cat => (
-                                                                <button
-                                                                    key={cat}
-                                                                    type="button"
-                                                                    onClick={() => {
-                                                                        setFormData(p => ({ ...p, category: cat }));
-                                                                        setCategoryOpen(false);
-                                                                        setCategorySearch('');
-                                                                    }}
-                                                                    className={cn(
-                                                                        "w-full text-left px-4 py-2.5 text-sm flex items-center justify-between hover:bg-orange-50 transition-colors cursor-pointer text-gray-700",
-                                                                        formData.category === cat && "bg-orange-50 font-semibold text-orange-600"
-                                                                    )}
-                                                                >
-                                                                    {cat}
-                                                                    {formData.category === cat && <Check className="w-4 h-4 text-orange-500" />}
-                                                                </button>
-                                                            ))}
+                                                            {CATEGORIES.filter(c => c.toLowerCase().includes(categorySearch.toLowerCase())).map(cat => {
+                                                                const isSelected = formData.categories.includes(cat);
+                                                                return (
+                                                                    <button
+                                                                        key={cat}
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setFormData(p => ({
+                                                                                ...p,
+                                                                                categories: isSelected
+                                                                                    ? p.categories.filter(c => c !== cat)
+                                                                                    : [...p.categories, cat]
+                                                                            }));
+                                                                        }}
+                                                                        className={cn(
+                                                                            "w-full text-left px-4 py-2.5 text-sm flex items-center justify-between hover:bg-orange-50 transition-colors cursor-pointer text-gray-700",
+                                                                            isSelected && "bg-orange-50 font-semibold text-orange-600"
+                                                                        )}
+                                                                    >
+                                                                        {cat}
+                                                                        {isSelected && <Check className="w-4 h-4 text-orange-500" />}
+                                                                    </button>
+                                                                );
+                                                            })}
                                                             {CATEGORIES.filter(c => c.toLowerCase().includes(categorySearch.toLowerCase())).length === 0 && (
                                                                 <p className="px-4 py-3 text-xs text-center text-gray-400">No matching categories</p>
                                                             )}
@@ -960,15 +1074,34 @@ export default function HotspotEditorPage() {
                             </div>
 
                             <div className="p-6 space-y-4">
-                                <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 flex items-start gap-4">
-                                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                                        <CheckCircle2 className="w-5 h-5 text-primary" />
+                                <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 space-y-4">
+                                    <div className="flex items-start gap-4">
+                                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                                            <CheckCircle2 className="w-5 h-5 text-primary" />
+                                        </div>
+                                        <div>
+                                            <Text className="font-bold text-base leading-tight">Ready to Publish</Text>
+                                            <Text className="text-xs opacity-60 mt-0.5">
+                                                Finalize your offer details below.
+                                            </Text>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <Text className="font-bold text-base leading-tight">Ready to Publish</Text>
-                                        <Text className="text-xs opacity-60 mt-0.5">
-                                            Campaign: <span className="text-primary font-bold">"{offerTitle}"</span>
-                                        </Text>
+
+                                    <div className="space-y-2 relative group">
+                                        <label className="text-[10px] font-bold uppercase tracking-widest text-primary/70 px-1">Campaign Name</label>
+                                        <div className="relative">
+                                            <div className="absolute left-4 top-1/2 -translate-y-1/2">
+                                                <Type className="w-4 h-4 text-primary group-focus-within:scale-110 transition-transform" />
+                                            </div>
+                                            <input
+                                                type="text"
+                                                value={offerTitle}
+                                                onChange={(e) => setOfferTitle(e.target.value)}
+                                                className="w-full bg-white border border-primary/10 rounded-xl pl-11 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium text-sm"
+                                                placeholder="e.g. Ramadan Special Electronics Sale"
+                                                autoFocus
+                                            />
+                                        </div>
                                     </div>
                                 </div>
 
