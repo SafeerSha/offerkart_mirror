@@ -6,9 +6,10 @@ import {
     ChevronLeft, Save, Info, Send, CheckSquare, Rocket, Zap,
     Trash2, Eye, Plus, IndianRupee,
     Type, AlignLeft, RefreshCcw, Tag, ChevronDown, Check, Search,
-    CheckCircle2, AlertCircle, FileEdit, X,
+    CheckCircle2, AlertCircle, FileEdit, X, Sparkles,
     Image as ImageIcon
 } from "lucide-react";
+import { detectProductsHF } from "@/lib/huggingface";
 
 const CATEGORIES = [
     "Food & Dining", "Fashion", "Electronics", "Wellness",
@@ -275,6 +276,60 @@ export default function HotspotEditorPage() {
         }
     };
 
+    // --- AI Marking ---
+    const [isAIMarking, setIsAIMarking] = useState(false);
+
+    const handleAIMarking = async () => {
+        if (!posterData.posterSrc || isAIMarking) return;
+
+        setIsAIMarking(true);
+        const toastId = toast.loading("Hugging Face AI is analyzing your poster...");
+
+        try {
+            const detections = await detectProductsHF(posterData.posterSrc);
+
+            if (!detections || detections.length === 0) {
+                toast.error("No products detected by AI", { id: toastId });
+                return;
+            }
+
+            const newMarkedItems: MarkedItem[] = detections.map(det => {
+                // GLM-4.5-Air returns box as [xmin, ymin, xmax, ymax] in 0-1000 scale
+                const [xmin, ymin, xmax, ymax] = det.box;
+
+                // Convert to our 0-1 relative scale
+                const x = xmin / 1000;
+                const y = ymin / 1000;
+                const width = (xmax - xmin) / 1000;
+                const height = (ymax - ymin) / 1000;
+
+                return {
+                    id: crypto.randomUUID(),
+                    x, y, width, height,
+                    name: det.name,
+                    categories: [],
+                    description: `AI detected: ${det.name}`,
+                    productImage: '',
+                    oldPrice: 0,
+                    offerPrice: det.price || 0,
+                    currency: posterData.currency
+                };
+            });
+
+            setPosterData(prev => ({
+                ...prev,
+                markedItems: [...prev.markedItems, ...newMarkedItems]
+            }));
+
+            toast.success(`AI detected and marked ${detections.length} items!`, { id: toastId });
+        } catch (error) {
+            console.error("AI Marking Error:", error);
+            toast.error("AI Marking failed. Check your API key or connection.", { id: toastId });
+        } finally {
+            setIsAIMarking(false);
+        }
+    };
+
     // --- Item Management ---
 
     const handleEditItem = (item: MarkedItem) => {
@@ -521,6 +576,15 @@ export default function HotspotEditorPage() {
                                     leftIcon={Save}
                                 >
                                     Save Draft
+                                </PremiumButton>
+                                <PremiumButton
+                                    variant="outline"
+                                    onClick={handleAIMarking}
+                                    leftIcon={Sparkles}
+                                    disabled={isAIMarking || !posterData.posterSrc}
+                                    className="border-primary/30 text-primary hover:bg-primary/5"
+                                >
+                                    {isAIMarking ? "AI Marking..." : "AI Marking"}
                                 </PremiumButton>
                                 <PremiumButton
                                     variant="default"
