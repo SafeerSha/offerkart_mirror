@@ -6,6 +6,12 @@ import { getMyShops } from "@/lib/api/shop";
 import { toast } from "sonner";
 import { PremiumCard } from "@/components/shared/PremiumCard";
 import { PremiumButton } from "@/components/shared/PremiumButton";
+import { PremiumInput } from "@/components/shared/PremiumInput";
+import { PremiumDatePicker } from "@/components/shared/PremiumDatePicker";
+import { AppModal } from "@/components/shared/AppModal";
+import { MultiSearchableSelect } from "@/components/shared/MultiSearchableSelect";
+import { getBranches } from "@/lib/api/branch";
+import { Branch } from "@/lib/types/branch";
 import {
     AlertTriangle,
     ArrowUpRight,
@@ -29,7 +35,10 @@ import {
     Store,
     Tag,
     Ticket,
-    Loader2
+    Loader2,
+    Pencil,
+    Trash2,
+    Type,
 } from "lucide-react";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
@@ -60,6 +69,94 @@ function DashboardContent() {
     const [previewLogo, setPreviewLogo] = useState<{ src: string, name: string } | null>(null);
     const tabsRef = useRef<HTMLDivElement>(null);
     const user = session?.user as any;
+
+    // Edit offer state
+    const [editingOffer, setEditingOffer] = useState<any | null>(null);
+    const [editTitle, setEditTitle] = useState("");
+    const [editValidFrom, setEditValidFrom] = useState<Date>();
+    const [editValidTo, setEditValidTo] = useState<Date>();
+    const [editBranchIds, setEditBranchIds] = useState<string[]>([]);
+    const [editBranches, setEditBranches] = useState<Branch[]>([]);
+    const [editStatus, setEditStatus] = useState("active");
+    const [isSavingOffer, setIsSavingOffer] = useState(false);
+
+    // Delete offer state
+    const [offerToDelete, setOfferToDelete] = useState<any | null>(null);
+
+    // Open edit modal and pre-fill values
+    const openEditModal = (offer: any) => {
+        setEditingOffer(offer);
+        setEditTitle(offer.title || "");
+        setEditValidFrom(offer.validFrom ? new Date(offer.validFrom) : undefined);
+        setEditValidTo(offer.validTo ? new Date(offer.validTo) : undefined);
+        setEditBranchIds(offer.branchIds ? offer.branchIds.map(String) : (offer.branchId ? [String(offer.branchId)] : []));
+        setEditStatus(offer.status || "active");
+
+        // Fetch branches for the dropdown
+        const shopId = session?.shopId ?? (session?.user as any)?.shopId;
+        if (shopId) {
+            getBranches(shopId)
+                .then((res) => {
+                    if (res.success && res.data) {
+                        const list = Array.isArray(res.data) ? res.data : (res.data as any).data || [];
+                        setEditBranches(Array.isArray(list) ? list : []);
+                    }
+                })
+                .catch(() => {});
+        }
+    };
+
+    // Save edited offer
+    const handleSaveOffer = async () => {
+        if (!editingOffer) return;
+        setIsSavingOffer(true);
+        try {
+            const stored = await storage.getItem<any[]>("markedPosters");
+            if (stored) {
+                const selectedBranches = editBranches.filter((b) => editBranchIds.includes(String(b.id)));
+                const updated = stored.map((o) => {
+                    if (o.batchId === editingOffer.batchId) {
+                        return {
+                            ...o,
+                            title: editTitle,
+                            validFrom: editValidFrom ? editValidFrom.toISOString().split('T')[0] : o.validFrom,
+                            validTo: editValidTo ? editValidTo.toISOString().split('T')[0] : o.validTo,
+                            branchIds: selectedBranches.length > 0 ? selectedBranches.map((b) => b.id) : o.branchIds,
+                            branchNames: selectedBranches.length > 0 ? selectedBranches.map((b) => b.branch_name) : o.branchNames,
+                            branchCity: selectedBranches.length > 0 ? selectedBranches[0]?.city : o.branchCity,
+                            status: editStatus,
+                        };
+                    }
+                    return o;
+                });
+                await storage.setItem("markedPosters", updated);
+                setPublishedOffers(updated);
+                toast.success("Offer updated successfully");
+            }
+        } catch {
+            toast.error("Failed to update offer");
+        } finally {
+            setIsSavingOffer(false);
+            setEditingOffer(null);
+        }
+    };
+
+    // Delete offer
+    const handleDeleteOffer = async (offer: any) => {
+        try {
+            const stored = await storage.getItem<any[]>("markedPosters");
+            if (stored) {
+                const updated = stored.filter((o) => o.batchId !== offer.batchId);
+                await storage.setItem("markedPosters", updated);
+                setPublishedOffers(updated);
+                toast.success("Offer deleted");
+            }
+        } catch {
+            toast.error("Failed to delete offer");
+        } finally {
+            setOfferToDelete(null);
+        }
+    };
 
     useEffect(() => {
         async function fetchShops() {
@@ -377,7 +474,7 @@ function DashboardContent() {
                                             ) : publishedOffers.length > 0 ? (
                                                 publishedOffers.map((offer, idx) => (
                                                     <div key={offer.batchId || idx} className="p-3 sm:p-4 rounded-xl bg-background/40 border border-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:border-primary/20 transition-all">
-                                                        <div className="flex items-center gap-3 sm:gap-4">
+                                                        <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
                                                             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
                                                                 {offer.posters?.[0]?.posterSrc || offer.posterSrc ? (
                                                                     <img
@@ -389,21 +486,61 @@ function DashboardContent() {
                                                                     <Store className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
                                                                 )}
                                                             </div>
-                                                            <div className="min-w-0">
+                                                            <div className="min-w-0 flex-1">
                                                                 <h4 className="font-semibold text-base sm:text-lg truncate">{offer.title || "Untitled Offer"}</h4>
-                                                                <p className="text-[11px] sm:text-sm opacity-60">
-                                                                    {offer.createdAt ? `Posted ${new Date(offer.createdAt).toLocaleDateString()}` : "Active"} • {offer.status || "Active"}
-                                                                </p>
+                                                                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] sm:text-sm opacity-60">
+                                                                    <span>{offer.createdAt ? `Posted ${new Date(offer.createdAt).toLocaleDateString()}` : "Active"}</span>
+                                                                    <span>•</span>
+                                                                    <span className={cn(
+                                                                        "font-medium",
+                                                                        offer.status === "active" ? "text-emerald-600" : "text-gray-500"
+                                                                    )}>{offer.status || "active"}</span>
+                                                                    {(offer.branchNames || offer.branchName) && (
+                                                                        <>
+                                                                            <span>•</span>
+                                                                            <span className="flex items-center gap-1 line-clamp-1" title={offer.branchNames ? offer.branchNames.join(', ') : offer.branchName}>
+                                                                                <GitBranch className="w-3 h-3 shrink-0" />
+                                                                                {offer.branchNames ? offer.branchNames.join(', ') : offer.branchName}
+                                                                            </span>
+                                                                        </>
+                                                                    )}
+                                                                    {offer.validFrom && offer.validTo && (
+                                                                        <>
+                                                                            <span>•</span>
+                                                                            <span className="flex items-center gap-1">
+                                                                                <Clock className="w-3 h-3" />
+                                                                                {offer.validFrom} — {offer.validTo}
+                                                                            </span>
+                                                                        </>
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                        <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 pt-3 sm:pt-0 border-primary/5">
-                                                            <div className="font-bold text-primary text-base sm:text-lg">
-                                                                {offer.posters?.length || 1} {(offer.posters?.length || 1) === 1 ? 'Poster' : 'Posters'}
+                                                        <div className="flex items-center gap-2 shrink-0 border-t sm:border-t-0 pt-3 sm:pt-0 border-primary/5">
+                                                            <div className="flex flex-col items-center mr-2">
+                                                                <div className="font-bold text-primary text-base sm:text-lg">
+                                                                    {offer.posters?.length || 1} {(offer.posters?.length || 1) === 1 ? 'Poster' : 'Posters'}
+                                                                </div>
+                                                                <span className="text-[10px] uppercase font-bold tracking-widest opacity-40">Classification</span>
                                                             </div>
-                                                            <span className="text-[10px] uppercase font-bold tracking-widest opacity-40">Classification</span>
+                                                            <button
+                                                                onClick={() => openEditModal(offer)}
+                                                                className="p-2 rounded-lg border border-gray-200 bg-gray-50 hover:bg-primary/10 hover:border-primary/20 text-gray-500 hover:text-primary transition-all"
+                                                                title="Edit offer"
+                                                            >
+                                                                <Pencil className="w-4 h-4" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setOfferToDelete(offer)}
+                                                                className="p-2 rounded-lg border border-gray-200 bg-gray-50 hover:bg-red-50 hover:border-red-200 text-gray-500 hover:text-red-500 transition-all"
+                                                                title="Delete offer"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </button>
                                                         </div>
                                                     </div>
                                                 ))
+
                                             ) : (
                                                 <div className="p-8 rounded-xl border border-dashed border-primary/10 opacity-60 flex flex-col items-center justify-center text-center">
                                                     <Tag className="w-12 h-12 mb-4 text-primary/30" />
@@ -544,6 +681,121 @@ function DashboardContent() {
                     </div>
                 </div>
             </div>
+
+            {/* ──── Edit Offer Modal ──── */}
+            <AppModal
+                open={!!editingOffer}
+                onOpenChange={(open) => { if (!open) setEditingOffer(null); }}
+                title="Edit Offer"
+                description="Update the details of your published offer."
+            >
+                <div className="space-y-5">
+                    <PremiumInput
+                        label="Campaign Title"
+                        icon={Type}
+                        type="text"
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        placeholder="e.g. Weekend Mega Sale 2024"
+                        autoFocus
+                    />
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <PremiumDatePicker
+                            label="Valid From"
+                            date={editValidFrom}
+                            setDate={setEditValidFrom}
+                            placeholder="Start date"
+                        />
+                        <PremiumDatePicker
+                            label="Valid To"
+                            date={editValidTo}
+                            setDate={setEditValidTo}
+                            placeholder="End date"
+                        />
+                    </div>
+
+                    {/* Branch Selector */}
+                    {editBranches.length > 0 && (
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium flex items-center gap-2 text-foreground ml-1">
+                                <GitBranch className="w-4 h-4 text-muted-foreground" />
+                                Branch
+                            </label>
+                            <MultiSearchableSelect
+                                options={editBranches.map((b) => ({ label: `${b.branch_name} — ${b.city}`, value: String(b.id) }))}
+                                selectedValues={editBranchIds}
+                                onChange={setEditBranchIds}
+                                placeholder="Select branches"
+                            />
+                        </div>
+                    )}
+
+                    {/* Status Toggle */}
+                    <div className="flex items-center justify-between p-3 rounded-xl border border-primary/10 bg-background/40">
+                        <span className="text-sm font-medium">Status</span>
+                        <button
+                            type="button"
+                            onClick={() => setEditStatus(editStatus === "active" ? "paused" : "active")}
+                            className={cn(
+                                "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider transition-all",
+                                editStatus === "active"
+                                    ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                                    : "bg-gray-100 text-gray-500 border border-gray-200"
+                            )}
+                        >
+                            {editStatus === "active" ? "Active" : "Paused"}
+                        </button>
+                    </div>
+
+                    <div className="flex gap-3 justify-end pt-2">
+                        <PremiumButton variant="outline" onClick={() => setEditingOffer(null)} className="rounded-xl">
+                            Cancel
+                        </PremiumButton>
+                        <PremiumButton
+                            onClick={handleSaveOffer}
+                            disabled={isSavingOffer || !editTitle.trim()}
+                            className="rounded-xl px-8 bg-orange-500 hover:bg-orange-600 shadow-lg shadow-orange-500/20"
+                        >
+                            {isSavingOffer ? (
+                                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</>
+                            ) : (
+                                "Save Changes"
+                            )}
+                        </PremiumButton>
+                    </div>
+                </div>
+            </AppModal>
+
+            {/* ──── Delete Confirm Dialog ──── */}
+            <AppModal
+                open={!!offerToDelete}
+                onOpenChange={(open) => { if (!open) setOfferToDelete(null); }}
+                title="Delete Offer"
+                description="Are you sure you want to delete this offer? This action cannot be undone."
+            >
+                <div className="space-y-4">
+                    <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700 flex items-start gap-3">
+                        <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+                        <div>
+                            <p className="font-semibold">"{offerToDelete?.title || 'Untitled'}"</p>
+                            <p className="mt-1 text-xs opacity-80">This will permanently remove this offer and all its poster data.</p>
+                        </div>
+                    </div>
+                    <div className="flex gap-3 justify-end">
+                        <PremiumButton variant="outline" onClick={() => setOfferToDelete(null)} className="rounded-xl">
+                            Cancel
+                        </PremiumButton>
+                        <PremiumButton
+                            onClick={() => offerToDelete && handleDeleteOffer(offerToDelete)}
+                            className="rounded-xl px-6 bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20"
+                        >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Confirm Delete
+                        </PremiumButton>
+                    </div>
+                </div>
+            </AppModal>
 
             {/* Image Preview Modal */}
             {previewLogo && (

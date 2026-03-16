@@ -25,19 +25,25 @@ export interface PosterItem {
     file: File;
     previewUrl: string;
     type: "just_post" | "mark_products" | "unclassified";
+    markedItems?: any[];
 }
 
 interface PosterCardStackProps {
     onComplete: (posters: PosterItem[]) => void;
+    onEditingChange?: (isEditing: boolean) => void;
     maxSizeMB?: number;
     maxPosters?: number;
 }
 
 type Phase = "upload" | "classify" | "summary";
 
+import { HotspotEditor } from "@/components/shop-manager/HotspotEditor";
+import { createPortal } from "react-dom";
+
 // --- Component ---
 export const PosterCardStack = ({
     onComplete,
+    onEditingChange,
     maxSizeMB = 5,
     maxPosters = 10,
 }: PosterCardStackProps) => {
@@ -47,6 +53,7 @@ export const PosterCardStack = ({
     const [animatingOut, setAnimatingOut] = useState<"left" | "right" | null>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [isViewing, setIsViewing] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const unclassifiedPosters = posters.filter((p) => p.type === "unclassified");
@@ -102,7 +109,13 @@ export const PosterCardStack = ({
     const classifyCurrentCard = (type: "just_post" | "mark_products") => {
         if (animatingOut || isViewing) return;
 
-        const direction = type === "just_post" ? "left" : "right";
+        if (type === "mark_products") {
+            setIsEditing(true);
+            onEditingChange?.(true);
+            return;
+        }
+
+        const direction = "left";
         setAnimatingOut(direction);
 
         setTimeout(() => {
@@ -118,6 +131,25 @@ export const PosterCardStack = ({
             }
             setAnimatingOut(null);
         }, 400);
+    };
+
+    const handleEditorSave = (markedItems: any[]) => {
+        setPosters((prev) =>
+            prev.map((p, i) => (i === currentIndex ? { ...p, type: "mark_products", markedItems } : p))
+        );
+        setIsEditing(false);
+        onEditingChange?.(false);
+        const nextUnclassified = currentIndex + 1;
+        if (nextUnclassified >= posters.length) {
+            setPhase("summary");
+        } else {
+            setCurrentIndex(nextUnclassified);
+        }
+    };
+
+    const handleEditorCancel = () => {
+        setIsEditing(false);
+        onEditingChange?.(false);
     };
 
     const handleReclassify = () => {
@@ -167,18 +199,18 @@ export const PosterCardStack = ({
                     </div>
 
                     <Text className="font-bold text-xl mb-1">
-                        {isDragging ? "Drop your images here" : "Upload Offer Posters"}
+                        {isDragging ? "Drop your files here" : "Upload Offer Posters"}
                     </Text>
                     <Text className="text-sm opacity-50 mb-5 max-w-xs text-center">
                         Select one or more poster images. You&apos;ll classify each one next.
                     </Text>
 
                     <div className="px-6 py-3 rounded-2xl gradient-primary text-white text-sm font-bold uppercase tracking-wider shadow-lg shadow-primary/20">
-                        Select Images
+                        Select Files
                     </div>
 
                     <Text className="text-xs opacity-30 mt-4">
-                        JPG, PNG, WEBP — Max {maxSizeMB}MB each — Up to {maxPosters} posters
+                        PDF, JPG, PNG, WEBP — Max {maxSizeMB}MB each — Up to {maxPosters} posters
                     </Text>
                 </div>
             </>
@@ -194,6 +226,20 @@ export const PosterCardStack = ({
         const progress = ((currentIndex) / posters.length) * 100;
         // How many cards to show behind (max 3)
         const behindCards = posters.slice(currentIndex + 1, currentIndex + 4);
+
+        if (isEditing && currentPoster) {
+            return (
+                <HotspotEditor
+                    poster={{
+                        id: currentPoster.id,
+                        posterSrc: currentPoster.previewUrl,
+                        markedItems: currentPoster.markedItems || [],
+                    }}
+                    onSave={handleEditorSave}
+                    onCancel={handleEditorCancel}
+                />
+            );
+        }
 
         return (
             <div className="flex flex-col items-center gap-6">
@@ -305,10 +351,26 @@ export const PosterCardStack = ({
                                 </div>
                             )}
 
-                            {/* Top bar: counter + view toggle */}
+                            {/* Top bar: counter + view toggle + Back button */}
                             <div className="absolute top-0 left-0 right-0 p-3 flex items-center justify-between z-30">
-                                <div className="px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-md text-white text-xs font-bold border border-white/10">
-                                    {remaining} left
+                                <div className="flex items-center gap-2">
+                                    {currentIndex > 0 && (
+                                        <button
+                                            onClick={() => {
+                                                if (animatingOut || isViewing) return;
+                                                setCurrentIndex(currentIndex - 1);
+                                                setPosters((prev) =>
+                                                    prev.map((p, i) => (i === currentIndex - 1 ? { ...p, type: "unclassified" } : p))
+                                                );
+                                            }}
+                                            className="w-9 h-9 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center text-white border border-white/10 hover:bg-black/70 transition-colors"
+                                        >
+                                            <RotateCcw className="w-4 h-4" />
+                                        </button>
+                                    )}
+                                    <div className="px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-md text-white text-xs font-bold border border-white/10">
+                                        {remaining} left
+                                    </div>
                                 </div>
                                 <button
                                     onClick={() => setIsViewing(!isViewing)}
@@ -399,7 +461,7 @@ export const PosterCardStack = ({
                     rightIcon={ArrowRight}
                     className="rounded-xl flex-1"
                 >
-                    {markPosters.length > 0 ? "Start Marking" : "Publish"}
+                    Publish
                 </PremiumButton>
             </div>
         </div>

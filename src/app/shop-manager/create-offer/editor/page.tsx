@@ -10,11 +10,8 @@ import {
     Image as ImageIcon
 } from "lucide-react";
 
-const CATEGORIES = [
-    "Food & Dining", "Fashion", "Electronics", "Wellness",
-    "Fitness", "Jewelry", "Beauty", "Grocery", "Other"
-];
-import { createWorker } from 'tesseract.js';
+import { CATEGORY_HIERARCHY, MAIN_CATEGORIES, MainCategory } from "@/lib/categories";
+import { createWorker, Worker } from 'tesseract.js';
 import { Heading, Subheading, Text } from "@/components/shared/Typography";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import { PremiumCard } from "@/components/shared/PremiumCard";
@@ -25,6 +22,62 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { storage } from "@/lib/storage";
 
+// --- Image Preprocessing for OCR ---
+/**
+ * Preprocesses an image to improve OCR accuracy
+ * - Converts to grayscale
+ * - Increases contrast
+ * - Applies thresholding for cleaner text extraction
+ */
+async function preprocessImageForOCR(
+    canvas: HTMLCanvasElement,
+    ctx: CanvasRenderingContext2D
+): Promise<string> {
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+
+    // Calculate histogram for contrast enhancement
+    const grayValues: number[] = [];
+    for (let i = 0; i < data.length; i += 4) {
+        const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+        grayValues.push(gray);
+    }
+
+    // Find min and max for normalization
+    const minGray = Math.min(...grayValues);
+    const maxGray = Math.max(...grayValues);
+    const range = maxGray - minGray || 1;
+
+    // Apply grayscale and contrast enhancement
+    for (let i = 0; i < data.length; i += 4) {
+        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+
+        // Normalize to full range (contrast stretch)
+        let normalized = ((gray - minGray) / range) * 255;
+
+        // Apply slight gamma correction for better dynamic range
+        normalized = Math.pow(normalized / 255, 0.8) * 255;
+
+        // Apply thresholding for cleaner text (Otsu's method approximation)
+        const threshold = 128;
+        const isText = normalized < threshold;
+
+        // Preserve some gray for anti-aliasing, but strengthen contrast
+        if (normalized < 60) {
+            normalized = normalized * 0.7; // Darken shadows
+        } else if (normalized > 200) {
+            normalized = normalized * 0.9 + 25; // Brighten highlights
+        }
+
+        data[i] = normalized;     // R
+        data[i + 1] = normalized; // G
+        data[i + 2] = normalized; // B
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+    return canvas.toDataURL('image/png', 1.0);
+}
+
 // --- Types ---
 
 interface MarkedItem {
@@ -34,7 +87,8 @@ interface MarkedItem {
     width: number;
     height: number;
     name: string;
-    categories: string[];
+    mainCategory: string;
+    subcategories: string[];
     description: string;
     productImage: string;
     oldPrice: number;
@@ -74,7 +128,8 @@ export default function HotspotEditorPage() {
     // Form State
     const [formData, setFormData] = useState({
         name: '',
-        categories: [] as string[],
+        mainCategory: '' as string,
+        subcategories: [] as string[],
         description: '',
         productImage: '',
         oldPrice: '',
@@ -94,6 +149,8 @@ export default function HotspotEditorPage() {
     const [showBackWarning, setShowBackWarning] = useState(false);
     const [categoryOpen, setCategoryOpen] = useState(false);
     const [categorySearch, setCategorySearch] = useState('');
+    const [mainCategoryOpen, setMainCategoryOpen] = useState(false);
+    const [mainCategorySearch, setMainCategorySearch] = useState('');
 
     // Refs
     const containerRef = useRef<HTMLDivElement>(null);
@@ -204,7 +261,7 @@ export default function HotspotEditorPage() {
         const id = crypto.randomUUID();
         const tempItem: MarkedItem = {
             id, x: relX, y: relY, width: relW, height: relH,
-            name: 'Processing...', categories: [], description: '', productImage: '',
+            name: 'Processing...', mainCategory: '', subcategories: [], description: '', productImage: '',
             oldPrice: 0, offerPrice: 0, currency: posterData.currency
         };
 
@@ -229,30 +286,78 @@ export default function HotspotEditorPage() {
             ctx.drawImage(img, x * scaleX, y * scaleY, sw, sh, 0, 0, sw, sh);
             const croppedDataUrl = canvas.toDataURL();
 
-            const worker = await createWorker('ara+eng');
-            const { data: { text } } = await worker.recognize(croppedDataUrl);
+            // Step 1: Preprocess image for better OCR results
+            const processedDataUrl = await preprocessImageForOCR(canvas, ctx);
 
-            // Basic Price Extraction (same logic as MVP)
-            const priceMatches = text.match(/\d+\.\d+/g);
+            // Step 2: OCR — Extract raw text from the cropped image with enhanced settings
+            const worker = await createWorker('ara+eng', 1, {
+                logger: m => console.log('OCR Progress:', m),
+            });
+
+            // Set parameters for better accuracy (Tesseract.js v5+ uses LSTM by default)
+            await worker.setParameters({
+                tessedit_char_whitelist: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\s\u0600-\u06FF\u0750-\u077F.,%+-',
+            });
+
+            const { data: { text: ocrText, confidence } } = await worker.recognize(processedDataUrl);
+            await worker.terminate();
+
+            console.log('OCR Confidence:', confidence, 'Extracted text:', ocrText);
+
+            let extractedName = '';
+            let extractedDescription = '';
             let extractedOldPrice = 0;
             let extractedOfferPrice = 0;
 
-            if (priceMatches && priceMatches.length > 0) {
-                const prices = priceMatches.map(p => parseFloat(p)).filter(p => !isNaN(p));
-                if (prices.length >= 2) {
-                    const sorted = [...prices].sort((a, b) => b - a);
-                    extractedOldPrice = sorted[0];
-                    extractedOfferPrice = sorted[1];
+            // Step 2: AI — Parse the OCR text into structured fields
+            try {
+                const { askAI } = await import('@/lib/ai/aiClient');
+                const aiResult = await askAI<{
+                    brand?: string;
+                    productName?: string;
+                    description?: string;
+                    oldPrice?: number;
+                    offerPrice?: number;
+                }>(ocrText, 'extract product name, prices, description');
+
+                if (aiResult.success && aiResult.data) {
+                    const d = aiResult.data;
+                    // Combine brand + product name intelligently
+                    extractedName = d.productName || '';
+                    if (d.brand && d.productName && !d.productName.toLowerCase().includes(d.brand.toLowerCase())) {
+                        extractedName = `${d.brand} ${d.productName}`;
+                    }
+                    extractedDescription = d.description || '';
+                    extractedOldPrice = d.oldPrice || 0;
+                    extractedOfferPrice = d.offerPrice || 0;
                 } else {
-                    extractedOfferPrice = prices[0];
-                    extractedOldPrice = prices[0];
+                    throw new Error(aiResult.error || 'AI parsing returned no data');
+                }
+            } catch (aiError) {
+                console.warn('AI parsing failed, using basic OCR fallback:', aiError);
+
+                // Fallback: basic text parsing (first line = name, full text = description)
+                extractedName = ocrText.split('\n')[0].trim() || 'Marked Product';
+                extractedDescription = ocrText.trim();
+
+                const priceMatches = ocrText.match(/\d+\.\d+/g);
+                if (priceMatches && priceMatches.length > 0) {
+                    const prices = priceMatches.map(p => parseFloat(p)).filter(p => !isNaN(p));
+                    if (prices.length >= 2) {
+                        const sorted = [...prices].sort((a, b) => b - a);
+                        extractedOldPrice = sorted[0];
+                        extractedOfferPrice = sorted[1];
+                    } else {
+                        extractedOfferPrice = prices[0];
+                        extractedOldPrice = prices[0];
+                    }
                 }
             }
 
             const updatedItem: MarkedItem = {
                 ...tempItem,
-                name: text.split('\n')[0].trim() || 'Marked Product',
-                description: text.trim(),
+                name: extractedName || 'Marked Product',
+                description: extractedDescription,
                 productImage: croppedDataUrl,
                 oldPrice: extractedOldPrice,
                 offerPrice: extractedOfferPrice
@@ -265,7 +370,6 @@ export default function HotspotEditorPage() {
 
             // Open Modal for refinement
             handleEditItem(updatedItem);
-            await worker.terminate();
         } catch (err) {
             console.error("OCR Error:", err);
             toast.error("AI extraction failed. Please enter details manually.");
@@ -281,7 +385,8 @@ export default function HotspotEditorPage() {
         setCurrentMarkedItem(item);
         setFormData({
             name: item.name === 'Processing...' ? '' : item.name,
-            categories: item.categories || [],
+            mainCategory: item.mainCategory || '',
+            subcategories: item.subcategories || [],
             description: item.description,
             productImage: item.productImage,
             oldPrice: item.oldPrice ? String(item.oldPrice) : '',
@@ -307,7 +412,8 @@ export default function HotspotEditorPage() {
         const updatedItem: MarkedItem = {
             ...currentMarkedItem,
             name: formData.name,
-            categories: formData.categories,
+            mainCategory: formData.mainCategory,
+            subcategories: formData.subcategories,
             description: formData.description,
             productImage: formData.productImage,
             oldPrice: parseFloat(formData.oldPrice) || 0,
@@ -703,16 +809,19 @@ export default function HotspotEditorPage() {
                                                     <span className="text-xs line-through opacity-40">{item.currency} {item.oldPrice}</span>
                                                     <span className="text-sm font-bold text-green-500">{item.currency} {item.offerPrice}</span>
                                                 </div>
-                                                {item.categories && item.categories.length > 0 && (
+                                                {formData.mainCategory && (
                                                     <div className="flex flex-wrap gap-1 mt-1.5 auto-rows-min">
-                                                        {item.categories.slice(0, 2).map(cat => (
+                                                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-black whitespace-nowrap uppercase">
+                                                            {formData.mainCategory}
+                                                        </span>
+                                                        {formData.subcategories && formData.subcategories.slice(0, 1).map(cat => (
                                                             <span key={cat} className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/5 text-primary border border-primary/10 font-bold whitespace-nowrap">
                                                                 {cat}
                                                             </span>
                                                         ))}
-                                                        {item.categories.length > 2 && (
+                                                        {formData.subcategories && formData.subcategories.length > 1 && (
                                                             <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border font-bold">
-                                                                +{item.categories.length - 2}
+                                                                +{formData.subcategories.length - 1}
                                                             </span>
                                                         )}
                                                     </div>
@@ -752,244 +861,272 @@ export default function HotspotEditorPage() {
                         </PremiumCard>
                     </div>
                 </div>
+            </main>
 
-                {/* --- Edit Modal --- */}
-                {showModal && currentMarkedItem && (
-                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-[100] px-4 py-8 md:py-12">
-                        <PremiumCard className="w-full max-w-2xl lg:max-w-3xl p-0 overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 my-auto max-h-[calc(100vh-4rem)] md:max-h-[calc(100vh-6rem)] flex flex-col bg-white">
-                            <form onSubmit={handleSaveForm} className="flex flex-col flex-1 overflow-hidden">
-                                <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-white shrink-0">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-orange-50 rounded-lg">
-                                            <FileEdit className="w-5 h-5 text-primary" />
-                                        </div>
-                                        <Subheading className="m-0">Refine Item Details</Subheading>
+            {/* --- Edit Modal --- */}
+            {showModal && currentMarkedItem && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex justify-center items-center z-[100] p-4 md:p-8">
+                    <PremiumCard className="w-full max-w-2xl lg:max-w-3xl p-0 overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col bg-white max-h-[85vh] md:max-h-[90vh]">
+                        <form onSubmit={handleSaveForm} className="flex flex-col flex-1 overflow-hidden">
+                            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-white shrink-0">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-orange-50 rounded-lg">
+                                        <FileEdit className="w-5 h-5 text-primary" />
                                     </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => { setShowModal(false); setHighlightedId(null); }}
-                                        className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                                    >
-                                        <X className="w-5 h-5" />
-                                    </button>
+                                    <Subheading className="m-0">Refine Item Details</Subheading>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => { setShowModal(false); setHighlightedId(null); }}
+                                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            <div className="px-6 py-6 space-y-6 overflow-y-auto custom-scrollbar flex-1 bg-white">
+                                {/* Row 1: Image & Product Name */}
+                                <div className="flex items-start gap-4">
+                                    <div className="relative group/img shrink-0 pt-1">
+                                        <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-50 shadow-sm border border-gray-200 group-hover/img:border-orange-400 transition-all duration-300">
+                                            {formData.productImage ? (
+                                                <img src={formData.productImage} className="w-full h-full object-cover" alt="" />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center">
+                                                    <ImageIcon className="w-6 h-6 text-gray-200" />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={startProductImageUpload}
+                                            className="absolute inset-0 bg-black/40 text-white opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition-all duration-300 rounded-xl"
+                                        >
+                                            <RefreshCcw className="w-4 h-4" />
+                                        </button>
+                                        <input
+                                            ref={productFileInputRef}
+                                            type="file" accept="image/*" className="hidden"
+                                            onChange={handleProductFileChange}
+                                        />
+                                    </div>
+
+                                    <div className="flex-1">
+                                        <PremiumInput
+                                            label="Product Name"
+                                            icon={Type}
+                                            value={formData.name}
+                                            required
+                                            onChange={(e) => setFormData(p => ({ ...p, name: e.target.value }))}
+                                            placeholder="e.g. Delicious Weekend Brunch"
+                                            className="h-12 text-black font-semibold"
+                                        />
+                                    </div>
                                 </div>
 
-                                <div className="px-6 py-4 space-y-4 overflow-y-auto custom-scrollbar flex-1 bg-white">
-                                    {/* Product Image Section - Minimal */}
-                                    <div className="flex items-center gap-5 p-4 bg-gray-50 rounded-2xl border border-gray-100 group transition-all duration-300">
-
-                                        <div className="relative group/img shrink-0">
-                                            <div className="w-20 h-20 rounded-xl overflow-hidden bg-white shadow-sm border border-gray-200 group-hover/img:border-orange-400 transition-all duration-300">
-                                                {formData.productImage ? (
-                                                    <img src={formData.productImage} className="w-full h-full object-cover" alt="" />
-                                                ) : (
-                                                    <div className="w-full h-full flex items-center justify-center">
-                                                        <ImageIcon className="w-8 h-8 text-gray-200" />
-                                                    </div>
-                                                )}
+                                {/* Row 2: Categories */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2 relative">
+                                        <label className="text-xs font-semibold text-black flex items-center gap-2 px-1">
+                                            <Tag className="w-3.5 h-3.5 text-black" /> Main Category
+                                        </label>
+                                        <button
+                                            type="button"
+                                            onClick={() => { setMainCategoryOpen(!mainCategoryOpen); setMainCategorySearch(''); }}
+                                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 h-12 focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-300 transition-all font-bold text-sm text-left flex items-center justify-between cursor-pointer hover:border-gray-300"
+                                        >
+                                            <div className={cn("flex-1 truncate", formData.mainCategory && "text-black")}>
+                                                {formData.mainCategory || <span className="text-gray-400 font-medium">Select...</span>}
                                             </div>
-                                            <button
-                                                type="button"
-                                                onClick={startProductImageUpload}
-                                                className="absolute inset-0 bg-black/40 text-white opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition-all duration-300 rounded-xl backdrop-blur-[1px]"
-                                            >
-                                                <RefreshCcw className="w-5 h-5" />
-                                            </button>
-                                            <input
-                                                ref={productFileInputRef}
-                                                type="file" accept="image/*" className="hidden"
-                                                onChange={handleProductFileChange}
-                                            />
-                                        </div>
+                                            <ChevronDown className={cn("w-4 h-4 text-gray-400 shrink-0 transition-transform ml-2", mainCategoryOpen && "rotate-180")} />
+                                        </button>
 
-                                        <div className="flex-1">
-                                            <h4 className="text-sm font-bold text-gray-800 mb-1">Product Image</h4>
-                                            <button
-                                                type="button"
-                                                onClick={startProductImageUpload}
-                                                className="inline-flex items-center gap-1.5 text-xs font-bold text-orange-600 hover:text-orange-700 transition-colors"
-                                            >
-                                                <RefreshCcw className="w-3.5 h-3.5" /> Change Image
-                                            </button>
-                                        </div>
+                                        {mainCategoryOpen && (
+                                            <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-[110] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                                <div className="flex items-center gap-2 px-3 py-2.5 border-b border-gray-100">
+                                                    <Search className="w-3.5 h-3.5 text-gray-400" />
+                                                    <input
+                                                        type="text"
+                                                        value={mainCategorySearch}
+                                                        onChange={(e) => setMainCategorySearch(e.target.value)}
+                                                        placeholder="Search..."
+                                                        className="flex-1 text-sm outline-none bg-transparent placeholder:text-gray-400 text-black font-medium"
+                                                        autoFocus
+                                                    />
+                                                </div>
+                                                <div className="max-h-48 overflow-y-auto">
+                                                    {MAIN_CATEGORIES.filter(cat => cat.toLowerCase().includes(mainCategorySearch.toLowerCase())).map(cat => (
+                                                        <button
+                                                            key={cat}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setFormData(p => ({ ...p, mainCategory: cat, subcategories: [] }));
+                                                                setMainCategoryOpen(false);
+                                                            }}
+                                                            className={cn(
+                                                                "w-full text-left px-4 py-2.5 text-sm flex items-center justify-between hover:bg-gray-50 transition-colors cursor-pointer text-gray-700",
+                                                                formData.mainCategory === cat && "bg-gray-50 font-bold text-black"
+                                                            )}
+                                                        >
+                                                            {cat}
+                                                            {formData.mainCategory === cat && <Check className="w-4 h-4 text-black" />}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
 
-                                    <div className="space-y-5">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <PremiumInput
-                                                label="Product Name"
-                                                icon={Type}
-                                                value={formData.name}
-                                                required
-                                                onChange={(e) => setFormData(p => ({ ...p, name: e.target.value }))}
-                                                placeholder="e.g. Delicious Weekend Brunch"
-                                                className="h-12"
-                                            />
-
-                                            <div className="space-y-2 relative">
-                                                <label className="text-xs font-semibold text-gray-600 flex items-center gap-2 px-1">
-                                                    <Tag className="w-3.5 h-3.5 text-orange-500" /> Categories
-                                                </label>
-
+                                    <div className="space-y-2 relative">
+                                        <label className="text-xs font-semibold text-black flex items-center gap-2 px-1">
+                                            <CheckSquare className="w-3.5 h-3.5 text-black" /> Subcategories
+                                        </label>
+                                        {formData.mainCategory ? (
+                                            <>
                                                 <button
                                                     type="button"
                                                     onClick={() => { setCategoryOpen(!categoryOpen); setCategorySearch(''); }}
-                                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 min-h-[48px] focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-300 transition-all font-medium text-sm text-left flex items-center justify-between cursor-pointer hover:border-gray-300"
+                                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 h-12 focus:outline-none focus:ring-2 focus:ring-gray-100 focus:border-gray-200 transition-all font-bold text-sm text-left flex items-center justify-between cursor-pointer hover:border-gray-300"
                                                 >
-                                                    <div className="flex flex-wrap gap-1.5 flex-1">
-                                                        {formData.categories.length === 0 ? (
-                                                            <span className="text-gray-400 px-1">Select categories</span>
+                                                    <div className={cn("flex-1 truncate", formData.subcategories.length > 0 && "text-black font-bold text-xs")}>
+                                                        {formData.subcategories.length === 0 ? (
+                                                            <span className="text-gray-400 font-medium">Select...</span>
                                                         ) : (
-                                                            formData.categories.map(cat => (
-                                                                <div
-                                                                    key={cat}
-                                                                    onClick={(e) => e.stopPropagation()}
-                                                                    className="flex items-center gap-1 bg-white text-orange-600 px-2 py-1 rounded-lg text-[10px] font-bold border border-orange-100 shadow-sm transition-all hover:bg-orange-50"
-                                                                >
-                                                                    {cat}
-                                                                    <X
-                                                                        className="w-2.5 h-2.5 cursor-pointer hover:text-orange-800"
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            setFormData(p => ({
-                                                                                ...p,
-                                                                                categories: p.categories.filter(c => c !== cat)
-                                                                            }));
-                                                                        }}
-                                                                    />
-                                                                </div>
-                                                            ))
+                                                            formData.subcategories.join(", ")
                                                         )}
                                                     </div>
                                                     <ChevronDown className={cn("w-4 h-4 text-gray-400 shrink-0 transition-transform ml-2", categoryOpen && "rotate-180")} />
                                                 </button>
+
                                                 {categoryOpen && (
-                                                    <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                                    <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-[110] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                                                         <div className="flex items-center gap-2 px-3 py-2.5 border-b border-gray-100">
                                                             <Search className="w-3.5 h-3.5 text-gray-400" />
                                                             <input
                                                                 type="text"
                                                                 value={categorySearch}
                                                                 onChange={(e) => setCategorySearch(e.target.value)}
-                                                                placeholder="Search categories..."
-                                                                className="flex-1 text-sm outline-none bg-transparent placeholder:text-gray-400 text-gray-800"
+                                                                placeholder="Search..."
+                                                                className="flex-1 text-sm outline-none bg-transparent placeholder:text-gray-400 text-black font-medium"
                                                                 autoFocus
                                                             />
                                                         </div>
                                                         <div className="max-h-48 overflow-y-auto">
-                                                            {CATEGORIES.filter(c => c.toLowerCase().includes(categorySearch.toLowerCase())).map(cat => {
-                                                                const isSelected = formData.categories.includes(cat);
+                                                            {CATEGORY_HIERARCHY[formData.mainCategory as MainCategory].filter(s => s.toLowerCase().includes(categorySearch.toLowerCase())).map(sub => {
+                                                                const isSelected = formData.subcategories.includes(sub);
                                                                 return (
                                                                     <button
-                                                                        key={cat}
+                                                                        key={sub}
                                                                         type="button"
                                                                         onClick={() => {
                                                                             setFormData(p => ({
                                                                                 ...p,
-                                                                                categories: isSelected
-                                                                                    ? p.categories.filter(c => c !== cat)
-                                                                                    : [...p.categories, cat]
+                                                                                subcategories: isSelected
+                                                                                    ? p.subcategories.filter(s => s !== sub)
+                                                                                    : [...p.subcategories, sub]
                                                                             }));
                                                                         }}
                                                                         className={cn(
-                                                                            "w-full text-left px-4 py-2.5 text-sm flex items-center justify-between hover:bg-orange-50 transition-colors cursor-pointer text-gray-700",
-                                                                            isSelected && "bg-orange-50 font-semibold text-orange-600"
+                                                                            "w-full text-left px-4 py-2.5 text-sm flex items-center justify-between hover:bg-gray-50 transition-colors cursor-pointer text-gray-700",
+                                                                            isSelected && "bg-gray-50 font-bold text-black"
                                                                         )}
                                                                     >
-                                                                        {cat}
-                                                                        {isSelected && <Check className="w-4 h-4 text-orange-500" />}
+                                                                        {sub}
+                                                                        {isSelected && <Check className="w-4 h-4 text-black" />}
                                                                     </button>
                                                                 );
                                                             })}
-                                                            {CATEGORIES.filter(c => c.toLowerCase().includes(categorySearch.toLowerCase())).length === 0 && (
-                                                                <p className="px-4 py-3 text-xs text-center text-gray-400">No matching categories</p>
-                                                            )}
                                                         </div>
                                                     </div>
                                                 )}
+                                            </>
+                                        ) : (
+                                            <div className="w-full bg-gray-50/50 border border-gray-100 rounded-xl px-4 py-3 h-12 text-sm text-gray-400 italic">
+                                                Select main category first
                                             </div>
-                                        </div>
+                                        )}
+                                    </div>
+                                </div>
 
-                                        <div className="space-y-2">
-                                            <div className="flex items-center justify-between px-1">
-                                                <label className="text-xs font-semibold text-gray-600 flex items-center gap-2">
-                                                    <AlignLeft className="w-3.5 h-3.5 text-orange-500" /> Full Description
-                                                </label>
-                                                {/* <button
-                                                    type="button" onClick={handleAIFill}
-                                                    className="text-[11px] font-bold text-primary hover:text-primary/70 flex items-center gap-1 transition-colors"
-                                                >
-                                                    <Zap className="w-3 h-3" /> AI PRICE REFILL
-                                                </button> */}
-                                            </div>
-                                            <textarea
-                                                value={formData.description} rows={3}
-                                                onChange={(e) => setFormData(p => ({ ...p, description: e.target.value }))}
-                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-300 transition-all text-sm text-gray-800 min-h-[100px] resize-none placeholder:text-gray-400"
-                                                placeholder="Paste any additional details or let the AI fill it..."
+                                {/* Row 3: Pricing */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-semibold text-black flex items-center gap-2 px-1">
+                                            <IndianRupee className="w-3.5 h-3.5 text-black" /> Old Price
+                                        </label>
+                                        <div className="relative group">
+                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 group-focus-within:text-black transition-colors">₹</span>
+                                            <input
+                                                type="number" step="0.01" value={formData.oldPrice}
+                                                onChange={(e) => setFormData(p => ({ ...p, oldPrice: e.target.value }))}
+                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-300 transition-all font-bold text-sm text-black h-12"
                                             />
                                         </div>
-
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-semibold text-red-500 flex items-center gap-2 px-1">
-                                                    <IndianRupee className="w-3.5 h-3.5" /> Old Price
-                                                </label>
-                                                <div className="relative group">
-                                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 group-focus-within:text-gray-600 transition-colors">₹</span>
-                                                    <input
-                                                        type="number" step="0.01" value={formData.oldPrice}
-                                                        onChange={(e) => setFormData(p => ({ ...p, oldPrice: e.target.value }))}
-                                                        className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-300 transition-all font-semibold text-sm text-gray-800"
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-semibold text-green-600 flex items-center gap-2 px-1">
-                                                    <IndianRupee className="w-3.5 h-3.5" /> Offer Price
-                                                </label>
-                                                <div className="relative group">
-                                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 group-focus-within:text-green-600 transition-colors">₹</span>
-                                                    <input
-                                                        type="number" step="0.01" value={formData.offerPrice}
-                                                        onChange={(e) => setFormData(p => ({ ...p, offerPrice: e.target.value }))}
-                                                        className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-300 transition-all font-semibold text-sm text-green-700"
-                                                    />
-                                                </div>
-                                            </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-semibold text-black flex items-center gap-2 px-1">
+                                            <IndianRupee className="w-3.5 h-3.5 text-black" /> Offer Price
+                                        </label>
+                                        <div className="relative group">
+                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 group-focus-within:text-black transition-colors">₹</span>
+                                            <input
+                                                type="number" step="0.01" value={formData.offerPrice}
+                                                onChange={(e) => setFormData(p => ({ ...p, offerPrice: e.target.value }))}
+                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-300 transition-all font-bold text-sm text-black h-12"
+                                            />
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="px-6 py-3.5 bg-gray-50 border-t border-gray-200 flex flex-col gap-3 shrink-0">
-                                    <div className="flex gap-3">
-                                        <PremiumButton type="submit" variant="default" className="flex-1 h-12 rounded-2xl shadow-lg shadow-primary/20" leftIcon={CheckCircle2}>
-                                            Save Changes
-                                        </PremiumButton>
-                                        <PremiumButton
-                                            type="button"
-                                            variant="outline"
-                                            className="flex-1 h-12 rounded-2xl"
-                                            onClick={() => { setShowModal(false); setHighlightedId(null); }}
-                                        >
-                                            Cancel
-                                        </PremiumButton>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => handleDeleteItem(currentMarkedItem.id)}
-                                        className="w-full py-2.5 text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-white hover:bg-red-500 transition-all rounded-xl flex items-center justify-center gap-2 border border-red-200 hover:border-red-500"
-                                    >
-                                        <Trash2 className="w-3 h-3" /> Remove Item from Poster
-                                    </button>
+                                {/* Row 4: Description */}
+                                <div className="space-y-2">
+                                    <label className="text-xs font-semibold text-black flex items-center gap-2 px-1">
+                                        <AlignLeft className="w-3.5 h-3.5 text-black" /> Full Description
+                                    </label>
+                                    <textarea
+                                        value={formData.description} rows={2}
+                                        onChange={(e) => setFormData(p => ({ ...p, description: e.target.value }))}
+                                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-300 transition-all text-sm text-black font-medium min-h-[80px] resize-none placeholder:text-gray-400"
+                                        placeholder="Add additional item details..."
+                                    />
                                 </div>
-                            </form>
-                        </PremiumCard>
-                    </div>
-                )}
+                            </div>
 
-                {/* --- Cropper Modal --- */}
-                {showCropper && cropperImage && (
+                            <div className="px-6 py-5 bg-gray-50/80 backdrop-blur-sm border-t border-gray-100 flex flex-col gap-4 shrink-0">
+                                <div className="flex gap-4">
+                                    <PremiumButton
+                                        type="submit"
+                                        variant="default"
+                                        className="flex-[2] h-12 rounded-2xl shadow-lg shadow-primary/20 text-sm font-bold"
+                                        leftIcon={CheckCircle2}
+                                    >
+                                        Save Changes
+                                    </PremiumButton>
+                                    <PremiumButton
+                                        type="button"
+                                        variant="outline"
+                                        className="flex-1 h-12 rounded-2xl text-sm font-bold bg-white"
+                                        onClick={() => { setShowModal(false); setHighlightedId(null); }}
+                                    >
+                                        Cancel
+                                    </PremiumButton>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => handleDeleteItem(currentMarkedItem.id)}
+                                    className="w-full py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] text-red-400 hover:text-white hover:bg-red-500 transition-all rounded-xl flex items-center justify-center gap-2 border border-red-100/50 hover:border-red-500"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" /> Remove Item from Poster
+                                </button>
+                            </div>
+                        </form>
+                    </PremiumCard>
+                </div>
+            )}
+
+            {/* --- Cropper Modal --- */}
+            {
+                showCropper && cropperImage && (
                     <div className="fixed inset-0 bg-black/90 backdrop-blur-xl flex flex-col justify-center items-center z-[200] p-4">
                         <PremiumCard className="w-full max-w-2xl bg-transparent border-none p-0 overflow-visible shadow-none">
                             <div className="flex items-center justify-between mb-6">
@@ -1053,9 +1190,11 @@ export default function HotspotEditorPage() {
                             </div>
                         </PremiumCard>
                     </div>
-                )}
-                {/* --- Publication Modal --- */}
-                {showPublishModal && (
+                )
+            }
+            {/* --- Publication Modal --- */}
+            {
+                showPublishModal && (
                     <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex justify-center items-center z-[300] p-4">
                         <PremiumCard className="w-full max-w-md p-0 overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
                             <div className="p-6 border-b border-border/50 flex justify-between items-center bg-muted/30">
@@ -1135,10 +1274,9 @@ export default function HotspotEditorPage() {
                         </PremiumCard>
                     </div>
                 )}
-            </main>
 
             {/* Back Warning Modal */}
-            <AppModal
+            < AppModal
                 open={showBackWarning}
                 onOpenChange={setShowBackWarning}
                 title="Unsaved Changes"
@@ -1174,7 +1312,7 @@ export default function HotspotEditorPage() {
                         </PremiumButton>
                     </div>
                 </div>
-            </AppModal>
-        </div>
+            </AppModal >
+        </div >
     );
 }

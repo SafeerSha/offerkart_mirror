@@ -17,7 +17,8 @@ interface Offer {
   category: string;
   subcategory?: string;
   location: string;
-  validUntil: string;
+  validFrom: string;
+  validTo: string;
   discount?: string;
 }
 

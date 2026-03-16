@@ -30,7 +30,7 @@ export async function generateMetadata({
         description: `Get ${offer.discount} at ${offer.shopName}. ${offer.description}`,
         openGraph: {
             title: `${offer.offerName} at ${offer.shopName}`,
-            description: `Get ${offer.discount} at ${offer.shopName}. Valid until ${offer.validUntil}`,
+            description: `Get ${offer.discount} at ${offer.shopName}. Valid from ${offer.validFrom} to ${offer.validTo}`,
             type: 'website',
             images: ['/og-image.jpg'], // Placeholder
         },

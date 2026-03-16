@@ -1,5 +1,5 @@
 import { FEATURED_SHOPS, FEATURED_OFFERS, ALL_OFFERS } from './mockData';
-import { Offer } from '../types/product';
+import { Offer } from '../types/offer';
 
 // Simulate API delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));

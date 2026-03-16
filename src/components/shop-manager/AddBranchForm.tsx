@@ -71,6 +71,7 @@ export default function AddBranchForm({ shopId }: AddBranchFormProps) {
     const { data: session } = useSession();
     const searchParams = useSearchParams();
     const branchId = searchParams.get("branchId");
+    const returnTo = searchParams.get("returnTo");
     const isEditMode = !!branchId;
 
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -207,7 +208,7 @@ export default function AddBranchForm({ shopId }: AddBranchFormProps) {
 
             if (response.success || (response as any).status === "success") {
                 toast.success(isEditMode ? "Branch updated!" : "Branch added!");
-                router.push(`/shop-manager/${shopId}/branches`);
+                router.push(returnTo || `/shop-manager/${shopId}/branches`);
                 router.refresh();
             } else {
                 const errorMessage = response.error || (response as any).message || "Failed to save branch.";

@@ -16,12 +16,15 @@ interface OfferDetail {
     images: (string | StaticImageData)[];
     category: string;
     location: string;
-    validUntil: string;
+    validFrom: string;
+    validTo: string;
     discount: string;
     rating: number;
     reviews: number;
     price: string;
     originalPrice: string;
+    branchId?: number | string;
+    branchName?: string;
 }
 
 interface SimilarOffer {
@@ -31,8 +34,10 @@ interface SimilarOffer {
     image: string | StaticImageData;
     category: string;
     location: string;
-    validUntil: string;
+    validFrom: string;
+    validTo: string;
     discount?: string;
+    branchName?: string;
 }
 
 interface OfferDetailClientProps {

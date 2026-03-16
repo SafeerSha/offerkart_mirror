@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import {
     ArrowRight,
@@ -12,14 +13,20 @@ import {
     LayoutGrid,
     Send,
     Type,
+    GitBranch,
 } from "lucide-react";
 import { Heading, Subheading, Text } from "@/components/shared/Typography";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import { PremiumCard } from "@/components/shared/PremiumCard";
 import { PremiumButton } from "@/components/shared/PremiumButton";
+import { PremiumInput } from "@/components/shared/PremiumInput";
+import { PremiumDatePicker } from "@/components/shared/PremiumDatePicker";
 import { AppModal } from "@/components/shared/AppModal";
 import { cn } from "@/lib/utils";
 import { storage } from "@/lib/storage";
+import { getBranches } from "@/lib/api/branch";
+import { Branch } from "@/lib/types/branch";
+import { MultiSearchableSelect } from "@/components/shared/MultiSearchableSelect";
 import {
     PosterCardStack,
     PosterItem,
@@ -36,17 +43,44 @@ interface Draft {
 
 export default function CreateOfferPage() {
     const router = useRouter();
+    const { data: session } = useSession();
     const [drafts, setDrafts] = useState<Draft[]>([]);
     const [isPublishing, setIsPublishing] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
 
     // Publish modal
     const [showPublishModal, setShowPublishModal] = useState(false);
     const [offerTitle, setOfferTitle] = useState("");
+    const [validFrom, setValidFrom] = useState<Date>();
+    const [validTo, setValidTo] = useState<Date>();
     const [classifiedPosters, setClassifiedPosters] = useState<PosterItem[]>([]);
+    const [publishErrors, setPublishErrors] = useState<{ title?: string; validFrom?: string; validTo?: string; branch?: string }>({});
+
+    // Branch state
+    const [branches, setBranches] = useState<Branch[]>([]);
+    const [selectedBranchIds, setSelectedBranchIds] = useState<string[]>([]);
+    const [isBranchesLoading, setIsBranchesLoading] = useState(false);
 
     // Discard modal
     const [showDiscardModal, setShowDiscardModal] = useState(false);
     const [draftToDiscard, setDraftToDiscard] = useState<string | null>(null);
+
+    // Fetch branches when publish modal opens
+    useEffect(() => {
+        if (!showPublishModal) return;
+        const shopId = session?.shopId ?? (session?.user as any)?.shopId;
+        if (!shopId) return;
+        setIsBranchesLoading(true);
+        getBranches(shopId)
+            .then((res) => {
+                if (res.success && res.data) {
+                    const list = Array.isArray(res.data) ? res.data : (res.data as any).data || [];
+                    setBranches(Array.isArray(list) ? list : []);
+                }
+            })
+            .catch(() => toast.error("Failed to load branches"))
+            .finally(() => setIsBranchesLoading(false));
+    }, [showPublishModal, session]);
 
     // Load drafts
     useEffect(() => {
@@ -65,78 +99,32 @@ export default function CreateOfferPage() {
     const handleClassificationComplete = (posters: PosterItem[]) => {
         setClassifiedPosters(posters);
 
-        const markPosters = posters.filter((p) => p.type === "mark_products");
-
-        if (markPosters.length > 0) {
-            // Has interactive posters → convert all to data URLs and navigate to editor
-            navigateToEditor(posters);
-        } else {
-            // All just_post → show publish modal
-            setOfferTitle("");
-            setShowPublishModal(true);
-        }
+        // The sequence has already been handled inline via PosterCardStack and HotspotEditor.
+        // So at this point, all posters are classified and data is in posters[i].markedItems.
+        // Just show the publish modal.
+        setOfferTitle("");
+        setShowPublishModal(true);
     };
 
-    const navigateToEditor = async (posters: PosterItem[]) => {
-        try {
-            // Convert all poster files to data URLs
-            const posterData = await Promise.all(
-                posters.map(
-                    (poster) =>
-                        new Promise<{
-                            id: string;
-                            posterSrc: string;
-                            type: string;
-                            markedItems: any[];
-                        }>((resolve) => {
-                            const reader = new FileReader();
-                            reader.onload = () =>
-                                resolve({
-                                    id: poster.id,
-                                    posterSrc: reader.result as string,
-                                    type: poster.type,
-                                    markedItems: [],
-                                });
-                            reader.readAsDataURL(poster.file);
-                        })
-                )
-            );
-
-            // Save to IndexedDB (asynchronous) for the editor to pick up
-            await storage.setItem(
-                "currentEditingPosters",
-                posterData
-            );
-
-            // Also set the first interactive poster as the current editing poster for the existing editor
-            const firstInteractive = posterData.find(
-                (p) => p.type === "mark_products"
-            );
-            if (firstInteractive) {
-                await storage.setItem(
-                    "currentEditingPoster",
-                    {
-                        posterSrc: firstInteractive.posterSrc,
-                        markedItems: [],
-                        title: "",
-                    }
-                );
-            }
-
-            // Clean up preview URLs
-            posters.forEach((p) => URL.revokeObjectURL(p.previewUrl));
-
-            router.push("/shop-manager/create-offer/editor");
-        } catch (err) {
-            console.error("Failed to prepare editor data:", err);
-            toast.error("Failed to prepare posters. Please try again.");
-        }
+    const handlePublishSubmit = () => {
+        const errors: { title?: string; validFrom?: string; validTo?: string; branch?: string } = {};
+        if (!offerTitle.trim()) errors.title = "Campaign title is required";
+        if (!validFrom) errors.validFrom = "Start date is required";
+        if (!validTo) errors.validTo = "End date is required";
+        if (validFrom && validTo && validTo < validFrom) errors.validTo = "End date must be after start date";
+        if (selectedBranchIds.length === 0) errors.branch = "Please select at least one branch";
+        setPublishErrors(errors);
+        if (Object.keys(errors).length === 0) confirmPublish();
     };
 
     // --- Publish (all just_post) ---
     const confirmPublish = async () => {
         if (!offerTitle.trim()) {
             toast.error("Please enter a campaign title");
+            return;
+        }
+        if (!validFrom || !validTo) {
+            toast.error("Please select the validity period");
             return;
         }
 
@@ -166,9 +154,15 @@ export default function CreateOfferPage() {
 
             const existing = await storage.getItem<any[]>("markedPosters");
             const allPosters = existing || [];
+            const selectedBranches = branches.filter((b) => selectedBranchIds.includes(String(b.id)));
             allPosters.push({
                 batchId: crypto.randomUUID(),
                 title: offerTitle,
+                validFrom: validFrom.toISOString().split('T')[0],
+                validTo: validTo.toISOString().split('T')[0],
+                branchIds: selectedBranches.map(b => b.id),
+                branchNames: selectedBranches.map(b => b.branch_name),
+                branchCity: selectedBranches[0]?.city, // Optional: tracking primary city if needed
                 createdAt: new Date().toISOString(),
                 status: "active",
                 posters: posterData,
@@ -240,33 +234,41 @@ export default function CreateOfferPage() {
                 <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-[500px] h-[500px] bg-primary/5 rounded-full blur-3xl pointer-events-none" />
                 <div className="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/2 w-[400px] h-[400px] bg-secondary/5 rounded-full blur-3xl pointer-events-none" />
 
-                <div className="max-w-6xl mx-auto relative">
-                    <Breadcrumbs
-                        items={[
-                            { label: "Dashboard", href: "/shop-manager" },
-                            { label: "New Offer" },
-                        ]}
-                    />
+                <div className={cn("mx-auto relative", isEditing ? "max-w-[1400px]" : "max-w-6xl")}>
+                    {!isEditing && (
+                        <Breadcrumbs
+                            items={[
+                                { label: "Dashboard", href: "/shop-manager" },
+                                { label: "New Offer" },
+                            ]}
+                        />
+                    )}
 
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 items-start mt-8">
+                    <div className={cn("items-start", isEditing ? "mt-0" : "grid grid-cols-1 lg:grid-cols-3 gap-10 mt-8")}>
                         {/* ──── Left: Card Stack ──── */}
-                        <div className="lg:col-span-2 space-y-6">
-                            <div className="space-y-1">
-                                <Heading className="text-gradient font-bold tracking-tight">
-                                    Create Offer
-                                </Heading>
-                                <Text className="opacity-50 text-base">
-                                    Upload posters, classify them, and publish.
-                                </Text>
-                            </div>
+                        <div className={cn("space-y-6", isEditing ? "w-full" : "lg:col-span-2")}>
+                            {!isEditing && (
+                                <div className="space-y-1">
+                                    <Heading className="text-gradient font-bold tracking-tight">
+                                        Create Offer
+                                    </Heading>
+                                    <Text className="opacity-50 text-base">
+                                        Upload posters, classify them, and publish.
+                                    </Text>
+                                </div>
+                            )}
 
-                            <PremiumCard className="p-4 sm:p-6 overflow-visible">
+                            <PremiumCard className={cn(
+                                isEditing ? "p-0 border-0 bg-transparent shadow-none" : "p-4 sm:p-6 overflow-visible"
+                            )}>
                                 <PosterCardStack
                                     onComplete={handleClassificationComplete}
+                                    onEditingChange={setIsEditing}
                                 />
                             </PremiumCard>
 
-                            <PremiumButton
+                            {!isEditing && (
+                                <PremiumButton
                                 variant="outline"
                                 className="w-full rounded-2xl h-14"
                                 onClick={() => router.back()}
@@ -274,10 +276,12 @@ export default function CreateOfferPage() {
                             >
                                 Cancel & Go Back
                             </PremiumButton>
+                            )}
                         </div>
 
                         {/* ──── Right: Drafts ──── */}
-                        <div className="space-y-6">
+                        {!isEditing && (
+                            <div className="space-y-6">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -373,6 +377,7 @@ export default function CreateOfferPage() {
                                 )}
                             </div>
                         </div>
+                        )}
                     </div>
                 </div>
             </main>
@@ -387,19 +392,91 @@ export default function CreateOfferPage() {
                 description="Give your campaign a name before publishing."
             >
                 <div className="space-y-5">
-                    <div className="space-y-2">
-                        <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                            <Type className="w-3.5 h-3.5" />
-                            Campaign Title
-                        </label>
-                        <input
-                            type="text"
-                            value={offerTitle}
-                            onChange={(e) => setOfferTitle(e.target.value)}
-                            placeholder="e.g. Weekend Mega Sale 2024"
-                            className="w-full px-4 py-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-semibold text-lg placeholder:opacity-30"
-                            autoFocus
+                    <PremiumInput
+                        label="Campaign Title"
+                        icon={Type}
+                        type="text"
+                        value={offerTitle}
+                        onChange={(e) => {
+                            setOfferTitle(e.target.value);
+                            if (publishErrors.title) setPublishErrors((p) => ({ ...p, title: undefined }));
+                        }}
+                        placeholder="e.g. Weekend Mega Sale 2024"
+                        error={publishErrors.title}
+                        autoFocus
+                    />
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <PremiumDatePicker
+                            label="Valid From"
+                            date={validFrom}
+                            setDate={(d) => {
+                                setValidFrom(d);
+                                if (publishErrors.validFrom) setPublishErrors((p) => ({ ...p, validFrom: undefined }));
+                            }}
+                            placeholder="Select start date"
+                            error={publishErrors.validFrom}
                         />
+                        <PremiumDatePicker
+                            label="Valid To"
+                            date={validTo}
+                            setDate={(d) => {
+                                setValidTo(d);
+                                if (publishErrors.validTo) setPublishErrors((p) => ({ ...p, validTo: undefined }));
+                            }}
+                            placeholder="Select end date"
+                            error={publishErrors.validTo}
+                        />
+                    </div>
+
+                    {/* Branch Selector */}
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium flex items-center gap-2 text-foreground ml-1">
+                            <GitBranch className="w-4 h-4 text-muted-foreground" />
+                            Branch
+                        </label>
+                        {isBranchesLoading ? (
+                            <div className="h-11 rounded-xl border border-primary/10 bg-background/40 animate-pulse" />
+                        ) : branches.length === 0 ? (
+                            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-2 text-sm text-amber-700">
+                                    <GitBranch className="w-4 h-4 shrink-0" />
+                                    <span>No branches yet. Create one to link with this offer.</span>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const shopId = session?.shopId ?? (session?.user as any)?.shopId;
+                                        if (shopId) {
+                                            window.open(`/shop-manager/${shopId}/add-branch?returnTo=/shop-manager/create-offer`, "_blank");
+                                        } else {
+                                            toast.error("You need to create a shop first before adding branches");
+                                            router.push("/shop-manager/add-shop?returnTo=/shop-manager/create-offer");
+                                        }
+                                    }}
+                                    className="shrink-0 text-xs font-semibold text-white bg-amber-500 hover:bg-amber-600 transition-colors px-3 py-1.5 rounded-lg cursor-pointer"
+                                >
+                                    + Add Branch
+                                </button>
+                            </div>
+                        ) : (
+                            <MultiSearchableSelect
+                                options={branches.map((b) => ({ label: `${b.branch_name} — ${b.city}`, value: String(b.id) }))}
+                                selectedValues={selectedBranchIds}
+                                onChange={(vals) => {
+                                    setSelectedBranchIds(vals);
+                                    if (vals.length > 0 && publishErrors.branch) {
+                                        setPublishErrors((p) => ({ ...p, branch: undefined }));
+                                    }
+                                }}
+                                placeholder="Select branches"
+                            />
+                        )}
+                        {publishErrors.branch && (
+                            <p className="text-xs font-medium text-destructive ml-1 animate-in fade-in slide-in-from-top-1">
+                                {publishErrors.branch}
+                            </p>
+                        )}
                     </div>
 
                     <div className="p-4 rounded-xl bg-muted/50 border border-border/50 text-sm">
@@ -420,11 +497,11 @@ export default function CreateOfferPage() {
                             Cancel
                         </PremiumButton>
                         <PremiumButton
-                            onClick={confirmPublish}
+                            onClick={handlePublishSubmit}
                             isLoading={isPublishing}
                             leftIcon={Send}
                             className="rounded-xl"
-                            disabled={isPublishing || !offerTitle.trim()}
+                            disabled={isPublishing}
                         >
                             Confirm & Publish
                         </PremiumButton>

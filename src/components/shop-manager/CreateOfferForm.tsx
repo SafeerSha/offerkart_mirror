@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { PremiumCard } from "@/components/shared/PremiumCard";
 import { PremiumButton } from "@/components/shared/PremiumButton";
+import { PremiumInput } from "@/components/shared/PremiumInput";
 import { Heading, Text } from "@/components/shared/Typography";
 import {
     Tag,
@@ -15,20 +16,18 @@ import {
     CheckCircle2,
     Loader2,
     LayoutDashboard,
-    ChevronLeft
+    ChevronLeft,
+    Plus,
+    CheckSquare,
+    Type,
+    AlignLeft
 } from "lucide-react";
 import { toast } from "sonner";
 import { FileUpload } from "@/components/shared/FileUpload";
 
-const CATEGORIES = [
-    "Food & Dining",
-    "Fashion",
-    "Wellness",
-    "Electronics",
-    "Entertainment",
-    "Services",
-    "Others"
-];
+import { CATEGORY_HIERARCHY, MAIN_CATEGORIES, MainCategory } from "@/lib/categories";
+import { Check, ChevronDown, Search, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Box {
     x: number;
@@ -44,13 +43,17 @@ export default function CreateOfferForm() {
     const [formData, setFormData] = useState({
         title: "",
         description: "",
-        category: "Food & Dining",
+        mainCategory: "" as string,
+        subcategories: [] as string[],
         discount: "",
-        validUntil: "",
         originalPrice: "",
         offerPrice: "",
         imageFile: null as File | null,
     });
+    const [categoryOpen, setCategoryOpen] = useState(false);
+    const [categorySearch, setCategorySearch] = useState('');
+    const [mainCategoryOpen, setMainCategoryOpen] = useState(false);
+    const [mainCategorySearch, setMainCategorySearch] = useState('');
     const [imageSrc, setImageSrc] = useState<string | null>(null);
     const [boxes, setBoxes] = useState<Box[]>([]);
     const [isDrawing, setIsDrawing] = useState(false);
@@ -159,11 +162,51 @@ export default function CreateOfferForm() {
 
     return (
         <form onSubmit={handleSubmit} className="space-y-8 animate-fade-in">
-            {/* Basic Info, Details, Pricing sections remain the same */}
+            {/* Basic Info, Details, Pricing sections */}
             <PremiumCard className="p-6 md:p-8">
                 <div className="space-y-6">
-                    {/* ... previous fields ... */}
-                    {/* For brevity, assuming previous fields are here */}
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium flex items-center gap-2 text-black">
+                            <AlignLeft className="w-4 h-4 text-black" /> Description
+                        </label>
+                        <textarea
+                            placeholder="Enter offer description"
+                            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-gray-700 min-h-[100px] resize-none text-black font-medium"
+                            value={formData.description}
+                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <PremiumInput
+                            label="Discount"
+                            icon={Percent}
+                            type="text"
+                            placeholder="e.g. 50% OFF"
+                            value={formData.discount}
+                            onChange={(e) => setFormData({ ...formData, discount: e.target.value })}
+                        />
+
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <PremiumInput
+                                label="Original"
+                                icon={IndianRupee}
+                                type="number"
+                                placeholder="0"
+                                value={formData.originalPrice}
+                                onChange={(e) => setFormData({ ...formData, originalPrice: e.target.value })}
+                            />
+                            <PremiumInput
+                                label="Offer"
+                                icon={IndianRupee}
+                                type="number"
+                                placeholder="0"
+                                value={formData.offerPrice}
+                                onChange={(e) => setFormData({ ...formData, offerPrice: e.target.value })}
+                            />
+                        </div>
+                    </div>
                 </div>
             </PremiumCard>
 
@@ -172,30 +215,32 @@ export default function CreateOfferForm() {
                 <div className="p-6 md:p-8">
                     <div className="flex items-center justify-between mb-6">
                         <div className="flex items-center gap-3">
-                            <ImageIcon className="w-5 h-5 text-primary" />
-                            <Heading className="text-xl">Mark Items</Heading>
+                            <ImageIcon className="w-5 h-5 text-black" />
+                            <Heading className="text-xl text-black">Mark Items</Heading>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-3">
                             <PremiumButton
                                 type="button"
                                 variant="outline"
-                                size="sm"
+                                className="h-10 rounded-xl bg-white border-gray-200"
                                 onClick={() => router.back()}
+                                leftIcon={ChevronLeft}
                             >
                                 Back
                             </PremiumButton>
                             <PremiumButton
                                 type="button"
                                 variant="outline"
-                                size="sm"
+                                className="h-10 rounded-xl bg-white border-gray-200"
                                 onClick={() => toast.success("Saved as draft")}
                             >
                                 Save Draft
                             </PremiumButton>
                             <PremiumButton
                                 type="submit"
-                                size="sm"
+                                className="h-10 rounded-xl shadow-md px-6"
                                 disabled={isSubmitting}
+                                leftIcon={CheckCircle2}
                             >
                                 {isSubmitting ? "Publishing..." : "Publish"}
                             </PremiumButton>
@@ -203,16 +248,164 @@ export default function CreateOfferForm() {
                     </div>
 
                     <div className="space-y-4">
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">Title</label>
-                            <input
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <PremiumInput
+                                label="Title"
+                                icon={Type}
                                 type="text"
                                 placeholder="Enter offer title"
-                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-gray-700"
                                 value={formData.title}
                                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                                className="h-12"
                             />
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium flex items-center gap-2 text-black">
+                                    <Tag className="w-4 h-4 text-black" /> Main Category
+                                </label>
+                                <button
+                                    type="button"
+                                    onClick={() => { setMainCategoryOpen(!mainCategoryOpen); setMainCategorySearch(''); }}
+                                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-bold text-sm text-left flex items-center justify-between cursor-pointer hover:border-gray-300 h-12"
+                                >
+                                    <div className={cn("flex-1 truncate", formData.mainCategory && "text-black")}>
+                                        {formData.mainCategory || <span className="text-gray-400 font-medium">Select...</span>}
+                                    </div>
+                                    <ChevronDown className={cn("w-4 h-4 text-gray-400 shrink-0 transition-transform ml-2", mainCategoryOpen && "rotate-180")} />
+                                </button>
+
+                                {mainCategoryOpen && (
+                                    <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                        <div className="flex items-center gap-2 px-3 py-2.5 border-b border-gray-100">
+                                            <Search className="w-3.5 h-3.5 text-gray-400" />
+                                            <input
+                                                type="text"
+                                                value={mainCategorySearch}
+                                                onChange={(e) => setMainCategorySearch(e.target.value)}
+                                                placeholder="Search..."
+                                                className="flex-1 text-sm outline-none bg-transparent placeholder:text-gray-400 text-black font-medium"
+                                                autoFocus
+                                            />
+                                        </div>
+                                        <div className="max-h-48 overflow-y-auto">
+                                            {MAIN_CATEGORIES.filter(cat => cat.toLowerCase().includes(mainCategorySearch.toLowerCase())).map(cat => (
+                                                <button
+                                                    key={cat}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setFormData(p => ({ ...p, mainCategory: cat, subcategories: [] }));
+                                                        setMainCategoryOpen(false);
+                                                    }}
+                                                    className={cn(
+                                                        "w-full text-left px-4 py-2.5 text-sm flex items-center justify-between hover:bg-primary/5 transition-colors cursor-pointer text-gray-700",
+                                                        formData.mainCategory === cat && "bg-primary/5 font-bold text-black"
+                                                    )}
+                                                >
+                                                    {cat}
+                                                    {formData.mainCategory === cat && <Check className="w-4 h-4 text-black" />}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
+
+                        {formData.mainCategory && (
+                            <div className="space-y-2 relative">
+                                <label className="text-sm font-medium flex items-center gap-2 text-black">
+                                    <CheckSquare className="w-4 h-4 text-black" /> Subcategories
+                                </label>
+
+                                <button
+                                    type="button"
+                                    onClick={() => { setCategoryOpen(!categoryOpen); setCategorySearch(''); }}
+                                    className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 min-h-[48px] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium text-sm text-left flex items-center justify-between cursor-pointer hover:border-gray-300"
+                                >
+                                    <div className={cn("flex-1 truncate", formData.subcategories.length > 0 && "text-black font-bold text-xs")}>
+                                        {formData.subcategories.length === 0 ? (
+                                            <span className="text-gray-400 font-medium">Select...</span>
+                                        ) : (
+                                            formData.subcategories.join(", ")
+                                        )}
+                                    </div>
+                                    <ChevronDown className={cn("w-4 h-4 text-gray-400 shrink-0 transition-transform ml-2", categoryOpen && "rotate-180")} />
+                                </button>
+
+                                {categoryOpen && (
+                                    <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                        <div className="flex items-center gap-2 px-3 py-2.5 border-b border-gray-100">
+                                            <Search className="w-3.5 h-3.5 text-gray-400" />
+                                            <input
+                                                type="text"
+                                                value={categorySearch}
+                                                onChange={(e) => setCategorySearch(e.target.value)}
+                                                placeholder="Search or add custom..."
+                                                className="flex-1 text-sm outline-none bg-transparent placeholder:text-gray-400 text-gray-800"
+                                                autoFocus
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' && categorySearch.trim()) {
+                                                        e.preventDefault();
+                                                        const newSub = categorySearch.trim();
+                                                        if (!formData.subcategories.includes(newSub)) {
+                                                            setFormData(p => ({
+                                                                ...p,
+                                                                subcategories: [...p.subcategories, newSub]
+                                                            }));
+                                                        }
+                                                        setCategorySearch('');
+                                                    }
+                                                }}
+                                            />
+                                        </div>
+                                        <div className="max-h-48 overflow-y-auto">
+                                            {CATEGORY_HIERARCHY[formData.mainCategory as MainCategory].filter(s => s.toLowerCase().includes(categorySearch.toLowerCase())).map(sub => {
+                                                const isSelected = formData.subcategories.includes(sub);
+                                                return (
+                                                    <button
+                                                        key={sub}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setFormData(p => ({
+                                                                ...p,
+                                                                subcategories: isSelected
+                                                                    ? p.subcategories.filter(s => s !== sub)
+                                                                    : [...p.subcategories, sub]
+                                                            }));
+                                                        }}
+                                                        className={cn(
+                                                            "w-full text-left px-4 py-2.5 text-sm flex items-center justify-between hover:bg-primary/5 transition-colors cursor-pointer text-gray-700",
+                                                            isSelected && "bg-primary/5 font-bold text-black"
+                                                        )}
+                                                    >
+                                                        {sub}
+                                                        {isSelected && <Check className="w-4 h-4 text-black" />}
+                                                    </button>
+                                                );
+                                            })}
+                                            {categorySearch.trim() && !CATEGORY_HIERARCHY[formData.mainCategory as MainCategory].some(s => s.toLowerCase() === categorySearch.toLowerCase()) && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const newSub = categorySearch.trim();
+                                                        if (!formData.subcategories.includes(newSub)) {
+                                                            setFormData(p => ({
+                                                                ...p,
+                                                                subcategories: [...p.subcategories, newSub]
+                                                            }));
+                                                        }
+                                                        setCategorySearch('');
+                                                    }}
+                                                    className="w-full text-left px-4 py-2.5 text-xs flex items-center gap-2 hover:bg-primary/5 transition-colors cursor-pointer text-primary font-bold"
+                                                >
+                                                    <Plus className="w-3 h-3" /> Add "{categorySearch}"
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         <div className="relative bg-gray-100 rounded-xl border-2 border-dashed border-gray-300 p-8 min-h-[400px] flex items-center justify-center">
                             {imageSrc ? (

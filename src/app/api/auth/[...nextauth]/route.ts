@@ -46,16 +46,27 @@ const handler = NextAuth({
         })
     ],
     callbacks: {
-        async jwt({ token, user }) {
+        async jwt({ token, user, trigger, session }) {
             if (user) {
                 token.accessToken = (user as any).accessToken;
                 token.user = user;
+                if ((user as any).shopId) {
+                    token.shopId = (user as any).shopId;
+                }
+            }
+            // Allow client-side session.update({ shopId }) to inject shopId into token
+            if (trigger === "update" && session?.shopId) {
+                token.shopId = session.shopId;
             }
             return token;
         },
         async session({ session, token }) {
             session.accessToken = token.accessToken as string;
             session.user = token.user as any;
+            session.shopId = token.shopId;
+            if (session.user && token.shopId) {
+                session.user.shopId = token.shopId;
+            }
             return session;
         }
     },

@@ -14,15 +14,3 @@ export interface Product {
     specifications?: { label: string; value: string }[];
     images?: any[];
 }
-
-export interface Offer {
-    id: number | string;
-    shopName: string;
-    offerName: string;
-    image: any;
-    category: string;
-    location: string;
-    validUntil: string;
-    discount: string;
-    rating: number;
-}
