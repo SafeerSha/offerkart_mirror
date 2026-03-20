@@ -12,5 +12,9 @@ export const ENDPOINTS = {
     BRANCH: {
         BASE: (shopId: string) => `${API_BASE_URL}/business/shop/${shopId}/branches`,
         DETAILS: (shopId: string, branchId: string) => `${API_BASE_URL}/business/shop/${shopId}/branches/${branchId}`,
+    },
+    S3_IMAGE: {
+        BASE: `${API_BASE_URL}/business/image`,
+        UPLOAD: `${API_BASE_URL}/business/image/upload`,
     }
 };
