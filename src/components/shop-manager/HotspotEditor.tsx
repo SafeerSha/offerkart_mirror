@@ -8,6 +8,7 @@ import {
     CheckCircle2, AlertCircle, FileEdit, X,
     Image as ImageIcon
 } from "lucide-react";
+import Image from "next/image";
 
 import { CATEGORY_HIERARCHY, MAIN_CATEGORIES, MainCategory } from "@/lib/categories";
 import { createWorker, Worker } from 'tesseract.js';
@@ -302,6 +303,10 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
 
             // Step 2: AI — Parse the OCR text into structured fields
             try {
+                // --- SKIP AI EXTRACT FOR LOCAL TESTING ---
+                if (true) {
+                    throw new Error("Skipped AI extraction for local testing - using OCR fallback");
+                }
                 const { askAI } = await import('@/lib/ai/aiClient');
                 const aiResult = await askAI<{
                     brand?: string;
@@ -312,10 +317,10 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                 }>(ocrText, 'extract product name, prices, description');
 
                 if (aiResult.success && aiResult.data) {
-                    const d = aiResult.data;
+                    const d = aiResult.data!;
                     // Combine brand + product name intelligently
                     extractedName = d.productName || '';
-                    if (d.brand && d.productName && !d.productName.toLowerCase().includes(d.brand.toLowerCase())) {
+                    if (d.brand && d.productName && !extractedName.toLowerCase().includes((d.brand || "").toLowerCase())) {
                         extractedName = `${d.brand} ${d.productName}`;
                     }
                     extractedDescription = d.description || '';
@@ -399,6 +404,23 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
     const handleSaveForm = (e: FormEvent) => {
         e.preventDefault();
         if (!currentMarkedItem) return;
+
+        if (!formData.name?.trim()) {
+            toast.error("Product Name is required");
+            return;
+        }
+        if (!formData.mainCategory) {
+            toast.error("Main Category is required");
+            return;
+        }
+        if (!formData.subcategories || formData.subcategories.length === 0) {
+            toast.error("At least one Subcategory is required");
+            return;
+        }
+        if (!formData.offerPrice || isNaN(parseFloat(formData.offerPrice))) {
+            toast.error("Offer Price is required and must be a valid number");
+            return;
+        }
 
         const updatedItem: MarkedItem = {
             ...currentMarkedItem,
@@ -537,10 +559,13 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                                 onTouchEnd={handlePointerUp}
                             >
                                 {posterData.posterSrc && (
-                                    <img
+                                    <Image
                                         ref={imgRef}
                                         src={posterData.posterSrc}
                                         alt="Poster"
+                                        width={1200}
+                                        height={1600}
+                                        unoptimized
                                         className="w-full h-auto block rounded-2xl"
                                         onLoad={() => setImageSize({ width: imgRef.current!.offsetWidth, height: imgRef.current!.offsetHeight })}
                                         draggable={false}
@@ -637,7 +662,7 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                                         >
                                             <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-black/10 shrink-0">
                                                 {item.productImage ? (
-                                                    <img src={item.productImage} className="w-full h-full object-cover" alt="" />
+                                                    <Image src={item.productImage} alt="" fill unoptimized className="object-cover" />
                                                 ) : (
                                                     <div className="w-full h-full flex items-center justify-center text-xs opacity-30">#{idx + 1}</div>
                                                 )}
@@ -729,7 +754,7 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                                     <div className="relative group/img shrink-0 pt-1">
                                         <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-50 shadow-sm border border-gray-200 group-hover/img:border-orange-400 transition-all duration-300">
                                             {formData.productImage ? (
-                                                <img src={formData.productImage} className="w-full h-full object-cover" alt="" />
+                                                <Image src={formData.productImage} alt="" fill unoptimized className="object-cover" />
                                             ) : (
                                                 <div className="w-full h-full flex items-center justify-center">
                                                     <ImageIcon className="w-6 h-6 text-gray-200" />
@@ -909,7 +934,7 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                                         <div className="relative group">
                                             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 group-focus-within:text-black transition-colors">₹</span>
                                             <input
-                                                type="number" step="0.01" value={formData.offerPrice}
+                                                type="number" step="0.01" value={formData.offerPrice} required
                                                 onChange={(e) => setFormData(p => ({ ...p, offerPrice: e.target.value }))}
                                                 className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-300 transition-all font-bold text-sm text-black h-12"
                                             />

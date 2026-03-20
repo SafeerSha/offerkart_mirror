@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import { z } from 'zod';
+import { authOptions } from '@/lib/auth';
 import { AI_PROMPTS } from '@/lib/ai/prompts';
 import { callOpenRouter } from '@/lib/openrouter';
 import { callHuggingFace } from '@/lib/huggingface';
 
-const MAX_REQUEST_TEXT_LENGTH = 10000; // 10KB max for input text
+import { logger } from "@/lib/logger";
 const MAX_RESPONSE_SIZE = 10000; // 10KB max for AI response
-const REQUEST_TIMEOUT_MS = 60000; // 60 second timeout for AI requests
+
+// Zod schema for vision request body
+const visionRequestSchema = z.object({
+    text: z.string().min(1, "Text is required.").max(10000, "Input text too long. Maximum 10000 characters allowed."),
+    role: z.string().min(1, "Role is required."),
+});
 
 // Simple in-memory rate limiter (for production, use Redis or similar)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -38,6 +45,15 @@ function getClientIP(req: NextRequest): string {
 
 export async function POST(req: NextRequest) {
     try {
+        // Authentication check
+        const session = await getServerSession(authOptions);
+        if (!session) {
+            return NextResponse.json(
+                { error: 'Unauthorized. Please log in to use this feature.' },
+                { status: 401 }
+            );
+        }
+
         // Rate limiting check
         const clientIP = getClientIP(req);
         if (!checkRateLimit(clientIP)) {
@@ -47,26 +63,20 @@ export async function POST(req: NextRequest) {
             );
         }
 
+        // Validate request body with Zod
         const body = await req.json();
-        const { text, role } = body;
+        const parsed = visionRequestSchema.safeParse(body);
+        if (!parsed.success) {
+            return NextResponse.json(
+                { error: 'Invalid request body.', details: parsed.error.flatten().fieldErrors },
+                { status: 400 }
+            );
+        }
+
+        const { text, role } = parsed.data;
 
         // Map old role to new one if necessary
         const targetRole = role === 'product_extraction' ? 'extract product name, prices, description' : role;
-
-        // Input validation and size limits
-        if (!text || typeof text !== 'string' || !targetRole) {
-            return NextResponse.json(
-                { error: 'Missing required fields: text and role' },
-                { status: 400 }
-            );
-        }
-
-        if (text.length > MAX_REQUEST_TEXT_LENGTH) {
-            return NextResponse.json(
-                { error: `Input text too long. Maximum ${MAX_REQUEST_TEXT_LENGTH} characters allowed.` },
-                { status: 400 }
-            );
-        }
 
         const systemPrompt = AI_PROMPTS[targetRole];
         if (!systemPrompt) {
@@ -84,7 +94,7 @@ export async function POST(req: NextRequest) {
             },
         ];
 
-        console.log(`[Vision API] Requesting extraction for text (${text.length} chars) using role: ${targetRole}`);
+        logger.log(`[Vision API] Requesting extraction for text (${text.length} chars) using role: ${targetRole}`);
         
         // Try Hugging Face first, then fall back to OpenRouter
         let result;
@@ -93,7 +103,7 @@ export async function POST(req: NextRequest) {
         try {
             result = await callHuggingFace(messages);
         } catch (hfError: any) {
-            console.warn(`[Vision API] HuggingFace failed: ${hfError.message}. Falling back to OpenRouter...`);
+            logger.warn(`[Vision API] HuggingFace failed: ${hfError.message}. Falling back to OpenRouter...`);
             provider = "OpenRouter";
             result = await callOpenRouter(messages);
         }
@@ -109,7 +119,7 @@ export async function POST(req: NextRequest) {
             }
             parsedData = JSON.parse(jsonStr);
         } catch (e) {
-            console.error(`[Vision API] Unparsable response from ${result.model}:`, result.content);
+            logger.error(`[Vision API] Unparsable response from ${result.model}:`, result.content);
             return NextResponse.json(
                 { error: 'AI returned unparsable content.', raw: result.content },
                 { status: 502 }
@@ -123,7 +133,7 @@ export async function POST(req: NextRequest) {
         });
 
     } catch (error: any) {
-        console.error('Vision API Error:', error);
+        logger.error('Vision API Error:', error);
         return NextResponse.json(
             { error: error.message || 'Internal server error' },
             { status: 500 }

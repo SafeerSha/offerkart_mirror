@@ -1,6 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { z } from "zod";
+import { authOptions } from "@/lib/auth";
 import { callOpenRouter } from "@/lib/openrouter";
 import { callHuggingFace } from "@/lib/huggingface";
+
+import { logger } from "@/lib/logger";
+// Zod schema for chat request body
+const chatRequestSchema = z.object({
+    messages: z
+        .array(
+            z.object({
+                role: z.string().min(1, "Message role is required."),
+                content: z.string().min(1, "Message content is required.").max(5000, "Message content too long. Maximum 5000 characters."),
+            })
+        )
+        .min(1, "At least one message is required.")
+        .max(50, "Too many messages. Maximum 50 allowed."),
+});
 
 // Simple in-memory rate limiter (for production, use Redis or similar)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -32,6 +49,15 @@ function getClientIP(req: NextRequest): string {
 
 export async function POST(req: NextRequest) {
     try {
+        // Authentication check
+        const session = await getServerSession(authOptions);
+        if (!session) {
+            return NextResponse.json(
+                { error: "Unauthorized. Please log in to use this feature." },
+                { status: 401 }
+            );
+        }
+
         // Rate limiting check
         const clientIP = getClientIP(req);
         if (!checkRateLimit(clientIP)) {
@@ -41,51 +67,31 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        const { messages } = await req.json();
-
-        if (!messages || !Array.isArray(messages)) {
+        // Validate request body with Zod
+        const body = await req.json();
+        const parsed = chatRequestSchema.safeParse(body);
+        if (!parsed.success) {
             return NextResponse.json(
-                { error: "Invalid messages format. Expected an array." },
+                { error: "Invalid request body.", details: parsed.error.flatten().fieldErrors },
                 { status: 400 }
             );
         }
 
-        // Validate message structure and limit array size
-        if (messages.length > 50) {
-            return NextResponse.json(
-                { error: "Too many messages. Maximum 50 allowed." },
-                { status: 400 }
-            );
-        }
-
-        for (const msg of messages) {
-            if (!msg.role || !msg.content || typeof msg.content !== 'string') {
-                return NextResponse.json(
-                    { error: "Each message must have role and content fields." },
-                    { status: 400 }
-                );
-            }
-            if (msg.content.length > 5000) {
-                return NextResponse.json(
-                    { error: "Message content too long. Maximum 5000 characters per message." },
-                    { status: 400 }
-                );
-            }
-        }
+        const { messages } = parsed.data;
 
         // Try Hugging Face first, then fall back to OpenRouter
         let result;
         try {
-            console.log("[Chat API] Trying HuggingFace...");
+            logger.log("[Chat API] Trying HuggingFace...");
             result = await callHuggingFace(messages);
         } catch (hfError: any) {
-            console.warn(`[Chat API] HuggingFace failed: ${hfError.message}. Falling back to OpenRouter...`);
+            logger.warn(`[Chat API] HuggingFace failed: ${hfError.message}. Falling back to OpenRouter...`);
             result = await callOpenRouter(messages);
         }
 
         return NextResponse.json(result);
     } catch (error: any) {
-        console.error("Chat API Error:", error);
+        logger.error("Chat API Error:", error);
         return NextResponse.json(
             { error: error.message || "Failed to process chat request" },
             { status: 500 }

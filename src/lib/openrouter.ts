@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 export const OPENROUTER_MODELS = [
     "google/gemini-2.0-flash-exp:free",
     "google/gemini-2.0-flash-lite-preview-02-05:free",
@@ -27,7 +28,7 @@ export async function callOpenRouter(messages: any[]): Promise<OpenRouterRespons
         throw new Error("OPENROUTER_API_KEY is not defined in environment variables.");
     }
 
-    console.log(`[OpenRouter] Starting request with ${OPENROUTER_MODELS.length} models in rotation.`);
+    logger.log(`[OpenRouter] Starting request with ${OPENROUTER_MODELS.length} models in rotation.`);
 
     for (const model of OPENROUTER_MODELS) {
         let attempts = 0;
@@ -39,7 +40,7 @@ export async function callOpenRouter(messages: any[]): Promise<OpenRouterRespons
             
             try {
                 const endpoint = "https://openrouter.ai/api/v1/chat/completions";
-                console.log(`[OpenRouter] CALLING ENDPOINT: ${endpoint} | MODEL: ${model} (Attempt ${attempts + 1}/${maxAttempts})`);
+                logger.log(`[OpenRouter] CALLING ENDPOINT: ${endpoint} | MODEL: ${model} (Attempt ${attempts + 1}/${maxAttempts})`);
                 const response = await fetch(endpoint, {
                     method: "POST",
                     headers: {
@@ -59,7 +60,7 @@ export async function callOpenRouter(messages: any[]): Promise<OpenRouterRespons
                 const data = isJson ? await response.json() : await response.text();
 
                 if (response.status === 429 || (typeof data === 'object' && data.error && data.error.message?.toLowerCase().includes("rate"))) {
-                    console.warn(`[OpenRouter] Rate limit hit for ${model}. skipping...`);
+                    logger.warn(`[OpenRouter] Rate limit hit for ${model}. skipping...`);
                     clearTimeout(timeoutId);
                     break; // Skip to next model
                 }
@@ -70,11 +71,11 @@ export async function callOpenRouter(messages: any[]): Promise<OpenRouterRespons
                 }
 
                 if (typeof data !== 'object' || !data.choices?.[0]?.message?.content) {
-                    console.error("[OpenRouter] Invalid response format:", data);
+                    logger.error("[OpenRouter] Invalid response format:", data);
                     throw new Error("Invalid response format from AI.");
                 }
 
-                console.log(`[OpenRouter] Success with ${model}`);
+                logger.log(`[OpenRouter] Success with ${model}`);
                 return {
                     content: data.choices[0].message.content,
                     model: model,
@@ -83,14 +84,14 @@ export async function callOpenRouter(messages: any[]): Promise<OpenRouterRespons
             } catch (error: any) {
                 clearTimeout(timeoutId);
                 attempts++;
-                console.error(`[OpenRouter] Error with ${model}: ${error.message}`);
+                logger.error(`[OpenRouter] Error with ${model}: ${error.message}`);
                 
                 if (attempts < maxAttempts) {
                     const backoff = Math.pow(2, attempts - 1) * 1000;
-                    console.log(`[OpenRouter] Retrying in ${backoff}ms...`);
+                    logger.log(`[OpenRouter] Retrying in ${backoff}ms...`);
                     await new Promise(resolve => setTimeout(resolve, backoff));
                 } else {
-                    console.warn(`[OpenRouter] ${model} exhausted. Moving to next.`);
+                    logger.warn(`[OpenRouter] ${model} exhausted. Moving to next.`);
                 }
             }
         }

@@ -37,6 +37,7 @@ import { Shop } from "@/lib/types/shop";
 import { useLocation } from "@/hooks/useLocation";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { ImagePreviewModal } from "@/components/shared/ImagePreviewModal";
+import Image from "next/image";
 
 const MapPicker = dynamic(() => import("@/components/shared/MapPicker"), {
     ssr: false,
@@ -528,10 +529,12 @@ export default function AddShopForm() {
                             )}>
                                 {logoPreview ? (
                                     <>
-                                        <img
+                                        <Image
                                             src={logoPreview}
                                             alt="Logo preview"
-                                            className="w-full h-full object-cover relative z-10"
+                                            fill
+                                            className="object-cover relative z-10"
+                                            unoptimized
                                         />
                                         <div
                                             className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-20"

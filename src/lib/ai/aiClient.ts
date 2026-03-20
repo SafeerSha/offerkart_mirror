@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 /**
  * Client-side AI helper
  * 
@@ -50,7 +51,7 @@ export async function askAI<T = any>(
         };
     } catch (error: any) {
         clearTimeout(timeoutId);
-        console.error('AI Client Error:', error);
+        logger.error('AI Client Error:', error);
         return {
             success: false,
             error: error.name === 'AbortError' 

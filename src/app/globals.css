@@ -65,6 +65,10 @@
     --font-serif: 'Rubik', ui-sans-serif, system-ui, sans-serif;
   }
 
+  /* Leaflet custom overrides (moved from MapPicker dangerouslySetInnerHTML) */
+  .leaflet-control-attribution { display: none !important; }
+  .leaflet-touch .leaflet-control-layers, .leaflet-touch .leaflet-bar { border: none !important; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+
   .dark {
     --background: 20 25% 8%;
     --foreground: 30 20% 95%;

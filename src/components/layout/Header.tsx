@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { Search, User, LogIn, Menu, X, MapPinCheck, PlusCircle, MapPin, ChevronDown, ChevronUp, LayoutDashboard, Plus } from "lucide-react";
+import { Search, User, LogIn, Menu, X, MapPinCheck, PlusCircle, MapPin, ChevronDown, ChevronUp, LayoutDashboard, Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
@@ -167,6 +167,7 @@ const Header = () => {
     const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(null);
     const [dropdownLocations, setDropdownLocations] = useState(locations);
     const [loading, setLoading] = useState(false);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
     const { data: session, status } = useSession();
     const isRegistered = status === "authenticated";
     const user = session?.user as any;
@@ -528,12 +529,23 @@ const Header = () => {
 
                             <button
                                 onClick={() => {
+                                    setIsLoggingOut(true);
                                     signOut({ callbackUrl: "/" });
                                 }}
-                                className="px-4 py-3 rounded-xl hover:bg-destructive/10 text-destructive transition-all duration-300 border border-transparent hover:border-destructive/20 flex items-center mt-1 w-full text-left"
+                                disabled={isLoggingOut}
+                                className="px-4 py-3 rounded-xl hover:bg-destructive/10 text-destructive transition-all duration-300 border border-transparent hover:border-destructive/20 flex items-center mt-1 w-full text-left disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                <LogIn className="w-4 h-4 mr-3" />
-                                <span className="font-medium">Log Out</span>
+                                {isLoggingOut ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 mr-3 animate-spin" />
+                                        <span className="font-medium">Logging out...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <LogIn className="w-4 h-4 mr-3" />
+                                        <span className="font-medium">Log Out</span>
+                                    </>
+                                )}
                             </button>
                         </nav>
                     </div>

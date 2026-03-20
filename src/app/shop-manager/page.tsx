@@ -42,6 +42,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import { Switch } from "@/components/ui/switch";
@@ -82,6 +83,9 @@ function DashboardContent() {
 
     // Delete offer state
     const [offerToDelete, setOfferToDelete] = useState<any | null>(null);
+
+    // Logout state
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
 
     // Open edit modal and pre-fill values
     const openEditModal = (offer: any) => {
@@ -224,6 +228,7 @@ function DashboardContent() {
     }, [searchParams]);
 
     const handleLogout = () => {
+        setIsLoggingOut(true);
         signOut({ callbackUrl: "/" });
     };
 
@@ -421,10 +426,20 @@ function DashboardContent() {
                                     <div className="pt-3 mt-3 border-t border-primary/10">
                                         <button
                                             onClick={handleLogout}
-                                            className="flex items-center gap-3 p-4 rounded-xl bg-gradient-to-r from-rose-500/10 to-orange-500/10 border border-rose-500/20 hover:border-rose-500/40 hover:from-rose-500/20 hover:to-orange-500/20 transition-all w-full text-left group cursor-pointer"
+                                            disabled={isLoggingOut}
+                                            className="flex items-center gap-3 p-4 rounded-xl bg-gradient-to-r from-rose-500/10 to-orange-500/10 border border-rose-500/20 hover:border-rose-500/40 hover:from-rose-500/20 hover:to-orange-500/20 transition-all w-full text-left group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
-                                            <LogOut className="w-5 h-5 text-rose-500 group-hover:scale-110 transition-transform" />
-                                            <span className="font-medium bg-gradient-to-r from-rose-500 to-orange-500 bg-clip-text text-transparent">Logout</span>
+                                            {isLoggingOut ? (
+                                                <>
+                                                    <Loader2 className="w-5 h-5 text-rose-500 animate-spin" />
+                                                    <span className="font-medium bg-gradient-to-r from-rose-500 to-orange-500 bg-clip-text text-transparent">Logging out...</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <LogOut className="w-5 h-5 text-rose-500 group-hover:scale-110 transition-transform" />
+                                                    <span className="font-medium bg-gradient-to-r from-rose-500 to-orange-500 bg-clip-text text-transparent">Logout</span>
+                                                </>
+                                            )}
                                         </button>
                                     </div>
                                 </div>
@@ -477,10 +492,12 @@ function DashboardContent() {
                                                         <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
                                                             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
                                                                 {offer.posters?.[0]?.posterSrc || offer.posterSrc ? (
-                                                                    <img
+                                                                    <Image
                                                                         src={offer.posters?.[0]?.posterSrc || offer.posterSrc}
-                                                                        className="w-full h-full object-cover"
                                                                         alt=""
+                                                                        fill
+                                                                        unoptimized
+                                                                        className="object-cover"
                                                                     />
                                                                 ) : (
                                                                     <Store className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
@@ -611,10 +628,12 @@ function DashboardContent() {
                                                                     </div>
                                                                     {shop.logo_url && (
                                                                         <>
-                                                                            <img
+                                                                            <Image
                                                                                 src={shop.logo_url}
                                                                                 alt={shop.shop_name}
-                                                                                className="w-full h-full object-cover group-hover/logo:scale-110 transition-transform duration-300 relative z-10"
+                                                                                fill
+                                                                                unoptimized
+                                                                                className="object-cover group-hover/logo:scale-110 transition-transform duration-300 relative z-10"
                                                                                 onError={(e) => {
                                                                                     (e.currentTarget as HTMLImageElement).classList.add('opacity-0');
                                                                                 }}

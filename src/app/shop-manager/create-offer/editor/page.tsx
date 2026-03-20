@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { CATEGORY_HIERARCHY, MAIN_CATEGORIES, MainCategory } from "@/lib/categories";
+import Image from "next/image";
 import { createWorker, Worker } from 'tesseract.js';
 import { Heading, Subheading, Text } from "@/components/shared/Typography";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
@@ -321,10 +322,10 @@ export default function HotspotEditorPage() {
                 }>(ocrText, 'extract product name, prices, description');
 
                 if (aiResult.success && aiResult.data) {
-                    const d = aiResult.data;
+                    const d = aiResult.data!;
                     // Combine brand + product name intelligently
                     extractedName = d.productName || '';
-                    if (d.brand && d.productName && !d.productName.toLowerCase().includes(d.brand.toLowerCase())) {
+                    if (d.brand && d.productName && !extractedName.toLowerCase().includes((d.brand || "").toLowerCase())) {
                         extractedName = `${d.brand} ${d.productName}`;
                     }
                     extractedDescription = d.description || '';
@@ -653,11 +654,14 @@ export default function HotspotEditorPage() {
                                 onTouchEnd={handlePointerUp}
                             >
                                 {posterData.posterSrc && (
-                                    <img
+                                    <Image
                                         ref={imgRef}
                                         src={posterData.posterSrc}
                                         alt="Poster"
-                                        className="w-full h-auto block rounded-2xl"
+                                        width={1000}
+                                        height={1000}
+                                        unoptimized
+                                        className="w-full h-auto block rounded-2xl object-contain"
                                         onLoad={() => setImageSize({ width: imgRef.current!.offsetWidth, height: imgRef.current!.offsetHeight })}
                                         draggable={false}
                                     />
@@ -734,10 +738,12 @@ export default function HotspotEditorPage() {
                                                     : "border-border/40 hover:border-primary/30 opacity-60 hover:opacity-100 hover:scale-[1.02]"
                                             )}
                                         >
-                                            <img
+                                            <Image
                                                 src={poster.posterSrc}
                                                 alt={`Poster ${idx + 1}`}
-                                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                                fill
+                                                unoptimized
+                                                className="object-cover transition-transform duration-500 group-hover:scale-110"
                                             />
                                             {/* Type badge */}
                                             <div className={cn(
@@ -798,7 +804,7 @@ export default function HotspotEditorPage() {
                                         >
                                             <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-black/10 shrink-0">
                                                 {item.productImage ? (
-                                                    <img src={item.productImage} className="w-full h-full object-cover" alt="" />
+                                                    <Image src={item.productImage} fill unoptimized className="object-cover" alt="" />
                                                 ) : (
                                                     <div className="w-full h-full flex items-center justify-center text-xs opacity-30">#{idx + 1}</div>
                                                 )}
@@ -890,7 +896,7 @@ export default function HotspotEditorPage() {
                                     <div className="relative group/img shrink-0 pt-1">
                                         <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-50 shadow-sm border border-gray-200 group-hover/img:border-orange-400 transition-all duration-300">
                                             {formData.productImage ? (
-                                                <img src={formData.productImage} className="w-full h-full object-cover" alt="" />
+                                                <Image src={formData.productImage} fill unoptimized className="object-cover" alt="" />
                                             ) : (
                                                 <div className="w-full h-full flex items-center justify-center">
                                                     <ImageIcon className="w-6 h-6 text-gray-200" />
@@ -1151,10 +1157,13 @@ export default function HotspotEditorPage() {
                                 onMouseMove={handleCropperMove}
                                 onMouseUp={() => setIsCropping(false)}
                             >
-                                <img
+                                <Image
                                     ref={cropperImgRef}
                                     src={cropperImage}
-                                    className="max-w-full max-h-[60vh] mx-auto block"
+                                    width={1000}
+                                    height={1000}
+                                    unoptimized
+                                    className="max-w-full max-h-[60vh] mx-auto block object-contain"
                                     alt="Cropping"
                                     draggable={false}
                                 />

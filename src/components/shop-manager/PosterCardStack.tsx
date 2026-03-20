@@ -18,6 +18,7 @@ import { PremiumButton } from "@/components/shared/PremiumButton";
 import { PremiumCard } from "@/components/shared/PremiumCard";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import Image from "next/image";
 
 // --- Types ---
 export interface PosterItem {
@@ -119,37 +120,47 @@ export const PosterCardStack = ({
         setAnimatingOut(direction);
 
         setTimeout(() => {
-            setPosters((prev) =>
-                prev.map((p, i) => (i === currentIndex ? { ...p, type } : p))
-            );
-
-            const nextUnclassified = currentIndex + 1;
-            if (nextUnclassified >= posters.length) {
-                setPhase("summary");
-            } else {
-                setCurrentIndex(nextUnclassified);
-            }
+            setPosters((prev) => {
+                const updated: PosterItem[] = prev.map((p, i) => (i === currentIndex ? { ...p, type } : p) as PosterItem);
+                const nextUnclassified = updated.findIndex((p) => p.type === "unclassified");
+                if (nextUnclassified === -1) {
+                    setPhase("summary");
+                } else {
+                    setCurrentIndex(nextUnclassified);
+                }
+                return updated;
+            });
             setAnimatingOut(null);
         }, 400);
     };
 
     const handleEditorSave = (markedItems: any[]) => {
-        setPosters((prev) =>
-            prev.map((p, i) => (i === currentIndex ? { ...p, type: "mark_products", markedItems } : p))
-        );
+        setPosters((prev) => {
+            const updated: PosterItem[] = prev.map((p, i) => (i === currentIndex ? { ...p, type: "mark_products", markedItems } : p) as PosterItem);
+            const nextUnclassified = updated.findIndex((p) => p.type === "unclassified");
+            if (nextUnclassified === -1) {
+                setPhase("summary");
+            } else {
+                setCurrentIndex(nextUnclassified);
+            }
+            return updated;
+        });
         setIsEditing(false);
         onEditingChange?.(false);
-        const nextUnclassified = currentIndex + 1;
-        if (nextUnclassified >= posters.length) {
-            setPhase("summary");
-        } else {
-            setCurrentIndex(nextUnclassified);
-        }
     };
 
     const handleEditorCancel = () => {
         setIsEditing(false);
         onEditingChange?.(false);
+        setPosters((prev) => {
+            const nextUnclassified = prev.findIndex((p) => p.type === "unclassified");
+            if (nextUnclassified === -1) {
+                setPhase("summary");
+            } else {
+                setCurrentIndex(nextUnclassified);
+            }
+            return prev;
+        });
     };
 
     const handleReclassify = () => {
@@ -286,10 +297,12 @@ export const PosterCardStack = ({
                                     transformOrigin: "top center",
                                 }}
                             >
-                                <img
+                                <Image
                                     src={poster.previewUrl}
                                     alt=""
-                                    className="w-full h-full object-cover"
+                                    fill
+                                    unoptimized
+                                    className="object-cover"
                                     style={{
                                         opacity: 0.5 - i * 0.15,
                                         filter: `blur(${(i + 1) * 1}px)`,
@@ -310,10 +323,13 @@ export const PosterCardStack = ({
                             )}
                             style={{ zIndex: 20, minHeight: "340px" }}
                         >
-                            <img
+                            <Image
                                 src={currentPoster.previewUrl}
                                 alt="Poster to classify"
-                                className="w-full h-auto block"
+                                width={800}
+                                height={800}
+                                unoptimized
+                                className="w-full h-auto block object-contain"
                             />
 
                             {/* --- Overlay with blur (when NOT viewing) --- */}
@@ -436,7 +452,7 @@ export const PosterCardStack = ({
                                 : "border-border/50"
                         )}
                     >
-                        <img src={poster.previewUrl} alt="" className="w-full h-full object-cover" />
+                        <Image src={poster.previewUrl} alt="" fill className="object-cover" unoptimized />
                         {poster.type === "mark_products" && (
                             <div className="absolute inset-0 flex items-end justify-end p-0.5">
                                 <Sparkles className="w-3 h-3 text-primary" />
@@ -467,3 +483,4 @@ export const PosterCardStack = ({
         </div>
     );
 };
+

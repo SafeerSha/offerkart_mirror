@@ -227,11 +227,6 @@ export default function MapPicker({
 
     return (
         <div className="h-full w-full relative rounded-xl overflow-hidden border border-gray-200 group">
-            <style dangerouslySetInnerHTML={{
-                __html: `
-          .leaflet-control-attribution { display: none !important; }
-          .leaflet-touch .leaflet-control-layers, .leaflet-touch .leaflet-bar { border: none !important; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        ` }} />
             {/* Search Bar Overlay */}
             <div className="absolute top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 z-[1000] max-w-md mx-auto">
                 <div className="relative">

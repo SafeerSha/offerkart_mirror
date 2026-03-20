@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { FileUpload } from "@/components/shared/FileUpload";
+import Image from "next/image";
 
 import { CATEGORY_HIERARCHY, MAIN_CATEGORIES, MainCategory } from "@/lib/categories";
 import { Check, ChevronDown, Search, X } from "lucide-react";
@@ -410,11 +411,13 @@ export default function CreateOfferForm() {
                         <div className="relative bg-gray-100 rounded-xl border-2 border-dashed border-gray-300 p-8 min-h-[400px] flex items-center justify-center">
                             {imageSrc ? (
                                 <div className="relative w-full h-[400px]">
-                                    <img
+                                    <Image
                                         ref={imageRef}
                                         src={imageSrc}
                                         alt="Poster"
-                                        className="w-full h-full object-contain rounded-lg cursor-crosshair"
+                                        fill
+                                        className="object-contain rounded-lg cursor-crosshair"
+                                        unoptimized
                                     />
                                     <canvas
                                         ref={canvasRef}

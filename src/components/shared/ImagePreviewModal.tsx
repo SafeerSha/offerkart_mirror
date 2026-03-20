@@ -4,6 +4,7 @@ import React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X, ZoomIn } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 interface ImagePreviewModalProps {
     src: string;
@@ -25,9 +26,12 @@ export function ImagePreviewModal({ src, alt, isOpen, onClose }: ImagePreviewMod
                         </DialogPrimitive.Close>
 
                         <div className="relative w-full h-full flex items-center justify-center overflow-hidden rounded-2xl shadow-2xl">
-                            <img
+                            <Image
                                 src={src}
                                 alt={alt}
+                                width={1200}
+                                height={1200}
+                                unoptimized
                                 className="max-w-full max-h-[80vh] object-contain rounded-xl select-none"
                                 onContextMenu={(e) => e.preventDefault()}
                             />

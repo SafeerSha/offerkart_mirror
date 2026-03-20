@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 /**
  * Hugging Face Provider Utility
  * 
@@ -39,7 +40,7 @@ export async function callHuggingFace(messages: any[]): Promise<HFResponse> {
         throw new Error("HUGGINGFACE_API_KEY is not defined in environment variables.");
     }
 
-    console.log(`[HuggingFace] Starting request with ${HF_MODELS.length} models in rotation.`);
+    logger.log(`[HuggingFace] Starting request with ${HF_MODELS.length} models in rotation.`);
 
     for (const model of HF_MODELS) {
         let attempts = 0;
@@ -50,7 +51,7 @@ export async function callHuggingFace(messages: any[]): Promise<HFResponse> {
             const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
             
             try {
-                console.log(`[HuggingFace] CALLING ENDPOINT: ${endpoint} | MODEL: ${model} (Attempt ${attempts + 1}/3)`);
+                logger.log(`[HuggingFace] CALLING ENDPOINT: ${endpoint} | MODEL: ${model} (Attempt ${attempts + 1}/3)`);
                 
                 const response = await fetch(endpoint, {
                     method: "POST",
@@ -76,7 +77,7 @@ export async function callHuggingFace(messages: any[]): Promise<HFResponse> {
                                     errMsg.toLowerCase().includes("limit");
 
                 if (isRateLimited) {
-                    console.warn(`[HuggingFace] Rate limit hit for ${model}. skipping...`);
+                    logger.warn(`[HuggingFace] Rate limit hit for ${model}. skipping...`);
                     break; // Skip to next model immediately
                 }
 
@@ -85,11 +86,11 @@ export async function callHuggingFace(messages: any[]): Promise<HFResponse> {
                 }
 
                 if (typeof data !== 'object' || !data.choices?.[0]?.message?.content) {
-                    console.error("[HuggingFace] Invalid response format:", data);
+                    logger.error("[HuggingFace] Invalid response format:", data);
                     throw new Error("Invalid response format from HF.");
                 }
 
-                console.log(`[HuggingFace] Success with ${model}`);
+                logger.log(`[HuggingFace] Success with ${model}`);
                 return {
                     content: data.choices[0].message.content,
                     model: model,
@@ -99,14 +100,14 @@ export async function callHuggingFace(messages: any[]): Promise<HFResponse> {
                 clearTimeout(timeoutId);
                 attempts++;
                 const errMsg = getErrorMessage(error);
-                console.error(`[HuggingFace] Error with ${model}: ${errMsg}`);
+                logger.error(`[HuggingFace] Error with ${model}: ${errMsg}`);
                 
                 if (attempts < maxAttempts) {
                     const backoff = Math.pow(2, attempts - 1) * 1000;
-                    console.log(`[HuggingFace] Retrying in ${backoff}ms...`);
+                    logger.log(`[HuggingFace] Retrying in ${backoff}ms...`);
                     await new Promise(resolve => setTimeout(resolve, backoff));
                 } else {
-                    console.warn(`[HuggingFace] ${model} exhausted. Moving to next.`);
+                    logger.warn(`[HuggingFace] ${model} exhausted. Moving to next.`);
                 }
             }
         }

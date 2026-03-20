@@ -3,6 +3,8 @@ import Link from "next/link";
 import { Rocket, BarChart3, Gem, Store } from "lucide-react";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 
+export const revalidate = 300;
+
 export default function ShopRegistrationPage() {
     return (
         <main className="min-h-screen w-full flex">
