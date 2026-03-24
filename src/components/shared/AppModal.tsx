@@ -40,7 +40,7 @@ export const AppModal = ({
                         </DialogDescription>
                     )}
                 </DialogHeader>
-                <div className="py-4 font-sans">
+                <div className="py-4 font-sans min-w-0 w-full">
                     {children}
                 </div>
             </DialogContent>

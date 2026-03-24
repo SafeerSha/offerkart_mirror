@@ -13,7 +13,7 @@ export const OPENROUTER_MODELS = [
     "mistralai/mistral-small-3.1-24b-instruct:free",
 ];
 
-const REQUEST_TIMEOUT_MS = 60000; // 60 second timeout
+const REQUEST_TIMEOUT_MS = 60000;
 
 interface OpenRouterResponse {
     content: string;

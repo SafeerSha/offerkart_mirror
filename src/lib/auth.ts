@@ -54,7 +54,6 @@ export const authOptions: NextAuthOptions = {
                     token.shopId = (user as any).shopId;
                 }
             }
-            // Allow client-side session.update({ shopId }) to inject shopId into token
             if (trigger === "update" && session?.shopId) {
                 token.shopId = session.shopId;
             }

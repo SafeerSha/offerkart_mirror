@@ -4,9 +4,8 @@ import { z } from "zod";
 import { authOptions } from "@/lib/auth";
 import { callOpenRouter } from "@/lib/openrouter";
 import { callHuggingFace } from "@/lib/huggingface";
-
 import { logger } from "@/lib/logger";
-// Zod schema for chat request body
+
 const chatRequestSchema = z.object({
     messages: z
         .array(
@@ -19,37 +18,34 @@ const chatRequestSchema = z.object({
         .max(50, "Too many messages. Maximum 50 allowed."),
 });
 
-// Simple in-memory rate limiter (for production, use Redis or similar)
+// In-memory rate limiter (use Redis in production)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
-const RATE_LIMIT = 10; // Max requests per minute
+const RATE_LIMIT = 10;
 const RATE_LIMIT_WINDOW_MS = 60000;
 
 function checkRateLimit(ip: string): boolean {
     const now = Date.now();
     const record = rateLimitMap.get(ip);
-    
+
     if (!record || now > record.resetTime) {
         rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
         return true;
     }
-    
-    if (record.count >= RATE_LIMIT) {
-        return false;
-    }
-    
+
+    if (record.count >= RATE_LIMIT) return false;
+
     record.count++;
     return true;
 }
 
 function getClientIP(req: NextRequest): string {
-    return req.headers.get('x-forwarded-for')?.split(',')[0] || 
-           req.headers.get('x-real-ip') || 
-           'unknown';
+    return req.headers.get('x-forwarded-for')?.split(',')[0] ||
+        req.headers.get('x-real-ip') ||
+        'unknown';
 }
 
 export async function POST(req: NextRequest) {
     try {
-        // Authentication check
         const session = await getServerSession(authOptions);
         if (!session) {
             return NextResponse.json(
@@ -58,7 +54,6 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // Rate limiting check
         const clientIP = getClientIP(req);
         if (!checkRateLimit(clientIP)) {
             return NextResponse.json(
@@ -67,7 +62,6 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // Validate request body with Zod
         const body = await req.json();
         const parsed = chatRequestSchema.safeParse(body);
         if (!parsed.success) {
@@ -79,7 +73,6 @@ export async function POST(req: NextRequest) {
 
         const { messages } = parsed.data;
 
-        // Try Hugging Face first, then fall back to OpenRouter
         let result;
         try {
             logger.log("[Chat API] Trying HuggingFace...");

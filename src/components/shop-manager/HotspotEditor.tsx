@@ -22,21 +22,12 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { storage } from "@/lib/storage";
 
-// --- Image Preprocessing for OCR ---
-/**
- * Preprocesses an image to improve OCR accuracy
- * - Converts to grayscale
- * - Increases contrast
- * - Applies thresholding for cleaner text extraction
- */
 async function preprocessImageForOCR(
     canvas: HTMLCanvasElement,
     ctx: CanvasRenderingContext2D
 ): Promise<string> {
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const data = imageData.data;
-
-    // Calculate histogram for contrast enhancement
     let minGray = 255;
     let maxGray = 0;
 
@@ -48,41 +39,33 @@ async function preprocessImageForOCR(
 
     const range = maxGray - minGray || 1;
 
-    // Apply grayscale and contrast enhancement
     for (let i = 0; i < data.length; i += 4) {
         const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
 
-        // Normalize to full range (contrast stretch)
         let normalized = ((gray - minGray) / range) * 255;
-
-        // Apply slight gamma correction for better dynamic range
         normalized = Math.pow(normalized / 255, 0.8) * 255;
 
-        // Apply thresholding for cleaner text (Otsu's method approximation)
         const threshold = 128;
         const isText = normalized < threshold;
 
-        // Preserve some gray for anti-aliasing, but strengthen contrast
         if (normalized < 60) {
-            normalized = normalized * 0.7; // Darken shadows
+            normalized = normalized * 0.7;
         } else if (normalized > 200) {
-            normalized = normalized * 0.9 + 25; // Brighten highlights
+            normalized = normalized * 0.9 + 25;
         }
 
-        data[i] = normalized;     // R
-        data[i + 1] = normalized; // G
-        data[i + 2] = normalized; // B
+        data[i] = normalized;
+        data[i + 1] = normalized;
+        data[i + 2] = normalized;
     }
 
     ctx.putImageData(imageData, 0, 0);
     return canvas.toDataURL('image/png', 1.0);
 }
 
-// --- Types ---
-
 interface MarkedItem {
     id: string;
-    x: number;      // Relative coordinates (0-1)
+    x: number;
     y: number;
     width: number;
     height: number;
@@ -115,10 +98,7 @@ interface HotspotEditorProps {
 interface Position { x: number; y: number; }
 interface Rect { x: number; y: number; width: number; height: number; }
 
-// --- Component ---
-
 export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) {
-    // State
     const [posterData, setPosterData] = useState<PosterData>({
         posterSrc: poster.posterSrc,
         markedItems: poster.markedItems || [],
@@ -133,7 +113,6 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
     const [isProcessing, setIsProcessing] = useState(false);
     const [highlightedId, setHighlightedId] = useState<string | null>(null);
 
-    // Form State
     const [formData, setFormData] = useState({
         name: '',
         mainCategory: '' as string,
@@ -144,7 +123,6 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
         offerPrice: ''
     });
 
-    // Cropper State
     const [showCropper, setShowCropper] = useState(false);
     const [cropperImage, setCropperImage] = useState('');
     const [cropRect, setCropRect] = useState<Rect | null>(null);
@@ -152,13 +130,11 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
     const [cropStartPos, setCropStartPos] = useState<Position | null>(null);
     const [showBackWarning, setShowBackWarning] = useState(false);
 
-    // Select Dropdown State
     const [categoryOpen, setCategoryOpen] = useState(false);
     const [categorySearch, setCategorySearch] = useState('');
     const [mainCategoryOpen, setMainCategoryOpen] = useState(false);
     const [mainCategorySearch, setMainCategorySearch] = useState('');
 
-    // Refs
     const containerRef = useRef<HTMLDivElement>(null);
     const imgRef = useRef<HTMLImageElement>(null);
     const productFileInputRef = useRef<HTMLInputElement>(null);
@@ -177,21 +153,18 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
         setHighlightedId(null);
     }, [poster.id, poster.posterSrc, poster.markedItems]);
 
-    // Track image size robustly (handles cached images and window resizes)
     useEffect(() => {
         if (!imgRef.current) return;
         const img = imgRef.current;
-        
+
         const updateSize = () => {
             if (img.offsetWidth && img.offsetHeight) {
                 setImageSize({ width: img.offsetWidth, height: img.offsetHeight });
             }
         };
 
-        // If image is already loaded (e.g., from cache)
         if (img.complete) updateSize();
 
-        // Listen for dimension changes
         const observer = new ResizeObserver(updateSize);
         observer.observe(img);
 
@@ -234,7 +207,6 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
         setIsDrawing(false);
         const { x, y, width, height } = currentRect;
 
-        // Calculate relative coordinates
         const relX = x / imageSize.width;
         const relY = y / imageSize.height;
         const relW = width / imageSize.width;
@@ -250,14 +222,12 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
         setPosterData(prev => ({ ...prev, markedItems: [...prev.markedItems, tempItem] }));
         setCurrentRect(null);
 
-        // --- AI Extraction ---
         setIsProcessing(true);
         try {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d')!;
             const img = imgRef.current;
 
-            // Validate image is loaded and has valid dimensions
             if (!img || !img.naturalWidth || !img.naturalHeight || !imageSize.width || !imageSize.height) {
                 throw new Error('Image not loaded or has invalid dimensions');
             }
@@ -278,75 +248,49 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
             ctx.drawImage(img, x * scaleX, y * scaleY, sw, sh, 0, 0, sw, sh);
             const croppedDataUrl = canvas.toDataURL();
 
-            // Step 1: Preprocess image for better OCR results
             const processedDataUrl = await preprocessImageForOCR(canvas, ctx);
 
-            // Step 2: OCR — Extract raw text from the cropped image with enhanced settings
-            const worker = await createWorker('ara+eng', 1, {
-                logger: m => console.log('OCR Progress:', m),
-            });
+            let ocrText = '';
+            try {
+                const worker = await createWorker('ara+eng', 1, {
+                    logger: m => console.log('OCR Progress:', m),
+                });
 
-            // Set parameters for better accuracy (Tesseract.js v5+ uses LSTM by default)
-            await worker.setParameters({
-                tessedit_char_whitelist: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\s\u0600-\u06FF\u0750-\u077F.,%+-',
-            });
+                await worker.setParameters({
+                    tessedit_char_whitelist: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\s\u0600-\u06FF\u0750-\u077F.,%+-',
+                });
 
-            const { data: { text: ocrText, confidence } } = await worker.recognize(processedDataUrl);
-            await worker.terminate();
+                const result = await worker.recognize(processedDataUrl);
+                ocrText = result.data.text;
+                await worker.terminate();
 
-            console.log('OCR Confidence:', confidence, 'Extracted text:', ocrText);
+                console.log('OCR Confidence:', result.data.confidence, 'Extracted text:', ocrText);
+            } catch (ocrError) {
+                console.warn("Tesseract OCR initialization failed:", ocrError);
+                toast.error("OCR failed. Please enter product details manually.");
+                setIsProcessing(false);
+                handleEditItem(tempItem);
+                return;
+            }
 
             let extractedName = '';
             let extractedDescription = '';
             let extractedOldPrice = 0;
             let extractedOfferPrice = 0;
 
-            // Step 2: AI — Parse the OCR text into structured fields
-            try {
-                // --- SKIP AI EXTRACT FOR LOCAL TESTING ---
-                if (true) {
-                    throw new Error("Skipped AI extraction for local testing - using OCR fallback");
-                }
-                const { askAI } = await import('@/lib/ai/aiClient');
-                const aiResult = await askAI<{
-                    brand?: string;
-                    productName?: string;
-                    description?: string;
-                    oldPrice?: number;
-                    offerPrice?: number;
-                }>(ocrText, 'extract product name, prices, description');
+            extractedName = ocrText.split('\n')[0].trim() || 'Marked Product';
+            extractedDescription = ocrText.trim();
 
-                if (aiResult.success && aiResult.data) {
-                    const d = aiResult.data!;
-                    // Combine brand + product name intelligently
-                    extractedName = d.productName || '';
-                    if (d.brand && d.productName && !extractedName.toLowerCase().includes((d.brand || "").toLowerCase())) {
-                        extractedName = `${d.brand} ${d.productName}`;
-                    }
-                    extractedDescription = d.description || '';
-                    extractedOldPrice = d.oldPrice || 0;
-                    extractedOfferPrice = d.offerPrice || 0;
+            const priceMatches = ocrText.match(/\d+\.\d+/g);
+            if (priceMatches && priceMatches.length > 0) {
+                const prices = priceMatches.map(p => parseFloat(p)).filter(p => !isNaN(p));
+                if (prices.length >= 2) {
+                    const sorted = [...prices].sort((a, b) => b - a);
+                    extractedOldPrice = sorted[0];
+                    extractedOfferPrice = sorted[1];
                 } else {
-                    throw new Error(aiResult.error || 'AI parsing returned no data');
-                }
-            } catch (aiError) {
-                console.warn('AI parsing failed, using basic OCR fallback:', aiError);
-
-                // Fallback: basic text parsing (first line = name, full text = description)
-                extractedName = ocrText.split('\n')[0].trim() || 'Marked Product';
-                extractedDescription = ocrText.trim();
-
-                const priceMatches = ocrText.match(/\d+\.\d+/g);
-                if (priceMatches && priceMatches.length > 0) {
-                    const prices = priceMatches.map(p => parseFloat(p)).filter(p => !isNaN(p));
-                    if (prices.length >= 2) {
-                        const sorted = [...prices].sort((a, b) => b - a);
-                        extractedOldPrice = sorted[0];
-                        extractedOfferPrice = sorted[1];
-                    } else {
-                        extractedOfferPrice = prices[0];
-                        extractedOldPrice = prices[0];
-                    }
+                    extractedOfferPrice = prices[0];
+                    extractedOldPrice = prices[0];
                 }
             }
 
@@ -364,7 +308,6 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                 markedItems: prev.markedItems.map(item => item.id === id ? updatedItem : item)
             }));
 
-            // Open Modal for refinement
             handleEditItem(updatedItem);
         } catch (err) {
             console.error("OCR Error:", err);
@@ -374,8 +317,6 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
             setIsProcessing(false);
         }
     };
-
-    // --- Item Management ---
 
     const handleEditItem = (item: MarkedItem) => {
         setCurrentMarkedItem(item);
@@ -459,8 +400,6 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
         }
     };
 
-    // --- Cropper Logic ---
-
     const startProductImageUpload = () => productFileInputRef.current?.click();
 
     const handleProductFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -514,7 +453,6 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
         setShowCropper(false);
     };
 
-    // --- Final Save ---
     const handleFinish = () => {
         onSave(posterData.markedItems);
     };
@@ -523,8 +461,7 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
         <div className="w-full h-full bg-background flex flex-col">
             <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-4 relative">
                 <div className="flex flex-col xl:flex-row gap-8">
-                    {/* Editor Area */}
-                    <div className="flex-1 space-y-6">
+                <div className="flex-1 space-y-6">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <div>
                                 <Heading className="text-3xl font-bold text-gradient">Mark Items</Heading>
@@ -572,7 +509,6 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                                     />
                                 )}
 
-                                {/* Existing Hotspots */}
                                 {imageSize.width > 0 && posterData.markedItems.map((item) => (
                                     <div
                                         key={item.id}

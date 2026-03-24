@@ -11,10 +11,14 @@ import { PremiumDatePicker } from "@/components/shared/PremiumDatePicker";
 import { AppModal } from "@/components/shared/AppModal";
 import { MultiSearchableSelect } from "@/components/shared/MultiSearchableSelect";
 import { getBranches } from "@/lib/api/branch";
+import { s3Api } from "@/lib/api/s3";
 import { Branch } from "@/lib/types/branch";
 import {
     AlertTriangle,
     ArrowUpRight,
+    ArrowUp,
+    ArrowDown,
+    Image as ImageIcon,
     BarChart3,
     ChevronRight,
     Clock,
@@ -39,21 +43,28 @@ import {
     Pencil,
     Trash2,
     Type,
+    Calendar,
 } from "lucide-react";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import Image from "next/image";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { ImagePreviewModal } from "@/components/shared/ImagePreviewModal";
+import { StatusToggleButton } from "@/components/shared/StatusToggleButton";
 import { storage } from "@/lib/storage";
+import { X } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
 function DashboardContent() {
     const { data: session } = useSession();
     const searchParams = useSearchParams();
+    const router = useRouter();
+    const isMobile = useIsMobile();
     const [activeTab, setActiveTab] = useState(() => {
         if (typeof window !== 'undefined') {
             const params = new URLSearchParams(window.location.search);
@@ -67,7 +78,24 @@ function DashboardContent() {
     const [isLoadingShops, setIsLoadingShops] = useState(true);
     const [publishedOffers, setPublishedOffers] = useState<any[]>([]);
     const [isLoadingOffers, setIsLoadingOffers] = useState(true);
-    const [previewLogo, setPreviewLogo] = useState<{ src: string, name: string } | null>(null);
+
+    // Date range state for offers filter
+    const getWeekStart = () => {
+        const now = new Date();
+        const dayOfWeek = now.getDay();
+        const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+        return new Date(now.setDate(diff));
+    };
+    const getWeekEnd = () => {
+        const now = new Date();
+        const dayOfWeek = now.getDay();
+        const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? 0 : 7);
+        return new Date(now.setDate(diff));
+    };
+    const [dateFrom, setDateFrom] = useState<Date>(getWeekStart);
+    const [dateTo, setDateTo] = useState<Date>(getWeekEnd);
+    const [showDatePopup, setShowDatePopup] = useState(false);
+    const [previewLogo, setPreviewLogo] = useState<{ src: string, name: string, markedItems?: any[] } | null>(null);
     const tabsRef = useRef<HTMLDivElement>(null);
     const user = session?.user as any;
 
@@ -79,34 +107,125 @@ function DashboardContent() {
     const [editBranchIds, setEditBranchIds] = useState<string[]>([]);
     const [editBranches, setEditBranches] = useState<Branch[]>([]);
     const [editStatus, setEditStatus] = useState("active");
+    const [editIsActive, setEditIsActive] = useState(true);
+    const [editPosters, setEditPosters] = useState<any[]>([]);
     const [isSavingOffer, setIsSavingOffer] = useState(false);
+    const [posterActionIndex, setPosterActionIndex] = useState<number | null>(null);
 
     // Delete offer state
     const [offerToDelete, setOfferToDelete] = useState<any | null>(null);
 
     // Logout state
     const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const [openTooltipIndex, setOpenTooltipIndex] = useState<number | null>(null);
+
+    // Revert to mark logic
+    const handleRevertToMark = async (offer: any) => {
+        try {
+            const editingPosters = (offer.posters || [{
+                id: crypto.randomUUID(),
+                posterSrc: offer.posterSrc,
+                type: 'just_post',
+                markedItems: []
+            }]).map((p: any) => ({
+                ...p,
+                type: 'marked_poster'
+            }));
+
+            if (editingPosters[0]) {
+                editingPosters[0].title = offer.title;
+            }
+
+            // Save to current session
+            await storage.setItem("currentEditingPosters", editingPosters);
+
+            // Remove from published
+            const stored = await storage.getItem<any[]>("markedPosters");
+            if (stored) {
+                const updated = stored.filter((o) => o.batchId !== offer.batchId);
+                await storage.setItem("markedPosters", updated);
+            }
+
+            toast.success("Ready for marking. Redirecting...");
+            router.push("/shop-manager/create-offer/editor");
+        } catch (error) {
+            console.error("Failed to revert offer:", error);
+            toast.error("Failed to transition offer to marking mode");
+        }
+    };
 
     // Open edit modal and pre-fill values
-    const openEditModal = (offer: any) => {
+    const openEditModal = async (offer: any) => {
         setEditingOffer(offer);
         setEditTitle(offer.title || "");
         setEditValidFrom(offer.validFrom ? new Date(offer.validFrom) : undefined);
         setEditValidTo(offer.validTo ? new Date(offer.validTo) : undefined);
         setEditBranchIds(offer.branchIds ? offer.branchIds.map(String) : (offer.branchId ? [String(offer.branchId)] : []));
         setEditStatus(offer.status || "active");
+        setEditIsActive(offer.status === 'active');
+        setEditPosters(offer.posters ? offer.posters.map((p: any, i: number) => ({ ...p, order: p.order || i + 1 })) : (offer.posterSrc ? [{ id: '1', posterSrc: offer.posterSrc, type: 'legacy', order: 1 }] : []));
 
         // Fetch branches for the dropdown
-        const shopId = session?.shopId ?? (session?.user as any)?.shopId;
-        if (shopId) {
-            getBranches(shopId)
-                .then((res) => {
-                    if (res.success && res.data) {
-                        const list = Array.isArray(res.data) ? res.data : (res.data as any).data || [];
-                        setEditBranches(Array.isArray(list) ? list : []);
+        try {
+            let shopId = session?.shopId ?? (session?.user as any)?.shopId;
+            if (!shopId) {
+                const shopRes = await getMyShops();
+                if (shopRes.success && shopRes.data) {
+                    const shopList = Array.isArray(shopRes.data) ? shopRes.data : (shopRes.data as any).data || [];
+                    if (shopList.length > 0) {
+                        shopId = shopList[0].id;
                     }
-                })
-                .catch(() => {});
+                }
+            }
+            if (shopId) {
+                const res = await getBranches(shopId);
+                if (res.success && res.data) {
+                    const list = Array.isArray(res.data) ? res.data : (res.data as any).data || [];
+                    setEditBranches(Array.isArray(list) ? list : []);
+                }
+            }
+        } catch (error) {
+            console.error("Failed to fetch branches for edit modal:", error);
+        }
+    };
+
+    // Save current modal state and edit single poster
+    const handleEditSinglePoster = async (posterIndex: number) => {
+        if (!editingOffer) return;
+
+        try {
+            // Re-construct the updated offer payload
+            const selectedBranches = editBranches.filter((b) => editBranchIds.includes(String(b.id)));
+            const updatedOfferSnapshot = {
+                ...editingOffer,
+                title: editTitle,
+                validFrom: editValidFrom ? editValidFrom.toISOString().split('T')[0] : editingOffer.validFrom,
+                validTo: editValidTo ? editValidTo.toISOString().split('T')[0] : editingOffer.validTo,
+                branchIds: selectedBranches.length > 0 ? selectedBranches.map((b) => b.id) : editingOffer.branchIds,
+                branchNames: selectedBranches.length > 0 ? selectedBranches.map((b) => b.branch_name) : editingOffer.branchNames,
+                branchCity: selectedBranches.length > 0 ? selectedBranches[0]?.city : editingOffer.branchCity,
+                status: editIsActive ? 'active' : 'paused',
+                isActive: editIsActive,
+                posters: editPosters.length > 0 ? [...editPosters] : editingOffer.posters,
+            };
+
+            const stored = await storage.getItem<any[]>("markedPosters") || [];
+            const updated = [...stored];
+            const idx = updated.findIndex((o) => o.batchId === editingOffer.batchId);
+
+            if (idx > -1) {
+                updated[idx] = updatedOfferSnapshot;
+            } else {
+                updated.push(updatedOfferSnapshot);
+            }
+
+            await storage.setItem("markedPosters", updated);
+
+            // Redirect to editor scoped to this offer and index
+            router.push(`/shop-manager/create-offer/editor?edit=${editingOffer.batchId}&poster=${posterIndex}`);
+        } catch (error) {
+            console.error("Failed to save state before editing:", error);
+            toast.error("Failed to save progress before editing");
         }
     };
 
@@ -128,7 +247,9 @@ function DashboardContent() {
                             branchIds: selectedBranches.length > 0 ? selectedBranches.map((b) => b.id) : o.branchIds,
                             branchNames: selectedBranches.length > 0 ? selectedBranches.map((b) => b.branch_name) : o.branchNames,
                             branchCity: selectedBranches.length > 0 ? selectedBranches[0]?.city : o.branchCity,
-                            status: editStatus,
+                            status: editIsActive ? 'active' : 'paused',
+                            isActive: editIsActive,
+                            posters: editPosters.length > 0 ? editPosters : o.posters,
                         };
                     }
                     return o;
@@ -278,16 +399,40 @@ function DashboardContent() {
                                 <ChevronRight className="w-3.5 h-3.5 animate-pulse" />
                             </div>
                         </div>
-                        <div className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide">
-                            <div className="min-w-[280px] snap-start">
-                                <StatCard
-                                    icon={Package}
-                                    label="Active Offers"
-                                    value="12"
-                                    trend="+3 this week"
-                                />
+                        <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide px-1">
+                            <div className="w-[85vw] sm:w-[280px] flex-none shrink-0 snap-center">
+                                <PremiumCard variant="glass" className="group hover:border-primary/30 transition-all duration-300 h-full">
+                                    <div className="p-5 sm:p-6">
+                                        <div className="flex items-start justify-between mb-0">
+                                            <div className="p-2 rounded-lg bg-primary/10 text-primary group-hover:scale-110 transition-transform">
+                                                <Package className="w-5 h-5" />
+                                            </div>
+                                            <button
+                                                onClick={() => setShowDatePopup(true)}
+                                                className="flex items-center gap-1.5 text-xs font-medium text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-full hover:bg-emerald-500/20 transition-colors cursor-pointer"
+                                            >
+                                                <Calendar className="w-3.5 h-3.5" />
+                                                This Week
+                                            </button>
+                                        </div>
+                                        <h3 className="text-sm font-medium opacity-60 mb-1">Offers</h3>
+                                        <div className="flex items-baseline gap-3">
+                                            <div className="text-3xl font-bold text-gradient">
+                                                {publishedOffers.filter(o => o.status === 'active').length}
+                                            </div>
+                                            <span className="text-sm text-muted-foreground whitespace-nowrap">
+                                                / {publishedOffers.filter(o => o.status !== 'active').length} inactive
+                                            </span>
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-1.5 mt-2 text-[10px] sm:text-xs text-muted-foreground w-full">
+                                            <span className="text-emerald-500 font-medium truncate">+{publishedOffers.filter(o => o.status === 'active' && new Date(o.lastEdited || o.createdAt || new Date()) >= dateFrom).length} new active</span>
+                                            <span className="opacity-50 shrink-0">|</span>
+                                            <span className="text-gray-400 truncate">+{publishedOffers.filter(o => o.status !== 'active' && new Date(o.lastEdited || o.createdAt || new Date()) >= dateFrom).length} paused</span>
+                                        </div>
+                                    </div>
+                                </PremiumCard>
                             </div>
-                            <div className="min-w-[280px] snap-start">
+                            <div className="w-[85vw] sm:w-[280px] flex-none shrink-0 snap-center">
                                 <StatCard
                                     icon={BarChart3}
                                     label="Total Views"
@@ -295,7 +440,7 @@ function DashboardContent() {
                                     trend="+15% vs last month"
                                 />
                             </div>
-                            <div className="min-w-[280px] snap-start">
+                            <div className="w-[85vw] sm:w-[280px] flex-none shrink-0 snap-center">
                                 <StatCard
                                     icon={MousePointer2}
                                     label="Audience Engagement"
@@ -303,7 +448,7 @@ function DashboardContent() {
                                     trend="8 new today"
                                 />
                             </div>
-                            <div className="min-w-[280px] snap-start">
+                            <div className="w-[85vw] sm:w-[280px] flex-none shrink-0 snap-center">
                                 <StatCard
                                     icon={Tag}
                                     label="Conversion Rate"
@@ -316,12 +461,36 @@ function DashboardContent() {
 
                     {/* Desktop: Grid */}
                     <div className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-6">
-                        <StatCard
-                            icon={Package}
-                            label="Active Offers"
-                            value="12"
-                            trend="+3 this week"
-                        />
+                        <PremiumCard variant="glass" className="group hover:border-primary/30 transition-all duration-300">
+                            <div className="p-6">
+                                <div className="flex items-start justify-between mb-4">
+                                    <div className="p-2 rounded-lg bg-primary/10 text-primary group-hover:scale-110 transition-transform">
+                                        <Package className="w-5 h-5" />
+                                    </div>
+                                    <button
+                                        onClick={() => setShowDatePopup(true)}
+                                        className="flex items-center gap-1.5 text-xs font-medium text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-full hover:bg-emerald-500/20 transition-colors cursor-pointer"
+                                    >
+                                        <Calendar className="w-3.5 h-3.5" />
+                                        This Week
+                                    </button>
+                                </div>
+                                <h3 className="text-sm font-medium opacity-60 mb-1">Offers</h3>
+                                <div className="flex items-baseline gap-3">
+                                    <div className="text-3xl font-bold text-gradient">
+                                        {publishedOffers.filter(o => o.status === 'active').length}
+                                    </div>
+                                    <span className="text-sm text-muted-foreground">
+                                        / {publishedOffers.filter(o => o.status !== 'active').length} inactive
+                                    </span>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-1.5 mt-2 text-[10px] xl:text-xs text-muted-foreground w-full">
+                                    <span className="text-emerald-500 font-medium truncate">+{publishedOffers.filter(o => o.status === 'active' && new Date(o.lastEdited || o.createdAt || new Date()) >= dateFrom).length} new active</span>
+                                    <span className="opacity-50 shrink-0">|</span>
+                                    <span className="text-gray-400 truncate">+{publishedOffers.filter(o => o.status !== 'active' && new Date(o.lastEdited || o.createdAt || new Date()) >= dateFrom).length} paused</span>
+                                </div>
+                            </div>
+                        </PremiumCard>
                         <StatCard
                             icon={BarChart3}
                             label="Total Views"
@@ -481,6 +650,22 @@ function DashboardContent() {
 
                                 <div className="p-6">
                                     <TabsContent value="offers" className="mt-0 space-y-4 focus-visible:ring-0">
+                                        {/* Add Offer Button - Only show if no offers exist */}
+                                        {!isLoadingOffers && publishedOffers.length === 0 && (
+                                            <Link href="/shop-manager/create-offer" className="block">
+                                                <div className="p-1 rounded-xl border-2 border-dashed border-primary/20 hover:border-primary/40 bg-primary/5 hover:bg-primary/10 transition-all group cursor-pointer">
+                                                    <div className="flex items-center justify-center gap-3">
+                                                        <div className="w-10 h-10 rounded-xl bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center transition-colors">
+                                                            <Plus className="w-5 h-5 text-primary" />
+                                                        </div>
+                                                        <div className="text-left">
+                                                            <h4 className="font-bold text-gray-900 group-hover:text-primary transition-colors">Add New Offer</h4>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </Link>
+                                        )}
+
                                         <div className="space-y-4">
                                             {isLoadingOffers ? (
                                                 <div className="p-4 flex items-center justify-center">
@@ -490,7 +675,7 @@ function DashboardContent() {
                                                 publishedOffers.map((offer, idx) => (
                                                     <div key={offer.batchId || idx} className="p-3 sm:p-4 rounded-xl bg-background/40 border border-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:border-primary/20 transition-all">
                                                         <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-                                                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
+                                                            <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
                                                                 {offer.posters?.[0]?.posterSrc || offer.posterSrc ? (
                                                                     <Image
                                                                         src={offer.posters?.[0]?.posterSrc || offer.posterSrc}
@@ -505,55 +690,87 @@ function DashboardContent() {
                                                             </div>
                                                             <div className="min-w-0 flex-1">
                                                                 <h4 className="font-semibold text-base sm:text-lg truncate">{offer.title || "Untitled Offer"}</h4>
-                                                                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] sm:text-sm opacity-60">
-                                                                    <span>{offer.createdAt ? `Posted ${new Date(offer.createdAt).toLocaleDateString()}` : "Active"}</span>
-                                                                    <span>•</span>
-                                                                    <span className={cn(
-                                                                        "font-medium",
-                                                                        offer.status === "active" ? "text-emerald-600" : "text-gray-500"
-                                                                    )}>{offer.status || "active"}</span>
-                                                                    {(offer.branchNames || offer.branchName) && (
-                                                                        <>
-                                                                            <span>•</span>
-                                                                            <span className="flex items-center gap-1 line-clamp-1" title={offer.branchNames ? offer.branchNames.join(', ') : offer.branchName}>
-                                                                                <GitBranch className="w-3 h-3 shrink-0" />
-                                                                                {offer.branchNames ? offer.branchNames.join(', ') : offer.branchName}
-                                                                            </span>
-                                                                        </>
-                                                                    )}
+                                                                <div className="flex flex-col gap-1.5 mt-1">
+                                                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] sm:text-sm text-slate-500">
+                                                                        <span>{offer.createdAt ? `Posted ${new Date(offer.createdAt).toLocaleDateString('en-GB')}` : "Active"}</span>
+                                                                        <span className="opacity-40">•</span>
+                                                                        <span className={cn(
+                                                                            "font-medium",
+                                                                            offer.status === "active" ? "text-[#1cc080]" : "text-gray-400"
+                                                                        )}>{offer.status || "active"}</span>
+
+                                                                        {(offer.branchNames || offer.branchName) && (
+                                                                            <>
+                                                                                <span className="opacity-40">•</span>
+                                                                                <span className="flex items-center gap-1 line-clamp-1" title={offer.branchNames ? offer.branchNames.join(', ') : offer.branchName}>
+                                                                                    <GitBranch className="w-3 h-3 shrink-0 opacity-60" />
+                                                                                    {offer.branchNames ? offer.branchNames.join(', ') : offer.branchName}
+                                                                                </span>
+                                                                            </>
+                                                                        )}
+                                                                    </div>
+
                                                                     {offer.validFrom && offer.validTo && (
-                                                                        <>
-                                                                            <span>•</span>
-                                                                            <span className="flex items-center gap-1">
-                                                                                <Clock className="w-3 h-3" />
-                                                                                {offer.validFrom} — {offer.validTo}
+                                                                        <div className="flex items-center gap-1.5 text-xs sm:text-sm font-medium">
+                                                                            <Clock className="w-3.5 h-3.5 text-slate-400" />
+                                                                            <span className="text-[#1cc080]">
+                                                                                {new Date(offer.validFrom).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).toLowerCase()}
                                                                             </span>
-                                                                        </>
+                                                                            <span className="text-slate-300 px-0.5">—</span>
+                                                                            <span className="text-red-500">
+                                                                                {new Date(offer.validTo).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).toLowerCase()}
+                                                                            </span>
+                                                                            <span className="text-slate-400 text-[10px] bg-slate-100 px-1.5 py-0.5 rounded">
+                                                                                {(() => {
+                                                                                    const start = new Date(offer.validFrom);
+                                                                                    const end = new Date(offer.validTo);
+                                                                                    const diffTime = end.getTime() - start.getTime();
+                                                                                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                                                                    return diffDays === 1 ? '1 day' : `${diffDays} days`;
+                                                                                })()}
+                                                                            </span>
+                                                                        </div>
                                                                     )}
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                        <div className="flex items-center gap-2 shrink-0 border-t sm:border-t-0 pt-3 sm:pt-0 border-primary/5">
-                                                            <div className="flex flex-col items-center mr-2">
-                                                                <div className="font-bold text-primary text-base sm:text-lg">
-                                                                    {offer.posters?.length || 1} {(offer.posters?.length || 1) === 1 ? 'Poster' : 'Posters'}
-                                                                </div>
-                                                                <span className="text-[10px] uppercase font-bold tracking-widest opacity-40">Classification</span>
+                                                        <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 border-t sm:border-t-0 pt-3 sm:pt-0 border-primary/5 w-full sm:w-auto mt-3 sm:mt-0">
+                                                            <div className="flex flex-col sm:items-center mr-auto sm:mr-2">
+                                                                <TooltipProvider>
+                                                                    <Tooltip open={isMobile && openTooltipIndex === idx} onOpenChange={(open) => { if (isMobile) setOpenTooltipIndex(open ? idx : null); }}>
+                                                                        <TooltipTrigger asChild>
+                                                                            <div
+                                                                                className="font-bold text-primary text-base sm:text-lg cursor-help"
+                                                                            >
+                                                                                {offer.posters?.length || 1} {(offer.posters?.length || 1) === 1 ? 'Poster' : 'Posters'}
+                                                                            </div>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>
+                                                                            <div className="text-xs space-y-1">
+                                                                                <div>Just Posts: {offer.posters?.filter((p: any) => p.type === 'just_post').length || 0}</div>
+                                                                                <div>Marked Posts: {offer.posters?.filter((p: any) => p.type === 'marked_poster').length || 0}</div>
+                                                                            </div>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                </TooltipProvider>
+                                                                <span className="text-[10px] uppercase font-bold tracking-widest opacity-40">in this offer</span>
                                                             </div>
-                                                            <button
-                                                                onClick={() => openEditModal(offer)}
-                                                                className="p-2 rounded-lg border border-gray-200 bg-gray-50 hover:bg-primary/10 hover:border-primary/20 text-gray-500 hover:text-primary transition-all"
-                                                                title="Edit offer"
-                                                            >
-                                                                <Pencil className="w-4 h-4" />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => setOfferToDelete(offer)}
-                                                                className="p-2 rounded-lg border border-gray-200 bg-gray-50 hover:bg-red-50 hover:border-red-200 text-gray-500 hover:text-red-500 transition-all"
-                                                                title="Delete offer"
-                                                            >
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </button>
+                                                            <div className="flex gap-2">
+                                                                <button
+                                                                    onClick={() => openEditModal(offer)}
+                                                                    className="p-2 rounded-lg border border-gray-200 bg-gray-50 hover:bg-primary/10 hover:border-primary/20 text-gray-500 hover:text-primary transition-all"
+                                                                    title="Edit offer"
+                                                                >
+                                                                    <Pencil className="w-4 h-4" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => setOfferToDelete(offer)}
+                                                                    className="p-2 rounded-lg border border-gray-200 bg-gray-50 hover:bg-red-50 hover:border-red-200 text-gray-500 hover:text-red-500 transition-all"
+                                                                    title="Delete offer"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 ))
@@ -698,12 +915,100 @@ function DashboardContent() {
                             </PremiumCard>
                         </Tabs>
                     </div>
+                </div >
+            </div >
+
+            {/* ──── Offers Date Range Popup ──── */}
+            < AppModal
+                open={showDatePopup}
+                onOpenChange={setShowDatePopup}
+                title="Filter Offers by Date"
+                description="Select a date range to view offer statistics."
+            >
+                <div className="space-y-4 py-2">
+                    <div className="grid grid-cols-2 gap-4">
+                        <PremiumDatePicker
+                            label="From"
+                            date={dateFrom}
+                            setDate={(d) => d && setDateFrom(d)}
+                            placeholder="Start date"
+                        />
+                        <PremiumDatePicker
+                            label="To"
+                            date={dateTo}
+                            setDate={(d) => d && setDateTo(d)}
+                            placeholder="End date"
+                        />
+                    </div>
+
+                    {/* Quick filters */}
+                    <div className="flex flex-wrap gap-2">
+                        <button
+                            onClick={() => {
+                                const now = new Date();
+                                const dayOfWeek = now.getDay();
+                                const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+                                setDateFrom(new Date(now.setDate(diff)));
+                                const endDiff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? 0 : 7);
+                                setDateTo(new Date(now.setDate(endDiff)));
+                            }}
+                            className="text-xs px-3 py-1.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                        >
+                            This Week
+                        </button>
+                        <button
+                            onClick={() => {
+                                const now = new Date();
+                                setDateFrom(new Date(now.getFullYear(), now.getMonth(), 1));
+                                setDateTo(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+                            }}
+                            className="text-xs px-3 py-1.5 rounded-full bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
+                        >
+                            This Month
+                        </button>
+                        <button
+                            onClick={() => {
+                                const now = new Date();
+                                setDateFrom(new Date(now.getFullYear(), 0, 1));
+                                setDateTo(new Date(now.getFullYear(), 11, 31));
+                            }}
+                            className="text-xs px-3 py-1.5 rounded-full bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
+                        >
+                            This Year
+                        </button>
+                    </div>
+
+                    {/* Stats summary based on date range */}
+                    <div className="pt-4 border-t">
+                        <h4 className="text-sm font-medium mb-3">Offers in selected period</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="p-3 rounded-lg bg-emerald-500/10">
+                                <p className="text-xs text-muted-foreground mb-1">New Active Offers</p>
+                                <p className="text-2xl font-bold text-emerald-600">
+                                    {publishedOffers.filter(o => o.status === 'active' && new Date(o.lastEdited) >= dateFrom && new Date(o.lastEdited) <= dateTo).length}
+                                </p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-gray-500/10">
+                                <p className="text-xs text-muted-foreground mb-1">New Paused Offers</p>
+                                <p className="text-2xl font-bold text-gray-600">
+                                    {publishedOffers.filter(o => o.status !== 'active' && new Date(o.lastEdited) >= dateFrom && new Date(o.lastEdited) <= dateTo).length}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end gap-3 pt-4">
+                        <PremiumButton variant="outline" onClick={() => setShowDatePopup(false)} className="rounded-xl">
+                            Close
+                        </PremiumButton>
+                    </div>
                 </div>
-            </div>
+            </AppModal >
 
             {/* ──── Edit Offer Modal ──── */}
-            <AppModal
-                open={!!editingOffer}
+            < AppModal
+                open={!!editingOffer
+                }
                 onOpenChange={(open) => { if (!open) setEditingOffer(null); }}
                 title="Edit Offer"
                 description="Update the details of your published offer."
@@ -735,59 +1040,205 @@ function DashboardContent() {
                     </div>
 
                     {/* Branch Selector */}
-                    {editBranches.length > 0 && (
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium flex items-center gap-2 text-foreground ml-1">
-                                <GitBranch className="w-4 h-4 text-muted-foreground" />
-                                Branch
-                            </label>
-                            <MultiSearchableSelect
-                                options={editBranches.map((b) => ({ label: `${b.branch_name} — ${b.city}`, value: String(b.id) }))}
-                                selectedValues={editBranchIds}
-                                onChange={setEditBranchIds}
-                                placeholder="Select branches"
-                            />
+                    <div className="space-y-2 pb-1 min-w-0 w-full">
+                        <label className="text-sm font-medium flex items-center gap-2 text-foreground ml-1">
+                            <GitBranch className="w-4 h-4 text-muted-foreground" />
+                            Branch
+                            {editBranches.length === 0 && (
+                                <Loader2 className="w-3 h-3 animate-spin text-muted-foreground ml-1" />
+                            )}
+                        </label>
+                        <MultiSearchableSelect
+                            options={editBranches.map((b) => ({ label: `${b.branch_name} — ${b.city}`, value: String(b.id) }))}
+                            selectedValues={editBranchIds}
+                            onChange={setEditBranchIds}
+                            placeholder={editBranches.length > 0 ? "Select branches" : "Loading branches..."}
+                        />
+                    </div>
+
+
+
+                    {/* Poster Sequence Editor */}
+                    {editPosters.length > 1 && (
+                        <div className="space-y-3 min-w-0 w-full">
+                            <div className="flex items-center justify-between text-sm font-medium text-foreground ml-1 pr-1">
+                                <label className="flex items-center gap-2">
+                                    <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                                    Poster Sequence
+                                </label>
+                                <span className="opacity-60 text-xs">
+                                    total posters: <span className="font-bold">{editPosters.length}</span>
+                                </span>
+                            </div>
+                            <div className="flex gap-3 overflow-x-auto pb-2 pt-1 custom-scrollbar snap-x w-full">
+                                {editPosters.map((poster, index) => (
+                                    <div key={poster.id || index} className="flex flex-col items-center p-2 rounded-xl border border-primary/10 bg-background/50 w-[120px] shrink-0 snap-start relative group">
+                                        <div
+                                            className="relative w-full aspect-square rounded-lg overflow-hidden border border-primary/20 bg-muted mb-2 group/thumb cursor-pointer"
+                                            onClick={() => setPreviewLogo({ src: poster.posterSrc || '', name: `Poster ${index + 1}`, markedItems: poster.markedItems })}
+                                            title="Click to preview"
+                                        >
+                                            <Image src={poster.posterSrc} alt={`Poster ${index + 1}`} fill unoptimized className="object-cover transition-transform duration-300 group-hover/thumb:scale-105" />
+                                            <div className="absolute inset-0 bg-black/0 group-hover/thumb:bg-black/20 transition-colors flex items-center justify-center pointer-events-none">
+                                                <Eye className="w-6 h-6 text-white opacity-0 group-hover/thumb:opacity-100 transition-opacity drop-shadow-md" />
+                                            </div>
+
+                                            {/* Preview Overlay Hotspots */}
+                                            {poster.markedItems && poster.markedItems.map((item: any) => (
+                                                <div
+                                                    key={item.id}
+                                                    className="absolute border border-primary bg-primary/20 pointer-events-none"
+                                                    style={{
+                                                        left: `${item.x * 100}%`,
+                                                        top: `${item.y * 100}%`,
+                                                        width: `${item.width * 100}%`,
+                                                        height: `${item.height * 100}%`
+                                                    }}
+                                                />
+                                            ))}
+
+                                            <div className="absolute top-1 left-1 bg-black/60 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md backdrop-blur-md z-10 pointer-events-none">
+                                                {index + 1}
+                                            </div>
+
+                                            <div className="absolute top-1 right-1 z-20 md:opacity-0 md:group-hover/thumb:opacity-100 transition-opacity">
+                                                <button
+                                                    type="button"
+                                                    className="p-1.5 bg-black/40 text-white backdrop-blur-md rounded-md hover:bg-primary transition-colors"
+                                                    title="Edit Poster Type / Markings"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setPosterActionIndex(index);
+                                                    }}
+                                                >
+                                                    <Pencil className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="w-full text-center mb-2 px-1">
+                                            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider truncate">
+                                                {poster.type?.replace('_', ' ')}
+                                            </p>
+                                        </div>
+
+                                        <div className="flex items-center justify-between w-full bg-primary/5 p-1 rounded-lg">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    if (index === 0) return;
+                                                    const newPosters = [...editPosters];
+                                                    const temp = newPosters[index - 1];
+                                                    newPosters[index - 1] = newPosters[index];
+                                                    newPosters[index] = temp;
+                                                    setEditPosters(newPosters.map((p, i) => ({ ...p, order: i + 1 })));
+                                                }}
+                                                disabled={index === 0}
+                                                className="p-1 rounded-md hover:bg-white disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+                                                title="Move left"
+                                            >
+                                                <ArrowUp className="w-4 h-4 -rotate-90" />
+                                            </button>
+
+                                            <select
+                                                value={index + 1}
+                                                onChange={(e) => {
+                                                    const newIndex = parseInt(e.target.value) - 1;
+                                                    const newPosters = [...editPosters];
+                                                    const [moved] = newPosters.splice(index, 1);
+                                                    newPosters.splice(newIndex, 0, moved);
+                                                    setEditPosters(newPosters.map((p, i) => ({ ...p, order: i + 1 })));
+                                                }}
+                                                className="w-8 text-center text-xs font-bold bg-transparent border-none appearance-none cursor-pointer outline-none hover:bg-black/5 rounded focus:ring-0 px-0"
+                                                title="Jump to position"
+                                            >
+                                                {editPosters.map((_, i) => (
+                                                    <option key={i} value={i + 1}>{i + 1}</option>
+                                                ))}
+                                            </select>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    if (index === editPosters.length - 1) return;
+                                                    const newPosters = [...editPosters];
+                                                    const temp = newPosters[index + 1];
+                                                    newPosters[index + 1] = newPosters[index];
+                                                    newPosters[index] = temp;
+                                                    setEditPosters(newPosters.map((p, i) => ({ ...p, order: i + 1 })));
+                                                }}
+                                                disabled={index === editPosters.length - 1}
+                                                className="p-1 rounded-md hover:bg-white disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+                                                title="Move right"
+                                            >
+                                                <ArrowDown className="w-4 h-4 -rotate-90" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     )}
 
-                    {/* Status Toggle */}
-                    <div className="flex items-center justify-between p-3 rounded-xl border border-primary/10 bg-background/40">
-                        <span className="text-sm font-medium">Status</span>
-                        <button
+                    {/* Add More Posters Button - Prominent */}
+                    <div className="pt-2">
+                        <PremiumButton
                             type="button"
-                            onClick={() => setEditStatus(editStatus === "active" ? "paused" : "active")}
-                            className={cn(
-                                "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider transition-all",
-                                editStatus === "active"
-                                    ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
-                                    : "bg-gray-100 text-gray-500 border border-gray-200"
-                            )}
+                            onClick={() => {
+                                if (editingOffer?.batchId) {
+                                    router.push(`/shop-manager/create-offer?edit=${editingOffer.batchId}`);
+                                }
+                            }}
+                            leftIcon={Plus}
+                            className="w-full rounded-xl bg-orange-500 hover:bg-orange-600 shadow-lg shadow-orange-500/20"
                         >
-                            {editStatus === "active" ? "Active" : "Paused"}
-                        </button>
+                            Add More Posters
+                        </PremiumButton>
                     </div>
 
-                    <div className="flex gap-3 justify-end pt-2">
-                        <PremiumButton variant="outline" onClick={() => setEditingOffer(null)} className="rounded-xl">
-                            Cancel
-                        </PremiumButton>
-                        <PremiumButton
-                            onClick={handleSaveOffer}
-                            disabled={isSavingOffer || !editTitle.trim()}
-                            className="rounded-xl px-8 bg-orange-500 hover:bg-orange-600 shadow-lg shadow-orange-500/20"
-                        >
-                            {isSavingOffer ? (
-                                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</>
-                            ) : (
-                                "Save Changes"
-                            )}
-                        </PremiumButton>
+                    <div className="flex items-center justify-between pt-4 border-t border-primary/10">
+                        {/* Status Toggle matching original visual preference */}
+                        <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-1.5 hidden sm:flex">
+                                <div className={cn(
+                                    "w-2 h-2 rounded-full",
+                                    editStatus === "active" ? "bg-[#1cc080]" : "bg-gray-400"
+                                )} />
+                                <span className={cn(
+                                    "text-[13px] font-bold uppercase tracking-wider",
+                                    editStatus === "active" ? "text-slate-800" : "text-gray-500"
+                                )}>
+                                    {editStatus === "active" ? "Online" : "Paused"}
+                                </span>
+                            </div>
+                            <StatusToggleButton
+                                status={editIsActive ? "active" : "paused"}
+                                onChange={(newStatus) => setEditIsActive(newStatus === "active")}
+                            />
+                        </div>
+
+                        <div className="flex gap-3">
+                            <PremiumButton variant="outline" onClick={() => setEditingOffer(null)} className="rounded-xl">
+                                Cancel
+                            </PremiumButton>
+                            <PremiumButton
+                                onClick={handleSaveOffer}
+                                disabled={isSavingOffer || !editTitle.trim()}
+                                className="rounded-xl px-8 bg-orange-500 hover:bg-orange-600 shadow-lg shadow-orange-500/20"
+                            >
+                                {isSavingOffer ? (
+                                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</>
+                                ) : (
+                                    "Save Changes"
+                                )}
+                            </PremiumButton>
+                        </div>
                     </div>
                 </div>
-            </AppModal>
+            </AppModal >
 
             {/* ──── Delete Confirm Dialog ──── */}
-            <AppModal
+            < AppModal
                 open={!!offerToDelete}
                 onOpenChange={(open) => { if (!open) setOfferToDelete(null); }}
                 title="Delete Offer"
@@ -814,18 +1265,92 @@ function DashboardContent() {
                         </PremiumButton>
                     </div>
                 </div>
-            </AppModal>
+            </AppModal >
+
+            {/* ──── Poster Edit Action Modal ──── */}
+            < AppModal
+                open={posterActionIndex !== null}
+                onOpenChange={(open) => { if (!open) setPosterActionIndex(null); }}
+                title={
+                    posterActionIndex !== null && editPosters[posterActionIndex]?.type === 'marked_poster'
+                        ? "Edit Marked Poster"
+                        : "Mark Products on Poster"
+                }
+                description={
+                    posterActionIndex !== null && editPosters[posterActionIndex]?.type === 'marked_poster'
+                        ? "This poster contains product hotspots. What would you like to do?"
+                        : "This is a standard post. Do you want to add interactive product hotspots?"
+                }
+            >
+                <div className="space-y-4">
+                    {posterActionIndex !== null && editPosters[posterActionIndex]?.type === 'marked_poster' ? (
+                        <>
+                            <div className="flex gap-3 justify-end mt-4">
+                                <PremiumButton
+                                    variant="outline"
+                                    onClick={() => {
+                                        const newPosters = [...editPosters];
+                                        newPosters[posterActionIndex] = {
+                                            ...newPosters[posterActionIndex],
+                                            type: 'just_post',
+                                            markedItems: []
+                                        };
+                                        setEditPosters(newPosters);
+                                        setPosterActionIndex(null);
+                                    }}
+                                    className="rounded-xl border-red-200 text-red-600 hover:bg-red-50"
+                                >
+                                    Change to Just Post
+                                </PremiumButton>
+                                <PremiumButton
+                                    onClick={() => {
+                                        const idx = posterActionIndex;
+                                        setPosterActionIndex(null);
+                                        handleEditSinglePoster(idx);
+                                    }}
+                                    className="rounded-xl px-6"
+                                    leftIcon={Pencil}
+                                >
+                                    Edit Markings
+                                </PremiumButton>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="flex gap-3 justify-end mt-4">
+                                <PremiumButton variant="outline" onClick={() => setPosterActionIndex(null)} className="rounded-xl">
+                                    Cancel
+                                </PremiumButton>
+                                <PremiumButton
+                                    onClick={() => {
+                                        const idx = posterActionIndex;
+                                        setPosterActionIndex(null);
+                                        if (idx !== null) handleEditSinglePoster(idx);
+                                    }}
+                                    className="rounded-xl px-6"
+                                    leftIcon={MousePointer2}
+                                >
+                                    Add Markings
+                                </PremiumButton>
+                            </div>
+                        </>
+                    )}
+                </div>
+            </AppModal >
 
             {/* Image Preview Modal */}
-            {previewLogo && (
-                <ImagePreviewModal
-                    src={previewLogo.src}
-                    alt={previewLogo.name}
-                    isOpen={!!previewLogo}
-                    onClose={() => setPreviewLogo(null)}
-                />
-            )}
-        </main>
+            {
+                previewLogo && (
+                    <ImagePreviewModal
+                        src={previewLogo.src}
+                        alt={previewLogo.name}
+                        markedItems={previewLogo.markedItems}
+                        isOpen={!!previewLogo}
+                        onClose={() => setPreviewLogo(null)}
+                    />
+                )
+            }
+        </main >
     );
 }
 

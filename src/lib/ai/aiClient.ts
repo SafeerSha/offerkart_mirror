@@ -1,10 +1,4 @@
 import { logger } from "@/lib/logger";
-/**
- * Client-side AI helper
- * 
- * Sends text + role to the server-side AI proxy route.
- * The server handles the actual AI API call securely.
- */
 
 export interface AIResponse<T = any> {
     success: boolean;
@@ -12,27 +6,22 @@ export interface AIResponse<T = any> {
     error?: string;
 }
 
-const REQUEST_TIMEOUT_MS = 30000; // 30 second timeout for client-side
+const REQUEST_TIMEOUT_MS = 30000;
 
-/**
- * Ask the AI to analyze text with a specific role/prompt.
- * 
- * @param text - The text to analyze (e.g., raw OCR output)
- * @param role - The prompt role to use (e.g., 'product_extraction', 'category_suggestion')
- * @returns Parsed JSON response from the AI model
- */
 export async function askAI<T = any>(
     text: string,
-    role: string
+    role: string,
+    image?: string
 ): Promise<AIResponse<T>> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-    
+
     try {
+        const payload = image ? { text, role, image } : { text, role };
         const response = await fetch('/api/ai/vision', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text, role }),
+            body: JSON.stringify(payload),
             signal: controller.signal,
         });
 
@@ -45,17 +34,14 @@ export async function askAI<T = any>(
         }
 
         const result = await response.json();
-        return {
-            success: true,
-            data: result.data as T,
-        };
+        return { success: true, data: result.data as T };
     } catch (error: any) {
         clearTimeout(timeoutId);
         logger.error('AI Client Error:', error);
         return {
             success: false,
-            error: error.name === 'AbortError' 
-                ? 'Request timed out. Please try again.' 
+            error: error.name === 'AbortError'
+                ? 'Request timed out. Please try again.'
                 : error.message || 'Failed to connect to AI service',
         };
     }

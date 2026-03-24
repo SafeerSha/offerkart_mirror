@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import {
@@ -25,6 +25,8 @@ import { AppModal } from "@/components/shared/AppModal";
 import { cn } from "@/lib/utils";
 import { storage } from "@/lib/storage";
 import { getBranches } from "@/lib/api/branch";
+import { getMyShops } from "@/lib/api/shop";
+import { s3Api } from "@/lib/api/s3";
 import Image from "next/image";
 import { Branch } from "@/lib/types/branch";
 import { MultiSearchableSelect } from "@/components/shared/MultiSearchableSelect";
@@ -32,8 +34,8 @@ import {
     PosterCardStack,
     PosterItem,
 } from "@/components/shop-manager/PosterCardStack";
+import { StatusToggleButton } from "@/components/shared/StatusToggleButton";
 
-// --- Types ---
 interface Draft {
     id: string;
     title: string;
@@ -43,47 +45,96 @@ interface Draft {
 }
 
 export default function CreateOfferPage() {
+    return (
+        <Suspense fallback={<div className="flex items-center justify-center min-h-[400px]"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
+            <CreateOfferContent />
+        </Suspense>
+    );
+}
+
+function CreateOfferContent() {
     const router = useRouter();
     const { data: session } = useSession();
     const [drafts, setDrafts] = useState<Draft[]>([]);
     const [isPublishing, setIsPublishing] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
 
-    // Publish modal
     const [showPublishModal, setShowPublishModal] = useState(false);
     const [offerTitle, setOfferTitle] = useState("");
+    const [offerStatus, setOfferStatus] = useState("active");
+    const [isActive, setIsActive] = useState(true);
     const [validFrom, setValidFrom] = useState<Date>();
     const [validTo, setValidTo] = useState<Date>();
     const [classifiedPosters, setClassifiedPosters] = useState<PosterItem[]>([]);
     const [publishErrors, setPublishErrors] = useState<{ title?: string; validFrom?: string; validTo?: string; branch?: string }>({});
 
-    // Branch state
+    const searchParams = useSearchParams();
+    const editBatchId = searchParams.get('edit');
+    const isUpdateMode = !!editBatchId;
+    const [existingPosters, setExistingPosters] = useState<any[]>([]);
+
     const [branches, setBranches] = useState<Branch[]>([]);
     const [selectedBranchIds, setSelectedBranchIds] = useState<string[]>([]);
     const [isBranchesLoading, setIsBranchesLoading] = useState(false);
 
-    // Discard modal
     const [showDiscardModal, setShowDiscardModal] = useState(false);
     const [draftToDiscard, setDraftToDiscard] = useState<string | null>(null);
 
     // Fetch branches when publish modal opens
     useEffect(() => {
         if (!showPublishModal) return;
-        const shopId = session?.shopId ?? (session?.user as any)?.shopId;
-        if (!shopId) return;
-        setIsBranchesLoading(true);
-        getBranches(shopId)
-            .then((res) => {
+
+        const fetchBranchesWithFallback = async () => {
+            setIsBranchesLoading(true);
+            try {
+                let shopId = session?.shopId ?? (session?.user as any)?.shopId;
+
+                if (!shopId) {
+                    const shopRes = await getMyShops();
+                    if (shopRes.success && shopRes.data) {
+                        const shopList = Array.isArray(shopRes.data) ? shopRes.data : (shopRes.data as any).data || [];
+                        if (shopList.length > 0) shopId = shopList[0].id;
+                    }
+                }
+
+                if (!shopId) {
+                    setBranches([]);
+                    return;
+                }
+
+                const res = await getBranches(shopId);
                 if (res.success && res.data) {
                     const list = Array.isArray(res.data) ? res.data : (res.data as any).data || [];
                     setBranches(Array.isArray(list) ? list : []);
                 }
-            })
-            .catch(() => toast.error("Failed to load branches"))
-            .finally(() => setIsBranchesLoading(false));
+            } catch (error) {
+                console.error("Failed to load branches:", error);
+                toast.error("Failed to load branches");
+            } finally {
+                setIsBranchesLoading(false);
+            }
+        };
+
+        fetchBranchesWithFallback();
     }, [showPublishModal, session]);
 
-    // Load drafts
+    useEffect(() => {
+        if (editBatchId) {
+            storage.getItem<any[]>("markedPosters").then(all => {
+                const target = all?.find(o => o.batchId === editBatchId);
+                if (target) {
+                    setOfferTitle(target.title || "");
+                    setValidFrom(target.validFrom ? new Date(target.validFrom) : undefined);
+                    setValidTo(target.validTo ? new Date(target.validTo) : undefined);
+                    setSelectedBranchIds(target.branchIds ? target.branchIds.map(String) : []);
+                    setOfferStatus(target.status || "active");
+                    setIsActive(target.status === 'active');
+                    setExistingPosters(target.posters || []);
+                }
+            });
+        }
+    }, [editBatchId]);
+
     useEffect(() => {
         const loadDrafts = async () => {
             try {
@@ -96,15 +147,73 @@ export default function CreateOfferPage() {
         loadDrafts();
     }, []);
 
-    // --- Card stack completion handler ---
+    const autoUpdateExistingOffer = async (posters: PosterItem[]) => {
+        const toastId = toast.loading("Adding posters to campaign...");
+        setIsPublishing(true);
+        try {
+            const posterData = await Promise.all(
+                posters.map(async (poster) => {
+                    let s3Url = "";
+                    if (poster.uploadPromise) {
+                        s3Url = await poster.uploadPromise;
+                    } else {
+                        const res = await s3Api.uploadImage(poster.file).catch(() => null);
+                        const payload = (res?.data as any)?.data || res?.data;
+                        const uploadedUrl = payload?.url || payload?.fileUrl || payload?.imageUrl || (res?.data as any)?.imageUrl || (typeof payload === 'string' ? payload : null);
+                        if (!res || !res.success || !uploadedUrl) throw new Error("Upload failed");
+                        s3Url = uploadedUrl;
+                    }
+                    return {
+                        id: poster.id,
+                        posterSrc: s3Url,
+                        type: poster.type,
+                        markedItems: poster.markedItems || [],
+                    };
+                })
+            );
+
+            const allPosters = await storage.getItem<any[]>("markedPosters") || [];
+            const targetIndex = allPosters.findIndex(o => o.batchId === editBatchId);
+
+            if (targetIndex !== -1) {
+                const updatedTarget = { ...allPosters[targetIndex] };
+                const newPostersList = [...(updatedTarget.posters || []), ...posterData];
+                updatedTarget.posters = newPostersList.map((p, i) => ({ ...p, order: i + 1 }));
+
+                try {
+                    await fetch('https://jsonplaceholder.typicode.com/posts', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(updatedTarget)
+                    });
+                } catch (networkError) {
+                    console.warn("Mock API Error:", networkError);
+                }
+
+                allPosters[targetIndex] = updatedTarget;
+                await storage.setItem("markedPosters", allPosters);
+            }
+
+            posters.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+            toast.success("Posters added successfully!", { id: toastId });
+            router.push(`/shop-manager?editModal=${editBatchId}`);
+        } catch (err) {
+            console.error("AutoUpdate error:", err);
+            toast.error("Failed to add posters.", { id: toastId });
+        } finally {
+            setIsPublishing(false);
+        }
+    };
+
     const handleClassificationComplete = (posters: PosterItem[]) => {
         setClassifiedPosters(posters);
 
-        // The sequence has already been handled inline via PosterCardStack and HotspotEditor.
-        // So at this point, all posters are classified and data is in posters[i].markedItems.
-        // Just show the publish modal.
-        setOfferTitle("");
-        setShowPublishModal(true);
+        if (isUpdateMode) {
+            autoUpdateExistingOffer(posters);
+        } else {
+            setOfferTitle("");
+            setShowPublishModal(true);
+        }
     };
 
     const handlePublishSubmit = () => {
@@ -118,7 +227,6 @@ export default function CreateOfferPage() {
         if (Object.keys(errors).length === 0) confirmPublish();
     };
 
-    // --- Publish (all just_post) ---
     const confirmPublish = async () => {
         if (!offerTitle.trim()) {
             toast.error("Please enter a campaign title");
@@ -132,42 +240,66 @@ export default function CreateOfferPage() {
         setIsPublishing(true);
         try {
             const posterData = await Promise.all(
-                classifiedPosters.map(
-                    (poster) =>
-                        new Promise<{
-                            id: string;
-                            posterSrc: string;
-                            type: string;
-                            markedItems: any[];
-                        }>((resolve) => {
-                            const reader = new FileReader();
-                            reader.onload = () =>
-                                resolve({
-                                    id: poster.id,
-                                    posterSrc: reader.result as string,
-                                    type: poster.type,
-                                    markedItems: [],
-                                });
-                            reader.readAsDataURL(poster.file);
-                        })
-                )
+                classifiedPosters.map(async (poster) => {
+                    let s3Url = "";
+                    if (poster.uploadPromise) {
+                        s3Url = await poster.uploadPromise;
+                    } else {
+                        const res = await s3Api.uploadImage(poster.file).catch(() => null);
+                        const payload = (res?.data as any)?.data || res?.data;
+                        const uploadedUrl = payload?.url || payload?.fileUrl || payload?.imageUrl || (res?.data as any)?.imageUrl || (typeof payload === 'string' ? payload : null);
+                        if (!res || !res.success || !uploadedUrl) {
+                            throw new Error(`Failed to upload poster: ${poster.file.name}`);
+                        }
+                        s3Url = uploadedUrl;
+                    }
+
+                    return {
+                        id: poster.id,
+                        posterSrc: s3Url,
+                        type: poster.type,
+                        markedItems: poster.markedItems || [],
+                    };
+                })
             );
 
             const existing = await storage.getItem<any[]>("markedPosters");
-            const allPosters = existing || [];
+            let allPosters = existing || [];
+
+            let finalPosters = isUpdateMode ? [...existingPosters, ...posterData] : posterData;
+            finalPosters = finalPosters.map((p, i) => ({ ...p, order: i + 1 }));
+
+            if (isUpdateMode && editBatchId) {
+                allPosters = allPosters.filter(o => o.batchId !== editBatchId);
+            }
+
             const selectedBranches = branches.filter((b) => selectedBranchIds.includes(String(b.id)));
-            allPosters.push({
-                batchId: crypto.randomUUID(),
+
+            const payload = {
+                batchId: (isUpdateMode && editBatchId) ? editBatchId : crypto.randomUUID(),
                 title: offerTitle,
                 validFrom: validFrom.toISOString().split('T')[0],
                 validTo: validTo.toISOString().split('T')[0],
                 branchIds: selectedBranches.map(b => b.id),
                 branchNames: selectedBranches.map(b => b.branch_name),
-                branchCity: selectedBranches[0]?.city, // Optional: tracking primary city if needed
-                createdAt: new Date().toISOString(),
-                status: "active",
-                posters: posterData,
-            });
+                branchCity: selectedBranches[0]?.city,
+                createdAt: (isUpdateMode && editBatchId && allPosters.find(o => o.batchId === editBatchId)?.createdAt) || new Date().toISOString(),
+                status: isActive ? 'active' : 'paused',
+                isActive: isActive,
+                posters: finalPosters,
+            };
+
+            try {
+                await fetch('https://jsonplaceholder.typicode.com/posts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            } catch (networkError) {
+                console.warn("Mock API Error:", networkError);
+            }
+
+            allPosters.push(payload);
             await storage.setItem("markedPosters", allPosters);
 
             classifiedPosters.forEach((p) => URL.revokeObjectURL(p.previewUrl));
@@ -182,7 +314,6 @@ export default function CreateOfferPage() {
         }
     };
 
-    // --- Draft handlers ---
     const handleResumeDraft = (draft: Draft) => {
         localStorage.setItem(
             "currentEditingPoster",
@@ -231,7 +362,6 @@ export default function CreateOfferPage() {
             <div className="h-20 lg:h-32" />
 
             <main className="container mx-auto px-4 py-4 md:py-12 relative overflow-hidden">
-                {/* Background decor */}
                 <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-[500px] h-[500px] bg-primary/5 rounded-full blur-3xl pointer-events-none" />
                 <div className="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/2 w-[400px] h-[400px] bg-secondary/5 rounded-full blur-3xl pointer-events-none" />
 
@@ -240,21 +370,20 @@ export default function CreateOfferPage() {
                         <Breadcrumbs
                             items={[
                                 { label: "Dashboard", href: "/shop-manager" },
-                                { label: "New Offer" },
+                                { label: isUpdateMode ? "Update Offer" : "New Offer" },
                             ]}
                         />
                     )}
 
                     <div className={cn("items-start", isEditing ? "mt-0" : "grid grid-cols-1 lg:grid-cols-3 gap-10 mt-8")}>
-                        {/* ──── Left: Card Stack ──── */}
                         <div className={cn("space-y-6", isEditing ? "w-full" : "lg:col-span-2")}>
                             {!isEditing && (
                                 <div className="space-y-1">
                                     <Heading className="text-gradient font-bold tracking-tight">
-                                        Create Offer
+                                        {isUpdateMode ? "Update Offer" : "Create Offer"}
                                     </Heading>
                                     <Text className="opacity-50 text-base">
-                                        Upload posters, classify them, and publish.
+                                        {isUpdateMode ? "Upload additional posters, classify them, and save." : "Upload posters, classify them, and publish."}
                                     </Text>
                                 </div>
                             )}
@@ -265,121 +394,121 @@ export default function CreateOfferPage() {
                                 <PosterCardStack
                                     onComplete={handleClassificationComplete}
                                     onEditingChange={setIsEditing}
+                                    submitButtonText={isUpdateMode ? "Continue to Update" : "Publish"}
                                 />
                             </PremiumCard>
 
                             {!isEditing && (
                                 <PremiumButton
-                                variant="outline"
-                                className="w-full rounded-2xl h-14"
-                                onClick={() => router.back()}
-                                leftIcon={X}
-                            >
-                                Cancel & Go Back
-                            </PremiumButton>
+                                    variant="outline"
+                                    className="w-full rounded-2xl h-14"
+                                    onClick={() => router.back()}
+                                    leftIcon={X}
+                                >
+                                    Cancel & Go Back
+                                </PremiumButton>
                             )}
                         </div>
 
-                        {/* ──── Right: Drafts ──── */}
                         {!isEditing && (
                             <div className="space-y-6">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                                        <Clock className="w-4 h-4 text-primary" />
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                                            <Clock className="w-4 h-4 text-primary" />
+                                        </div>
+                                        <Subheading className="whitespace-nowrap">
+                                            Drafted Posters
+                                        </Subheading>
                                     </div>
-                                    <Subheading className="whitespace-nowrap">
-                                        Drafted Posters
-                                    </Subheading>
+                                    <span className="text-xs font-bold uppercase tracking-widest text-primary/60 bg-primary/5 px-3 py-1 rounded-full border border-primary/10">
+                                        {drafts.length}
+                                    </span>
                                 </div>
-                                <span className="text-xs font-bold uppercase tracking-widest text-primary/60 bg-primary/5 px-3 py-1 rounded-full border border-primary/10">
-                                    {drafts.length}
-                                </span>
-                            </div>
 
-                            <div className="grid grid-cols-1 gap-4">
-                                {drafts.length > 0 ? (
-                                    drafts.map((draft) => (
-                                        <div
-                                            key={draft.id}
-                                            className="group relative flex gap-4 p-4 rounded-3xl bg-card border border-border/50 hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 overflow-hidden"
-                                        >
-                                            <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <div className="grid grid-cols-1 gap-4">
+                                    {drafts.length > 0 ? (
+                                        drafts.map((draft) => (
+                                            <div
+                                                key={draft.id}
+                                                className="group relative flex gap-4 p-4 rounded-3xl bg-card border border-border/50 hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 overflow-hidden"
+                                            >
+                                                <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 
-                                            <div className="relative w-24 h-24 rounded-2xl overflow-hidden shrink-0 border border-border/50">
-                                                <Image
-                                                    src={draft.posterSrc}
-                                                    alt={draft.title}
-                                                    fill
-                                                    unoptimized
-                                                    className="object-cover group-hover:scale-110 transition-transform duration-500"
-                                                />
-                                            </div>
+                                                <div className="relative w-24 h-24 rounded-2xl overflow-hidden shrink-0 border border-border/50">
+                                                    <Image
+                                                        src={draft.posterSrc}
+                                                        alt={draft.title}
+                                                        fill
+                                                        unoptimized
+                                                        className="object-cover group-hover:scale-110 transition-transform duration-500"
+                                                    />
+                                                </div>
 
-                                            <div className="flex flex-col justify-between flex-1 relative z-10 py-1">
-                                                <div>
-                                                    <h3 className="font-bold text-lg group-hover:text-primary transition-colors line-clamp-1">
-                                                        {draft.title}
-                                                    </h3>
-                                                    <div className="flex items-center gap-1.5 mt-1 opacity-50">
-                                                        <Clock className="w-3 h-3" />
-                                                        <span className="text-xs font-medium">
-                                                            {formatRelativeTime(
-                                                                draft.lastEdited
-                                                            )}
-                                                        </span>
+                                                <div className="flex flex-col justify-between flex-1 relative z-10 py-1">
+                                                    <div>
+                                                        <h3 className="font-bold text-lg group-hover:text-primary transition-colors line-clamp-1">
+                                                            {draft.title}
+                                                        </h3>
+                                                        <div className="flex items-center gap-1.5 mt-1 opacity-50">
+                                                            <Clock className="w-3 h-3" />
+                                                            <span className="text-xs font-medium">
+                                                                {formatRelativeTime(
+                                                                    draft.lastEdited
+                                                                )}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex items-center gap-3">
+                                                        <button
+                                                            onClick={() =>
+                                                                handleResumeDraft(draft)
+                                                            }
+                                                            className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary hover:text-primary/70 transition-colors"
+                                                        >
+                                                            <FileEdit className="w-3 h-3" />
+                                                            Resume
+                                                        </button>
+                                                        <button
+                                                            onClick={() =>
+                                                                handleDiscardClick(draft.id)
+                                                            }
+                                                            className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-destructive hover:text-destructive/70 transition-colors"
+                                                        >
+                                                            <Trash2 className="w-3 h-3" />
+                                                            Discard
+                                                        </button>
                                                     </div>
                                                 </div>
 
-                                                <div className="flex items-center gap-3">
-                                                    <button
+                                                <div className="flex items-center pr-2">
+                                                    <div
                                                         onClick={() =>
                                                             handleResumeDraft(draft)
                                                         }
-                                                        className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary hover:text-primary/70 transition-colors"
+                                                        className="w-8 h-8 rounded-full bg-primary/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all scale-75 group-hover:scale-100 translate-x-4 group-hover:translate-x-0 cursor-pointer"
                                                     >
-                                                        <FileEdit className="w-3 h-3" />
-                                                        Resume
-                                                    </button>
-                                                    <button
-                                                        onClick={() =>
-                                                            handleDiscardClick(draft.id)
-                                                        }
-                                                        className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-destructive hover:text-destructive/70 transition-colors"
-                                                    >
-                                                        <Trash2 className="w-3 h-3" />
-                                                        Discard
-                                                    </button>
+                                                        <ArrowRight className="w-4 h-4 text-primary" />
+                                                    </div>
                                                 </div>
                                             </div>
-
-                                            <div className="flex items-center pr-2">
-                                                <div
-                                                    onClick={() =>
-                                                        handleResumeDraft(draft)
-                                                    }
-                                                    className="w-8 h-8 rounded-full bg-primary/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all scale-75 group-hover:scale-100 translate-x-4 group-hover:translate-x-0 cursor-pointer"
-                                                >
-                                                    <ArrowRight className="w-4 h-4 text-primary" />
-                                                </div>
+                                        ))
+                                    ) : (
+                                        <div className="p-8 rounded-3xl border-2 border-dashed border-primary/10 bg-primary/5 flex flex-col items-center justify-center text-center space-y-3">
+                                            <div className="w-12 h-12 rounded-full bg-background flex items-center justify-center shadow-sm">
+                                                <LayoutGrid className="w-6 h-6 text-primary/40" />
                                             </div>
+                                            <Text className="text-sm font-semibold opacity-60">
+                                                No drafts yet
+                                            </Text>
+                                            <Text className="text-xs opacity-30">
+                                                Posters marked for product tagging will appear here
+                                            </Text>
                                         </div>
-                                    ))
-                                ) : (
-                                    <div className="p-8 rounded-3xl border-2 border-dashed border-primary/10 bg-primary/5 flex flex-col items-center justify-center text-center space-y-3">
-                                        <div className="w-12 h-12 rounded-full bg-background flex items-center justify-center shadow-sm">
-                                            <LayoutGrid className="w-6 h-6 text-primary/40" />
-                                        </div>
-                                        <Text className="text-sm font-semibold opacity-60">
-                                            No drafts yet
-                                        </Text>
-                                        <Text className="text-xs opacity-30">
-                                            Posters marked for product tagging will appear here
-                                        </Text>
-                                    </div>
-                                )}
+                                    )}
+                                </div>
                             </div>
-                        </div>
                         )}
                     </div>
                 </div>
@@ -387,12 +516,11 @@ export default function CreateOfferPage() {
 
             <div className="py-12" />
 
-            {/* ──── Publish Modal ──── */}
             <AppModal
                 open={showPublishModal}
                 onOpenChange={setShowPublishModal}
-                title="Publish Offer"
-                description="Give your campaign a name before publishing."
+                title={isUpdateMode ? "Update Offer" : "Publish Offer"}
+                description={isUpdateMode ? "Review and update your campaign details." : "Give your campaign a name before publishing."}
             >
                 <div className="space-y-5">
                     <PremiumInput
@@ -486,33 +614,49 @@ export default function CreateOfferPage() {
                         <div className="flex justify-between">
                             <span className="opacity-60">Total posters</span>
                             <span className="font-bold">
-                                {classifiedPosters.length}
+                                {isUpdateMode ? existingPosters.length + classifiedPosters.length : classifiedPosters.length}
                             </span>
                         </div>
                     </div>
 
-                    <div className="flex gap-3 justify-end pt-2">
-                        <PremiumButton
-                            variant="outline"
-                            onClick={() => setShowPublishModal(false)}
-                            className="rounded-xl"
-                        >
-                            Cancel
-                        </PremiumButton>
-                        <PremiumButton
-                            onClick={handlePublishSubmit}
-                            isLoading={isPublishing}
-                            leftIcon={Send}
-                            className="rounded-xl"
-                            disabled={isPublishing}
-                        >
-                            Confirm & Publish
-                        </PremiumButton>
+                    <div className="flex items-center justify-between pt-4 border-t border-primary/10">
+                        <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-1.5 hidden sm:flex">
+                                <div className={cn(
+                                    "w-2 h-2 rounded-full",
+                                    isActive ? "bg-[#1cc080]" : "bg-gray-400"
+                                )} />
+                                <span className={cn(
+                                    "text-[13px] font-bold uppercase tracking-wider",
+                                    isActive ? "text-slate-800" : "text-gray-500"
+                                )}>
+                                    {isActive ? "Online" : "Paused"}
+                                </span>
+                            </div>
+                            <StatusToggleButton status={isActive ? "active" : "paused"} onChange={(newStatus) => setIsActive(newStatus === "active")} />
+                        </div>
+                        <div className="flex gap-3">
+                            <PremiumButton
+                                variant="outline"
+                                onClick={() => setShowPublishModal(false)}
+                                className="rounded-xl"
+                            >
+                                Cancel
+                            </PremiumButton>
+                            <PremiumButton
+                                onClick={handlePublishSubmit}
+                                isLoading={isPublishing}
+                                leftIcon={Send}
+                                className="rounded-xl"
+                                disabled={isPublishing}
+                            >
+                                {isUpdateMode ? "Confirm & Update" : "Confirm & Publish"}
+                            </PremiumButton>
+                        </div>
                     </div>
                 </div>
             </AppModal>
 
-            {/* ──── Discard Modal ──── */}
             <AppModal
                 open={showDiscardModal}
                 onOpenChange={setShowDiscardModal}

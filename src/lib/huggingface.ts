@@ -1,10 +1,4 @@
 import { logger } from "@/lib/logger";
-/**
- * Hugging Face Provider Utility
- * 
- * Implements strict model rotation, retry logic with exponential backoff,
- * and safe error handling as per the integration guidelines.
- */
 
 export const HF_MODELS = [
     "google/gemma-2-9b-it",
@@ -13,16 +7,13 @@ export const HF_MODELS = [
     "microsoft/Phi-3-mini-4k-instruct",
 ];
 
-const REQUEST_TIMEOUT_MS = 60000; // 60 second timeout
+const REQUEST_TIMEOUT_MS = 60000;
 
 interface HFResponse {
     content: string;
     model: string;
 }
 
-/**
- * Safely extracts error message from various error types
- */
 function getErrorMessage(error: any): string {
     if (!error) return "Unknown error";
     if (typeof error === "string") return error;
@@ -49,36 +40,31 @@ export async function callHuggingFace(messages: any[]): Promise<HFResponse> {
         while (attempts < maxAttempts) {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-            
+
             try {
                 logger.log(`[HuggingFace] CALLING ENDPOINT: ${endpoint} | MODEL: ${model} (Attempt ${attempts + 1}/3)`);
-                
+
                 const response = await fetch(endpoint, {
                     method: "POST",
                     headers: {
                         "Authorization": `Bearer ${apiKey}`,
                         "Content-Type": "application/json",
                     },
-                    body: JSON.stringify({
-                        model: model,
-                        messages: messages,
-                        max_tokens: 1000,
-                    }),
+                    body: JSON.stringify({ model, messages, max_tokens: 1000 }),
                     signal: controller.signal,
                 });
 
                 const isJson = response.headers.get("content-type")?.includes("application/json");
                 const data = isJson ? await response.json() : await response.text();
 
-                // Safe error extraction for check
                 const errMsg = getErrorMessage(data);
-                const isRateLimited = response.status === 429 || 
-                                    errMsg.toLowerCase().includes("rate") || 
-                                    errMsg.toLowerCase().includes("limit");
+                const isRateLimited = response.status === 429 ||
+                    errMsg.toLowerCase().includes("rate") ||
+                    errMsg.toLowerCase().includes("limit");
 
                 if (isRateLimited) {
                     logger.warn(`[HuggingFace] Rate limit hit for ${model}. skipping...`);
-                    break; // Skip to next model immediately
+                    break;
                 }
 
                 if (!response.ok) {
@@ -91,17 +77,14 @@ export async function callHuggingFace(messages: any[]): Promise<HFResponse> {
                 }
 
                 logger.log(`[HuggingFace] Success with ${model}`);
-                return {
-                    content: data.choices[0].message.content,
-                    model: model,
-                };
+                return { content: data.choices[0].message.content, model };
 
             } catch (error: any) {
                 clearTimeout(timeoutId);
                 attempts++;
                 const errMsg = getErrorMessage(error);
                 logger.error(`[HuggingFace] Error with ${model}: ${errMsg}`);
-                
+
                 if (attempts < maxAttempts) {
                     const backoff = Math.pow(2, attempts - 1) * 1000;
                     logger.log(`[HuggingFace] Retrying in ${backoff}ms...`);
