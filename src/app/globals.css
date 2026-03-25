@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@plugin "tailwindcss-animate";
+
 
 /* Premium Local Offers Discovery Platform Design System */
 
