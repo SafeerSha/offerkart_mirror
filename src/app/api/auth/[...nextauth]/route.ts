@@ -8,15 +8,25 @@ async function POST(req: Request, ...args: any[]) {
   // CSRF token/origin validation for cookie-based auth
   const origin = req.headers.get("origin");
   const ref = req.headers.get("referer");
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  
+  // Use VERCEL_URL if NEXT_PUBLIC_SITE_URL is not provided (standard Vercel practice)
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL 
+    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
 
   try {
     const allowedOrigin = new URL(siteUrl).origin;
     if (origin && new URL(origin).origin !== allowedOrigin) {
-      return new NextResponse("Invalid origin", { status: 403 });
+      // Allow secondary check for Vercel preview deployments if needed
+      const isVercelPreview = origin.endsWith(".vercel.app");
+      if (!isVercelPreview) {
+        return new NextResponse("Invalid origin", { status: 403 });
+      }
     }
     if (!origin && ref && new URL(ref).origin !== allowedOrigin) {
-      return new NextResponse("Invalid referer", { status: 403 });
+      const isVercelPreview = new URL(ref).origin.endsWith(".vercel.app");
+      if (!isVercelPreview) {
+        return new NextResponse("Invalid referer", { status: 403 });
+      }
     }
   } catch (error) {
     // If URL parsing fails, deny access
