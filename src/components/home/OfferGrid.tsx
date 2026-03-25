@@ -6,6 +6,7 @@ import { StaticImageData } from "next/image";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { cn } from "@/lib/utils";
 import { Search, X } from "lucide-react";
+import { Poster } from "@/lib/types/offer";
 
 import { useRouter } from "next/navigation";
 
@@ -14,6 +15,7 @@ interface Offer {
   shopName: string;
   offerName: string;
   image: string | StaticImageData;
+  posters?: Poster[];
   category: string;
   subcategory?: string;
   location: string;

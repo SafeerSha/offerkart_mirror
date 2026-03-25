@@ -34,6 +34,8 @@ import {
     PosterCardStack,
     PosterItem,
 } from "@/components/shop-manager/PosterCardStack";
+import type { PosterPreviewState } from "@/components/shop-manager/PosterCardStack";
+import { PosterPreviewPanel } from "@/components/shop-manager/PosterPreviewPanel";
 import { StatusToggleButton } from "@/components/shared/StatusToggleButton";
 
 interface Draft {
@@ -79,6 +81,7 @@ function CreateOfferContent() {
 
     const [showDiscardModal, setShowDiscardModal] = useState(false);
     const [draftToDiscard, setDraftToDiscard] = useState<string | null>(null);
+    const [previewState, setPreviewState] = useState<PosterPreviewState | null>(null);
 
     // Fetch branches when publish modal opens
     useEffect(() => {
@@ -134,6 +137,40 @@ function CreateOfferContent() {
             });
         }
     }, [editBatchId]);
+
+    // Handle Resumption from Editor
+    useEffect(() => {
+        if (searchParams.get('resume') === 'true') {
+            const loadResumedStack = async () => {
+                try {
+                    const stack = await storage.getItem<any[]>("poster_stack_resume");
+                    if (stack && stack.length > 0) {
+                        setClassifiedPosters(stack);
+
+                        const previewIdx = parseInt(searchParams.get('previewIndex') || '0', 10);
+                        setPreviewState({
+                            posters: stack,
+                            index: previewIdx,
+                            onClose: () => setPreviewState(null),
+                            onEditMarking: (idx) => {
+                                // Redirection logic matching PosterCardStack
+                                storage.setItem("poster_stack_resume", stack.map(({ uploadPromise, ...rest }: any) => rest));
+                                router.push(`/shop-manager/create-offer/editor?from=preview&index=${idx}`);
+                            },
+                            onAddMarking: (idx) => {
+                                const updated = stack.map((p, i) => i === idx ? { ...p, markedItems: [], type: "marked_poster" } as PosterItem : p);
+                                storage.setItem("poster_stack_resume", updated.map(({ uploadPromise, ...rest }: any) => rest));
+                                router.push(`/shop-manager/create-offer/editor?from=preview&index=${idx}`);
+                            }
+                        });
+                    }
+                } catch (err) {
+                    console.error("Failed to resume poster stack:", err);
+                }
+            };
+            loadResumedStack();
+        }
+    }, [searchParams, router]);
 
     useEffect(() => {
         const loadDrafts = async () => {
@@ -361,11 +398,14 @@ function CreateOfferContent() {
         <div className="min-h-screen bg-background">
             <div className="h-20 lg:h-32" />
 
-            <main className="container mx-auto px-4 py-4 md:py-12 relative overflow-hidden">
+            <main className="w-full relative overflow-hidden bg-background min-h-screen">
                 <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-[500px] h-[500px] bg-primary/5 rounded-full blur-3xl pointer-events-none" />
                 <div className="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/2 w-[400px] h-[400px] bg-secondary/5 rounded-full blur-3xl pointer-events-none" />
 
-                <div className={cn("mx-auto relative", isEditing ? "max-w-[1400px]" : "max-w-6xl")}>
+                <div className={cn(
+                    "mx-auto relative px-4 lg:px-8 py-4 md:py-12 transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]",
+                    isEditing ? "max-w-[1400px]" : previewState ? "max-w-full" : "max-w-6xl"
+                )}>
                     {!isEditing && (
                         <Breadcrumbs
                             items={[
@@ -375,8 +415,15 @@ function CreateOfferContent() {
                         />
                     )}
 
-                    <div className={cn("items-start", isEditing ? "mt-0" : "grid grid-cols-1 lg:grid-cols-3 gap-10 mt-8")}>
-                        <div className={cn("space-y-6", isEditing ? "w-full" : "lg:col-span-2")}>
+                    <div className={cn(
+                        "transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col gap-10",
+                        isEditing ? "mt-0" : "mt-8 lg:flex-row",
+                        !isEditing && (previewState ? "lg:items-stretch" : "lg:items-start")
+                    )}>
+                        <div className={cn(
+                            "space-y-6 flex flex-col min-h-0 transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] w-full",
+                            isEditing ? "w-full" : previewState ? "lg:flex-1" : "lg:flex-[2]"
+                        )}>
                             {!isEditing && (
                                 <div className="space-y-1">
                                     <Heading className="text-gradient font-bold tracking-tight">
@@ -394,6 +441,7 @@ function CreateOfferContent() {
                                 <PosterCardStack
                                     onComplete={handleClassificationComplete}
                                     onEditingChange={setIsEditing}
+                                    onPreviewChange={setPreviewState}
                                     submitButtonText={isUpdateMode ? "Continue to Update" : "Publish"}
                                 />
                             </PremiumCard>
@@ -411,103 +459,119 @@ function CreateOfferContent() {
                         </div>
 
                         {!isEditing && (
-                            <div className="space-y-6">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                                            <Clock className="w-4 h-4 text-primary" />
-                                        </div>
-                                        <Subheading className="whitespace-nowrap">
-                                            Drafted Posters
-                                        </Subheading>
-                                    </div>
-                                    <span className="text-xs font-bold uppercase tracking-widest text-primary/60 bg-primary/5 px-3 py-1 rounded-full border border-primary/10">
-                                        {drafts.length}
-                                    </span>
-                                </div>
-
-                                <div className="grid grid-cols-1 gap-4">
-                                    {drafts.length > 0 ? (
-                                        drafts.map((draft) => (
-                                            <div
-                                                key={draft.id}
-                                                className="group relative flex gap-4 p-4 rounded-3xl bg-card border border-border/50 hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 overflow-hidden"
-                                            >
-                                                <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-
-                                                <div className="relative w-24 h-24 rounded-2xl overflow-hidden shrink-0 border border-border/50">
-                                                    <Image
-                                                        src={draft.posterSrc}
-                                                        alt={draft.title}
-                                                        fill
-                                                        unoptimized
-                                                        className="object-cover group-hover:scale-110 transition-transform duration-500"
-                                                    />
+                            <div className={cn(
+                                "transition-all w-full flex flex-col relative",
+                                previewState ? "lg:flex-1 duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]" : "space-y-6 lg:flex-1 duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
+                            )}>
+                                {previewState ? (
+                                    <PosterPreviewPanel
+                                        posters={previewState.posters}
+                                        initialIndex={previewState.index}
+                                        isPreparing={previewState.isPreparing}
+                                        onClose={() => { previewState.onClose(); setPreviewState(null); }}
+                                        onEditMarking={(i) => { previewState.onEditMarking(i); }}
+                                        onAddMarking={(i) => { previewState.onAddMarking(i); }}
+                                    />
+                                ) : (
+                                    <>
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                                                    <Clock className="w-4 h-4 text-primary" />
                                                 </div>
+                                                <Subheading className="whitespace-nowrap">
+                                                    Drafted Posters
+                                                </Subheading>
+                                            </div>
+                                            <span className="text-xs font-bold uppercase tracking-widest text-primary/60 bg-primary/5 px-3 py-1 rounded-full border border-primary/10">
+                                                {drafts.length}
+                                            </span>
+                                        </div>
 
-                                                <div className="flex flex-col justify-between flex-1 relative z-10 py-1">
-                                                    <div>
-                                                        <h3 className="font-bold text-lg group-hover:text-primary transition-colors line-clamp-1">
-                                                            {draft.title}
-                                                        </h3>
-                                                        <div className="flex items-center gap-1.5 mt-1 opacity-50">
-                                                            <Clock className="w-3 h-3" />
-                                                            <span className="text-xs font-medium">
-                                                                {formatRelativeTime(
-                                                                    draft.lastEdited
-                                                                )}
-                                                            </span>
+                                        <div className="grid grid-cols-1 gap-4">
+                                            {drafts.length > 0 ? (
+                                                drafts.map((draft) => (
+                                                    <div
+                                                        key={draft.id}
+                                                        className="group relative flex gap-4 p-4 rounded-3xl bg-card border border-border/50 hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 overflow-hidden"
+                                                    >
+                                                        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                                                        <div className="relative w-24 h-24 rounded-2xl overflow-hidden shrink-0 border border-border/50">
+                                                            <Image
+                                                                src={draft.posterSrc}
+                                                                alt={draft.title}
+                                                                fill
+                                                                unoptimized
+                                                                className="object-cover group-hover:scale-110 transition-transform duration-500"
+                                                            />
+                                                        </div>
+
+                                                        <div className="flex flex-col justify-between flex-1 relative z-10 py-1">
+                                                            <div>
+                                                                <h3 className="font-bold text-lg group-hover:text-primary transition-colors line-clamp-1">
+                                                                    {draft.title}
+                                                                </h3>
+                                                                <div className="flex items-center gap-1.5 mt-1 opacity-50">
+                                                                    <Clock className="w-3 h-3" />
+                                                                    <span className="text-xs font-medium">
+                                                                        {formatRelativeTime(
+                                                                            draft.lastEdited
+                                                                        )}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="flex items-center gap-3">
+                                                                <button
+                                                                    onClick={() =>
+                                                                        handleResumeDraft(draft)
+                                                                    }
+                                                                    className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary hover:text-primary/70 transition-colors"
+                                                                >
+                                                                    <FileEdit className="w-3 h-3" />
+                                                                    Resume
+                                                                </button>
+                                                                <button
+                                                                    onClick={() =>
+                                                                        handleDiscardClick(draft.id)
+                                                                    }
+                                                                    className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-destructive hover:text-destructive/70 transition-colors"
+                                                                >
+                                                                    <Trash2 className="w-3 h-3" />
+                                                                    Discard
+                                                                </button>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="flex items-center pr-2">
+                                                            <div
+                                                                onClick={() =>
+                                                                    handleResumeDraft(draft)
+                                                                }
+                                                                className="w-8 h-8 rounded-full bg-primary/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all scale-75 group-hover:scale-100 translate-x-4 group-hover:translate-x-0 cursor-pointer"
+                                                            >
+                                                                <ArrowRight className="w-4 h-4 text-primary" />
+                                                            </div>
                                                         </div>
                                                     </div>
-
-                                                    <div className="flex items-center gap-3">
-                                                        <button
-                                                            onClick={() =>
-                                                                handleResumeDraft(draft)
-                                                            }
-                                                            className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary hover:text-primary/70 transition-colors"
-                                                        >
-                                                            <FileEdit className="w-3 h-3" />
-                                                            Resume
-                                                        </button>
-                                                        <button
-                                                            onClick={() =>
-                                                                handleDiscardClick(draft.id)
-                                                            }
-                                                            className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-destructive hover:text-destructive/70 transition-colors"
-                                                        >
-                                                            <Trash2 className="w-3 h-3" />
-                                                            Discard
-                                                        </button>
+                                                ))
+                                            ) : (
+                                                <div className="p-8 rounded-3xl border-2 border-dashed border-primary/10 bg-primary/5 flex flex-col items-center justify-center text-center space-y-3">
+                                                    <div className="w-12 h-12 rounded-full bg-background flex items-center justify-center shadow-sm">
+                                                        <LayoutGrid className="w-6 h-6 text-primary/40" />
                                                     </div>
+                                                    <Text className="text-sm font-semibold opacity-60">
+                                                        No drafts yet
+                                                    </Text>
+                                                    <Text className="text-xs opacity-30">
+                                                        Posters marked for product tagging will appear here
+                                                    </Text>
                                                 </div>
-
-                                                <div className="flex items-center pr-2">
-                                                    <div
-                                                        onClick={() =>
-                                                            handleResumeDraft(draft)
-                                                        }
-                                                        className="w-8 h-8 rounded-full bg-primary/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all scale-75 group-hover:scale-100 translate-x-4 group-hover:translate-x-0 cursor-pointer"
-                                                    >
-                                                        <ArrowRight className="w-4 h-4 text-primary" />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="p-8 rounded-3xl border-2 border-dashed border-primary/10 bg-primary/5 flex flex-col items-center justify-center text-center space-y-3">
-                                            <div className="w-12 h-12 rounded-full bg-background flex items-center justify-center shadow-sm">
-                                                <LayoutGrid className="w-6 h-6 text-primary/40" />
-                                            </div>
-                                            <Text className="text-sm font-semibold opacity-60">
-                                                No drafts yet
-                                            </Text>
-                                            <Text className="text-xs opacity-30">
-                                                Posters marked for product tagging will appear here
-                                            </Text>
+                                            )}
                                         </div>
-                                    )}
-                                </div>
+                                    </>
+                                )}
                             </div>
                         )}
                     </div>

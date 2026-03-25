@@ -5,6 +5,8 @@ import Image, { StaticImageData } from "next/image";
 import { Tag, ChevronLeft, ChevronRight } from "lucide-react";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { Subheading, Text } from "@/components/shared/Typography";
+import { MarkedPoster } from "@/components/shared/MarkedPoster";
+import { Poster } from "@/lib/types/offer";
 
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import OfferCard from "@/components/offer/OfferCard";
@@ -14,6 +16,7 @@ interface OfferDetail {
     shopName: string;
     offerName: string;
     images: (string | StaticImageData)[];
+    posters?: Poster[];
     category: string;
     location: string;
     validFrom: string;
@@ -109,11 +112,12 @@ export default function OfferDetailClient({ offer, similarOffers }: OfferDetailC
                 <div className="max-w-lg mx-auto mb-16">
                     <div className="relative aspect-[3/4] overflow-hidden rounded-2xl border border-primary/20">
                         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-secondary/10" />
-                        <Image
-                            src={offer.images[posterIndex]}
+                        <MarkedPoster
+                            src={offer.posters?.[posterIndex]?.posterSrc || (offer.images[posterIndex] as string)}
                             alt={offer.shopName}
-                            fill
-                            className="object-cover transition-opacity duration-300"
+                            markedItems={offer.posters?.[posterIndex]?.markedItems || []}
+                            className="w-full h-full"
+                            showNames={true}
                         />
                         <div className="absolute top-4 left-4">
                             <span className="badge-futuristic">

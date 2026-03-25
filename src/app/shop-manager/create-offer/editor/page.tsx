@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useRef, useEffect, MouseEvent, TouchEvent, FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useRef, useEffect, MouseEvent, TouchEvent, FormEvent, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
-    ChevronLeft, Save, Info, Send, CheckSquare, Rocket, Zap,
+    ChevronLeft, ChevronRight, Save, Info, Send, CheckSquare, Rocket, Zap,
     Trash2, Eye, Plus, IndianRupee,
     Type, AlignLeft, RefreshCcw, Tag, ChevronDown, Check, Search,
-    CheckCircle2, AlertCircle, FileEdit, X,
+    CheckCircle2, AlertCircle, FileEdit, X, ArrowLeft,
     Image as ImageIcon
 } from "lucide-react";
 
@@ -22,6 +22,7 @@ import { AppModal } from "@/components/shared/AppModal";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { storage } from "@/lib/storage";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 
 // --- Image Preprocessing for OCR ---
 /**
@@ -101,6 +102,7 @@ interface PosterData {
     posterSrc: string;
     markedItems: MarkedItem[];
     currency: string;
+    aspectRatio?: number;
 }
 
 interface Position { x: number; y: number; }
@@ -108,15 +110,23 @@ interface Rect { x: number; y: number; width: number; height: number; }
 
 // --- Component ---
 
-export default function HotspotEditorPage() {
+function HotspotEditorContent() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const fromPreview = searchParams.get('from') === 'preview';
+    const posterIndex = parseInt(searchParams.get('index') || '0', 10);
 
     // Multi-poster state
-    const [allPosters, setAllPosters] = useState<{ id: string; posterSrc: string; type: string; markedItems: any[] }[]>([]);
+    const [allPosters, setAllPosters] = useState<any[]>([]);
     const [activePosterIndex, setActivePosterIndex] = useState(0);
 
     // State
-    const [posterData, setPosterData] = useState<PosterData>({ posterSrc: '', markedItems: [], currency: 'BD' });
+    const [posterData, setPosterData] = useState<PosterData>({
+        posterSrc: '',
+        markedItems: [],
+        currency: '₹',
+        aspectRatio: undefined
+    });
     const [isDrawing, setIsDrawing] = useState(false);
     const [startPos, setStartPos] = useState<Position | null>(null);
     const [currentRect, setCurrentRect] = useState<Rect | null>(null);
@@ -126,7 +136,6 @@ export default function HotspotEditorPage() {
     const [isProcessing, setIsProcessing] = useState(false);
     const [highlightedId, setHighlightedId] = useState<string | null>(null);
 
-    // Form State
     const [formData, setFormData] = useState({
         name: '',
         mainCategory: '' as string,
@@ -136,6 +145,9 @@ export default function HotspotEditorPage() {
         oldPrice: '',
         offerPrice: ''
     });
+
+    // Navigation Step State
+    const [popoverOpen, setPopoverOpen] = useState(false);
 
     // Publication State
     const [showPublishModal, setShowPublishModal] = useState(false);
@@ -169,16 +181,21 @@ export default function HotspotEditorPage() {
             if (multiData) {
                 setAllPosters(multiData);
 
-                // Load the first interactive poster (or first poster)
-                const firstInteractive = multiData.find((p: any) => p.type === 'mark_products') || multiData[0];
-                const firstIndex = multiData.indexOf(firstInteractive);
-                setActivePosterIndex(firstIndex >= 0 ? firstIndex : 0);
+                // Load the specifically requested poster if fromPreview, otherwise find first interactive
+                const targetIndex = (fromPreview && posterIndex >= 0 && posterIndex < multiData.length)
+                    ? posterIndex
+                    : (multiData.findIndex((p: any) => p.type === 'mark_products') >= 0
+                        ? multiData.findIndex((p: any) => p.type === 'mark_products')
+                        : 0);
+
+                const activePoster = multiData[targetIndex];
+                setActivePosterIndex(targetIndex);
                 setPosterData({
-                    posterSrc: firstInteractive.posterSrc,
-                    markedItems: firstInteractive.markedItems || [],
-                    currency: 'BD',
+                    posterSrc: activePoster.posterSrc,
+                    markedItems: activePoster.markedItems || [],
+                    currency: '₹',
                 });
-                if (firstInteractive.title) setOfferTitle(firstInteractive.title);
+                if (activePoster.title) setOfferTitle(activePoster.title);
             } else if (singleData) {
                 setPosterData(singleData);
                 if (singleData.title) setOfferTitle(singleData.title);
@@ -208,12 +225,12 @@ export default function HotspotEditorPage() {
         setPosterData({
             posterSrc: target.posterSrc,
             markedItems: target.markedItems || [],
-            currency: 'BD',
+            currency: '₹',
         });
-        setImageSize({ width: 0, height: 0 });
-        setShowModal(false);
         setHighlightedId(null);
     };
+
+    // Jump functionality is now handled by Popover buttons
 
     // --- Drawing Logic ---
 
@@ -248,16 +265,16 @@ export default function HotspotEditorPage() {
             setIsDrawing(false);
             setCurrentRect(null);
             return;
-        }
-
-        setIsDrawing(false);
+        } setIsDrawing(false);
         const { x, y, width, height } = currentRect;
+        const container = containerRef.current;
+        if (!container) return;
 
-        // Calculate relative coordinates
-        const relX = x / imageSize.width;
-        const relY = y / imageSize.height;
-        const relW = width / imageSize.width;
-        const relH = height / imageSize.height;
+        // Calculate relative coordinates using real-time container dimensions
+        const relX = x / container.offsetWidth;
+        const relY = y / container.offsetHeight;
+        const relW = width / container.offsetWidth;
+        const relH = height / container.offsetHeight;
 
         const id = crypto.randomUUID();
         const tempItem: MarkedItem = {
@@ -274,10 +291,11 @@ export default function HotspotEditorPage() {
         try {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d')!;
+            const container = containerRef.current!;
             const img = imgRef.current!;
 
-            const scaleX = img.naturalWidth / imageSize.width;
-            const scaleY = img.naturalHeight / imageSize.height;
+            const scaleX = img.naturalWidth / container.offsetWidth;
+            const scaleY = img.naturalHeight / container.offsetHeight;
 
             const sw = width * scaleX;
             const sh = height * scaleY;
@@ -508,9 +526,29 @@ export default function HotspotEditorPage() {
     };
 
     const confirmPublish = async () => {
-        if (!offerTitle.trim()) {
+        if (!offerTitle.trim() && !fromPreview) {
             toast.error("Please enter an offer title");
             return;
+        }
+
+        if (fromPreview) {
+            try {
+                const stack = await storage.getItem<any[]>('poster_stack_resume') || [];
+                if (stack[posterIndex]) {
+                    stack[posterIndex] = {
+                        ...stack[posterIndex],
+                        markedItems: posterData.markedItems,
+                        type: 'marked_poster'
+                    };
+                    await storage.setItem('poster_stack_resume', stack);
+                    toast.success("Poster markings updated");
+                    router.push(`/shop-manager/create-offer?resume=true&previewIndex=${posterIndex}`);
+                    return;
+                }
+            } catch (err) {
+                console.error("Failed to update poster stack:", err);
+                toast.error("Failed to save changes to stack");
+            }
         }
 
         const existingData = await storage.getItem<any[]>('markedPosters');
@@ -545,8 +583,25 @@ export default function HotspotEditorPage() {
 
     const handleSaveDraft = async () => {
         try {
+            if (fromPreview) {
+                // For preview flow, saving draft is essentially updating the stack
+                const stack = await storage.getItem<any[]>('poster_stack_resume') || [];
+                if (stack[posterIndex]) {
+                    stack[posterIndex] = {
+                        ...stack[posterIndex],
+                        markedItems: posterData.markedItems,
+                        type: 'marked_poster'
+                    };
+                    await storage.setItem('poster_stack_resume', stack);
+                    toast.success("Draft updated in stack");
+                    router.push(`/shop-manager/create-offer?resume=true&previewIndex=${posterIndex}`);
+                    return;
+                }
+            }
+
             const existingDrafts = await storage.getItem<any[]>('offerDrafts') || [];
             let allDrafts = [...existingDrafts];
+            // ... (rest of existing logic)
 
             const draftId = (posterData as any).id || crypto.randomUUID();
             const draftTitle = offerTitle || `Untitled Draft - ${new Date().toLocaleDateString()}`;
@@ -589,6 +644,11 @@ export default function HotspotEditorPage() {
             await storage.removeItem('currentEditingPoster');
             await storage.removeItem('currentEditingPosters');
             toast.success("Changes discarded");
+
+            if (fromPreview) {
+                router.push(`/shop-manager/create-offer?resume=true&previewIndex=${posterIndex}`);
+                return;
+            }
             router.push('/shop-manager/create-offer');
         } catch (error) {
             console.error("Failed to discard session:", error);
@@ -619,25 +679,109 @@ export default function HotspotEditorPage() {
                             </div>
 
                             <div className="flex gap-3 shrink-0">
-                                <PremiumButton variant="outline" onClick={() => setShowBackWarning(true)} leftIcon={ChevronLeft}>
-                                    Back
-                                </PremiumButton>
                                 <PremiumButton
                                     variant="outline"
-                                    onClick={handleSaveDraft}
-                                    leftIcon={Save}
+                                    onClick={() => fromPreview ? handleDiscardSession() : setShowBackWarning(true)}
+                                    leftIcon={fromPreview ? Trash2 : ChevronLeft}
                                 >
-                                    Save Draft
+                                    {fromPreview ? "Cancel" : "Back"}
                                 </PremiumButton>
+                                {!fromPreview && (
+                                    <PremiumButton
+                                        variant="outline"
+                                        onClick={handleSaveDraft}
+                                        leftIcon={Save}
+                                    >
+                                        Save Draft
+                                    </PremiumButton>
+                                )}
                                 <PremiumButton
                                     variant="default"
-                                    onClick={handleFinish}
-                                    leftIcon={Send}
+                                    onClick={confirmPublish}
+                                    leftIcon={fromPreview ? Check : Send}
                                     disabled={posterData.markedItems.length === 0}
                                 >
-                                    Publish Offer
+                                    {fromPreview ? "Finish" : "Publish Offer"}
                                 </PremiumButton>
                             </div>
+                        </div>
+
+                        {/* Navigation Row */}
+                        <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-primary/5 border border-primary/20 rounded-2xl">
+                            <div className="flex items-center gap-3">
+                                <PremiumButton
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-9 px-3 text-xs font-bold"
+                                    onClick={() => switchPoster(activePosterIndex - 1)}
+                                    disabled={activePosterIndex === 0}
+                                    leftIcon={ChevronLeft}
+                                >
+                                    Prev
+                                </PremiumButton>
+
+                                <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+                                    <PopoverTrigger asChild>
+                                        <button className="flex items-center gap-2 px-3 py-1 bg-white/50 backdrop-blur-md rounded-xl border border-primary/10 hover:bg-white/80 hover:border-primary/30 transition-all group">
+                                            <span className="text-[10px] font-black uppercase opacity-40 group-hover:opacity-60">Poster</span>
+                                            <span className="w-8 text-center font-black text-sm text-primary">
+                                                {activePosterIndex + 1}
+                                            </span>
+                                            <span className="text-[10px] font-black uppercase opacity-40 group-hover:opacity-60">of {allPosters.length}</span>
+                                        </button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-56 p-3 bg-white shadow-xl" side="top" align="center">
+                                        <div className="space-y-3">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Jump to Poster</span>
+                                                <span className="text-[10px] font-medium text-muted-foreground">{allPosters.length} Total</span>
+                                            </div>
+                                            <div className="grid grid-cols-5 gap-1">
+                                                {allPosters.map((_, i) => (
+                                                    <button
+                                                        key={i}
+                                                        onClick={() => {
+                                                            switchPoster(i);
+                                                            setPopoverOpen(false);
+                                                        }}
+                                                        className={cn(
+                                                            "w-8 h-5 rounded-xl text-xs font-black transition-all flex items-center justify-center",
+                                                            i === activePosterIndex
+                                                                ? "bg-primary text-gradient shadow-lg shadow-primary/30 scale-110 z-10"
+                                                                : "text-black/60 hover:bg-primary/10 hover:text-primary"
+                                                        )}
+                                                    >
+                                                        {i + 1}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </PopoverContent>
+                                </Popover>
+
+                                <PremiumButton
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-9 px-3 text-xs font-bold"
+                                    onClick={() => switchPoster(activePosterIndex + 1)}
+                                    disabled={activePosterIndex === allPosters.length - 1}
+                                    rightIcon={ChevronRight}
+                                >
+                                    Next
+                                </PremiumButton>
+                            </div>
+
+                            {fromPreview && (
+                                <PremiumButton
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-9 px-4 text-xs font-bold border-primary/30 text-primary hover:bg-primary/5"
+                                    onClick={() => router.push(`/shop-manager/create-offer?resume=true&previewIndex=${activePosterIndex}`)}
+                                    leftIcon={ArrowLeft}
+                                >
+                                    Back to Publish
+                                </PremiumButton>
+                            )}
                         </div>
 
 
@@ -646,6 +790,7 @@ export default function HotspotEditorPage() {
                             <div
                                 ref={containerRef}
                                 className="relative w-full cursor-crosshair select-none overflow-hidden rounded-2xl"
+                                style={{ aspectRatio: posterData.aspectRatio ? `${posterData.aspectRatio}` : 'auto' }}
                                 onMouseDown={handlePointerDown}
                                 onMouseMove={handlePointerMove}
                                 onMouseUp={handlePointerUp}
@@ -658,11 +803,18 @@ export default function HotspotEditorPage() {
                                         ref={imgRef}
                                         src={posterData.posterSrc}
                                         alt="Poster"
-                                        width={1000}
-                                        height={1000}
+                                        width={1200}
+                                        height={1200}
                                         unoptimized
-                                        className="w-full h-auto block rounded-2xl object-contain"
-                                        onLoad={() => setImageSize({ width: imgRef.current!.offsetWidth, height: imgRef.current!.offsetHeight })}
+                                        className="w-full h-auto block rounded-2xl"
+                                        onLoad={() => {
+                                            const ratio = (imgRef.current?.naturalWidth || 1) / (imgRef.current?.naturalHeight || 1);
+                                            setPosterData(prev => ({ ...prev, aspectRatio: ratio }));
+                                            setImageSize({
+                                                width: imgRef.current?.offsetWidth || 0,
+                                                height: imgRef.current?.offsetHeight || 0
+                                            });
+                                        }}
                                         draggable={false}
                                     />
                                 )}
@@ -720,22 +872,22 @@ export default function HotspotEditorPage() {
 
                         {/* Multi-poster thumbnail navigator strip */}
                         {allPosters.length > 1 && (
-                            <div className="mt-4">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <Text className="text-xs font-bold uppercase tracking-wider opacity-40">
+                            <div className="mt-6">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Text className="text-xs font-black uppercase tracking-widest opacity-40">
                                         All Posters ({activePosterIndex + 1} of {allPosters.length})
                                     </Text>
                                 </div>
-                                <div className="flex items-center gap-4 overflow-x-auto pb-4 px-1 scrollbar-hide">
+                                <div className="flex items-center gap-4 overflow-x-auto py-4 px-2 scrollbar-hide">
                                     {allPosters.map((poster, idx) => (
                                         <button
                                             key={poster.id}
                                             onClick={() => switchPoster(idx)}
                                             className={cn(
-                                                "relative w-20 h-24 sm:w-24 sm:h-28 rounded-2xl overflow-hidden border-2 transition-all duration-300 shrink-0 group",
+                                                "relative w-20 h-28 sm:w-24 sm:h-32 rounded-2xl overflow-hidden border-2 transition-all duration-300 shrink-0 group",
                                                 idx === activePosterIndex
-                                                    ? "border-primary ring-[3px] ring-primary/20 ring-offset-2 ring-offset-background scale-105 shadow-xl shadow-primary/10"
-                                                    : "border-border/40 hover:border-primary/30 opacity-60 hover:opacity-100 hover:scale-[1.02]"
+                                                    ? "border-primary ring-4 ring-primary/20 scale-105 z-10 shadow-xl shadow-primary/20"
+                                                    : "border-border/40 hover:border-primary/30 opacity-60 hover:opacity-100"
                                             )}
                                         >
                                             <Image
@@ -743,11 +895,11 @@ export default function HotspotEditorPage() {
                                                 alt={`Poster ${idx + 1}`}
                                                 fill
                                                 unoptimized
-                                                className="object-cover transition-transform duration-500 group-hover:scale-110"
+                                                className="object-cover"
                                             />
                                             {/* Type badge */}
                                             <div className={cn(
-                                                "absolute bottom-1.5 left-1.5 right-1.5 text-[9px] font-black uppercase text-center py-1 rounded-lg backdrop-blur-md shadow-lg",
+                                                "absolute bottom-2 left-2 right-2 text-[9px] font-black uppercase text-center h-5 flex items-center justify-center rounded-lg backdrop-blur-md shadow-lg",
                                                 poster.type === "mark_products"
                                                     ? "bg-primary text-white"
                                                     : "bg-black/60 text-white"
@@ -756,8 +908,8 @@ export default function HotspotEditorPage() {
                                             </div>
                                             {/* Done badge */}
                                             {poster.markedItems && poster.markedItems.length > 0 && idx !== activePosterIndex && (
-                                                <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center">
-                                                    <Check className="w-2.5 h-2.5 text-white" />
+                                                <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center shadow-lg border-2 border-white z-20 animate-in zoom-in duration-300">
+                                                    <Check className="w-3 h-3 text-white" />
                                                 </div>
                                             )}
                                         </button>
@@ -790,7 +942,7 @@ export default function HotspotEditorPage() {
                                     </Text>
                                 </div>
                             ) : (
-                                <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                                <div className="grid grid-cols-2 gap-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
                                     {posterData.markedItems.map((item, idx) => (
                                         <div
                                             key={item.id}
@@ -890,7 +1042,7 @@ export default function HotspotEditorPage() {
                                 </button>
                             </div>
 
-                            <div className="px-6 py-6 space-y-6 overflow-y-auto custom-scrollbar flex-1 bg-white">
+                            <div className="px-6 py-6 space-y-6 overflow-y-auto custom-scrollbar flex-1 min-h-0 bg-white">
                                 {/* Row 1: Image & Product Name */}
                                 <div className="flex items-start gap-4">
                                     <div className="relative group/img shrink-0 pt-1">
@@ -1323,5 +1475,18 @@ export default function HotspotEditorPage() {
                 </div>
             </AppModal >
         </div >
+    );
+}
+
+// Wrapper component with Suspense boundary for useSearchParams
+export default function HotspotEditorPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+        }>
+            <HotspotEditorContent />
+        </Suspense>
     );
 }

@@ -6,12 +6,15 @@ import { useRouter } from "next/navigation";
 import { MapPin, Clock, ArrowRight, Heart, Tag } from "lucide-react";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { PremiumCard } from "@/components/shared/PremiumCard";
+import { MarkedPoster } from "@/components/shared/MarkedPoster";
+import { Poster } from "@/lib/types/offer";
 
 interface OfferCardProps {
   id: number;
   shopName: string;
   offerName: string;
   image: string | StaticImageData;
+  posters?: Poster[];
   category: string;
   location: string;
   validFrom: string;
@@ -31,6 +34,7 @@ const OfferCard = ({
   validTo,
   discount,
   branchName,
+  posters,
 }: OfferCardProps) => {
   const router = useRouter();
   const [isHovered, setIsHovered] = useState(false);
@@ -47,12 +51,12 @@ const OfferCard = ({
     >
       {/* Image Container */}
       <div className="relative flex-1 overflow-hidden bg-gray-100 min-h-[320px]">
-        <Image
-          src={image}
+        <MarkedPoster 
+          src={posters?.[0]?.posterSrc || (image as string)}
           alt={shopName}
-          fill
-          unoptimized
-          className={`object-cover transition-transform duration-1000 ease-out ${isHovered ? "scale-110" : "scale-100"}`}
+          markedItems={posters?.[0]?.markedItems || []}
+          className={cn("w-full h-full transition-transform duration-1000 ease-out", isHovered ? "scale-110" : "scale-100")}
+          showNames={false}
         />
 
         {/* Overlays */}

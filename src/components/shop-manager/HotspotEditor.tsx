@@ -102,7 +102,7 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
     const [posterData, setPosterData] = useState<PosterData>({
         posterSrc: poster.posterSrc,
         markedItems: poster.markedItems || [],
-        currency: 'BD'
+        currency: '₹'
     });
     const [isDrawing, setIsDrawing] = useState(false);
     const [startPos, setStartPos] = useState<Position | null>(null);
@@ -146,7 +146,7 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
         setPosterData({
             posterSrc: poster.posterSrc,
             markedItems: poster.markedItems || [],
-            currency: 'BD'
+            currency: '₹'
         });
         setImageSize({ width: 0, height: 0 });
         setShowModal(false);
@@ -684,7 +684,7 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                                 </button>
                             </div>
 
-                            <div className="px-6 py-6 space-y-6 overflow-y-auto custom-scrollbar flex-1 bg-white">
+                            <div className="px-6 py-6 space-y-6 overflow-y-auto custom-scrollbar flex-1 min-h-0 bg-white">
                                 {/* Row 1: Image & Product Name */}
                                 <div className="flex items-start gap-4">
                                     <div className="relative group/img shrink-0 pt-1">

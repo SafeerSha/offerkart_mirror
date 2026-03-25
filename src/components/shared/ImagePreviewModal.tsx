@@ -4,6 +4,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 
 import { MarkedItem } from "@/lib/types/offer";
+import { MarkedPoster } from "./MarkedPoster";
 
 interface ImagePreviewModalProps {
     src: string;
@@ -29,27 +30,13 @@ export function ImagePreviewModal({ src, alt, isOpen, onClose, markedItems }: Im
                         </DialogPrimitive.Close>
 
                         <div className="relative inline-block max-w-full max-h-[80vh] rounded-2xl shadow-2xl overflow-hidden ring-1 ring-white/10">
-                            {/* Native img tag is used instead of next/image so the DOM container perfectly wraps the intrinsic aspect ratio, ensuring absolute overlay positioning correctly aligns! */}
-                            <img
+                            <MarkedPoster
                                 src={src}
                                 alt={alt}
-                                className="max-w-full max-h-[80vh] object-contain block select-none"
-                                onContextMenu={(e) => e.preventDefault()}
+                                markedItems={markedItems}
+                                className="max-h-[80vh] w-auto h-auto"
+                                showNames={false}
                             />
-
-                            {/* Exact Projection Overlay logic */}
-                            {markedItems && markedItems.map((item) => (
-                                <div
-                                    key={item.id}
-                                    className="absolute border-2 border-primary bg-primary/20 pointer-events-none z-10 shadow-[0_0_15px_rgba(0,0,0,0.5)]"
-                                    style={{
-                                        left: `${item.x * 100}%`,
-                                        top: `${item.y * 100}%`,
-                                        width: `${item.width * 100}%`,
-                                        height: `${item.height * 100}%`
-                                    }}
-                                />
-                            ))}
                         </div>
 
                         <div className="mt-4 text-center">

@@ -71,6 +71,44 @@ export const ALL_OFFERS = [
         shopName: "Artisan Coffee House",
         offerName: "Buy 2 Get 1 Free on All Drinks",
         image: coffeeShop,
+        posters: [
+            {
+                posterSrc: coffeeShop as any,
+                type: "marked_poster" as const,
+                markedItems: [
+                    {
+                        id: "m1",
+                        x: 0.2,
+                        y: 0.3,
+                        width: 0.15,
+                        height: 0.2,
+                        name: "Premium Espresso",
+                        description: "Rich and bold signature blend",
+                        productImage: "https://images.unsplash.com/photo-1510707577719-af7c182ac13d?q=80&w=200",
+                        currency: "₹",
+                        oldPrice: 350,
+                        offerPrice: 245,
+                        mainCategory: "Drinks",
+                        subcategories: ["Hot Coffee"]
+                    },
+                    {
+                        id: "m2",
+                        x: 0.55,
+                        y: 0.45,
+                        width: 0.2,
+                        height: 0.25,
+                        name: "Caramel Macchiato",
+                        description: "Sweet and creamy indulgence",
+                        productImage: "https://images.unsplash.com/photo-1485808191679-5f63bb36281e?q=80&w=200",
+                        currency: "₹",
+                        oldPrice: 420,
+                        offerPrice: 299,
+                        mainCategory: "Drinks",
+                        subcategories: ["Cold Coffee"]
+                    }
+                ]
+            }
+        ],
         category: "Food & Dining",
         location: "Downtown, Mumbai",
         validFrom: "2026-03-01",

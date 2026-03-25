@@ -41,7 +41,7 @@ export async function getOfferById(id: string) {
         description: "Experience the best services with our premium package. Valid on selected items.",
         reviews: 128,
         fullLocation: "123 Main St, Downtown, New York",
-        price: "$4.99",
-        originalPrice: "$7.49"
+        price: "₹4.99",
+        originalPrice: "₹7.49"
     };
 }

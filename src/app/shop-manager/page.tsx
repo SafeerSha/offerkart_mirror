@@ -48,6 +48,7 @@ import {
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import Image from "next/image";
+import { MarkedPoster } from "@/components/shared/MarkedPoster";
 import { useSearchParams, useRouter } from "next/navigation";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import { Switch } from "@/components/ui/switch";
@@ -919,7 +920,7 @@ function DashboardContent() {
             </div >
 
             {/* ──── Offers Date Range Popup ──── */}
-            < AppModal
+            <AppModal
                 open={showDatePopup}
                 onOpenChange={setShowDatePopup}
                 title="Filter Offers by Date"
@@ -1078,43 +1079,36 @@ function DashboardContent() {
                                             onClick={() => setPreviewLogo({ src: poster.posterSrc || '', name: `Poster ${index + 1}`, markedItems: poster.markedItems })}
                                             title="Click to preview"
                                         >
-                                            <Image src={poster.posterSrc} alt={`Poster ${index + 1}`} fill unoptimized className="object-cover transition-transform duration-300 group-hover/thumb:scale-105" />
-                                            <div className="absolute inset-0 bg-black/0 group-hover/thumb:bg-black/20 transition-colors flex items-center justify-center pointer-events-none">
+                                            <MarkedPoster
+                                                src={poster.posterSrc}
+                                                alt={`Poster ${index + 1}`}
+                                                markedItems={poster.markedItems}
+                                                className="w-full h-full"
+                                                showNames={false}
+                                            />
+                                            <div className="absolute inset-0 bg-black/0 group-hover/thumb:bg-black/20 transition-colors flex items-center justify-center pointer-events-none z-20">
                                                 <Eye className="w-6 h-6 text-white opacity-0 group-hover/thumb:opacity-100 transition-opacity drop-shadow-md" />
                                             </div>
 
-                                            {/* Preview Overlay Hotspots */}
-                                            {poster.markedItems && poster.markedItems.map((item: any) => (
-                                                <div
-                                                    key={item.id}
-                                                    className="absolute border border-primary bg-primary/20 pointer-events-none"
-                                                    style={{
-                                                        left: `${item.x * 100}%`,
-                                                        top: `${item.y * 100}%`,
-                                                        width: `${item.width * 100}%`,
-                                                        height: `${item.height * 100}%`
-                                                    }}
-                                                />
-                                            ))}
-
-                                            <div className="absolute top-1 left-1 bg-black/60 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md backdrop-blur-md z-10 pointer-events-none">
+                                            <div className="absolute top-1 left-1 bg-black/60 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md backdrop-blur-md z-30 pointer-events-none">
                                                 {index + 1}
                                             </div>
-
-                                            <div className="absolute top-1 right-1 z-20 md:opacity-0 md:group-hover/thumb:opacity-100 transition-opacity">
-                                                <button
-                                                    type="button"
-                                                    className="p-1.5 bg-black/40 text-white backdrop-blur-md rounded-md hover:bg-primary transition-colors"
-                                                    title="Edit Poster Type / Markings"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setPosterActionIndex(index);
-                                                    }}
-                                                >
-                                                    <Pencil className="w-3.5 h-3.5" />
-                                                </button>
-                                            </div>
                                         </div>
+
+                                        <div className="absolute top-1 right-1 z-20 md:opacity-0 md:group-hover/thumb:opacity-100 transition-opacity">
+                                            <button
+                                                type="button"
+                                                className="p-1.5 bg-black/40 text-white backdrop-blur-md rounded-md hover:bg-primary transition-colors"
+                                                title="Edit Poster Type / Markings"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setPosterActionIndex(index);
+                                                }}
+                                            >
+                                                <Pencil className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
+
 
                                         <div className="w-full text-center mb-2 px-1">
                                             <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider truncate">
@@ -1235,10 +1229,10 @@ function DashboardContent() {
                         </div>
                     </div>
                 </div>
-            </AppModal >
+            </AppModal>
 
             {/* ──── Delete Confirm Dialog ──── */}
-            < AppModal
+            <AppModal
                 open={!!offerToDelete}
                 onOpenChange={(open) => { if (!open) setOfferToDelete(null); }}
                 title="Delete Offer"
@@ -1265,19 +1259,19 @@ function DashboardContent() {
                         </PremiumButton>
                     </div>
                 </div>
-            </AppModal >
+            </AppModal>
 
             {/* ──── Poster Edit Action Modal ──── */}
-            < AppModal
+            <AppModal
                 open={posterActionIndex !== null}
                 onOpenChange={(open) => { if (!open) setPosterActionIndex(null); }}
                 title={
-                    posterActionIndex !== null && editPosters[posterActionIndex]?.type === 'marked_poster'
+                    posterActionIndex !== null && editPosters[posterActionIndex!]?.type === 'marked_poster'
                         ? "Edit Marked Poster"
                         : "Mark Products on Poster"
                 }
                 description={
-                    posterActionIndex !== null && editPosters[posterActionIndex]?.type === 'marked_poster'
+                    posterActionIndex !== null && editPosters[posterActionIndex!]?.type === 'marked_poster'
                         ? "This poster contains product hotspots. What would you like to do?"
                         : "This is a standard post. Do you want to add interactive product hotspots?"
                 }
@@ -1290,8 +1284,8 @@ function DashboardContent() {
                                     variant="outline"
                                     onClick={() => {
                                         const newPosters = [...editPosters];
-                                        newPosters[posterActionIndex] = {
-                                            ...newPosters[posterActionIndex],
+                                        newPosters[posterActionIndex!] = {
+                                            ...newPosters[posterActionIndex!],
                                             type: 'just_post',
                                             markedItems: []
                                         };
@@ -1306,7 +1300,7 @@ function DashboardContent() {
                                     onClick={() => {
                                         const idx = posterActionIndex;
                                         setPosterActionIndex(null);
-                                        handleEditSinglePoster(idx);
+                                        if (idx !== null) handleEditSinglePoster(idx);
                                     }}
                                     className="rounded-xl px-6"
                                     leftIcon={Pencil}
@@ -1336,7 +1330,7 @@ function DashboardContent() {
                         </>
                     )}
                 </div>
-            </AppModal >
+            </AppModal>
 
             {/* Image Preview Modal */}
             {
@@ -1350,7 +1344,7 @@ function DashboardContent() {
                     />
                 )
             }
-        </main >
+        </main>
     );
 }
 
