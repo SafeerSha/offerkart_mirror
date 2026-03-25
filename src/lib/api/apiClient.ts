@@ -39,6 +39,13 @@ export async function apiClient<T>(
         const result = await response.json();
 
         if (!response.ok) {
+            // Global 401 Intercept: If token is expired or invalid, force logout
+            if (response.status === 401 && typeof window !== "undefined") {
+                import("next-auth/react").then(({ signOut }) => {
+                    signOut({ callbackUrl: "/login" });
+                }).catch(console.error);
+            }
+
             return {
                 success: false,
                 error: result.message || result.error || "An error occurred during the request",

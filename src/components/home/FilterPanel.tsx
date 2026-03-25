@@ -14,38 +14,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const categories = [
-  "All",
-  "Food & Dining",
-  "Fashion",
-  "Wellness",
-  "Electronics",
-  "Jewelry",
-  "Fitness",
-  "Beauty",
-  "Home & Garden",
-  "Sports",
-  "Books",
-  "Automotive",
-  "Health",
-  "Education",
-];
+import { CATEGORY_HIERARCHY, MAIN_CATEGORIES } from "@/lib/categories";
 
-const subcategories = {
-  "Food & Dining": ["Restaurants", "Cafes", "Fast Food", "Bakeries"],
-  "Fashion": ["Clothing", "Shoes", "Accessories", "Boutiques"],
-  "Wellness": ["Spa", "Massage", "Yoga", "Ayurveda"],
-  "Electronics": ["Mobile", "TV", "Fridge", "Laptops"],
-  "Jewelry": ["Gold", "Silver", "Diamonds", "Watches"],
-  "Fitness": ["Gym", "Sports", "Equipment", "Classes"],
-  "Beauty": ["Salon", "Cosmetics", "Skincare", "Makeup"],
-  "Home & Garden": ["Furniture", "Decor", "Appliances", "Gardening"],
-  "Sports": ["Equipment", "Clothing", "Footwear", "Accessories"],
-  "Books": ["Fiction", "Non-Fiction", "Educational", "Comics"],
-  "Automotive": ["Parts", "Accessories", "Services", "Tools"],
-  "Health": ["Medicines", "Supplements", "Equipment", "Wellness"],
-  "Education": ["Books", "Online Courses", "Stationery", "Tutoring"],
-};
+const categories = ["All", ...MAIN_CATEGORIES];
+const subcategories = CATEGORY_HIERARCHY;
 
 const sortOptions = [
   { value: "latest", label: "Latest" },

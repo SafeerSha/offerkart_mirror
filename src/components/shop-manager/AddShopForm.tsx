@@ -37,6 +37,7 @@ import { Shop } from "@/lib/types/shop";
 import { useLocation } from "@/hooks/useLocation";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { ImagePreviewModal } from "@/components/shared/ImagePreviewModal";
+import Image from "next/image";
 
 const MapPicker = dynamic(() => import("@/components/shared/MapPicker"), {
     ssr: false,
@@ -79,9 +80,10 @@ type FormValues = z.infer<typeof formSchema>;
 
 export default function AddShopForm() {
     const router = useRouter();
-    const { data: session } = useSession();
+    const { data: session, update: updateSession } = useSession();
     const searchParams = useSearchParams();
     const shopId = searchParams.get('id');
+    const returnTo = searchParams.get('returnTo');
     const isEditMode = !!shopId;
 
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -250,7 +252,20 @@ export default function AddShopForm() {
 
             if (response.success || (response as any).status === "success" || (response as any).status === 200) {
                 toast.success(isEditMode ? "Shop updated successfully!" : "Shop added successfully!");
-                router.push("/shop-manager?tab=shops");
+
+                // Inject the newly created shop ID into the session so the
+                // create-offer page can fetch branches without a page reload
+                if (!isEditMode) {
+                    const newShopId =
+                        (response as any).data?.id ??
+                        (response as any).data?.shop_id ??
+                        (response as any).id;
+                    if (newShopId) {
+                        await updateSession({ shopId: String(newShopId) });
+                    }
+                }
+
+                router.push(returnTo || "/shop-manager?tab=shops");
             } else {
                 const errorMessage = response.error || (response as any).message || `Failed to ${isEditMode ? 'update' : 'add'} shop. Please check the details.`;
                 console.error("API Error:", errorMessage);
@@ -514,10 +529,12 @@ export default function AddShopForm() {
                             )}>
                                 {logoPreview ? (
                                     <>
-                                        <img
+                                        <Image
                                             src={logoPreview}
                                             alt="Logo preview"
-                                            className="w-full h-full object-cover relative z-10"
+                                            fill
+                                            className="object-cover relative z-10"
+                                            unoptimized
                                         />
                                         <div
                                             className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-20"

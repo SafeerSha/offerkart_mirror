@@ -1,20 +1,18 @@
 "use client";
 
-import { useState, useRef, useEffect, MouseEvent, TouchEvent, FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useRef, useEffect, MouseEvent, TouchEvent, FormEvent, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
-    ChevronLeft, Save, Info, Send, CheckSquare, Rocket, Zap,
+    ChevronLeft, ChevronRight, Save, Info, Send, CheckSquare, Rocket, Zap,
     Trash2, Eye, Plus, IndianRupee,
     Type, AlignLeft, RefreshCcw, Tag, ChevronDown, Check, Search,
-    CheckCircle2, AlertCircle, FileEdit, X,
+    CheckCircle2, AlertCircle, FileEdit, X, ArrowLeft,
     Image as ImageIcon
 } from "lucide-react";
 
-const CATEGORIES = [
-    "Food & Dining", "Fashion", "Electronics", "Wellness",
-    "Fitness", "Jewelry", "Beauty", "Grocery", "Other"
-];
-import { createWorker } from 'tesseract.js';
+import { CATEGORY_HIERARCHY, MAIN_CATEGORIES, MainCategory } from "@/lib/categories";
+import Image from "next/image";
+import { createWorker, Worker } from 'tesseract.js';
 import { Heading, Subheading, Text } from "@/components/shared/Typography";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import { PremiumCard } from "@/components/shared/PremiumCard";
@@ -24,6 +22,63 @@ import { AppModal } from "@/components/shared/AppModal";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { storage } from "@/lib/storage";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+
+// --- Image Preprocessing for OCR ---
+/**
+ * Preprocesses an image to improve OCR accuracy
+ * - Converts to grayscale
+ * - Increases contrast
+ * - Applies thresholding for cleaner text extraction
+ */
+async function preprocessImageForOCR(
+    canvas: HTMLCanvasElement,
+    ctx: CanvasRenderingContext2D
+): Promise<string> {
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+
+    // Calculate histogram for contrast enhancement
+    const grayValues: number[] = [];
+    for (let i = 0; i < data.length; i += 4) {
+        const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+        grayValues.push(gray);
+    }
+
+    // Find min and max for normalization
+    const minGray = Math.min(...grayValues);
+    const maxGray = Math.max(...grayValues);
+    const range = maxGray - minGray || 1;
+
+    // Apply grayscale and contrast enhancement
+    for (let i = 0; i < data.length; i += 4) {
+        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+
+        // Normalize to full range (contrast stretch)
+        let normalized = ((gray - minGray) / range) * 255;
+
+        // Apply slight gamma correction for better dynamic range
+        normalized = Math.pow(normalized / 255, 0.8) * 255;
+
+        // Apply thresholding for cleaner text (Otsu's method approximation)
+        const threshold = 128;
+        const isText = normalized < threshold;
+
+        // Preserve some gray for anti-aliasing, but strengthen contrast
+        if (normalized < 60) {
+            normalized = normalized * 0.7; // Darken shadows
+        } else if (normalized > 200) {
+            normalized = normalized * 0.9 + 25; // Brighten highlights
+        }
+
+        data[i] = normalized;     // R
+        data[i + 1] = normalized; // G
+        data[i + 2] = normalized; // B
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+    return canvas.toDataURL('image/png', 1.0);
+}
 
 // --- Types ---
 
@@ -34,7 +89,8 @@ interface MarkedItem {
     width: number;
     height: number;
     name: string;
-    category: string;
+    mainCategory: string;
+    subcategories: string[];
     description: string;
     productImage: string;
     oldPrice: number;
@@ -46,6 +102,7 @@ interface PosterData {
     posterSrc: string;
     markedItems: MarkedItem[];
     currency: string;
+    aspectRatio?: number;
 }
 
 interface Position { x: number; y: number; }
@@ -53,11 +110,23 @@ interface Rect { x: number; y: number; width: number; height: number; }
 
 // --- Component ---
 
-export default function HotspotEditorPage() {
+function HotspotEditorContent() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const fromPreview = searchParams.get('from') === 'preview';
+    const posterIndex = parseInt(searchParams.get('index') || '0', 10);
+
+    // Multi-poster state
+    const [allPosters, setAllPosters] = useState<any[]>([]);
+    const [activePosterIndex, setActivePosterIndex] = useState(0);
 
     // State
-    const [posterData, setPosterData] = useState<PosterData>({ posterSrc: '', markedItems: [], currency: 'BD' });
+    const [posterData, setPosterData] = useState<PosterData>({
+        posterSrc: '',
+        markedItems: [],
+        currency: '₹',
+        aspectRatio: undefined
+    });
     const [isDrawing, setIsDrawing] = useState(false);
     const [startPos, setStartPos] = useState<Position | null>(null);
     const [currentRect, setCurrentRect] = useState<Rect | null>(null);
@@ -67,15 +136,18 @@ export default function HotspotEditorPage() {
     const [isProcessing, setIsProcessing] = useState(false);
     const [highlightedId, setHighlightedId] = useState<string | null>(null);
 
-    // Form State
     const [formData, setFormData] = useState({
         name: '',
-        category: '',
+        mainCategory: '' as string,
+        subcategories: [] as string[],
         description: '',
         productImage: '',
         oldPrice: '',
         offerPrice: ''
     });
+
+    // Navigation Step State
+    const [popoverOpen, setPopoverOpen] = useState(false);
 
     // Publication State
     const [showPublishModal, setShowPublishModal] = useState(false);
@@ -90,6 +162,8 @@ export default function HotspotEditorPage() {
     const [showBackWarning, setShowBackWarning] = useState(false);
     const [categoryOpen, setCategoryOpen] = useState(false);
     const [categorySearch, setCategorySearch] = useState('');
+    const [mainCategoryOpen, setMainCategoryOpen] = useState(false);
+    const [mainCategorySearch, setMainCategorySearch] = useState('');
 
     // Refs
     const containerRef = useRef<HTMLDivElement>(null);
@@ -98,19 +172,65 @@ export default function HotspotEditorPage() {
     const cropperImgRef = useRef<HTMLImageElement>(null);
     const cropperContainerRef = useRef<HTMLDivElement>(null);
 
-    // Initial Load
+    // Initial Load — support both multi-poster and single-poster
     useEffect(() => {
-        const data = localStorage.getItem('currentEditingPoster');
-        if (data) {
-            const parsedData = JSON.parse(data);
-            setPosterData(parsedData);
-            if (parsedData.title) {
-                setOfferTitle(parsedData.title);
+        const loadInitialData = async () => {
+            const multiData = await storage.getItem<any[]>('currentEditingPosters');
+            const singleData = await storage.getItem<any>('currentEditingPoster');
+
+            if (multiData) {
+                setAllPosters(multiData);
+
+                // Load the specifically requested poster if fromPreview, otherwise find first interactive
+                const targetIndex = (fromPreview && posterIndex >= 0 && posterIndex < multiData.length)
+                    ? posterIndex
+                    : (multiData.findIndex((p: any) => p.type === 'mark_products') >= 0
+                        ? multiData.findIndex((p: any) => p.type === 'mark_products')
+                        : 0);
+
+                const activePoster = multiData[targetIndex];
+                setActivePosterIndex(targetIndex);
+                setPosterData({
+                    posterSrc: activePoster.posterSrc,
+                    markedItems: activePoster.markedItems || [],
+                    currency: '₹',
+                });
+                if (activePoster.title) setOfferTitle(activePoster.title);
+            } else if (singleData) {
+                setPosterData(singleData);
+                if (singleData.title) setOfferTitle(singleData.title);
+            } else {
+                router.push('/shop-manager/create-offer');
             }
-        } else {
-            router.push('/shop-manager/create-offer');
-        }
+        };
+        loadInitialData();
     }, [router]);
+
+    // Switch poster — saves current marked items before switching
+    const switchPoster = (index: number) => {
+        if (index === activePosterIndex || !allPosters.length) return;
+
+        // Save current poster's marked items
+        setAllPosters((prev) =>
+            prev.map((p, i) =>
+                i === activePosterIndex
+                    ? { ...p, markedItems: posterData.markedItems }
+                    : p
+            )
+        );
+
+        // Load new poster
+        const target = allPosters[index];
+        setActivePosterIndex(index);
+        setPosterData({
+            posterSrc: target.posterSrc,
+            markedItems: target.markedItems || [],
+            currency: '₹',
+        });
+        setHighlightedId(null);
+    };
+
+    // Jump functionality is now handled by Popover buttons
 
     // --- Drawing Logic ---
 
@@ -145,21 +265,21 @@ export default function HotspotEditorPage() {
             setIsDrawing(false);
             setCurrentRect(null);
             return;
-        }
-
-        setIsDrawing(false);
+        } setIsDrawing(false);
         const { x, y, width, height } = currentRect;
+        const container = containerRef.current;
+        if (!container) return;
 
-        // Calculate relative coordinates
-        const relX = x / imageSize.width;
-        const relY = y / imageSize.height;
-        const relW = width / imageSize.width;
-        const relH = height / imageSize.height;
+        // Calculate relative coordinates using real-time container dimensions
+        const relX = x / container.offsetWidth;
+        const relY = y / container.offsetHeight;
+        const relW = width / container.offsetWidth;
+        const relH = height / container.offsetHeight;
 
         const id = crypto.randomUUID();
         const tempItem: MarkedItem = {
             id, x: relX, y: relY, width: relW, height: relH,
-            name: 'Processing...', category: '', description: '', productImage: '',
+            name: 'Processing...', mainCategory: '', subcategories: [], description: '', productImage: '',
             oldPrice: 0, offerPrice: 0, currency: posterData.currency
         };
 
@@ -171,10 +291,11 @@ export default function HotspotEditorPage() {
         try {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d')!;
+            const container = containerRef.current!;
             const img = imgRef.current!;
 
-            const scaleX = img.naturalWidth / imageSize.width;
-            const scaleY = img.naturalHeight / imageSize.height;
+            const scaleX = img.naturalWidth / container.offsetWidth;
+            const scaleY = img.naturalHeight / container.offsetHeight;
 
             const sw = width * scaleX;
             const sh = height * scaleY;
@@ -184,30 +305,78 @@ export default function HotspotEditorPage() {
             ctx.drawImage(img, x * scaleX, y * scaleY, sw, sh, 0, 0, sw, sh);
             const croppedDataUrl = canvas.toDataURL();
 
-            const worker = await createWorker('ara+eng');
-            const { data: { text } } = await worker.recognize(croppedDataUrl);
+            // Step 1: Preprocess image for better OCR results
+            const processedDataUrl = await preprocessImageForOCR(canvas, ctx);
 
-            // Basic Price Extraction (same logic as MVP)
-            const priceMatches = text.match(/\d+\.\d+/g);
+            // Step 2: OCR — Extract raw text from the cropped image with enhanced settings
+            const worker = await createWorker('ara+eng', 1, {
+                logger: m => console.log('OCR Progress:', m),
+            });
+
+            // Set parameters for better accuracy (Tesseract.js v5+ uses LSTM by default)
+            await worker.setParameters({
+                tessedit_char_whitelist: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\s\u0600-\u06FF\u0750-\u077F.,%+-',
+            });
+
+            const { data: { text: ocrText, confidence } } = await worker.recognize(processedDataUrl);
+            await worker.terminate();
+
+            console.log('OCR Confidence:', confidence, 'Extracted text:', ocrText);
+
+            let extractedName = '';
+            let extractedDescription = '';
             let extractedOldPrice = 0;
             let extractedOfferPrice = 0;
 
-            if (priceMatches && priceMatches.length > 0) {
-                const prices = priceMatches.map(p => parseFloat(p)).filter(p => !isNaN(p));
-                if (prices.length >= 2) {
-                    const sorted = [...prices].sort((a, b) => b - a);
-                    extractedOldPrice = sorted[0];
-                    extractedOfferPrice = sorted[1];
+            // Step 2: AI — Parse the OCR text into structured fields
+            try {
+                const { askAI } = await import('@/lib/ai/aiClient');
+                const aiResult = await askAI<{
+                    brand?: string;
+                    productName?: string;
+                    description?: string;
+                    oldPrice?: number;
+                    offerPrice?: number;
+                }>(ocrText, 'extract product name, prices, description');
+
+                if (aiResult.success && aiResult.data) {
+                    const d = aiResult.data!;
+                    // Combine brand + product name intelligently
+                    extractedName = d.productName || '';
+                    if (d.brand && d.productName && !extractedName.toLowerCase().includes((d.brand || "").toLowerCase())) {
+                        extractedName = `${d.brand} ${d.productName}`;
+                    }
+                    extractedDescription = d.description || '';
+                    extractedOldPrice = d.oldPrice || 0;
+                    extractedOfferPrice = d.offerPrice || 0;
                 } else {
-                    extractedOfferPrice = prices[0];
-                    extractedOldPrice = prices[0];
+                    throw new Error(aiResult.error || 'AI parsing returned no data');
+                }
+            } catch (aiError) {
+                console.warn('AI parsing failed, using basic OCR fallback:', aiError);
+
+                // Fallback: basic text parsing (first line = name, full text = description)
+                extractedName = ocrText.split('\n')[0].trim() || 'Marked Product';
+                extractedDescription = ocrText.trim();
+
+                const priceMatches = ocrText.match(/\d+\.\d+/g);
+                if (priceMatches && priceMatches.length > 0) {
+                    const prices = priceMatches.map(p => parseFloat(p)).filter(p => !isNaN(p));
+                    if (prices.length >= 2) {
+                        const sorted = [...prices].sort((a, b) => b - a);
+                        extractedOldPrice = sorted[0];
+                        extractedOfferPrice = sorted[1];
+                    } else {
+                        extractedOfferPrice = prices[0];
+                        extractedOldPrice = prices[0];
+                    }
                 }
             }
 
             const updatedItem: MarkedItem = {
                 ...tempItem,
-                name: text.split('\n')[0].trim() || 'Marked Product',
-                description: text.trim(),
+                name: extractedName || 'Marked Product',
+                description: extractedDescription,
                 productImage: croppedDataUrl,
                 oldPrice: extractedOldPrice,
                 offerPrice: extractedOfferPrice
@@ -220,7 +389,6 @@ export default function HotspotEditorPage() {
 
             // Open Modal for refinement
             handleEditItem(updatedItem);
-            await worker.terminate();
         } catch (err) {
             console.error("OCR Error:", err);
             toast.error("AI extraction failed. Please enter details manually.");
@@ -236,7 +404,8 @@ export default function HotspotEditorPage() {
         setCurrentMarkedItem(item);
         setFormData({
             name: item.name === 'Processing...' ? '' : item.name,
-            category: item.category || '',
+            mainCategory: item.mainCategory || '',
+            subcategories: item.subcategories || [],
             description: item.description,
             productImage: item.productImage,
             oldPrice: item.oldPrice ? String(item.oldPrice) : '',
@@ -262,7 +431,8 @@ export default function HotspotEditorPage() {
         const updatedItem: MarkedItem = {
             ...currentMarkedItem,
             name: formData.name,
-            category: formData.category,
+            mainCategory: formData.mainCategory,
+            subcategories: formData.subcategories,
             description: formData.description,
             productImage: formData.productImage,
             oldPrice: parseFloat(formData.oldPrice) || 0,
@@ -356,13 +526,33 @@ export default function HotspotEditorPage() {
     };
 
     const confirmPublish = async () => {
-        if (!offerTitle.trim()) {
+        if (!offerTitle.trim() && !fromPreview) {
             toast.error("Please enter an offer title");
             return;
         }
 
-        const existingData = localStorage.getItem('markedPosters');
-        let allPosters = existingData ? JSON.parse(existingData) : [];
+        if (fromPreview) {
+            try {
+                const stack = await storage.getItem<any[]>('poster_stack_resume') || [];
+                if (stack[posterIndex]) {
+                    stack[posterIndex] = {
+                        ...stack[posterIndex],
+                        markedItems: posterData.markedItems,
+                        type: 'marked_poster'
+                    };
+                    await storage.setItem('poster_stack_resume', stack);
+                    toast.success("Poster markings updated");
+                    router.push(`/shop-manager/create-offer?resume=true&previewIndex=${posterIndex}`);
+                    return;
+                }
+            } catch (err) {
+                console.error("Failed to update poster stack:", err);
+                toast.error("Failed to save changes to stack");
+            }
+        }
+
+        const existingData = await storage.getItem<any[]>('markedPosters');
+        let allPostersArr = existingData || [];
 
         const finalPosterData = {
             ...posterData,
@@ -372,11 +562,12 @@ export default function HotspotEditorPage() {
             status: 'active'
         };
 
-        allPosters.push(finalPosterData);
-        localStorage.setItem('markedPosters', JSON.stringify(allPosters));
+        allPostersArr.push(finalPosterData);
+        await storage.setItem('markedPosters', allPostersArr);
 
         // Remove from current editing and also from drafts if it was one
-        localStorage.removeItem('currentEditingPoster');
+        await storage.removeItem('currentEditingPoster');
+        await storage.removeItem('currentEditingPosters');
 
         try {
             const draftsArr = await storage.getItem<any[]>('offerDrafts') || [];
@@ -392,8 +583,25 @@ export default function HotspotEditorPage() {
 
     const handleSaveDraft = async () => {
         try {
+            if (fromPreview) {
+                // For preview flow, saving draft is essentially updating the stack
+                const stack = await storage.getItem<any[]>('poster_stack_resume') || [];
+                if (stack[posterIndex]) {
+                    stack[posterIndex] = {
+                        ...stack[posterIndex],
+                        markedItems: posterData.markedItems,
+                        type: 'marked_poster'
+                    };
+                    await storage.setItem('poster_stack_resume', stack);
+                    toast.success("Draft updated in stack");
+                    router.push(`/shop-manager/create-offer?resume=true&previewIndex=${posterIndex}`);
+                    return;
+                }
+            }
+
             const existingDrafts = await storage.getItem<any[]>('offerDrafts') || [];
             let allDrafts = [...existingDrafts];
+            // ... (rest of existing logic)
 
             const draftId = (posterData as any).id || crypto.randomUUID();
             const draftTitle = offerTitle || `Untitled Draft - ${new Date().toLocaleDateString()}`;
@@ -415,7 +623,8 @@ export default function HotspotEditorPage() {
             }
 
             await storage.setItem('offerDrafts', allDrafts);
-            localStorage.removeItem('currentEditingPoster');
+            await storage.removeItem('currentEditingPoster');
+            await storage.removeItem('currentEditingPosters');
             toast.success("Draft saved successfully!");
             router.push('/shop-manager/create-offer');
         } catch (error) {
@@ -432,8 +641,14 @@ export default function HotspotEditorPage() {
                 const filtered = draftsArr.filter((d: any) => d.id !== draftId);
                 await storage.setItem('offerDrafts', filtered);
             }
-            localStorage.removeItem('currentEditingPoster');
+            await storage.removeItem('currentEditingPoster');
+            await storage.removeItem('currentEditingPosters');
             toast.success("Changes discarded");
+
+            if (fromPreview) {
+                router.push(`/shop-manager/create-offer?resume=true&previewIndex=${posterIndex}`);
+                return;
+            }
             router.push('/shop-manager/create-offer');
         } catch (error) {
             console.error("Failed to discard session:", error);
@@ -445,7 +660,7 @@ export default function HotspotEditorPage() {
         <div className="min-h-screen bg-background">
             <div className="h-16 lg:h-32" />
 
-            <main className="container mx-auto px-4 py-4 relative">
+            <main className="max-w-7xl mx-auto px-4 py-4 relative">
                 <Breadcrumbs
                     items={[
                         { label: "Dashboard", href: "/shop-manager" },
@@ -464,54 +679,118 @@ export default function HotspotEditorPage() {
                             </div>
 
                             <div className="flex gap-3 shrink-0">
-                                <PremiumButton variant="outline" onClick={() => setShowBackWarning(true)} leftIcon={ChevronLeft}>
-                                    Back
-                                </PremiumButton>
                                 <PremiumButton
                                     variant="outline"
-                                    onClick={handleSaveDraft}
-                                    leftIcon={Save}
+                                    onClick={() => fromPreview ? handleDiscardSession() : setShowBackWarning(true)}
+                                    leftIcon={fromPreview ? Trash2 : ChevronLeft}
                                 >
-                                    Save Draft
+                                    {fromPreview ? "Cancel" : "Back"}
                                 </PremiumButton>
+                                {!fromPreview && (
+                                    <PremiumButton
+                                        variant="outline"
+                                        onClick={handleSaveDraft}
+                                        leftIcon={Save}
+                                    >
+                                        Save Draft
+                                    </PremiumButton>
+                                )}
                                 <PremiumButton
                                     variant="default"
-                                    onClick={handleFinish}
-                                    leftIcon={Send}
+                                    onClick={confirmPublish}
+                                    leftIcon={fromPreview ? Check : Send}
                                     disabled={posterData.markedItems.length === 0}
                                 >
-                                    Publish Offer
+                                    {fromPreview ? "Finish" : "Publish Offer"}
                                 </PremiumButton>
                             </div>
                         </div>
 
-                        <div className="max-w-2xl">
-                            <div className="relative group">
-                                <div className="absolute left-4 top-1/2 -translate-y-1/2">
-                                    <Type className="w-4 h-4 text-primary group-focus-within:scale-110 transition-transform" />
-                                </div>
-                                <input
-                                    type="text"
-                                    value={offerTitle}
-                                    onChange={(e) => setOfferTitle(e.target.value)}
-                                    className="w-full bg-card/50 border border-border/50 rounded-2xl pl-11 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium text-lg placeholder:opacity-90"
-                                    placeholder="Enter Offer Campaign Title..."
-                                />
-                                {offerTitle && (
-                                    <button
-                                        onClick={() => setOfferTitle('')}
-                                        className="absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full transition-colors"
-                                    >
-                                        <X className="w-3 h-3 opacity-40" />
-                                    </button>
-                                )}
+                        {/* Navigation Row */}
+                        <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-primary/5 border border-primary/20 rounded-2xl">
+                            <div className="flex items-center gap-3">
+                                <PremiumButton
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-9 px-3 text-xs font-bold"
+                                    onClick={() => switchPoster(activePosterIndex - 1)}
+                                    disabled={activePosterIndex === 0}
+                                    leftIcon={ChevronLeft}
+                                >
+                                    Prev
+                                </PremiumButton>
+
+                                <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+                                    <PopoverTrigger asChild>
+                                        <button className="flex items-center gap-2 px-3 py-1 bg-white/50 backdrop-blur-md rounded-xl border border-primary/10 hover:bg-white/80 hover:border-primary/30 transition-all group">
+                                            <span className="text-[10px] font-black uppercase opacity-40 group-hover:opacity-60">Poster</span>
+                                            <span className="w-8 text-center font-black text-sm text-primary">
+                                                {activePosterIndex + 1}
+                                            </span>
+                                            <span className="text-[10px] font-black uppercase opacity-40 group-hover:opacity-60">of {allPosters.length}</span>
+                                        </button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-56 p-3 bg-white shadow-xl" side="top" align="center">
+                                        <div className="space-y-3">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Jump to Poster</span>
+                                                <span className="text-[10px] font-medium text-muted-foreground">{allPosters.length} Total</span>
+                                            </div>
+                                            <div className="grid grid-cols-5 gap-1">
+                                                {allPosters.map((_, i) => (
+                                                    <button
+                                                        key={i}
+                                                        onClick={() => {
+                                                            switchPoster(i);
+                                                            setPopoverOpen(false);
+                                                        }}
+                                                        className={cn(
+                                                            "w-8 h-5 rounded-xl text-xs font-black transition-all flex items-center justify-center",
+                                                            i === activePosterIndex
+                                                                ? "bg-primary text-gradient shadow-lg shadow-primary/30 scale-110 z-10"
+                                                                : "text-black/60 hover:bg-primary/10 hover:text-primary"
+                                                        )}
+                                                    >
+                                                        {i + 1}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </PopoverContent>
+                                </Popover>
+
+                                <PremiumButton
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-9 px-3 text-xs font-bold"
+                                    onClick={() => switchPoster(activePosterIndex + 1)}
+                                    disabled={activePosterIndex === allPosters.length - 1}
+                                    rightIcon={ChevronRight}
+                                >
+                                    Next
+                                </PremiumButton>
                             </div>
+
+                            {fromPreview && (
+                                <PremiumButton
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-9 px-4 text-xs font-bold border-primary/30 text-primary hover:bg-primary/5"
+                                    onClick={() => router.push(`/shop-manager/create-offer?resume=true&previewIndex=${activePosterIndex}`)}
+                                    leftIcon={ArrowLeft}
+                                >
+                                    Back to Publish
+                                </PremiumButton>
+                            )}
                         </div>
+
+
 
                         <PremiumCard className="relative overflow-hidden bg-black/5 border-primary/20 p-2 sm:p-4">
                             <div
                                 ref={containerRef}
                                 className="relative w-full cursor-crosshair select-none overflow-hidden rounded-2xl"
+                                style={{ aspectRatio: posterData.aspectRatio ? `${posterData.aspectRatio}` : 'auto' }}
                                 onMouseDown={handlePointerDown}
                                 onMouseMove={handlePointerMove}
                                 onMouseUp={handlePointerUp}
@@ -520,12 +799,22 @@ export default function HotspotEditorPage() {
                                 onTouchEnd={handlePointerUp}
                             >
                                 {posterData.posterSrc && (
-                                    <img
+                                    <Image
                                         ref={imgRef}
                                         src={posterData.posterSrc}
                                         alt="Poster"
+                                        width={1200}
+                                        height={1200}
+                                        unoptimized
                                         className="w-full h-auto block rounded-2xl"
-                                        onLoad={() => setImageSize({ width: imgRef.current!.offsetWidth, height: imgRef.current!.offsetHeight })}
+                                        onLoad={() => {
+                                            const ratio = (imgRef.current?.naturalWidth || 1) / (imgRef.current?.naturalHeight || 1);
+                                            setPosterData(prev => ({ ...prev, aspectRatio: ratio }));
+                                            setImageSize({
+                                                width: imgRef.current?.offsetWidth || 0,
+                                                height: imgRef.current?.offsetHeight || 0
+                                            });
+                                        }}
                                         draggable={false}
                                     />
                                 )}
@@ -580,9 +869,55 @@ export default function HotspotEditorPage() {
                                 )}
                             </div>
                         </PremiumCard>
-                    </div>
 
-                    {/* Sidebar: Marked Items List */}
+                        {/* Multi-poster thumbnail navigator strip */}
+                        {allPosters.length > 1 && (
+                            <div className="mt-6">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Text className="text-xs font-black uppercase tracking-widest opacity-40">
+                                        All Posters ({activePosterIndex + 1} of {allPosters.length})
+                                    </Text>
+                                </div>
+                                <div className="flex items-center gap-4 overflow-x-auto py-4 px-2 scrollbar-hide">
+                                    {allPosters.map((poster, idx) => (
+                                        <button
+                                            key={poster.id}
+                                            onClick={() => switchPoster(idx)}
+                                            className={cn(
+                                                "relative w-20 h-28 sm:w-24 sm:h-32 rounded-2xl overflow-hidden border-2 transition-all duration-300 shrink-0 group",
+                                                idx === activePosterIndex
+                                                    ? "border-primary ring-4 ring-primary/20 scale-105 z-10 shadow-xl shadow-primary/20"
+                                                    : "border-border/40 hover:border-primary/30 opacity-60 hover:opacity-100"
+                                            )}
+                                        >
+                                            <Image
+                                                src={poster.posterSrc}
+                                                alt={`Poster ${idx + 1}`}
+                                                fill
+                                                unoptimized
+                                                className="object-cover"
+                                            />
+                                            {/* Type badge */}
+                                            <div className={cn(
+                                                "absolute bottom-2 left-2 right-2 text-[9px] font-black uppercase text-center h-5 flex items-center justify-center rounded-lg backdrop-blur-md shadow-lg",
+                                                poster.type === "mark_products"
+                                                    ? "bg-primary text-white"
+                                                    : "bg-black/60 text-white"
+                                            )}>
+                                                {poster.type === "mark_products" ? "Mark" : "Post"}
+                                            </div>
+                                            {/* Done badge */}
+                                            {poster.markedItems && poster.markedItems.length > 0 && idx !== activePosterIndex && (
+                                                <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center shadow-lg border-2 border-white z-20 animate-in zoom-in duration-300">
+                                                    <Check className="w-3 h-3 text-white" />
+                                                </div>
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
                     <div className="w-full xl:w-96 space-y-6">
                         <PremiumCard className="p-6">
                             <div className="flex items-center justify-between mb-6">
@@ -607,7 +942,7 @@ export default function HotspotEditorPage() {
                                     </Text>
                                 </div>
                             ) : (
-                                <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                                <div className="grid grid-cols-2 gap-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
                                     {posterData.markedItems.map((item, idx) => (
                                         <div
                                             key={item.id}
@@ -621,7 +956,7 @@ export default function HotspotEditorPage() {
                                         >
                                             <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-black/10 shrink-0">
                                                 {item.productImage ? (
-                                                    <img src={item.productImage} className="w-full h-full object-cover" alt="" />
+                                                    <Image src={item.productImage} fill unoptimized className="object-cover" alt="" />
                                                 ) : (
                                                     <div className="w-full h-full flex items-center justify-center text-xs opacity-30">#{idx + 1}</div>
                                                 )}
@@ -632,6 +967,23 @@ export default function HotspotEditorPage() {
                                                     <span className="text-xs line-through opacity-40">{item.currency} {item.oldPrice}</span>
                                                     <span className="text-sm font-bold text-green-500">{item.currency} {item.offerPrice}</span>
                                                 </div>
+                                                {formData.mainCategory && (
+                                                    <div className="flex flex-wrap gap-1 mt-1.5 auto-rows-min">
+                                                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-black whitespace-nowrap uppercase">
+                                                            {formData.mainCategory}
+                                                        </span>
+                                                        {formData.subcategories && formData.subcategories.slice(0, 1).map(cat => (
+                                                            <span key={cat} className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/5 text-primary border border-primary/10 font-bold whitespace-nowrap">
+                                                                {cat}
+                                                            </span>
+                                                        ))}
+                                                        {formData.subcategories && formData.subcategories.length > 1 && (
+                                                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border font-bold">
+                                                                +{formData.subcategories.length - 1}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); handleDeleteItem(item.id); }}
                                                     className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 p-1.5 text-destructive rounded-lg hover:bg-destructive/10 transition-all"
@@ -667,215 +1019,272 @@ export default function HotspotEditorPage() {
                         </PremiumCard>
                     </div>
                 </div>
+            </main>
 
-                {/* --- Edit Modal --- */}
-                {showModal && currentMarkedItem && (
-                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-[100] px-4 py-8 md:py-12">
-                        <PremiumCard className="w-full max-w-2xl lg:max-w-3xl p-0 overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 my-auto max-h-[calc(100vh-4rem)] md:max-h-[calc(100vh-6rem)] flex flex-col bg-white">
-                            <form onSubmit={handleSaveForm} className="flex flex-col flex-1 overflow-hidden">
-                                <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-white shrink-0">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-orange-50 rounded-lg">
-                                            <FileEdit className="w-5 h-5 text-primary" />
-                                        </div>
-                                        <Subheading className="m-0">Refine Item Details</Subheading>
+            {/* --- Edit Modal --- */}
+            {showModal && currentMarkedItem && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex justify-center items-center z-[100] p-4 md:p-8">
+                    <PremiumCard className="w-full max-w-2xl lg:max-w-3xl p-0 overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col bg-white max-h-[85vh] md:max-h-[90vh]">
+                        <form onSubmit={handleSaveForm} className="flex flex-col flex-1 overflow-hidden">
+                            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-white shrink-0">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-orange-50 rounded-lg">
+                                        <FileEdit className="w-5 h-5 text-primary" />
                                     </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => { setShowModal(false); setHighlightedId(null); }}
-                                        className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                                    >
-                                        <X className="w-5 h-5" />
-                                    </button>
+                                    <Subheading className="m-0">Refine Item Details</Subheading>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => { setShowModal(false); setHighlightedId(null); }}
+                                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            <div className="px-6 py-6 space-y-6 overflow-y-auto custom-scrollbar flex-1 min-h-0 bg-white">
+                                {/* Row 1: Image & Product Name */}
+                                <div className="flex items-start gap-4">
+                                    <div className="relative group/img shrink-0 pt-1">
+                                        <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-50 shadow-sm border border-gray-200 group-hover/img:border-orange-400 transition-all duration-300">
+                                            {formData.productImage ? (
+                                                <Image src={formData.productImage} fill unoptimized className="object-cover" alt="" />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center">
+                                                    <ImageIcon className="w-6 h-6 text-gray-200" />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={startProductImageUpload}
+                                            className="absolute inset-0 bg-black/40 text-white opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition-all duration-300 rounded-xl"
+                                        >
+                                            <RefreshCcw className="w-4 h-4" />
+                                        </button>
+                                        <input
+                                            ref={productFileInputRef}
+                                            type="file" accept="image/*" className="hidden"
+                                            onChange={handleProductFileChange}
+                                        />
+                                    </div>
+
+                                    <div className="flex-1">
+                                        <PremiumInput
+                                            label="Product Name"
+                                            icon={Type}
+                                            value={formData.name}
+                                            required
+                                            onChange={(e) => setFormData(p => ({ ...p, name: e.target.value }))}
+                                            placeholder="e.g. Delicious Weekend Brunch"
+                                            className="h-12 text-black font-semibold"
+                                        />
+                                    </div>
                                 </div>
 
-                                <div className="px-6 py-4 space-y-4 overflow-y-auto custom-scrollbar flex-1 bg-white">
-                                    {/* Product Image Section - Minimal */}
-                                    <div className="flex items-center gap-5 p-4 bg-gray-50 rounded-2xl border border-gray-100 group transition-all duration-300">
-
-                                        <div className="relative group/img shrink-0">
-                                            <div className="w-20 h-20 rounded-xl overflow-hidden bg-white shadow-sm border border-gray-200 group-hover/img:border-orange-400 transition-all duration-300">
-                                                {formData.productImage ? (
-                                                    <img src={formData.productImage} className="w-full h-full object-cover" alt="" />
-                                                ) : (
-                                                    <div className="w-full h-full flex items-center justify-center">
-                                                        <ImageIcon className="w-8 h-8 text-gray-200" />
-                                                    </div>
-                                                )}
+                                {/* Row 2: Categories */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2 relative">
+                                        <label className="text-xs font-semibold text-black flex items-center gap-2 px-1">
+                                            <Tag className="w-3.5 h-3.5 text-black" /> Main Category
+                                        </label>
+                                        <button
+                                            type="button"
+                                            onClick={() => { setMainCategoryOpen(!mainCategoryOpen); setMainCategorySearch(''); }}
+                                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 h-12 focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-300 transition-all font-bold text-sm text-left flex items-center justify-between cursor-pointer hover:border-gray-300"
+                                        >
+                                            <div className={cn("flex-1 truncate", formData.mainCategory && "text-black")}>
+                                                {formData.mainCategory || <span className="text-gray-400 font-medium">Select...</span>}
                                             </div>
-                                            <button
-                                                type="button"
-                                                onClick={startProductImageUpload}
-                                                className="absolute inset-0 bg-black/40 text-white opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition-all duration-300 rounded-xl backdrop-blur-[1px]"
-                                            >
-                                                <RefreshCcw className="w-5 h-5" />
-                                            </button>
-                                            <input
-                                                ref={productFileInputRef}
-                                                type="file" accept="image/*" className="hidden"
-                                                onChange={handleProductFileChange}
-                                            />
-                                        </div>
+                                            <ChevronDown className={cn("w-4 h-4 text-gray-400 shrink-0 transition-transform ml-2", mainCategoryOpen && "rotate-180")} />
+                                        </button>
 
-                                        <div className="flex-1">
-                                            <h4 className="text-sm font-bold text-gray-800 mb-1">Product Image</h4>
-                                            <button
-                                                type="button"
-                                                onClick={startProductImageUpload}
-                                                className="inline-flex items-center gap-1.5 text-xs font-bold text-orange-600 hover:text-orange-700 transition-colors"
-                                            >
-                                                <RefreshCcw className="w-3.5 h-3.5" /> Change Image
-                                            </button>
-                                        </div>
+                                        {mainCategoryOpen && (
+                                            <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-[110] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                                <div className="flex items-center gap-2 px-3 py-2.5 border-b border-gray-100">
+                                                    <Search className="w-3.5 h-3.5 text-gray-400" />
+                                                    <input
+                                                        type="text"
+                                                        value={mainCategorySearch}
+                                                        onChange={(e) => setMainCategorySearch(e.target.value)}
+                                                        placeholder="Search..."
+                                                        className="flex-1 text-sm outline-none bg-transparent placeholder:text-gray-400 text-black font-medium"
+                                                        autoFocus
+                                                    />
+                                                </div>
+                                                <div className="max-h-48 overflow-y-auto">
+                                                    {MAIN_CATEGORIES.filter(cat => cat.toLowerCase().includes(mainCategorySearch.toLowerCase())).map(cat => (
+                                                        <button
+                                                            key={cat}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setFormData(p => ({ ...p, mainCategory: cat, subcategories: [] }));
+                                                                setMainCategoryOpen(false);
+                                                            }}
+                                                            className={cn(
+                                                                "w-full text-left px-4 py-2.5 text-sm flex items-center justify-between hover:bg-gray-50 transition-colors cursor-pointer text-gray-700",
+                                                                formData.mainCategory === cat && "bg-gray-50 font-bold text-black"
+                                                            )}
+                                                        >
+                                                            {cat}
+                                                            {formData.mainCategory === cat && <Check className="w-4 h-4 text-black" />}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
 
-                                    <div className="space-y-5">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <PremiumInput
-                                                label="Product Name"
-                                                icon={Type}
-                                                value={formData.name}
-                                                required
-                                                onChange={(e) => setFormData(p => ({ ...p, name: e.target.value }))}
-                                                placeholder="e.g. Delicious Weekend Brunch"
-                                                className="h-12"
-                                            />
-
-                                            <div className="space-y-2 relative">
-                                                <label className="text-xs font-semibold text-gray-600 flex items-center gap-2 px-1">
-                                                    <Tag className="w-3.5 h-3.5 text-orange-500" /> Category
-                                                </label>
+                                    <div className="space-y-2 relative">
+                                        <label className="text-xs font-semibold text-black flex items-center gap-2 px-1">
+                                            <CheckSquare className="w-3.5 h-3.5 text-black" /> Subcategories
+                                        </label>
+                                        {formData.mainCategory ? (
+                                            <>
                                                 <button
                                                     type="button"
                                                     onClick={() => { setCategoryOpen(!categoryOpen); setCategorySearch(''); }}
-                                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-300 transition-all font-medium text-sm text-left flex items-center justify-between cursor-pointer hover:border-gray-300"
+                                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 h-12 focus:outline-none focus:ring-2 focus:ring-gray-100 focus:border-gray-200 transition-all font-bold text-sm text-left flex items-center justify-between cursor-pointer hover:border-gray-300"
                                                 >
-                                                    <span className={formData.category ? 'text-gray-800' : 'text-gray-400'}>
-                                                        {formData.category || 'Select a category'}
-                                                    </span>
-                                                    <ChevronDown className={cn("w-4 h-4 text-gray-400 transition-transform", categoryOpen && "rotate-180")} />
+                                                    <div className={cn("flex-1 truncate", formData.subcategories.length > 0 && "text-black font-bold text-xs")}>
+                                                        {formData.subcategories.length === 0 ? (
+                                                            <span className="text-gray-400 font-medium">Select...</span>
+                                                        ) : (
+                                                            formData.subcategories.join(", ")
+                                                        )}
+                                                    </div>
+                                                    <ChevronDown className={cn("w-4 h-4 text-gray-400 shrink-0 transition-transform ml-2", categoryOpen && "rotate-180")} />
                                                 </button>
+
                                                 {categoryOpen && (
-                                                    <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
+                                                    <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-[110] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                                                         <div className="flex items-center gap-2 px-3 py-2.5 border-b border-gray-100">
                                                             <Search className="w-3.5 h-3.5 text-gray-400" />
                                                             <input
                                                                 type="text"
                                                                 value={categorySearch}
                                                                 onChange={(e) => setCategorySearch(e.target.value)}
-                                                                placeholder="Search categories..."
-                                                                className="flex-1 text-sm outline-none bg-transparent placeholder:text-gray-400 text-gray-800"
+                                                                placeholder="Search..."
+                                                                className="flex-1 text-sm outline-none bg-transparent placeholder:text-gray-400 text-black font-medium"
                                                                 autoFocus
                                                             />
                                                         </div>
                                                         <div className="max-h-48 overflow-y-auto">
-                                                            {CATEGORIES.filter(c => c.toLowerCase().includes(categorySearch.toLowerCase())).map(cat => (
-                                                                <button
-                                                                    key={cat}
-                                                                    type="button"
-                                                                    onClick={() => {
-                                                                        setFormData(p => ({ ...p, category: cat }));
-                                                                        setCategoryOpen(false);
-                                                                        setCategorySearch('');
-                                                                    }}
-                                                                    className={cn(
-                                                                        "w-full text-left px-4 py-2.5 text-sm flex items-center justify-between hover:bg-orange-50 transition-colors cursor-pointer text-gray-700",
-                                                                        formData.category === cat && "bg-orange-50 font-semibold text-orange-600"
-                                                                    )}
-                                                                >
-                                                                    {cat}
-                                                                    {formData.category === cat && <Check className="w-4 h-4 text-orange-500" />}
-                                                                </button>
-                                                            ))}
-                                                            {CATEGORIES.filter(c => c.toLowerCase().includes(categorySearch.toLowerCase())).length === 0 && (
-                                                                <p className="px-4 py-3 text-xs text-center text-gray-400">No matching categories</p>
-                                                            )}
+                                                            {CATEGORY_HIERARCHY[formData.mainCategory as MainCategory].filter(s => s.toLowerCase().includes(categorySearch.toLowerCase())).map(sub => {
+                                                                const isSelected = formData.subcategories.includes(sub);
+                                                                return (
+                                                                    <button
+                                                                        key={sub}
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setFormData(p => ({
+                                                                                ...p,
+                                                                                subcategories: isSelected
+                                                                                    ? p.subcategories.filter(s => s !== sub)
+                                                                                    : [...p.subcategories, sub]
+                                                                            }));
+                                                                        }}
+                                                                        className={cn(
+                                                                            "w-full text-left px-4 py-2.5 text-sm flex items-center justify-between hover:bg-gray-50 transition-colors cursor-pointer text-gray-700",
+                                                                            isSelected && "bg-gray-50 font-bold text-black"
+                                                                        )}
+                                                                    >
+                                                                        {sub}
+                                                                        {isSelected && <Check className="w-4 h-4 text-black" />}
+                                                                    </button>
+                                                                );
+                                                            })}
                                                         </div>
                                                     </div>
                                                 )}
+                                            </>
+                                        ) : (
+                                            <div className="w-full bg-gray-50/50 border border-gray-100 rounded-xl px-4 py-3 h-12 text-sm text-gray-400 italic">
+                                                Select main category first
                                             </div>
-                                        </div>
+                                        )}
+                                    </div>
+                                </div>
 
-                                        <div className="space-y-2">
-                                            <div className="flex items-center justify-between px-1">
-                                                <label className="text-xs font-semibold text-gray-600 flex items-center gap-2">
-                                                    <AlignLeft className="w-3.5 h-3.5 text-orange-500" /> Full Description
-                                                </label>
-                                                {/* <button
-                                                    type="button" onClick={handleAIFill}
-                                                    className="text-[11px] font-bold text-primary hover:text-primary/70 flex items-center gap-1 transition-colors"
-                                                >
-                                                    <Zap className="w-3 h-3" /> AI PRICE REFILL
-                                                </button> */}
-                                            </div>
-                                            <textarea
-                                                value={formData.description} rows={3}
-                                                onChange={(e) => setFormData(p => ({ ...p, description: e.target.value }))}
-                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-300 transition-all text-sm text-gray-800 min-h-[100px] resize-none placeholder:text-gray-400"
-                                                placeholder="Paste any additional details or let the AI fill it..."
+                                {/* Row 3: Pricing */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-semibold text-black flex items-center gap-2 px-1">
+                                            <IndianRupee className="w-3.5 h-3.5 text-black" /> Old Price
+                                        </label>
+                                        <div className="relative group">
+                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 group-focus-within:text-black transition-colors">₹</span>
+                                            <input
+                                                type="number" step="0.01" value={formData.oldPrice}
+                                                onChange={(e) => setFormData(p => ({ ...p, oldPrice: e.target.value }))}
+                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-300 transition-all font-bold text-sm text-black h-12"
                                             />
                                         </div>
-
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-semibold text-red-500 flex items-center gap-2 px-1">
-                                                    <IndianRupee className="w-3.5 h-3.5" /> Old Price
-                                                </label>
-                                                <div className="relative group">
-                                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 group-focus-within:text-gray-600 transition-colors">₹</span>
-                                                    <input
-                                                        type="number" step="0.01" value={formData.oldPrice}
-                                                        onChange={(e) => setFormData(p => ({ ...p, oldPrice: e.target.value }))}
-                                                        className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-300 transition-all font-semibold text-sm text-gray-800"
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-semibold text-green-600 flex items-center gap-2 px-1">
-                                                    <IndianRupee className="w-3.5 h-3.5" /> Offer Price
-                                                </label>
-                                                <div className="relative group">
-                                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 group-focus-within:text-green-600 transition-colors">₹</span>
-                                                    <input
-                                                        type="number" step="0.01" value={formData.offerPrice}
-                                                        onChange={(e) => setFormData(p => ({ ...p, offerPrice: e.target.value }))}
-                                                        className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-300 transition-all font-semibold text-sm text-green-700"
-                                                    />
-                                                </div>
-                                            </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-semibold text-black flex items-center gap-2 px-1">
+                                            <IndianRupee className="w-3.5 h-3.5 text-black" /> Offer Price
+                                        </label>
+                                        <div className="relative group">
+                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 group-focus-within:text-black transition-colors">₹</span>
+                                            <input
+                                                type="number" step="0.01" value={formData.offerPrice}
+                                                onChange={(e) => setFormData(p => ({ ...p, offerPrice: e.target.value }))}
+                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-300 transition-all font-bold text-sm text-black h-12"
+                                            />
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="px-6 py-3.5 bg-gray-50 border-t border-gray-200 flex flex-col gap-3 shrink-0">
-                                    <div className="flex gap-3">
-                                        <PremiumButton type="submit" variant="default" className="flex-1 h-12 rounded-2xl shadow-lg shadow-primary/20" leftIcon={CheckCircle2}>
-                                            Save Changes
-                                        </PremiumButton>
-                                        <PremiumButton
-                                            type="button"
-                                            variant="outline"
-                                            className="flex-1 h-12 rounded-2xl"
-                                            onClick={() => { setShowModal(false); setHighlightedId(null); }}
-                                        >
-                                            Cancel
-                                        </PremiumButton>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => handleDeleteItem(currentMarkedItem.id)}
-                                        className="w-full py-2.5 text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-white hover:bg-red-500 transition-all rounded-xl flex items-center justify-center gap-2 border border-red-200 hover:border-red-500"
-                                    >
-                                        <Trash2 className="w-3 h-3" /> Remove Item from Poster
-                                    </button>
+                                {/* Row 4: Description */}
+                                <div className="space-y-2">
+                                    <label className="text-xs font-semibold text-black flex items-center gap-2 px-1">
+                                        <AlignLeft className="w-3.5 h-3.5 text-black" /> Full Description
+                                    </label>
+                                    <textarea
+                                        value={formData.description} rows={2}
+                                        onChange={(e) => setFormData(p => ({ ...p, description: e.target.value }))}
+                                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-300 transition-all text-sm text-black font-medium min-h-[80px] resize-none placeholder:text-gray-400"
+                                        placeholder="Add additional item details..."
+                                    />
                                 </div>
-                            </form>
-                        </PremiumCard>
-                    </div>
-                )}
+                            </div>
 
-                {/* --- Cropper Modal --- */}
-                {showCropper && cropperImage && (
+                            <div className="px-6 py-5 bg-gray-50/80 backdrop-blur-sm border-t border-gray-100 flex flex-col gap-4 shrink-0">
+                                <div className="flex gap-4">
+                                    <PremiumButton
+                                        type="submit"
+                                        variant="default"
+                                        className="flex-[2] h-12 rounded-2xl shadow-lg shadow-primary/20 text-sm font-bold"
+                                        leftIcon={CheckCircle2}
+                                    >
+                                        Save Changes
+                                    </PremiumButton>
+                                    <PremiumButton
+                                        type="button"
+                                        variant="outline"
+                                        className="flex-1 h-12 rounded-2xl text-sm font-bold bg-white"
+                                        onClick={() => { setShowModal(false); setHighlightedId(null); }}
+                                    >
+                                        Cancel
+                                    </PremiumButton>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => handleDeleteItem(currentMarkedItem.id)}
+                                    className="w-full py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] text-red-400 hover:text-white hover:bg-red-500 transition-all rounded-xl flex items-center justify-center gap-2 border border-red-100/50 hover:border-red-500"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" /> Remove Item from Poster
+                                </button>
+                            </div>
+                        </form>
+                    </PremiumCard>
+                </div>
+            )}
+
+            {/* --- Cropper Modal --- */}
+            {
+                showCropper && cropperImage && (
                     <div className="fixed inset-0 bg-black/90 backdrop-blur-xl flex flex-col justify-center items-center z-[200] p-4">
                         <PremiumCard className="w-full max-w-2xl bg-transparent border-none p-0 overflow-visible shadow-none">
                             <div className="flex items-center justify-between mb-6">
@@ -900,10 +1309,13 @@ export default function HotspotEditorPage() {
                                 onMouseMove={handleCropperMove}
                                 onMouseUp={() => setIsCropping(false)}
                             >
-                                <img
+                                <Image
                                     ref={cropperImgRef}
                                     src={cropperImage}
-                                    className="max-w-full max-h-[60vh] mx-auto block"
+                                    width={1000}
+                                    height={1000}
+                                    unoptimized
+                                    className="max-w-full max-h-[60vh] mx-auto block object-contain"
                                     alt="Cropping"
                                     draggable={false}
                                 />
@@ -939,9 +1351,11 @@ export default function HotspotEditorPage() {
                             </div>
                         </PremiumCard>
                     </div>
-                )}
-                {/* --- Publication Modal --- */}
-                {showPublishModal && (
+                )
+            }
+            {/* --- Publication Modal --- */}
+            {
+                showPublishModal && (
                     <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex justify-center items-center z-[300] p-4">
                         <PremiumCard className="w-full max-w-md p-0 overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
                             <div className="p-6 border-b border-border/50 flex justify-between items-center bg-muted/30">
@@ -960,15 +1374,34 @@ export default function HotspotEditorPage() {
                             </div>
 
                             <div className="p-6 space-y-4">
-                                <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 flex items-start gap-4">
-                                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                                        <CheckCircle2 className="w-5 h-5 text-primary" />
+                                <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 space-y-4">
+                                    <div className="flex items-start gap-4">
+                                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                                            <CheckCircle2 className="w-5 h-5 text-primary" />
+                                        </div>
+                                        <div>
+                                            <Text className="font-bold text-base leading-tight">Ready to Publish</Text>
+                                            <Text className="text-xs opacity-60 mt-0.5">
+                                                Finalize your offer details below.
+                                            </Text>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <Text className="font-bold text-base leading-tight">Ready to Publish</Text>
-                                        <Text className="text-xs opacity-60 mt-0.5">
-                                            Campaign: <span className="text-primary font-bold">"{offerTitle}"</span>
-                                        </Text>
+
+                                    <div className="space-y-2 relative group">
+                                        <label className="text-[10px] font-bold uppercase tracking-widest text-primary/70 px-1">Campaign Name</label>
+                                        <div className="relative">
+                                            <div className="absolute left-4 top-1/2 -translate-y-1/2">
+                                                <Type className="w-4 h-4 text-primary group-focus-within:scale-110 transition-transform" />
+                                            </div>
+                                            <input
+                                                type="text"
+                                                value={offerTitle}
+                                                onChange={(e) => setOfferTitle(e.target.value)}
+                                                className="w-full bg-white border border-primary/10 rounded-xl pl-11 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium text-sm"
+                                                placeholder="e.g. Ramadan Special Electronics Sale"
+                                                autoFocus
+                                            />
+                                        </div>
                                     </div>
                                 </div>
 
@@ -1002,10 +1435,9 @@ export default function HotspotEditorPage() {
                         </PremiumCard>
                     </div>
                 )}
-            </main>
 
             {/* Back Warning Modal */}
-            <AppModal
+            < AppModal
                 open={showBackWarning}
                 onOpenChange={setShowBackWarning}
                 title="Unsaved Changes"
@@ -1041,7 +1473,20 @@ export default function HotspotEditorPage() {
                         </PremiumButton>
                     </div>
                 </div>
-            </AppModal>
-        </div>
+            </AppModal >
+        </div >
+    );
+}
+
+// Wrapper component with Suspense boundary for useSearchParams
+export default function HotspotEditorPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+        }>
+            <HotspotEditorContent />
+        </Suspense>
     );
 }

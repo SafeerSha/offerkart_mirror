@@ -5,6 +5,7 @@ import { Upload, X, Image as ImageIcon, Plus, CheckCircle2, RefreshCw, Eye } fro
 import { Text } from "@/components/shared/Typography";
 import { cn } from "@/lib/utils";
 import { PremiumButton } from "./PremiumButton";
+import Image from "next/image";
 
 interface FileUploadProps {
     onFileSelect: (file: File | null) => void;
@@ -158,9 +159,12 @@ export const FileUpload = ({
                     )}>
                         {/* Image Preview */}
                         <div className="w-full h-auto p-4 flex items-center justify-center">
-                            <img
+                            <Image
                                 src={previewUrl}
                                 alt="Preview"
+                                width={1200}
+                                height={1200}
+                                unoptimized
                                 className="w-full h-auto max-h-[800px] object-contain rounded-2xl shadow-2xl transition-all duration-500 group-hover/preview:scale-[1.01]"
                             />
                         </div>

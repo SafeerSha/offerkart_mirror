@@ -39,3 +39,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# OCR training data
+eng.traineddata
+*.traineddata
+
+# test files
+test_tesseract.js
+fix*.js
+replace_logs.js

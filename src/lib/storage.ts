@@ -1,6 +1,5 @@
 "use client";
 
-// Simple native IndexedDB wrapper for async storage
 const DB_NAME = "OfferKartStorage";
 const STORE_NAME = "Drafts";
 const DB_VERSION = 1;
@@ -34,13 +33,11 @@ export const storage = {
                 const transaction = db.transaction(STORE_NAME, "readonly");
                 const store = transaction.objectStore(STORE_NAME);
                 const request = store.get(key);
-
                 request.onsuccess = () => resolve(request.result || null);
                 request.onerror = () => reject(request.error);
             });
         } catch (error) {
             console.error("IndexedDB getItem error:", error);
-            // Fallback for non-image small data if needed, but here we prefer consistency
             return null;
         }
     },
@@ -52,7 +49,6 @@ export const storage = {
                 const transaction = db.transaction(STORE_NAME, "readwrite");
                 const store = transaction.objectStore(STORE_NAME);
                 const request = store.put(value, key);
-
                 request.onsuccess = () => resolve();
                 request.onerror = () => reject(request.error);
             });
@@ -69,7 +65,6 @@ export const storage = {
                 const transaction = db.transaction(STORE_NAME, "readwrite");
                 const store = transaction.objectStore(STORE_NAME);
                 const request = store.delete(key);
-
                 request.onsuccess = () => resolve();
                 request.onerror = () => reject(request.error);
             });

@@ -6,16 +6,21 @@ import { useRouter } from "next/navigation";
 import { MapPin, Clock, ArrowRight, Heart, Tag } from "lucide-react";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { PremiumCard } from "@/components/shared/PremiumCard";
+import { MarkedPoster } from "@/components/shared/MarkedPoster";
+import { Poster } from "@/lib/types/offer";
 
 interface OfferCardProps {
   id: number;
   shopName: string;
   offerName: string;
   image: string | StaticImageData;
+  posters?: Poster[];
   category: string;
   location: string;
-  validUntil: string;
+  validFrom: string;
+  validTo: string;
   discount?: string;
+  branchName?: string;
 }
 
 const OfferCard = ({
@@ -25,8 +30,11 @@ const OfferCard = ({
   image,
   category,
   location,
-  validUntil,
+  validFrom,
+  validTo,
   discount,
+  branchName,
+  posters,
 }: OfferCardProps) => {
   const router = useRouter();
   const [isHovered, setIsHovered] = useState(false);
@@ -43,12 +51,12 @@ const OfferCard = ({
     >
       {/* Image Container */}
       <div className="relative flex-1 overflow-hidden bg-gray-100 min-h-[320px]">
-        <Image
-          src={image}
+        <MarkedPoster 
+          src={posters?.[0]?.posterSrc || (image as string)}
           alt={shopName}
-          fill
-          unoptimized
-          className={`object-cover transition-transform duration-1000 ease-out ${isHovered ? "scale-110" : "scale-100"}`}
+          markedItems={posters?.[0]?.markedItems || []}
+          className={cn("w-full h-full transition-transform duration-1000 ease-out", isHovered ? "scale-110" : "scale-100")}
+          showNames={false}
         />
 
         {/* Overlays */}
@@ -100,11 +108,11 @@ const OfferCard = ({
       <div className="px-6 py-4 flex items-center justify-between text-xs font-semibold bg-white border-t border-gray-50">
         <div className="flex items-center gap-1.5 text-gray-500">
           <MapPin className="w-4 h-4 text-orange-500" />
-          <span className="line-clamp-1">{location}</span>
+          <span className="line-clamp-1">{branchName ?? location}</span>
         </div>
         <div className="flex items-center gap-1.5 text-gray-500">
           <Clock className="w-4 h-4 text-orange-500" />
-          <span>{validUntil}</span>
+          <span>{validFrom} - {validTo}</span>
         </div>
       </div>
     </PremiumCard>

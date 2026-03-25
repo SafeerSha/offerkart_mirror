@@ -1,18 +1,7 @@
-/**
- * Security utilities for input sanitization and attack prevention
- */
-
-/**
- * Basic XSS Sanitization
- * Strips HTML tags and suspicious attributes
- */
 export function sanitizeInput(value: string): string {
     if (typeof value !== "string") return value;
 
-    // Remove HTML tags
     const clean = value.replace(/<[^>]*>?/gm, "");
-
-    // Simple encoding for special characters that could break out of attributes
     return clean
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
@@ -21,31 +10,23 @@ export function sanitizeInput(value: string): string {
         .replace(/'/g, "&#039;");
 }
 
-/**
- * Suspicious Pattern Detection (Basic SQLi and Shell awareness)
- * Returns true if the input contains common attack markers
- */
 export function hasSuspiciousPattern(value: string): boolean {
     if (typeof value !== "string") return false;
 
     const patterns = [
-        /(\s|^)OR\s+['"]?1['"]?\s*=\s*['"]?1['"]?/i, // Basic SQLi
+        /(\s|^)OR\s+['"]?1['"]?\s*=\s*['"]?1['"]?/i,
         /UNION\s+SELECT/i,
         /DROP\s+TABLE/i,
         /DELETE\s+FROM/i,
-        /--/g, // SQL comment
-        /;/g,   // Statement separator
-        /\/\*/g, // Multi-line comment start
+        /--/g,
+        /;/g,
+        /\/\*/g,
         /xp_cmdshell/i,
     ];
 
     return patterns.some(pattern => pattern.test(value));
 }
 
-/**
- * Recursive Payload Sanitizer
- * Cleans all string properties in an object deeply
- */
 export function sanitizePayload<T>(data: T): T {
     if (data === null || data === undefined) return data;
 
