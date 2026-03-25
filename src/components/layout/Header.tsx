@@ -215,11 +215,11 @@ const Header = () => {
                     <Link href="/" className="flex items-center flex-shrink-0 group cursor-pointer border-0 outline-none focus:ring-0">
                         <div className="flex items-center gap-3">
                             <div className="relative">
-                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl gradient-futuristic flex items-center justify-center transform transition-all duration-500 group-hover:scale-110 group-hover:rotate-3 group-hover:shadow-lg group-hover:shadow-primary/20">
-                                    <span className="text-primary font-bold text-lg sm:text-xl">O</span>
+                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-orange-500/10 flex items-center justify-center transform transition-all duration-500 group-hover:scale-110 group-hover:rotate-3 group-hover:shadow-lg group-hover:shadow-primary/20">
+                                    <span className="text-orange-600 font-bold text-lg sm:text-xl">O</span>
                                 </div>
-                                <div className="absolute -inset-1 rounded-2xl border border-primary/30 animate-pulse" />
-                                <div className="absolute -inset-2 rounded-2xl border border-primary/10 animate-pulse delay-300" />
+                                <div className="absolute -inset-1 rounded-full border border-primary/30 animate-pulse" />
+                                <div className="absolute -inset-2 rounded-full border border-primary/10 animate-pulse delay-300" />
                             </div>
                             <span className="font-sans text-lg sm:text-xl font-bold block text-orange-500 transition-colors group-hover:text-primary">
                                 OfferKart
@@ -249,12 +249,6 @@ const Header = () => {
                             )}>
                                 <span className="relative z-10">Products</span>
                             </Link>
-                            {/* <Link href="/#" className={cn(
-                                "relative transition-all font-medium group text-sm xl:text-base",
-                                pathname.startsWith("/coupons") ? "text-orange-500 font-bold" : "text-foreground hover:text-orange-500"
-                            )}>
-                                <span className="relative z-10">Coupon</span>
-                            </Link> */}
                             <DropdownMenu modal={false}>
                                 <DropdownMenuTrigger asChild>
                                     <button className="relative text-foreground hover:text-primary transition-all font-medium flex items-center gap-2 group border-0 outline-none">
@@ -370,7 +364,7 @@ const Header = () => {
                             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                             className="lg:hidden p-2 hover:bg-secondary rounded-lg transition-colors ml-1"
                         >
-                            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                            {mobileMenuOpen ? <X className="w-5 h-5 text-orange-500" /> : <Menu className="w-5 h-5" />}
                         </button>
                     </div>
                 </div>
@@ -442,8 +436,20 @@ const Header = () => {
                 )}
 
                 {mobileMenuOpen && (
-                    <div className="lg:hidden mt-4 p-6 glass-card rounded-2xl animate-fade-in border border-primary/10">
-                        <nav className="flex flex-col gap-3">
+                    <div className="lg:hidden mt-4 p-6 glass-card rounded-2xl animate-in slide-in-from-top-5 duration-300 border border-primary/10 overflow-hidden">
+                        {/* Mobile Search Bar Integration */}
+                        <div className="relative mb-6">
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2 p-1.5 bg-orange-500/10 rounded-lg">
+                                <Search className="w-4 h-4 text-orange-600" />
+                            </div>
+                            <input
+                                type="text"
+                                placeholder="Search shops, offers..."
+                                className="w-full pl-12 pr-4 py-3 bg-secondary/30 border border-primary/10 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium"
+                            />
+                        </div>
+
+                        <nav className="flex flex-col gap-0">
                             <Link
                                 href="/"
                                 onClick={() => setMobileMenuOpen(false)}
@@ -455,6 +461,7 @@ const Header = () => {
                                 )}
                             >
                                 <span>Home</span>
+                                {pathname === "/" && <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />}
                             </Link>
                             <Link
                                 href="/offers"
@@ -467,6 +474,7 @@ const Header = () => {
                                 )}
                             >
                                 <span>Offers</span>
+                                {(pathname === "/offers" || pathname.startsWith('/offer/')) && <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />}
                             </Link>
                             <Link
                                 href="/products"
@@ -479,74 +487,103 @@ const Header = () => {
                                 )}
                             >
                                 <span>Products</span>
+                                {pathname.startsWith("/products") && <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />}
                             </Link>
-                            {/* <Link
-                                href="/#"
-                                onClick={() => setMobileMenuOpen(false)}
-                                className={cn(
-                                    "px-4 py-3 rounded-xl transition-all duration-300 border flex items-center justify-between",
-                                    pathname.startsWith("/coupons")
-                                        ? "bg-orange-500/10 border-orange-500/20 text-orange-500 font-bold shadow-sm"
-                                        : "hover:bg-orange-500/5 hover:text-orange-500 border-transparent hover:border-orange-500/20"
-                                )}
-                            >
-                                <span>Coupon</span>
-                            </Link> */}
-                            <a href="#" className={cn(
-                                "px-4 py-3 rounded-xl transition-all duration-300 border flex items-center justify-between",
-                                pathname === "/profile"
-                                    ? "bg-orange-500/10 border-orange-500/20 text-orange-500 font-bold shadow-sm"
-                                    : "hover:bg-orange-500/5 hover:text-orange-500 border-transparent hover:border-orange-500/20"
-                            )}>
-                                <div className="flex items-center">
-                                    <User className={cn("w-4 h-4 mr-3", pathname === "/profile" ? "text-orange-500" : "text-muted-foreground")} />
-                                    Profile
-                                </div>
-                            </a>
-                            <PremiumButton
-                                asChild
-                                size="sm"
-                                className="rounded-2xl px-3 sm:px-4 lg:px-6 w-full justify-center mt-2"
-                            >
-                                <Link
-                                    href={user?.business_name ? "/shop-manager" : "/shop-registration"}
-                                    onClick={() => setMobileMenuOpen(false)}
-                                    className="flex items-center justify-center"
-                                >
-                                    {user?.business_name ? (
-                                        <>
-                                            <LayoutDashboard className="w-4 h-4 mr-2" />
-                                            <span className="inline">Manage Shop</span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <PlusCircle className="w-4 h-4 mr-2" />
-                                            <span className="inline">Add your shop</span>
-                                        </>
-                                    )}
-                                </Link>
-                            </PremiumButton>
+                            
+                            <div className="h-px bg-primary/10 my-1 opacity-50" />
 
-                            <button
-                                onClick={() => {
-                                    setIsLoggingOut(true);
-                                    signOut({ callbackUrl: "/" });
-                                }}
-                                disabled={isLoggingOut}
-                                className="px-4 py-3 rounded-xl hover:bg-destructive/10 text-destructive transition-all duration-300 border border-transparent hover:border-destructive/20 flex items-center mt-1 w-full text-left disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {isLoggingOut ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 mr-3 animate-spin" />
-                                        <span className="font-medium">Logging out...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <LogIn className="w-4 h-4 mr-3" />
-                                        <span className="font-medium">Log Out</span>
-                                    </>
-                                )}
-                            </button>
+                            {!isRegistered ? (
+                                <button
+                                    onClick={() => {
+                                        setMobileMenuOpen(false);
+                                        signIn();
+                                    }}
+                                    className="px-4 py-3 rounded-xl bg-primary/10 border border-primary/20 text-primary font-bold shadow-sm flex items-center transition-all duration-300 hover:bg-primary/20"
+                                >
+                                    <LogIn className="w-4 h-4 mr-3" />
+                                    Log In
+                                </button>
+                            ) : (
+                                <>
+                                    <Link 
+                                        href="/profile" 
+                                        onClick={() => setMobileMenuOpen(false)}
+                                        className={cn(
+                                            "px-4 py-3 rounded-xl transition-all duration-300 border flex items-center justify-between",
+                                            pathname === "/profile"
+                                                ? "bg-orange-500/10 border-orange-500/20 text-orange-500 font-bold shadow-sm"
+                                                : "hover:bg-orange-500/5 hover:text-orange-500 border-transparent hover:border-orange-500/20"
+                                        )}
+                                    >
+                                        <div className="flex items-center">
+                                            <User className={cn("w-4 h-4 mr-3", pathname === "/profile" ? "text-orange-500" : "text-muted-foreground")} />
+                                            Profile
+                                        </div>
+                                    </Link>
+
+                                    <PremiumButton
+                                        asChild
+                                        size="sm"
+                                        className="rounded-2xl px-3 sm:px-4 lg:px-6 w-full justify-center mt-2 group"
+                                    >
+                                        <Link
+                                            href={user?.business_name ? "/shop-manager" : "/shop-registration"}
+                                            onClick={() => setMobileMenuOpen(false)}
+                                            className="flex items-center justify-center p-6"
+                                        >
+                                            {user?.business_name ? (
+                                                <>
+                                                    <LayoutDashboard className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
+                                                    <span className="font-bold">Manage Shop</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Plus className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
+                                                    <span className="font-bold">Add your shop</span>
+                                                </>
+                                            )}
+                                        </Link>
+                                    </PremiumButton>
+
+                                    <button
+                                        onClick={() => {
+                                            setIsLoggingOut(true);
+                                            signOut({ callbackUrl: "/" });
+                                        }}
+                                        disabled={isLoggingOut}
+                                        className="px-4 py-3 rounded-xl hover:bg-destructive/10 text-destructive/80 hover:text-destructive transition-all duration-300 border border-transparent hover:border-destructive/20 flex items-center mt-2 w-full text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {isLoggingOut ? (
+                                            <>
+                                                <Loader2 className="w-4 h-4 mr-3 animate-spin" />
+                                                <span className="font-medium">Logging out...</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <LogIn className="w-4 h-4 mr-3" />
+                                                <span className="font-medium">Log Out</span>
+                                            </>
+                                        )}
+                                    </button>
+                                </>
+                            )}
+                            
+                            {!isRegistered && (
+                                <PremiumButton
+                                    asChild
+                                    size="sm"
+                                    className="rounded-2xl px-3 sm:px-4 lg:px-6 w-full justify-center mt-2 group"
+                                >
+                                    <Link
+                                        href="/shop-registration"
+                                        onClick={() => setMobileMenuOpen(false)}
+                                        className="flex items-center justify-center p-6"
+                                    >
+                                        <Plus className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
+                                        <span className="font-bold">Add your shop</span>
+                                    </Link>
+                                </PremiumButton>
+                            )}
                         </nav>
                     </div>
                 )}
