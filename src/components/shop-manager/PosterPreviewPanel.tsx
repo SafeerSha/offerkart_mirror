@@ -25,6 +25,7 @@ interface PosterPreviewPanelProps {
     onEditMarking: (index: number) => void;
     onAddMarking: (index: number) => void;
     isPreparing?: boolean;
+    variant?: "inline" | "overlay";
 }
 
 export function PosterPreviewPanel({
@@ -34,6 +35,7 @@ export function PosterPreviewPanel({
     onEditMarking,
     onAddMarking,
     isPreparing = false,
+    variant = "inline",
 }: PosterPreviewPanelProps) {
     const [currentIndex, setCurrentIndex] = useState(initialIndex);
     const [showTagsOverlay, setShowTagsOverlay] = useState(false);
@@ -72,114 +74,128 @@ export function PosterPreviewPanel({
 
     if (!poster) return null;
 
-    return (
-        <div className="flex flex-col absolute inset-0 bg-background overflow-hidden animate-in fade-in slide-in-from-right-4 duration-300">
+    const content = (
+        <div className={cn(
+            "flex flex-col bg-white overflow-hidden animate-in fade-in duration-300 shadow-2xl transition-colors",
+            variant === "overlay" 
+                ? "relative w-full h-[95%] sm:h-[90%] max-w-5xl mx-auto my-auto rounded-3xl border border-zinc-200 p-4 md:p-8 opacity-100" 
+                : "absolute inset-0"
+        )}>
             {/* Header */}
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-4 shrink-0">
                 <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                         <ImageIcon className="w-4 h-4 text-primary" />
                     </div>
-                    <div className="flex items-baseline gap-2">
-                        <h3 className="font-bold text-sm">Poster Preview</h3>
-                        <span className="text-[11px] font-bold opacity-40 uppercase tracking-wider">
+                    <div className="flex items-baseline gap-2 min-w-0">
+                        <h3 className="font-bold text-sm truncate text-zinc-900">Poster Preview</h3>
+                        <span className="text-[11px] font-bold opacity-40 uppercase tracking-wider whitespace-nowrap text-zinc-500">
                             {currentIndex + 1} of {posters.length}
                         </span>
                     </div>
                 </div>
+
+                {/* Close button for overlay */}
+                {variant === "overlay" && (
+                    <button 
+                        onClick={onClose}
+                        className="w-10 h-10 rounded-full bg-zinc-100 hover:bg-zinc-200 flex items-center justify-center transition-colors shadow-sm text-zinc-900"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
+                )}
             </div>
 
-            {/* Action Row: Cancel (Left) | Badge + Action (Right) */}
-            <div className="flex items-center justify-between mb-3 shrink-0">
-                {/* Left: Close/Cancel */}
-                <PremiumButton
-                    variant="outline"
-                    onClick={onClose}
-                    leftIcon={X}
-                    disabled={isPreparing}
-                    className="rounded-xl h-9 text-xs px-4"
-                >
-                    Close Preview
-                </PremiumButton>
+            {/* Action Row */}
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-3 shrink-0">
+                {/* Left: Close - Hide on overlay as we have X in header */}
+                <div className={cn(variant === "overlay" ? "hidden" : "block")}>
+                    <PremiumButton
+                        variant="outline"
+                        onClick={onClose}
+                        leftIcon={X}
+                        disabled={isPreparing}
+                        className="rounded-xl h-9 text-xs px-4"
+                    >
+                        Close Preview
+                    </PremiumButton>
+                </div>
 
-                {/* Right: Status Badge & Make/Edit Marking */}
-                <div className="flex items-center gap-3">
-                    {/* Status Badge */}
+                {/* Right: Status Badge & Action */}
+                <div className="flex flex-1 sm:flex-initial items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
                     {hasMarking ? (
-                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20">
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 shrink-0">
                             <MousePointerClick className="w-3.5 h-3.5 text-primary" />
                             <span className="text-[11px] font-bold uppercase tracking-wider text-primary">
                                 Marked
                             </span>
                         </div>
                     ) : (
-                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted border border-border/50">
-                            <ImageIcon className="w-3.5 h-3.5 opacity-40" />
-                            <span className="text-[11px] font-bold uppercase tracking-wider opacity-50">
-                                Plain / Unmarked
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-100 border border-zinc-200 shrink-0">
+                            <ImageIcon className="w-3.5 h-3.5 opacity-40 text-zinc-900" />
+                            <span className="text-[11px] font-bold uppercase tracking-wider opacity-60 text-zinc-900">
+                                Plain
                             </span>
                         </div>
                     )}
 
-                    {/* Action Button */}
-                    {hasMarking ? (
-                        <PremiumButton
-                            onClick={() => onEditMarking(currentIndex)}
-                            leftIcon={FileEdit}
-                            isLoading={isPreparing}
-                            disabled={isPreparing}
-                            className="rounded-xl h-9 text-xs px-4"
-                        >
-                            {isPreparing ? "Preparing..." : "Edit Marking"}
-                        </PremiumButton>
-                    ) : (
-                        <PremiumButton
-                            onClick={() => onAddMarking(currentIndex)}
-                            leftIcon={MousePointerClick}
-                            isLoading={isPreparing}
-                            disabled={isPreparing}
-                            className="rounded-xl h-9 text-xs px-4"
-                        >
-                            {isPreparing ? "Preparing..." : "Add Marking"}
-                        </PremiumButton>
-                    )}
+                    <div className="flex-1 sm:flex-initial">
+                        {hasMarking ? (
+                            <PremiumButton
+                                onClick={() => onEditMarking(currentIndex)}
+                                leftIcon={FileEdit}
+                                isLoading={isPreparing}
+                                disabled={isPreparing}
+                                className="rounded-xl h-9 text-xs px-4 w-full sm:w-auto"
+                            >
+                                {isPreparing ? "Wait..." : "Edit Marking"}
+                            </PremiumButton>
+                        ) : (
+                            <PremiumButton
+                                onClick={() => onAddMarking(currentIndex)}
+                                leftIcon={MousePointerClick}
+                                isLoading={isPreparing}
+                                disabled={isPreparing}
+                                className="rounded-xl h-9 text-xs px-4 w-full sm:w-auto"
+                            >
+                                {isPreparing ? "Wait..." : "Add Marking"}
+                            </PremiumButton>
+                        )}
+                    </div>
                 </div>
             </div>
 
-            {/* Image Preview with MarkedPoster Component */}
-            <div className="relative flex-1 min-h-0 w-full p-2">
+            {/* Image Preview */}
+            <div className="relative flex-1 min-h-0 w-full p-2 group bg-muted/5 rounded-2xl">
                 <MarkedPoster
                     src={poster.previewUrl}
                     alt={`Poster ${currentIndex + 1}`}
                     markedItems={poster.markedItems}
-                    className="rounded-xl border border-border/10 overflow-hidden"
+                    className="rounded-xl border border-border/5 overflow-hidden bg-muted/10 shadow-inner"
                     priority
                 />
 
-                {/* Overlay Navigation (Glass Buttons) */}
+                {/* Navigation Buttons */}
                 {posters.length > 1 && (
                     <>
-                        {/* Prev Button Zone */}
-                        <div className="absolute inset-y-0 left-0 w-24 flex items-center justify-start px-2 md:px-4 transition-opacity duration-300">
+                        <div className="absolute inset-y-0 left-0 w-16 md:w-24 flex items-center justify-start px-2 md:px-4 z-40">
                             <button
                                 onClick={handlePrev}
                                 disabled={isPreparing}
                                 className={cn(
-                                    "w-10 h-10 rounded-full bg-black/20 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-black/40 hover:scale-105 transition-all shadow-xl",
+                                    "w-9 h-9 md:w-12 md:h-12 rounded-full bg-black/40 backdrop-blur-xl border border-white/20 flex items-center justify-center text-white hover:bg-black/60 hover:scale-105 transition-all shadow-xl",
                                     isPreparing && "opacity-50 cursor-not-allowed"
                                 )}
                             >
                                 <ChevronLeft className="w-6 h-6" />
                             </button>
                         </div>
-
-                        {/* Next Button Zone */}
-                        <div className="absolute inset-y-0 right-0 w-24 flex items-center justify-end px-2 md:px-4 transition-opacity duration-300">
+                        <div className="absolute inset-y-0 right-0 w-16 md:w-24 flex items-center justify-end px-2 md:px-4 z-40">
                             <button
                                 onClick={handleNext}
                                 disabled={isPreparing}
                                 className={cn(
-                                    "w-10 h-10 rounded-full bg-black/20 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-black/40 hover:scale-105 transition-all shadow-xl",
+                                    "w-9 h-9 md:w-12 md:h-12 rounded-full bg-black/40 backdrop-blur-xl border border-white/20 flex items-center justify-center text-white hover:bg-black/60 hover:scale-105 transition-all shadow-xl",
                                     isPreparing && "opacity-50 cursor-not-allowed"
                                 )}
                             >
@@ -189,24 +205,40 @@ export function PosterPreviewPanel({
                     </>
                 )}
 
-                {/* Tags Overlay Drawer */}
+                {/* Floating Tags Button */}
+                {hasMarking && !showTagsOverlay && (
+                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40 transition-all duration-300 w-full max-w-[280px]">
+                        <PremiumButton
+                            variant="outline"
+                            glow={false}
+                            onClick={() => setShowTagsOverlay(true)}
+                            leftIcon={List}
+                            className="w-full rounded-2xl shadow-2xl bg-white text-zinc-900 border-0 hover:bg-white h-12 px-6 text-xs font-black transition-all"
+                        >
+                            View {poster.markedItems!.length} Marked Product{poster.markedItems!.length !== 1 ? "s" : ""}
+                        </PremiumButton>
+                    </div>
+                )}
+
+                {/* Tags Overlay */}
                 {showTagsOverlay && hasMarking && (
-                    <div className="absolute inset-0 z-50 bg-background/95 backdrop-blur-xl animate-in fade-in slide-in-from-bottom-8 duration-300 flex flex-col">
-                        {/* Overlay Header */}
-                        <div className="flex items-center justify-between p-4 shrink-0 bg-card/50">
+                    <div className="absolute inset-x-0 bottom-0 top-0 sm:top-1/4 sm:bottom-0 z-50 bg-white animate-in slide-in-from-bottom-full duration-500 rounded-t-3xl border-t border-zinc-200 shadow-2xl flex flex-col transition-colors">
+                        <div className="w-12 h-1.5 bg-zinc-300 rounded-full mx-auto my-3 shrink-0" />
+                        
+                        <div className="flex items-center justify-between px-6 pb-4 shrink-0">
                             <div className="flex items-center gap-2">
                                 <List className="w-4 h-4 text-primary" />
-                                <h3 className="font-bold text-sm">Marked Products ({poster.markedItems!.length})</h3>
+                                <h3 className="font-black text-sm uppercase tracking-tight text-zinc-900">Marked Products ({poster.markedItems!.length})</h3>
                             </div>
                             <button
                                 onClick={() => setShowTagsOverlay(false)}
-                                className="w-8 h-8 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center transition-colors"
+                                className="w-10 h-10 rounded-full bg-zinc-100 hover:bg-zinc-200 flex items-center justify-center transition-colors text-zinc-900"
                             >
-                                <X className="w-4 h-4" />
+                                <X className="w-5 h-5" />
                             </button>
                         </div>
-                        <div className="flex-1 min-h-0 overflow-y-auto p-4 custom-scrollbar">
-                            <div className="grid grid-cols-2 gap-3 content-start items-start">
+                        <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-8 custom-scrollbar">
+                            <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {poster.markedItems!.map((item: any, idx) => (
                                     <TaggedProductAccordion key={item.id} item={item} idx={idx} />
                                 ))}
@@ -214,52 +246,51 @@ export function PosterPreviewPanel({
                         </div>
                     </div>
                 )}
-
-                {/* Floating Tags Button to prevent layout jumping */}
-                {hasMarking && !showTagsOverlay && (
-                    <div className="absolute bottom-4 left-4 right-4 z-40 transition-all duration-300">
-                        <PremiumButton
-                            variant="outline"
-                            glow={false}
-                            onClick={() => setShowTagsOverlay(true)}
-                            leftIcon={List}
-                            className="w-full rounded-xl shadow-xl bg-white text-zinc-900 border border-border/50 hover:bg-white/95 hover:-translate-y-0.5 h-11 px-5 text-xs font-bold transition-all"
-                        >
-                            View {poster.markedItems!.length} Tagged Product{poster.markedItems!.length !== 1 ? "s" : ""}
-                        </PremiumButton>
-                    </div>
-                )}
             </div>
 
-
-
-            {/* Footer Navigation Dots */}
-            <div className="mt-auto space-y-3 pt-2">
-                {/* Navigation */}
-                {posters.length > 1 && (
-                    <div className="flex items-center justify-center mb-2">
-                        <div className="flex items-center gap-1.5">
-                            {posters.map((_, i) => (
-                                <button
-                                    key={i}
-                                    onClick={() => !isPreparing && setCurrentIndex(i)}
-                                    disabled={isPreparing}
-                                    className={cn(
-                                        "w-2 h-2 rounded-full transition-all duration-200",
-                                        i === currentIndex
-                                            ? "bg-primary scale-125"
-                                            : "bg-muted-foreground/20 hover:bg-muted-foreground/40",
-                                        isPreparing && "cursor-not-allowed"
-                                    )}
-                                />
-                            ))}
-                        </div>
-                    </div>
-                )}
-
+            {/* Thumbnail Navigation Strip */}
+            <div className="mt-4 shrink-0 pb-2">
+                <div className="flex items-center gap-3 overflow-x-auto pb-4 scrollbar-hide px-1">
+                    {posters.map((p, i) => (
+                        <button
+                            key={p.id}
+                            onClick={() => !isPreparing && setCurrentIndex(i)}
+                            disabled={isPreparing}
+                            className={cn(
+                                "relative w-14 h-18 sm:w-16 sm:h-20 rounded-xl overflow-hidden border-2 transition-all shrink-0 active:scale-95",
+                                i === currentIndex
+                                    ? "border-orange-500 ring-2 ring-orange-500/30 scale-105 z-10 shadow-lg"
+                                    : "border-gray-100 opacity-60 hover:opacity-100 hover:border-gray-200",
+                                isPreparing && "cursor-not-allowed"
+                            )}
+                        >
+                            <Image src={p.previewUrl} alt="" fill className="object-cover" unoptimized />
+                            <div className={cn(
+                                "absolute inset-0 bg-orange-500/10",
+                                i !== currentIndex && "hidden"
+                            )} />
+                            {p.type === "marked_poster" && (
+                                <div className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full bg-orange-500 flex items-center justify-center border border-white shadow-sm">
+                                    <MousePointerClick className="w-2 h-2 text-white" />
+                                </div>
+                            )}
+                        </button>
+                    ))}
+                </div>
             </div>
         </div>
     );
+
+    if (variant === "overlay") {
+        return (
+            <div className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-sm">
+                <div className="absolute inset-0 -z-10" onClick={onClose} />
+                {content}
+            </div>
+        );
+    }
+
+    return content;
 }
 
 // Sub-component for accordion tagged product cards

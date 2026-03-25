@@ -80,7 +80,7 @@ export const PosterOrderGrid = ({
 
     return (
         <div className="relative w-full max-w-3xl overflow-hidden rounded-xl border border-border/10">
-            <div className="grid grid-cols-2 gap-3 max-h-[440px] overflow-y-auto scrollbar-hide py-3 px-3">
+            <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 max-h-[440px] overflow-y-auto scrollbar-hide py-3 px-3">
                 {posters.map((poster, posterIdx) => (
                     <div
                         key={poster.id}

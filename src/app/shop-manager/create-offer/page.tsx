@@ -464,14 +464,17 @@ function CreateOfferContent() {
                                 previewState ? "lg:flex-1 duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]" : "space-y-6 lg:flex-1 duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
                             )}>
                                 {previewState ? (
-                                    <PosterPreviewPanel
-                                        posters={previewState.posters}
-                                        initialIndex={previewState.index}
-                                        isPreparing={previewState.isPreparing}
-                                        onClose={() => { previewState.onClose(); setPreviewState(null); }}
-                                        onEditMarking={(i) => { previewState.onEditMarking(i); }}
-                                        onAddMarking={(i) => { previewState.onAddMarking(i); }}
-                                    />
+                                    <div className="hidden lg:block h-full min-h-[500px] relative">
+                                        <PosterPreviewPanel
+                                            posters={previewState.posters}
+                                            initialIndex={previewState.index}
+                                            isPreparing={previewState.isPreparing}
+                                            onClose={() => { previewState.onClose(); setPreviewState(null); }}
+                                            onEditMarking={(i) => { previewState.onEditMarking(i); }}
+                                            onAddMarking={(i) => { previewState.onAddMarking(i); }}
+                                            variant="inline"
+                                        />
+                                    </div>
                                 ) : (
                                     <>
                                         <div className="flex items-center justify-between">
@@ -745,6 +748,20 @@ function CreateOfferContent() {
                     </PremiumButton>
                 </div>
             </AppModal>
+            {/* Mobile Preview Overlay */}
+            {previewState && (
+                <div className="lg:hidden">
+                    <PosterPreviewPanel
+                        posters={previewState.posters}
+                        initialIndex={previewState.index}
+                        isPreparing={previewState.isPreparing}
+                        onClose={() => { previewState.onClose(); setPreviewState(null); }}
+                        onEditMarking={(i) => { previewState.onEditMarking(i); }}
+                        onAddMarking={(i) => { previewState.onAddMarking(i); }}
+                        variant="overlay"
+                    />
+                </div>
+            )}
         </div>
     );
 }
