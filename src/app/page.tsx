@@ -12,11 +12,15 @@ import { cn } from "@/lib/utils";
 export const revalidate = 300;
 
 export default async function HomePage() {
-  const [featuredShops, featuredOffers, allOffers] = await Promise.all([
+  const [featuredShopsRes, featuredOffersRes, allOffersRes] = await Promise.all([
     getFeaturedShops(),
     getFeaturedOffers(),
     getAllOffers(),
   ]);
+
+  const featuredShops = (featuredShopsRes as any).success ? ((featuredShopsRes as any).data || []) : [];
+  const featuredOffers = (featuredOffersRes as any).success ? ((featuredOffersRes as any).data || []) : [];
+  const allOffers = (allOffersRes as any).success ? ((allOffersRes as any).data || []) : [];
 
   return (
     <div className="min-h-screen bg-background">

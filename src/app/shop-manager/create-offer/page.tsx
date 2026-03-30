@@ -22,11 +22,12 @@ import { PremiumButton } from "@/components/shared/PremiumButton";
 import { PremiumInput } from "@/components/shared/PremiumInput";
 import { PremiumDatePicker } from "@/components/shared/PremiumDatePicker";
 import { AppModal } from "@/components/shared/AppModal";
-import { cn } from "@/lib/utils";
+import { cn, formatDateLocal } from "@/lib/utils";
 import { storage } from "@/lib/storage";
 import { getBranches } from "@/lib/api/branch";
 import { getMyShops } from "@/lib/api/shop";
 import { s3Api } from "@/lib/api/s3";
+import { createOffer, updateOffer } from "@/lib/api/offers";
 import Image from "next/image";
 import { Branch } from "@/lib/types/branch";
 import { MultiSearchableSelect } from "@/components/shared/MultiSearchableSelect";
@@ -218,13 +219,20 @@ function CreateOfferContent() {
                 updatedTarget.posters = newPostersList.map((p, i) => ({ ...p, order: i + 1 }));
 
                 try {
-                    await fetch('https://jsonplaceholder.typicode.com/posts', {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(updatedTarget)
-                    });
+                    let shopId = session?.shopId ?? (session?.user as any)?.shopId;
+                    if (!shopId && session) {
+                        const shopRes = await getMyShops();
+                        if (shopRes.success && shopRes.data) {
+                            const shopList = Array.isArray(shopRes.data) ? shopRes.data : (shopRes.data as any).data || [];
+                            if (shopList.length > 0) shopId = shopList[0].id;
+                        }
+                    }
+
+                    if (shopId) {
+                        await updateOffer(String(editBatchId), updatedTarget, String(shopId));
+                    }
                 } catch (networkError) {
-                    console.warn("Mock API Error:", networkError);
+                    console.warn("API Error:", networkError);
                 }
 
                 allPosters[targetIndex] = updatedTarget;
@@ -315,8 +323,8 @@ function CreateOfferContent() {
             const payload = {
                 batchId: (isUpdateMode && editBatchId) ? editBatchId : crypto.randomUUID(),
                 title: offerTitle,
-                validFrom: validFrom.toISOString().split('T')[0],
-                validTo: validTo.toISOString().split('T')[0],
+                validFrom: formatDateLocal(validFrom),
+                validTo: formatDateLocal(validTo),
                 branchIds: selectedBranches.map(b => b.id),
                 branchNames: selectedBranches.map(b => b.branch_name),
                 branchCity: selectedBranches[0]?.city,
@@ -327,13 +335,24 @@ function CreateOfferContent() {
             };
 
             try {
-                await fetch('https://jsonplaceholder.typicode.com/posts', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
+                let shopId = session?.shopId ?? (session?.user as any)?.shopId;
+                if (!shopId && session) {
+                    const shopRes = await getMyShops();
+                    if (shopRes.success && shopRes.data) {
+                        const shopList = Array.isArray(shopRes.data) ? shopRes.data : (shopRes.data as any).data || [];
+                        if (shopList.length > 0) shopId = shopList[0].id;
+                    }
+                }
+
+                if (shopId) {
+                    if (isUpdateMode && editBatchId) {
+                        await updateOffer(String(editBatchId), payload, String(shopId));
+                    } else {
+                        await createOffer(payload, String(shopId));
+                    }
+                }
             } catch (networkError) {
-                console.warn("Mock API Error:", networkError);
+                console.warn("API Error:", networkError);
             }
 
             allPosters.push(payload);
@@ -649,7 +668,7 @@ function CreateOfferContent() {
                                             window.open(`/shop-manager/${shopId}/add-branch?returnTo=/shop-manager/create-offer`, "_blank");
                                         } else {
                                             toast.error("You need to create a shop first before adding branches");
-                                            router.push("/shop-manager/add-shop?returnTo=/shop-manager/create-offer");
+                                            window.open("/shop-manager/add-shop?returnTo=/shop-manager/create-offer", "_blank");
                                         }
                                     }}
                                     className="shrink-0 text-xs font-semibold text-white bg-amber-500 hover:bg-amber-600 transition-colors px-3 py-1.5 rounded-lg cursor-pointer"

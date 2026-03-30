@@ -15,6 +15,7 @@ import {
     GitBranch,
     CheckCircle2,
     FileText,
+    X,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -77,6 +78,7 @@ export default function AddBranchForm({ shopId }: AddBranchFormProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoading, setIsLoading] = useState(isEditMode);
     const [shopName, setShopName] = useState<string>("");
+    const [isSuccess, setIsSuccess] = useState(false);
 
     const form = useForm<BranchFormValues>({
         resolver: zodResolver(branchSchema),
@@ -208,8 +210,15 @@ export default function AddBranchForm({ shopId }: AddBranchFormProps) {
 
             if (response.success || (response as any).status === "success") {
                 toast.success(isEditMode ? "Branch updated!" : "Branch added!");
-                router.push(returnTo || `/shop-manager/${shopId}/branches`);
-                router.refresh();
+                
+                const isFromOfferPublish = returnTo?.includes("create-offer");
+                
+                if (!isEditMode && isFromOfferPublish) {
+                    setIsSuccess(true);
+                } else {
+                    router.push(returnTo || `/shop-manager/${shopId}/branches`);
+                    router.refresh();
+                }
             } else {
                 const errorMessage = response.error || (response as any).message || "Failed to save branch.";
                 toast.error(errorMessage);
@@ -221,6 +230,62 @@ export default function AddBranchForm({ shopId }: AddBranchFormProps) {
             setIsSubmitting(false);
         }
     };
+
+    if (isSuccess) {
+        return (
+            <div className="max-w-2xl mx-auto py-12 px-4">
+                <PremiumCard className="text-center p-12 overflow-hidden relative shadow-2xl shadow-green-100/50">
+                    {/* Background decorative elements */}
+                    <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-green-400 to-emerald-500" />
+                    <div className="absolute -top-24 -right-24 w-48 h-48 bg-green-50 rounded-full opacity-50 blur-3xl" />
+                    <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-emerald-50 rounded-full opacity-50 blur-3xl" />
+
+                    <div className="relative z-10 space-y-8">
+                        <div className="flex justify-center">
+                            <div className="w-24 h-24 rounded-3xl bg-green-50 flex items-center justify-center animate-bounce-subtle shadow-inner">
+                                <CheckCircle2 className="w-12 h-12 text-green-500" />
+                            </div>
+                        </div>
+
+                        <div className="space-y-3">
+                            <h2 className="text-3xl font-bold text-gray-900 tracking-tight">Branch Added Successfully!</h2>
+                            <p className="text-gray-600 max-w-md mx-auto leading-relaxed text-lg font-medium">
+                                Your brand new branch is ready. Close this tab and continue publishing your offer.
+                            </p>
+                        </div>
+
+                        <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
+                            <PremiumButton 
+                                onClick={() => window.close()} 
+                                className="rounded-2xl px-10 h-14 text-lg bg-green-600 hover:bg-green-700 shadow-xl shadow-green-200 w-full sm:w-auto"
+                                leftIcon={X}
+                            >
+                                Close This Tab
+                            </PremiumButton>
+                            
+                            <PremiumButton 
+                                variant="outline"
+                                onClick={() => {
+                                    setIsSuccess(false);
+                                    form.reset();
+                                    router.push(`/shop-manager/${shopId}/branches`);
+                                }}
+                                className="rounded-2xl px-8 h-14 text-gray-600 w-full sm:w-auto hover:bg-gray-50 border-gray-200"
+                            >
+                                Go to Branches
+                            </PremiumButton>
+                        </div>
+
+                        <div className="p-5 rounded-2xl bg-gray-50/80 border border-gray-100 backdrop-blur-sm">
+                            <p className="text-sm text-gray-500 leading-relaxed">
+                                <span className="font-bold text-gray-700">Next Step:</span> Head back to the other tab. Your new branch will automatically appear in the selection list.
+                            </p>
+                        </div>
+                    </div>
+                </PremiumCard>
+            </div>
+        );
+    }
 
     if (isLoading) {
         return (

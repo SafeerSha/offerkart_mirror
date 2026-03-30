@@ -12,6 +12,7 @@ import { AppModal } from "@/components/shared/AppModal";
 import { MultiSearchableSelect } from "@/components/shared/MultiSearchableSelect";
 import { getBranches } from "@/lib/api/branch";
 import { s3Api } from "@/lib/api/s3";
+import { getAllOffers, updateOffer, deleteOffer, getOfferById } from "@/lib/api/offers";
 import { Branch } from "@/lib/types/branch";
 import {
     AlertTriangle,
@@ -53,7 +54,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn } from "@/lib/utils";
+import { cn, getRelativeTime, formatDateLocal } from "@/lib/utils";
 import { ImagePreviewModal } from "@/components/shared/ImagePreviewModal";
 import { StatusToggleButton } from "@/components/shared/StatusToggleButton";
 import { storage } from "@/lib/storage";
@@ -66,13 +67,7 @@ function DashboardContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const isMobile = useIsMobile();
-    const [activeTab, setActiveTab] = useState(() => {
-        if (typeof window !== 'undefined') {
-            const params = new URLSearchParams(window.location.search);
-            return params.get("tab") === "shops" ? "shops" : "offers";
-        }
-        return "offers";
-    });
+    const [activeTab, setActiveTab] = useState("offers");
 
     const [isShopActive, setIsShopActive] = useState(true);
     const [shops, setShops] = useState<any[]>([]);
@@ -157,14 +152,31 @@ function DashboardContent() {
 
     // Open edit modal and pre-fill values
     const openEditModal = async (offer: any) => {
-        setEditingOffer(offer);
-        setEditTitle(offer.title || "");
-        setEditValidFrom(offer.validFrom ? new Date(offer.validFrom) : undefined);
-        setEditValidTo(offer.validTo ? new Date(offer.validTo) : undefined);
-        setEditBranchIds(offer.branchIds ? offer.branchIds.map(String) : (offer.branchId ? [String(offer.branchId)] : []));
-        setEditStatus(offer.status || "active");
-        setEditIsActive(offer.status === 'active');
-        setEditPosters(offer.posters ? offer.posters.map((p: any, i: number) => ({ ...p, order: p.order || i + 1 })) : (offer.posterSrc ? [{ id: '1', posterSrc: offer.posterSrc, type: 'legacy', order: 1 }] : []));
+        // Fetch full details if posters are missing (common in listing responses)
+        let fullOffer = offer;
+        if (!offer.posters && (offer.offerId || offer.id)) {
+            try {
+                const res = await getOfferById(String(offer.offerId || offer.id));
+                if (res.success && res.data) fullOffer = res.data;
+            } catch (err) {
+                console.error("Failed to fetch full offer details:", err);
+            }
+        }
+
+        setEditingOffer(fullOffer);
+        setEditTitle(fullOffer.title || "");
+        setEditValidFrom(fullOffer.validFrom ? new Date(fullOffer.validFrom) : undefined);
+        setEditValidTo(fullOffer.validTo ? new Date(fullOffer.validTo) : undefined);
+        
+        // Handle new branches structure vs old branchIds
+        const branchIds = fullOffer.branches 
+            ? fullOffer.branches.map((b: any) => String(b.id)) 
+            : (fullOffer.branchIds ? fullOffer.branchIds.map(String) : []);
+        setEditBranchIds(branchIds);
+        
+        setEditStatus(fullOffer.status || "active");
+        setEditIsActive(fullOffer.status === 'active');
+        setEditPosters(fullOffer.posters ? fullOffer.posters.map((p: any, i: number) => ({ ...p, order: p.order || i + 1 })) : (fullOffer.posterSrc ? [{ id: '1', posterSrc: fullOffer.posterSrc, type: 'legacy', order: 1 }] : []));
 
         // Fetch branches for the dropdown
         try {
@@ -200,8 +212,8 @@ function DashboardContent() {
             const updatedOfferSnapshot = {
                 ...editingOffer,
                 title: editTitle,
-                validFrom: editValidFrom ? editValidFrom.toISOString().split('T')[0] : editingOffer.validFrom,
-                validTo: editValidTo ? editValidTo.toISOString().split('T')[0] : editingOffer.validTo,
+                validFrom: editValidFrom ? formatDateLocal(editValidFrom) : editingOffer.validFrom,
+                validTo: editValidTo ? formatDateLocal(editValidTo) : editingOffer.validTo,
                 branchIds: selectedBranches.length > 0 ? selectedBranches.map((b) => b.id) : editingOffer.branchIds,
                 branchNames: selectedBranches.length > 0 ? selectedBranches.map((b) => b.branch_name) : editingOffer.branchNames,
                 branchCity: selectedBranches.length > 0 ? selectedBranches[0]?.city : editingOffer.branchCity,
@@ -235,32 +247,35 @@ function DashboardContent() {
         if (!editingOffer) return;
         setIsSavingOffer(true);
         try {
-            const stored = await storage.getItem<any[]>("markedPosters");
-            if (stored) {
+            let shopId = session?.shopId ?? (session?.user as any)?.shopId;
+            if (!shopId && shops.length > 0) shopId = shops[0].id;
+
+            if (shopId) {
                 const selectedBranches = editBranches.filter((b) => editBranchIds.includes(String(b.id)));
-                const updated = stored.map((o) => {
-                    if (o.batchId === editingOffer.batchId) {
-                        return {
-                            ...o,
-                            title: editTitle,
-                            validFrom: editValidFrom ? editValidFrom.toISOString().split('T')[0] : o.validFrom,
-                            validTo: editValidTo ? editValidTo.toISOString().split('T')[0] : o.validTo,
-                            branchIds: selectedBranches.length > 0 ? selectedBranches.map((b) => b.id) : o.branchIds,
-                            branchNames: selectedBranches.length > 0 ? selectedBranches.map((b) => b.branch_name) : o.branchNames,
-                            branchCity: selectedBranches.length > 0 ? selectedBranches[0]?.city : o.branchCity,
-                            status: editIsActive ? 'active' : 'paused',
-                            isActive: editIsActive,
-                            posters: editPosters.length > 0 ? editPosters : o.posters,
-                        };
-                    }
-                    return o;
-                });
-                await storage.setItem("markedPosters", updated);
-                setPublishedOffers(updated);
-                toast.success("Offer updated successfully");
+                const payload = {
+                    ...editingOffer,
+                    title: editTitle,
+                    validFrom: editValidFrom ? formatDateLocal(editValidFrom) : editingOffer.validFrom,
+                    validTo: editValidTo ? formatDateLocal(editValidTo) : editingOffer.validTo,
+                    branchIds: selectedBranches.length > 0 ? selectedBranches.map((b) => b.id) : editingOffer.branchIds,
+                    branchNames: selectedBranches.length > 0 ? selectedBranches.map((b) => b.branch_name) : editingOffer.branchNames,
+                    branchCity: selectedBranches.length > 0 ? selectedBranches[0]?.city : editingOffer.branchCity,
+                    status: editIsActive ? 'active' : 'paused',
+                    isActive: editIsActive,
+                    posters: editPosters.length > 0 ? editPosters : editingOffer.posters,
+                };
+
+                const res = await updateOffer(String(editingOffer.id || editingOffer.batchId), payload, String(shopId));
+                if (res.success) {
+                    setPublishedOffers(prev => prev.map(o => (o.id === editingOffer.id || o.batchId === editingOffer.batchId) ? { ...o, ...payload } : o));
+                    toast.success("Offer updated successfully");
+                } else {
+                    throw new Error(res.error || "Failed to update");
+                }
             }
-        } catch {
-            toast.error("Failed to update offer");
+        } catch (err: any) {
+            console.error("Save error:", err);
+            toast.error(`Failed to update offer: ${err.message}`);
         } finally {
             setIsSavingOffer(false);
             setEditingOffer(null);
@@ -270,15 +285,21 @@ function DashboardContent() {
     // Delete offer
     const handleDeleteOffer = async (offer: any) => {
         try {
-            const stored = await storage.getItem<any[]>("markedPosters");
-            if (stored) {
-                const updated = stored.filter((o) => o.batchId !== offer.batchId);
-                await storage.setItem("markedPosters", updated);
-                setPublishedOffers(updated);
-                toast.success("Offer deleted");
+            let shopId = session?.shopId ?? (session?.user as any)?.shopId;
+            if (!shopId && shops.length > 0) shopId = shops[0].id;
+
+            if (shopId) {
+                const res = await deleteOffer(String(offer.id || offer.batchId), String(shopId));
+                if (res.success) {
+                    setPublishedOffers(prev => prev.filter(o => (o.id !== offer.id && o.batchId !== offer.batchId)));
+                    toast.success("Offer deleted");
+                } else {
+                    throw new Error(res.error || "Failed to delete");
+                }
             }
-        } catch {
-            toast.error("Failed to delete offer");
+        } catch (err: any) {
+            console.error("Delete error:", err);
+            toast.error(`Failed to delete offer: ${err.message}`);
         } finally {
             setOfferToDelete(null);
         }
@@ -313,10 +334,21 @@ function DashboardContent() {
 
     useEffect(() => {
         async function fetchOffers() {
+            let shopId = session?.shopId ?? (session?.user as any)?.shopId;
+            if (!shopId && shops.length > 0) shopId = shops[0].id;
+
+            if (!shopId) {
+                setIsLoadingOffers(false);
+                return;
+            }
+
+            console.log("Starting fetchOffers for shopId:", shopId);
             try {
-                const stored = await storage.getItem<any[]>("markedPosters");
-                if (stored) {
-                    setPublishedOffers(stored);
+                const res = await getAllOffers(String(shopId));
+                console.log("Offers response:", res);
+                if (res.success && res.data) {
+                    const list = Array.isArray(res.data) ? res.data : (res.data as any).data || [];
+                    setPublishedOffers(Array.isArray(list) ? list : []);
                 }
             } catch (error) {
                 console.error("Error fetching offers:", error);
@@ -324,8 +356,19 @@ function DashboardContent() {
                 setIsLoadingOffers(false);
             }
         }
-        fetchOffers();
-    }, []);
+        const shopId = session?.shopId ?? (session?.user as any)?.shopId;
+        if (session && (shopId || (shops && shops.length > 0))) {
+            fetchOffers();
+        } else if (!session) {
+            console.log("No session, skipping fetchOffers");
+            setIsLoadingOffers(false);
+        } else {
+            console.log("Session exists but no shopId found yet", { 
+                sessionShopId: shopId, 
+                shopsCount: shops.length 
+            });
+        }
+    }, [session, shops]);
 
     useEffect(() => {
         const tab = searchParams.get("tab");
@@ -674,7 +717,7 @@ function DashboardContent() {
                                                 </div>
                                             ) : publishedOffers.length > 0 ? (
                                                 publishedOffers.map((offer, idx) => (
-                                                    <div key={offer.batchId || idx} className="p-3 sm:p-4 rounded-xl bg-background/40 border border-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:border-primary/20 transition-all">
+                                                    <div key={offer.offerId || offer.batchId || idx} className="p-3 sm:p-4 rounded-xl bg-background/40 border border-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:border-primary/20 transition-all">
                                                         <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
                                                             <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
                                                                 {offer.posters?.[0]?.posterSrc || offer.posterSrc ? (
@@ -686,26 +729,30 @@ function DashboardContent() {
                                                                         className="object-cover"
                                                                     />
                                                                 ) : (
-                                                                    <Store className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+                                                                    <Tag className="w-5 h-5 sm:w-6 sm:h-6 text-primary rotate-12" />
                                                                 )}
                                                             </div>
                                                             <div className="min-w-0 flex-1">
                                                                 <h4 className="font-semibold text-base sm:text-lg truncate">{offer.title || "Untitled Offer"}</h4>
                                                                 <div className="flex flex-col gap-1.5 mt-1">
                                                                     <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] sm:text-sm text-slate-500">
-                                                                        <span>{offer.createdAt ? `Posted ${new Date(offer.createdAt).toLocaleDateString('en-GB')}` : "Active"}</span>
+                                                                        <span>{getRelativeTime(offer.createdAt || offer.validFrom) ? `Posted ${getRelativeTime(offer.createdAt || offer.validFrom)}` : offer.postedAt ? `Posted ${offer.postedAt}${typeof offer.postedAt === 'number' ? ' days ago' : ''}` : "Active"}</span>
                                                                         <span className="opacity-40">•</span>
                                                                         <span className={cn(
                                                                             "font-medium",
                                                                             offer.status === "active" ? "text-[#1cc080]" : "text-gray-400"
                                                                         )}>{offer.status || "active"}</span>
 
-                                                                        {(offer.branchNames || offer.branchName) && (
+                                                                        {(offer.branches || offer.branchNames || offer.branchName) && (
                                                                             <>
                                                                                 <span className="opacity-40">•</span>
-                                                                                <span className="flex items-center gap-1 line-clamp-1" title={offer.branchNames ? offer.branchNames.join(', ') : offer.branchName}>
+                                                                                <span className="flex items-center gap-1 line-clamp-1" title={offer.branches ? offer.branches.map((b: any) => b.branchName).join(', ') : (offer.branchNames ? offer.branchNames.join(', ') : offer.branchName)}>
                                                                                     <GitBranch className="w-3 h-3 shrink-0 opacity-60" />
-                                                                                    {offer.branchNames ? offer.branchNames.join(', ') : offer.branchName}
+                                                                                    {offer.branches ? (
+                                                                                         offer.branches.length > 1 
+                                                                                             ? `${offer.branches[0].branchName} +${offer.branches.length - 1} more`
+                                                                                             : offer.branches[0].branchName
+                                                                                     ) : (offer.branchNames ? offer.branchNames.join(', ') : offer.branchName)}
                                                                                 </span>
                                                                             </>
                                                                         )}
@@ -743,7 +790,7 @@ function DashboardContent() {
                                                                             <div
                                                                                 className="font-bold text-primary text-base sm:text-lg cursor-help"
                                                                             >
-                                                                                {offer.posters?.length || 1} {(offer.posters?.length || 1) === 1 ? 'Poster' : 'Posters'}
+                                                                                {offer.numberOfPosters || offer.posters?.length || 1} {(offer.numberOfPosters || offer.posters?.length || 1) === 1 ? 'Poster' : 'Posters'}
                                                                             </div>
                                                                         </TooltipTrigger>
                                                                         <TooltipContent>

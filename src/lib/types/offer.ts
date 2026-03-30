@@ -12,8 +12,9 @@ export interface MarkedItem {
     currency: string;
     oldPrice: number;
     offerPrice: number;
-    mainCategory: string;
-    subcategories: string[];
+    subcategoryId?: number;
+    mainCategory?: string;
+    subcategories?: string[];
 }
 
 export interface Poster {
@@ -30,16 +31,27 @@ export interface Poster {
 }
 
 export interface Offer {
-    // Core fields
-    batchId: string;
-    title: string;
-    status: "active" | "paused";
+    // New Listing format fields
+    offerId?: number;
+    title?: string;
+    postedAt?: number | string;
+    numberOfPosters?: number;
+    branches?: {
+        id: number;
+        branchName: string;
+    }[];
+    
+    // Core fields used in creation/editing
+    description?: string;
+    isFeatured?: boolean;
+    batchId?: string;
+    status?: "active" | "paused" | "expired" | string;
     isActive: boolean;
     validFrom: string;
     validTo: string;
     
-    // Branch info
-    branchIds: (number | string)[];
+    // Branch info (legacy/creation)
+    branchIds?: (number | string)[];
     branchNames?: string[];
     branchCity?: string;
     
@@ -48,7 +60,7 @@ export interface Offer {
     lastEdited?: string;
     
     // Posters
-    posters: Poster[];
+    posters?: Poster[];
     
     // Legacy/optional fields
     id?: number | string;
@@ -64,8 +76,9 @@ export interface Offer {
 
 export interface OfferPayload {
     title: string;
-    status: "active" | "paused";
+    description?: string;
     isActive: boolean;
+    isFeatured?: boolean;
     validFrom: string;
     validTo: string;
     branchIds: (number | string)[];
