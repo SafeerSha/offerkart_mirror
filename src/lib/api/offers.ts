@@ -1,19 +1,58 @@
 import { FEATURED_SHOPS, FEATURED_OFFERS, ALL_OFFERS } from './mockData';
-import { Offer } from '../types/offer';
+import { Offer, OfferPayload } from '../types/offer';
+import { apiClient } from './apiClient';
+import { ENDPOINTS } from './endpoints';
 
 // Simulate API delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+export async function createOffer(payload: OfferPayload, shopId: string) {
+    return apiClient<Offer>(ENDPOINTS.OFFER.BASE, {
+        method: 'POST',
+        headers: {
+            'shopId': shopId
+        },
+        body: JSON.stringify(payload)
+    });
+}
+
+export async function updateOffer(id: string, payload: OfferPayload, shopId: string) {
+    return apiClient<Offer>(ENDPOINTS.OFFER.DETAILS(id), {
+        method: 'PUT',
+        headers: {
+            'shopId': shopId
+        },
+        body: JSON.stringify(payload)
+    });
+}
+
+export async function deleteOffer(id: string, shopId: string) {
+    return apiClient<void>(ENDPOINTS.OFFER.DETAILS(id), {
+        method: 'DELETE',
+        headers: {
+            'shopId': shopId
+        }
+    });
+}
+
 export async function getFeaturedShops() {
-    return FEATURED_SHOPS;
+    return {
+        success: true,
+        data: FEATURED_SHOPS
+    };
 }
 
 export async function getFeaturedOffers() {
-    return FEATURED_OFFERS;
+    return {
+        success: true,
+        data: FEATURED_OFFERS
+    };
 }
 
-export async function getAllOffers() {
-    return ALL_OFFERS;
+export async function getAllOffers(shopId?: string) {
+    return apiClient<Offer[]>(ENDPOINTS.OFFER.BASE, {
+        headers: shopId ? { 'shopId': shopId } : {}
+    });
 }
 
 export async function getPaginatedOffers(page: number = 1, limit: number = 8) {
@@ -29,19 +68,5 @@ export async function getPaginatedOffers(page: number = 1, limit: number = 8) {
 }
 
 export async function getOfferById(id: string) {
-    await delay(100);
-    // For demo, just reuse one of the offers and enrich it if needed
-    // In real app, this would fetch specific details
-    const basicOffer = ALL_OFFERS.find(o => o.id.toString() === id) || ALL_OFFERS[0];
-
-    return {
-        ...basicOffer,
-        // Add detail-specific fields
-        images: [basicOffer.image, basicOffer.image, basicOffer.image], // Mock multiple images
-        description: "Experience the best services with our premium package. Valid on selected items.",
-        reviews: 128,
-        fullLocation: "123 Main St, Downtown, New York",
-        price: "₹4.99",
-        originalPrice: "₹7.49"
-    };
+    return apiClient<Offer>(ENDPOINTS.OFFER.DETAILS(id));
 }

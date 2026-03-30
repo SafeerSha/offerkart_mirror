@@ -1,4 +1,8 @@
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const IS_SERVER = typeof window === 'undefined';
+export const API_BASE_URL = IS_SERVER 
+    ? 'https://offersnearu.vercel.app/api' 
+    : (process.env.NEXT_PUBLIC_API_BASE_URL || '/api/proxy');
+
 export const ENDPOINTS = {
     AUTH: {
         REGISTER: `${API_BASE_URL}/business/auth/register`,
@@ -16,5 +20,9 @@ export const ENDPOINTS = {
     S3_IMAGE: {
         BASE: `${API_BASE_URL}/business/image`,
         UPLOAD: `${API_BASE_URL}/business/image/upload`,
+    },
+    OFFER: {
+        BASE: `${API_BASE_URL}/business/offer`,
+        DETAILS: (id: string) => `${API_BASE_URL}/business/offer/${id}`,
     }
 };
