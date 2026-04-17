@@ -10,7 +10,7 @@ export async function createOffer(payload: OfferPayload, shopId: string) {
     return apiClient<Offer>(ENDPOINTS.OFFER.BASE, {
         method: 'POST',
         headers: {
-            'shopId': shopId
+            'shopId': shopId // Explicitly keeping it for now as it's passed in
         },
         body: JSON.stringify(payload)
     });
@@ -26,12 +26,10 @@ export async function updateOffer(id: string, payload: OfferPayload, shopId: str
     });
 }
 
-export async function deleteOffer(id: string, shopId: string) {
+export async function deleteOffer(id: string, shopId?: string) {
     return apiClient<void>(ENDPOINTS.OFFER.DETAILS(id), {
         method: 'DELETE',
-        headers: {
-            'shopId': shopId
-        }
+        headers: shopId ? { 'shopId': shopId } : {}
     });
 }
 
@@ -69,4 +67,13 @@ export async function getPaginatedOffers(page: number = 1, limit: number = 8) {
 
 export async function getOfferById(id: string) {
     return apiClient<Offer>(ENDPOINTS.OFFER.DETAILS(id));
+}
+
+export async function toggleOfferStatus(id: string, shopId: string) {
+    return apiClient<Offer>(ENDPOINTS.OFFER.INACTIVATE(id), {
+        method: 'PATCH',
+        headers: {
+            'shopId': shopId
+        }
+    });
 }

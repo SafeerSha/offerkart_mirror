@@ -22,19 +22,19 @@ export function StatusToggleButton({
             type="button"
             onClick={() => onChange(isActive ? 'paused' : 'active')}
             className={cn(
-                "relative flex items-center w-[46px] h-6 rounded-full cursor-pointer transition-colors duration-300 shadow-inner shrink-0",
-                isActive ? "bg-[#1cc080]" : "bg-gray-300",
+                "relative flex items-center w-[38px] h-5 rounded-full cursor-pointer transition-all duration-300 shadow-inner shrink-0 outline-none hover:ring-2 hover:ring-primary/20",
+                isActive ? "bg-[#1cc080]" : "bg-gray-200",
                 className
             )}
         >
             <div 
                 className={cn(
-                    "absolute left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform duration-300 flex items-center justify-center",
-                    isActive ? "translate-x-[22px]" : "translate-x-0"
+                    "absolute left-0.5 w-[16px] h-[16px] bg-white rounded-full shadow-[0_1px_3px_rgba(0,0,0,0.2)] transform transition-transform duration-300 flex items-center justify-center",
+                    isActive ? "translate-x-[18px]" : "translate-x-0"
                 )}
             >
                 <Power className={cn(
-                    "w-3 h-3 transition-colors duration-300",
+                    "w-[10px] h-[10px] transition-colors duration-300",
                     isActive ? "text-[#1cc080]" : "text-gray-400"
                 )} />
             </div>
