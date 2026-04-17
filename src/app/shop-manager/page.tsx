@@ -37,6 +37,7 @@ import {
     MousePointer2,
     Pencil,
     GitBranch,
+    Paintbrush,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PremiumDatePicker } from "@/components/shared/PremiumDatePicker";
@@ -489,6 +490,7 @@ function DashboardContent() {
                                 <SectionTitle>Quick Actions</SectionTitle>
                                 <div className="grid grid-cols-1 gap-3">
                                     <ActionButton icon={Settings} label="Business Settings" href="/shop-manager/shop-settings" />
+                                    <ActionButton icon={Paintbrush} label="Poster Designer" href="/shop-manager/poster-designer" />
                                     <ActionButton icon={Store} label="View Public Profile" />
                                     <div className="pt-3 mt-3 border-t border-primary/10">
                                         <button
