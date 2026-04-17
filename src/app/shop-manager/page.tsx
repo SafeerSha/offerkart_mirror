@@ -6,32 +6,23 @@ import { getMyShops } from "@/lib/api/shop";
 import { toast } from "sonner";
 import { PremiumCard } from "@/components/shared/PremiumCard";
 import { PremiumButton } from "@/components/shared/PremiumButton";
-import { PremiumInput } from "@/components/shared/PremiumInput";
-import { PremiumDatePicker } from "@/components/shared/PremiumDatePicker";
 import { AppModal } from "@/components/shared/AppModal";
-import { MultiSearchableSelect } from "@/components/shared/MultiSearchableSelect";
-import { getBranches } from "@/lib/api/branch";
 import { s3Api } from "@/lib/api/s3";
-import { getAllOffers, updateOffer, deleteOffer, getOfferById } from "@/lib/api/offers";
+import { getAllOffers, deleteOffer } from "@/lib/api/offers";
 import { Branch } from "@/lib/types/branch";
 import {
     AlertTriangle,
     ArrowUpRight,
-    ArrowUp,
-    ArrowDown,
-    Image as ImageIcon,
     BarChart3,
     ChevronRight,
     Clock,
     Eye,
     Filter,
-    GitBranch,
     Info,
     LayoutDashboard,
     LogOut,
     MapPin,
     MoreVertical,
-    MousePointer2,
     Package,
     Plus,
     Power,
@@ -41,24 +32,24 @@ import {
     Tag,
     Ticket,
     Loader2,
-    Pencil,
     Trash2,
-    Type,
     Calendar,
+    MousePointer2,
+    Pencil,
+    GitBranch,
 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PremiumDatePicker } from "@/components/shared/PremiumDatePicker";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import Image from "next/image";
 import { MarkedPoster } from "@/components/shared/MarkedPoster";
 import { useSearchParams, useRouter } from "next/navigation";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
-import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn, getRelativeTime, formatDateLocal } from "@/lib/utils";
+import { cn, getRelativeTime } from "@/lib/utils";
 import { ImagePreviewModal } from "@/components/shared/ImagePreviewModal";
 import { StatusToggleButton } from "@/components/shared/StatusToggleButton";
 import { storage } from "@/lib/storage";
-import { X } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
@@ -95,18 +86,7 @@ function DashboardContent() {
     const tabsRef = useRef<HTMLDivElement>(null);
     const user = session?.user as any;
 
-    // Edit offer state
-    const [editingOffer, setEditingOffer] = useState<any | null>(null);
-    const [editTitle, setEditTitle] = useState("");
-    const [editValidFrom, setEditValidFrom] = useState<Date>();
-    const [editValidTo, setEditValidTo] = useState<Date>();
-    const [editBranchIds, setEditBranchIds] = useState<string[]>([]);
-    const [editBranches, setEditBranches] = useState<Branch[]>([]);
-    const [editStatus, setEditStatus] = useState("active");
-    const [editIsActive, setEditIsActive] = useState(true);
-    const [editPosters, setEditPosters] = useState<any[]>([]);
-    const [isSavingOffer, setIsSavingOffer] = useState(false);
-    const [posterActionIndex, setPosterActionIndex] = useState<number | null>(null);
+
 
     // Delete offer state
     const [offerToDelete, setOfferToDelete] = useState<any | null>(null);
@@ -150,136 +130,10 @@ function DashboardContent() {
         }
     };
 
-    // Open edit modal and pre-fill values
-    const openEditModal = async (offer: any) => {
-        // Fetch full details if posters are missing (common in listing responses)
-        let fullOffer = offer;
-        if (!offer.posters && (offer.offerId || offer.id)) {
-            try {
-                const res = await getOfferById(String(offer.offerId || offer.id));
-                if (res.success && res.data) fullOffer = res.data;
-            } catch (err) {
-                console.error("Failed to fetch full offer details:", err);
-            }
-        }
-
-        setEditingOffer(fullOffer);
-        setEditTitle(fullOffer.title || "");
-        setEditValidFrom(fullOffer.validFrom ? new Date(fullOffer.validFrom) : undefined);
-        setEditValidTo(fullOffer.validTo ? new Date(fullOffer.validTo) : undefined);
-        
-        // Handle new branches structure vs old branchIds
-        const branchIds = fullOffer.branches 
-            ? fullOffer.branches.map((b: any) => String(b.id)) 
-            : (fullOffer.branchIds ? fullOffer.branchIds.map(String) : []);
-        setEditBranchIds(branchIds);
-        
-        setEditStatus(fullOffer.status || "active");
-        setEditIsActive(fullOffer.status === 'active');
-        setEditPosters(fullOffer.posters ? fullOffer.posters.map((p: any, i: number) => ({ ...p, order: p.order || i + 1 })) : (fullOffer.posterSrc ? [{ id: '1', posterSrc: fullOffer.posterSrc, type: 'legacy', order: 1 }] : []));
-
-        // Fetch branches for the dropdown
-        try {
-            let shopId = session?.shopId ?? (session?.user as any)?.shopId;
-            if (!shopId) {
-                const shopRes = await getMyShops();
-                if (shopRes.success && shopRes.data) {
-                    const shopList = Array.isArray(shopRes.data) ? shopRes.data : (shopRes.data as any).data || [];
-                    if (shopList.length > 0) {
-                        shopId = shopList[0].id;
-                    }
-                }
-            }
-            if (shopId) {
-                const res = await getBranches(shopId);
-                if (res.success && res.data) {
-                    const list = Array.isArray(res.data) ? res.data : (res.data as any).data || [];
-                    setEditBranches(Array.isArray(list) ? list : []);
-                }
-            }
-        } catch (error) {
-            console.error("Failed to fetch branches for edit modal:", error);
-        }
-    };
-
-    // Save current modal state and edit single poster
-    const handleEditSinglePoster = async (posterIndex: number) => {
-        if (!editingOffer) return;
-
-        try {
-            // Re-construct the updated offer payload
-            const selectedBranches = editBranches.filter((b) => editBranchIds.includes(String(b.id)));
-            const updatedOfferSnapshot = {
-                ...editingOffer,
-                title: editTitle,
-                validFrom: editValidFrom ? formatDateLocal(editValidFrom) : editingOffer.validFrom,
-                validTo: editValidTo ? formatDateLocal(editValidTo) : editingOffer.validTo,
-                branchIds: selectedBranches.length > 0 ? selectedBranches.map((b) => b.id) : editingOffer.branchIds,
-                branchNames: selectedBranches.length > 0 ? selectedBranches.map((b) => b.branch_name) : editingOffer.branchNames,
-                branchCity: selectedBranches.length > 0 ? selectedBranches[0]?.city : editingOffer.branchCity,
-                status: editIsActive ? 'active' : 'paused',
-                isActive: editIsActive,
-                posters: editPosters.length > 0 ? [...editPosters] : editingOffer.posters,
-            };
-
-            const stored = await storage.getItem<any[]>("markedPosters") || [];
-            const updated = [...stored];
-            const idx = updated.findIndex((o) => o.batchId === editingOffer.batchId);
-
-            if (idx > -1) {
-                updated[idx] = updatedOfferSnapshot;
-            } else {
-                updated.push(updatedOfferSnapshot);
-            }
-
-            await storage.setItem("markedPosters", updated);
-
-            // Redirect to editor scoped to this offer and index
-            router.push(`/shop-manager/create-offer/editor?edit=${editingOffer.batchId}&poster=${posterIndex}`);
-        } catch (error) {
-            console.error("Failed to save state before editing:", error);
-            toast.error("Failed to save progress before editing");
-        }
-    };
-
-    // Save edited offer
-    const handleSaveOffer = async () => {
-        if (!editingOffer) return;
-        setIsSavingOffer(true);
-        try {
-            let shopId = session?.shopId ?? (session?.user as any)?.shopId;
-            if (!shopId && shops.length > 0) shopId = shops[0].id;
-
-            if (shopId) {
-                const selectedBranches = editBranches.filter((b) => editBranchIds.includes(String(b.id)));
-                const payload = {
-                    ...editingOffer,
-                    title: editTitle,
-                    validFrom: editValidFrom ? formatDateLocal(editValidFrom) : editingOffer.validFrom,
-                    validTo: editValidTo ? formatDateLocal(editValidTo) : editingOffer.validTo,
-                    branchIds: selectedBranches.length > 0 ? selectedBranches.map((b) => b.id) : editingOffer.branchIds,
-                    branchNames: selectedBranches.length > 0 ? selectedBranches.map((b) => b.branch_name) : editingOffer.branchNames,
-                    branchCity: selectedBranches.length > 0 ? selectedBranches[0]?.city : editingOffer.branchCity,
-                    status: editIsActive ? 'active' : 'paused',
-                    isActive: editIsActive,
-                    posters: editPosters.length > 0 ? editPosters : editingOffer.posters,
-                };
-
-                const res = await updateOffer(String(editingOffer.id || editingOffer.batchId), payload, String(shopId));
-                if (res.success) {
-                    setPublishedOffers(prev => prev.map(o => (o.id === editingOffer.id || o.batchId === editingOffer.batchId) ? { ...o, ...payload } : o));
-                    toast.success("Offer updated successfully");
-                } else {
-                    throw new Error(res.error || "Failed to update");
-                }
-            }
-        } catch (err: any) {
-            console.error("Save error:", err);
-            toast.error(`Failed to update offer: ${err.message}`);
-        } finally {
-            setIsSavingOffer(false);
-            setEditingOffer(null);
-        }
+    // Navigate to the dedicated edit offer page
+    const openEditModal = (offer: any) => {
+        const id = String(offer.offerId || offer.id || offer.batchId);
+        router.push(`/shop-manager/edit-offer/${id}`);
     };
 
     // Delete offer
@@ -1053,230 +907,7 @@ function DashboardContent() {
                 </div>
             </AppModal >
 
-            {/* ──── Edit Offer Modal ──── */}
-            < AppModal
-                open={!!editingOffer
-                }
-                onOpenChange={(open) => { if (!open) setEditingOffer(null); }}
-                title="Edit Offer"
-                description="Update the details of your published offer."
-            >
-                <div className="space-y-5">
-                    <PremiumInput
-                        label="Campaign Title"
-                        icon={Type}
-                        type="text"
-                        value={editTitle}
-                        onChange={(e) => setEditTitle(e.target.value)}
-                        placeholder="e.g. Weekend Mega Sale 2024"
-                        autoFocus
-                    />
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <PremiumDatePicker
-                            label="Valid From"
-                            date={editValidFrom}
-                            setDate={setEditValidFrom}
-                            placeholder="Start date"
-                        />
-                        <PremiumDatePicker
-                            label="Valid To"
-                            date={editValidTo}
-                            setDate={setEditValidTo}
-                            placeholder="End date"
-                        />
-                    </div>
-
-                    {/* Branch Selector */}
-                    <div className="space-y-2 pb-1 min-w-0 w-full">
-                        <label className="text-sm font-medium flex items-center gap-2 text-foreground ml-1">
-                            <GitBranch className="w-4 h-4 text-muted-foreground" />
-                            Branch
-                            {editBranches.length === 0 && (
-                                <Loader2 className="w-3 h-3 animate-spin text-muted-foreground ml-1" />
-                            )}
-                        </label>
-                        <MultiSearchableSelect
-                            options={editBranches.map((b) => ({ label: `${b.branch_name} — ${b.city}`, value: String(b.id) }))}
-                            selectedValues={editBranchIds}
-                            onChange={setEditBranchIds}
-                            placeholder={editBranches.length > 0 ? "Select branches" : "Loading branches..."}
-                        />
-                    </div>
-
-
-
-                    {/* Poster Sequence Editor */}
-                    {editPosters.length > 1 && (
-                        <div className="space-y-3 min-w-0 w-full">
-                            <div className="flex items-center justify-between text-sm font-medium text-foreground ml-1 pr-1">
-                                <label className="flex items-center gap-2">
-                                    <ImageIcon className="w-4 h-4 text-muted-foreground" />
-                                    Poster Sequence
-                                </label>
-                                <span className="opacity-60 text-xs">
-                                    total posters: <span className="font-bold">{editPosters.length}</span>
-                                </span>
-                            </div>
-                            <div className="flex gap-3 overflow-x-auto pb-2 pt-1 custom-scrollbar snap-x w-full">
-                                {editPosters.map((poster, index) => (
-                                    <div key={poster.id || index} className="flex flex-col items-center p-2 rounded-xl border border-primary/10 bg-background/50 w-[120px] shrink-0 snap-start relative group">
-                                        <div
-                                            className="relative w-full aspect-square rounded-lg overflow-hidden border border-primary/20 bg-muted mb-2 group/thumb cursor-pointer"
-                                            onClick={() => setPreviewLogo({ src: poster.posterSrc || '', name: `Poster ${index + 1}`, markedItems: poster.markedItems })}
-                                            title="Click to preview"
-                                        >
-                                            <MarkedPoster
-                                                src={poster.posterSrc}
-                                                alt={`Poster ${index + 1}`}
-                                                markedItems={poster.markedItems}
-                                                className="w-full h-full"
-                                                showNames={false}
-                                            />
-                                            <div className="absolute inset-0 bg-black/0 group-hover/thumb:bg-black/20 transition-colors flex items-center justify-center pointer-events-none z-20">
-                                                <Eye className="w-6 h-6 text-white opacity-0 group-hover/thumb:opacity-100 transition-opacity drop-shadow-md" />
-                                            </div>
-
-                                            <div className="absolute top-1 left-1 bg-black/60 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md backdrop-blur-md z-30 pointer-events-none">
-                                                {index + 1}
-                                            </div>
-                                        </div>
-
-                                        <div className="absolute top-1 right-1 z-20 md:opacity-0 md:group-hover/thumb:opacity-100 transition-opacity">
-                                            <button
-                                                type="button"
-                                                className="p-1.5 bg-black/40 text-white backdrop-blur-md rounded-md hover:bg-primary transition-colors"
-                                                title="Edit Poster Type / Markings"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setPosterActionIndex(index);
-                                                }}
-                                            >
-                                                <Pencil className="w-3.5 h-3.5" />
-                                            </button>
-                                        </div>
-
-
-                                        <div className="w-full text-center mb-2 px-1">
-                                            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider truncate">
-                                                {poster.type?.replace('_', ' ')}
-                                            </p>
-                                        </div>
-
-                                        <div className="flex items-center justify-between w-full bg-primary/5 p-1 rounded-lg">
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    if (index === 0) return;
-                                                    const newPosters = [...editPosters];
-                                                    const temp = newPosters[index - 1];
-                                                    newPosters[index - 1] = newPosters[index];
-                                                    newPosters[index] = temp;
-                                                    setEditPosters(newPosters.map((p, i) => ({ ...p, order: i + 1 })));
-                                                }}
-                                                disabled={index === 0}
-                                                className="p-1 rounded-md hover:bg-white disabled:opacity-30 disabled:hover:bg-transparent transition-all"
-                                                title="Move left"
-                                            >
-                                                <ArrowUp className="w-4 h-4 -rotate-90" />
-                                            </button>
-
-                                            <select
-                                                value={index + 1}
-                                                onChange={(e) => {
-                                                    const newIndex = parseInt(e.target.value) - 1;
-                                                    const newPosters = [...editPosters];
-                                                    const [moved] = newPosters.splice(index, 1);
-                                                    newPosters.splice(newIndex, 0, moved);
-                                                    setEditPosters(newPosters.map((p, i) => ({ ...p, order: i + 1 })));
-                                                }}
-                                                className="w-8 text-center text-xs font-bold bg-transparent border-none appearance-none cursor-pointer outline-none hover:bg-black/5 rounded focus:ring-0 px-0"
-                                                title="Jump to position"
-                                            >
-                                                {editPosters.map((_, i) => (
-                                                    <option key={i} value={i + 1}>{i + 1}</option>
-                                                ))}
-                                            </select>
-
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    if (index === editPosters.length - 1) return;
-                                                    const newPosters = [...editPosters];
-                                                    const temp = newPosters[index + 1];
-                                                    newPosters[index + 1] = newPosters[index];
-                                                    newPosters[index] = temp;
-                                                    setEditPosters(newPosters.map((p, i) => ({ ...p, order: i + 1 })));
-                                                }}
-                                                disabled={index === editPosters.length - 1}
-                                                className="p-1 rounded-md hover:bg-white disabled:opacity-30 disabled:hover:bg-transparent transition-all"
-                                                title="Move right"
-                                            >
-                                                <ArrowDown className="w-4 h-4 -rotate-90" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Add More Posters Button - Prominent */}
-                    <div className="pt-2">
-                        <PremiumButton
-                            type="button"
-                            onClick={() => {
-                                if (editingOffer?.batchId) {
-                                    router.push(`/shop-manager/create-offer?edit=${editingOffer.batchId}`);
-                                }
-                            }}
-                            leftIcon={Plus}
-                            className="w-full rounded-xl bg-orange-500 hover:bg-orange-600 shadow-lg shadow-orange-500/20"
-                        >
-                            Add More Posters
-                        </PremiumButton>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-4 border-t border-primary/10">
-                        {/* Status Toggle matching original visual preference */}
-                        <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-1.5 hidden sm:flex">
-                                <div className={cn(
-                                    "w-2 h-2 rounded-full",
-                                    editStatus === "active" ? "bg-[#1cc080]" : "bg-gray-400"
-                                )} />
-                                <span className={cn(
-                                    "text-[13px] font-bold uppercase tracking-wider",
-                                    editStatus === "active" ? "text-slate-800" : "text-gray-500"
-                                )}>
-                                    {editStatus === "active" ? "Online" : "Paused"}
-                                </span>
-                            </div>
-                            <StatusToggleButton
-                                status={editIsActive ? "active" : "paused"}
-                                onChange={(newStatus) => setEditIsActive(newStatus === "active")}
-                            />
-                        </div>
-
-                        <div className="flex gap-3">
-                            <PremiumButton variant="outline" onClick={() => setEditingOffer(null)} className="rounded-xl">
-                                Cancel
-                            </PremiumButton>
-                            <PremiumButton
-                                onClick={handleSaveOffer}
-                                disabled={isSavingOffer || !editTitle.trim()}
-                                className="rounded-xl px-8 bg-orange-500 hover:bg-orange-600 shadow-lg shadow-orange-500/20"
-                            >
-                                {isSavingOffer ? (
-                                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</>
-                                ) : (
-                                    "Save Changes"
-                                )}
-                            </PremiumButton>
-                        </div>
-                    </div>
-                </div>
-            </AppModal>
 
             {/* ──── Delete Confirm Dialog ──── */}
             <AppModal
@@ -1308,76 +939,7 @@ function DashboardContent() {
                 </div>
             </AppModal>
 
-            {/* ──── Poster Edit Action Modal ──── */}
-            <AppModal
-                open={posterActionIndex !== null}
-                onOpenChange={(open) => { if (!open) setPosterActionIndex(null); }}
-                title={
-                    posterActionIndex !== null && editPosters[posterActionIndex!]?.type === 'marked_poster'
-                        ? "Edit Marked Poster"
-                        : "Mark Products on Poster"
-                }
-                description={
-                    posterActionIndex !== null && editPosters[posterActionIndex!]?.type === 'marked_poster'
-                        ? "This poster contains product hotspots. What would you like to do?"
-                        : "This is a standard post. Do you want to add interactive product hotspots?"
-                }
-            >
-                <div className="space-y-4">
-                    {posterActionIndex !== null && editPosters[posterActionIndex]?.type === 'marked_poster' ? (
-                        <>
-                            <div className="flex gap-3 justify-end mt-4">
-                                <PremiumButton
-                                    variant="outline"
-                                    onClick={() => {
-                                        const newPosters = [...editPosters];
-                                        newPosters[posterActionIndex!] = {
-                                            ...newPosters[posterActionIndex!],
-                                            type: 'just_post',
-                                            markedItems: []
-                                        };
-                                        setEditPosters(newPosters);
-                                        setPosterActionIndex(null);
-                                    }}
-                                    className="rounded-xl border-red-200 text-red-600 hover:bg-red-50"
-                                >
-                                    Change to Just Post
-                                </PremiumButton>
-                                <PremiumButton
-                                    onClick={() => {
-                                        const idx = posterActionIndex;
-                                        setPosterActionIndex(null);
-                                        if (idx !== null) handleEditSinglePoster(idx);
-                                    }}
-                                    className="rounded-xl px-6"
-                                    leftIcon={Pencil}
-                                >
-                                    Edit Markings
-                                </PremiumButton>
-                            </div>
-                        </>
-                    ) : (
-                        <>
-                            <div className="flex gap-3 justify-end mt-4">
-                                <PremiumButton variant="outline" onClick={() => setPosterActionIndex(null)} className="rounded-xl">
-                                    Cancel
-                                </PremiumButton>
-                                <PremiumButton
-                                    onClick={() => {
-                                        const idx = posterActionIndex;
-                                        setPosterActionIndex(null);
-                                        if (idx !== null) handleEditSinglePoster(idx);
-                                    }}
-                                    className="rounded-xl px-6"
-                                    leftIcon={MousePointer2}
-                                >
-                                    Add Markings
-                                </PremiumButton>
-                            </div>
-                        </>
-                    )}
-                </div>
-            </AppModal>
+
 
             {/* Image Preview Modal */}
             {
