@@ -2,8 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
-import { StaticImageData } from "next/image";
-import { getPaginatedOffers, getFeaturedOffers } from "@/lib/api/offers";
+import { getPaginatedOffers } from "@/lib/api/offers";
 import OfferGrid from "@/components/home/OfferGrid";
 import FilterPanel from "@/components/home/FilterPanel";
 import FeaturedOffers from "@/components/home/FeaturedOffers";
@@ -17,25 +16,17 @@ import {
     SheetTrigger,
 } from "@/components/ui/sheet";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
-
-interface Offer {
-    id: number;
-    shopName: string;
-    offerName: string;
-    image: string | StaticImageData;
-    category: string;
-    subcategory?: string;
-    location: string;
-    validFrom: string;
-    validTo: string;
-    discount?: string;
-    rating?: number;
-}
+import { Offer } from "@/lib/types/offer";
 
 interface OffersClientProps {
     initialOffers: Offer[];
     initialFeaturedShops: any[];
     hasMoreInitial: boolean;
+}
+
+interface UserCoordinates {
+    latitude: number;
+    longitude: number;
 }
 
 export default function OffersClient({
@@ -47,12 +38,13 @@ export default function OffersClient({
     const initialCategory = searchParams.get("category") || "All";
 
     const [offers, setOffers] = useState<Offer[]>(initialOffers);
-    const [featuredShops, setFeaturedShops] = useState<any[]>(initialFeaturedShops);
+    const featuredShops = initialFeaturedShops;
     const [isLoading, setIsLoading] = useState(false);
     const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(hasMoreInitial);
     const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
+    const [userCoordinates, setUserCoordinates] = useState<UserCoordinates | null>(null);
 
     const [activeFilters, setActiveFilters] = useState<{
         category: string;
@@ -93,6 +85,38 @@ export default function OffersClient({
         setHasMore(true);
     }, []);
 
+    const getUserCoordinates = useCallback(async () => {
+        if (userCoordinates) {
+            return userCoordinates;
+        }
+
+        if (typeof window === "undefined" || !("geolocation" in navigator)) {
+            return null;
+        }
+
+        return new Promise<UserCoordinates | null>((resolve) => {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const coordinates = {
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude,
+                    };
+                    setUserCoordinates(coordinates);
+                    resolve(coordinates);
+                },
+                (error) => {
+                    console.warn("Unable to resolve user location for nearby offers:", error);
+                    resolve(null);
+                },
+                {
+                    enableHighAccuracy: false,
+                    timeout: 10000,
+                    maximumAge: 300000,
+                }
+            );
+        });
+    }, [userCoordinates]);
+
     const fetchMoreOffers = useCallback(async (isInitial: boolean = false) => {
         if (!hasMore && !isInitial) return;
 
@@ -102,14 +126,29 @@ export default function OffersClient({
         else setIsFetchingNextPage(true);
 
         try {
-            const result = await getPaginatedOffers(targetPage, 8);
+            const coordinates = activeFilters.sort === "nearby"
+                ? await getUserCoordinates()
+                : null;
 
-            let processedData = result.data as unknown as Offer[];
-            if (activeFilters.category !== "All") {
+            const result = await getPaginatedOffers(targetPage, 8, {
+                sort: activeFilters.sort,
+                latitude: coordinates?.latitude,
+                longitude: coordinates?.longitude,
+            });
+
+            if (!result.success) {
+                throw new Error(result.error || "Failed to load offers");
+            }
+
+            let processedData = result.data;
+            const supportsCategoryFilter = processedData.some((offer) => offer.category && offer.category !== "Offers");
+            const supportsSubcategoryFilter = processedData.some((offer) => Boolean((offer as any).subcategory));
+
+            if (activeFilters.category !== "All" && supportsCategoryFilter) {
                 processedData = processedData.filter(o => o.category === activeFilters.category);
             }
-            if (activeFilters.subcategory.length > 0) {
-                processedData = processedData.filter(o => activeFilters.subcategory.includes(o.subcategory || ""));
+            if (activeFilters.subcategory.length > 0 && supportsSubcategoryFilter) {
+                processedData = processedData.filter(o => activeFilters.subcategory.includes((o as any).subcategory || ""));
             }
 
             setOffers(prev => isInitial ? processedData : [...prev, ...processedData]);
@@ -121,7 +160,7 @@ export default function OffersClient({
             setIsLoading(false);
             setIsFetchingNextPage(false);
         }
-    }, [page, hasMore, activeFilters]);
+    }, [page, hasMore, activeFilters, getUserCoordinates]);
 
     // Initial fetch when filters change (ignoring the first mountain of initialOffers)
     useEffect(() => {

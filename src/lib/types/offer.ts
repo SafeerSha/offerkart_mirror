@@ -36,6 +36,10 @@ export interface Offer {
     title?: string;
     postedAt?: number | string;
     numberOfPosters?: number;
+    totalPosters?: number;
+    daysLeft?: number | null;
+    distanceKm?: number | null;
+    shopLogo?: string | null;
     branches?: {
         id: number;
         branchName: string;
@@ -47,8 +51,8 @@ export interface Offer {
     batchId?: string;
     status?: "active" | "paused" | "expired" | string;
     isActive: boolean;
-    validFrom: string;
-    validTo: string;
+    validFrom?: string;
+    validTo?: string;
     
     // Branch info (legacy/creation)
     branchIds?: (number | string)[];

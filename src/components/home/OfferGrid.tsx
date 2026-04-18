@@ -2,27 +2,12 @@
 
 import React, { useState } from "react";
 import OfferCard from "../offer/OfferCard";
-import { StaticImageData } from "next/image";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { cn } from "@/lib/utils";
-import { Search, X } from "lucide-react";
-import { Poster } from "@/lib/types/offer";
+import { Search } from "lucide-react";
+import { Offer } from "@/lib/types/offer";
 
 import { useRouter } from "next/navigation";
-
-interface Offer {
-  id: number;
-  shopName: string;
-  offerName: string;
-  image: string | StaticImageData;
-  posters?: Poster[];
-  category: string;
-  subcategory?: string;
-  location: string;
-  validFrom: string;
-  validTo: string;
-  discount?: string;
-}
 
 interface OfferGridProps {
   isLoading?: boolean;
@@ -110,7 +95,7 @@ const OfferGrid = ({
         {visibleOffers.map((offer, index) => {
           return (
             <div
-              key={offer.id}
+              key={offer.id ?? offer.offerId ?? index}
               className="animate-in fade-in slide-in-from-bottom-4 duration-500 fill-mode-both"
               style={{ animationDelay: `${(index % 6) * 0.1}s` }}
             >

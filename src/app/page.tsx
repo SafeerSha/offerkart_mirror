@@ -3,7 +3,7 @@ import FeaturedOffers from "@/components/home/FeaturedOffers";
 import FilterPanel from "@/components/home/FilterPanel";
 import OfferGrid from "@/components/home/OfferGrid";
 import ShopRegistrationSection from "@/components/home/ShopRegistrationSection";
-import { getFeaturedShops, getFeaturedOffers, getAllOffers } from "@/lib/api/offers";
+import { getFeaturedShops, getFeaturedOffers, getPaginatedOffers } from "@/lib/api/offers";
 import { Store, Ticket, MapPin, Award } from "lucide-react";
 import { Heading, Subheading, Text } from "@/components/shared/Typography";
 import { cn } from "@/lib/utils";
@@ -15,12 +15,12 @@ export default async function HomePage() {
   const [featuredShopsRes, featuredOffersRes, allOffersRes] = await Promise.all([
     getFeaturedShops(),
     getFeaturedOffers(),
-    getAllOffers(),
+    getPaginatedOffers(1, 8),
   ]);
 
   const featuredShops = (featuredShopsRes as any).success ? ((featuredShopsRes as any).data || []) : [];
   const featuredOffers = (featuredOffersRes as any).success ? ((featuredOffersRes as any).data || []) : [];
-  const allOffers = (allOffersRes as any).success ? ((allOffersRes as any).data || []) : [];
+  const allOffers = allOffersRes.success ? allOffersRes.data : [];
 
   return (
     <div className="min-h-screen bg-background">
