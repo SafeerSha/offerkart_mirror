@@ -14,6 +14,7 @@ interface PremiumDatePickerProps {
   error?: string;
   containerClassName?: string;
   placeholder?: string;
+  minDate?: Date;
 }
 
 export function PremiumDatePicker({
@@ -23,6 +24,7 @@ export function PremiumDatePicker({
   error,
   containerClassName,
   placeholder = "Pick a date",
+  minDate,
 }: PremiumDatePickerProps) {
   const [viewDate, setViewDate] = React.useState(date ?? new Date());
 
@@ -113,19 +115,23 @@ export function PremiumDatePicker({
                     const isCurrentMonth = isSameMonth(d, viewDate);
                     const isSelected = date && isSameDay(d, date);
                     const isTodayDate = isToday(d);
+                    const isDisabled = minDate && format(d, 'yyyy-MM-dd') < format(minDate, 'yyyy-MM-dd');
 
                     return (
                       <button
                         key={di}
+                        disabled={isDisabled}
                         onClick={() => {
+                          if (isDisabled) return;
                           setDate(d);
                           setViewDate(d);
                         }}
                         className={cn(
                           "h-9 w-full flex items-center justify-center text-sm rounded-full font-medium transition-all",
                           !isCurrentMonth && "text-gray-300",
-                          isCurrentMonth && !isSelected && !isTodayDate && "text-gray-800 hover:bg-orange-50 hover:text-orange-600",
-                          isTodayDate && !isSelected && "text-orange-500 font-bold",
+                          isDisabled && "opacity-20 cursor-not-allowed",
+                          isCurrentMonth && !isDisabled && !isSelected && !isTodayDate && "text-gray-800 hover:bg-orange-50 hover:text-orange-600",
+                          isTodayDate && !isDisabled && !isSelected && "text-orange-500 font-bold",
                           isSelected && "bg-orange-500 text-white shadow-md shadow-orange-500/30 hover:bg-orange-600"
                         )}
                       >
@@ -142,10 +148,18 @@ export function PremiumDatePicker({
               <button
                 onClick={() => {
                   const today = new Date();
+                  const isDisabled = minDate && format(today, 'yyyy-MM-dd') < format(minDate, 'yyyy-MM-dd');
+                  if (isDisabled) return;
                   setDate(today);
                   setViewDate(today);
                 }}
-                className="text-sm font-medium text-orange-500 hover:text-orange-600 transition-colors"
+                disabled={minDate && format(new Date(), 'yyyy-MM-dd') < format(minDate, 'yyyy-MM-dd')}
+                className={cn(
+                  "text-sm font-medium transition-colors",
+                  minDate && format(new Date(), 'yyyy-MM-dd') < format(minDate, 'yyyy-MM-dd') 
+                    ? "text-gray-300 cursor-not-allowed" 
+                    : "text-orange-500 hover:text-orange-600"
+                )}
               >
                 Today
               </button>

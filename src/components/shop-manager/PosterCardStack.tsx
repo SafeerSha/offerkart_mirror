@@ -33,7 +33,7 @@ import { MarkedItem } from "@/lib/types/offer";
 
 export interface PosterItem {
     id: string;
-    file: File;
+    file?: File;
     previewUrl: string;
     type: "just_post" | "marked_poster" | "unclassified";
     markedItems?: MarkedItem[];
@@ -56,7 +56,10 @@ interface PosterCardStackProps {
     maxSizeMB?: number;
     maxPosters?: number;
     initialFiles?: File[];
+    initialPosters?: PosterItem[];
     submitButtonText?: string;
+    editorReturnTo?: "create-offer" | "edit-offer";
+    editorReturnUrl?: string;
 }
 
 type Phase = "upload" | "classify" | "summary";
@@ -72,7 +75,10 @@ export const PosterCardStack = ({
     maxSizeMB = 5,
     maxPosters = 15,
     initialFiles,
+    initialPosters,
     submitButtonText = "Publish",
+    editorReturnTo = "create-offer",
+    editorReturnUrl,
 }: PosterCardStackProps) => {
     const [phase, setPhase] = useState<Phase>("upload");
     const [posters, setPosters] = useState<PosterItem[]>([]);
@@ -124,6 +130,15 @@ export const PosterCardStack = ({
             });
         }
     }, [searchParams, hasProcessedInitial]);
+ 
+    // Handle initialPosters from prop
+    useEffect(() => {
+        if (initialPosters && initialPosters.length > 0 && !hasProcessedInitial) {
+            setHasProcessedInitial(true);
+            setPosters(initialPosters);
+            setPhase("classify");
+        }
+    }, [initialPosters, hasProcessedInitial]);
 
     // Preview Re-opening Effect: Trigger onPreviewChange when previewIndex is set (e.g. from URL on resume)
     useEffect(() => {
@@ -153,6 +168,7 @@ export const PosterCardStack = ({
     const unclassifiedPosters = posters.filter((p) => p.type === "unclassified");
     const justPostPosters = posters.filter((p) => p.type === "just_post");
     const markPosters = posters.filter((p) => p.type === "marked_poster");
+    const allClassified = posters.length > 0 && posters.every(p => p.type !== "unclassified");
 
     const processFiles = useCallback(
         async (files: FileList | File[]) => {
@@ -249,7 +265,8 @@ export const PosterCardStack = ({
         // Start background upload immediately if not already started
         const currentPoster = posters[currentIndex];
         let newUploadPromise = currentPoster.uploadPromise;
-        if (!newUploadPromise) {
+        
+        if (!newUploadPromise && currentPoster.file) {
             newUploadPromise = s3Api.uploadImage(currentPoster.file).then((res) => {
                 const payload = (res.data as any)?.data || res.data;
                 const uploadedUrl = payload?.url || payload?.fileUrl || payload?.imageUrl || (res.data as any)?.imageUrl || (typeof payload === 'string' ? payload : null);
@@ -260,7 +277,7 @@ export const PosterCardStack = ({
                 throw new Error(res.message || "Failed to upload to S3 (Missing URL in response)");
             }).catch(err => {
                 console.error("S3 Upload Background Error:", err);
-                toast.error(`Failed to upload ${currentPoster.file.name}`);
+                toast.error(`Failed to upload ${currentPoster.file?.name || 'file'}`);
                 throw err;
             });
         }
@@ -351,7 +368,7 @@ export const PosterCardStack = ({
 
         // Ensure poster is uploaded or has a promise before editing
         let uploadPromise = poster.uploadPromise;
-        if (!uploadPromise) {
+        if (!uploadPromise && poster.file) {
             uploadPromise = s3Api.uploadImage(poster.file).then((res) => {
                 const payload = (res.data as any)?.data || res.data;
                 const uploadedUrl = payload?.url || payload?.fileUrl || payload?.imageUrl || (res.data as any)?.imageUrl || (typeof payload === 'string' ? payload : null);
@@ -359,7 +376,7 @@ export const PosterCardStack = ({
                 throw new Error(res.message || "Upload failed");
             }).catch(err => {
                 setIsPreparingRedirection(false);
-                toast.error(`Failed to upload ${poster.file.name}`);
+                toast.error(`Failed to upload ${poster.file?.name || 'file'}`);
                 throw err;
             });
 
@@ -383,8 +400,15 @@ export const PosterCardStack = ({
             }));
             await storage.setItem("currentEditingPosters", editorFormatted);
             await storage.setItem("currentEditingPoster", editorFormatted[index]);
+            if (editorReturnTo === "edit-offer" && editorReturnUrl) {
+                await storage.setItem("edit_offer_return", editorReturnUrl);
+            }
 
-            router.push(`/shop-manager/create-offer/editor?from=preview&index=${index}`);
+            const editorUrl = editorReturnTo === "edit-offer"
+                ? `/shop-manager/create-offer/editor?from=preview&index=${index}&returnTo=edit-offer`
+                : `/shop-manager/create-offer/editor?from=preview&index=${index}`;
+
+            router.push(editorUrl);
             // We don't set setIsPreparingRedirection(false) here because the navigation 
             // will unmount this component anyway, and we want to keep the loading state
             // visible until the new page takes over.
@@ -566,6 +590,20 @@ export const PosterCardStack = ({
                                 className="w-full h-auto block object-contain"
                             />
 
+                            {/* Hotspot Overlays on Big Card */}
+                            {currentPoster.markedItems && currentPoster.markedItems.map((item) => (
+                                <div
+                                    key={item.id}
+                                    className="absolute border-[1.5px] border-red-500 bg-red-500/10 pointer-events-none z-20 shadow-sm"
+                                    style={{
+                                        left: `${item.x * 100}%`,
+                                        top: `${item.y * 100}%`,
+                                        width: `${item.width * 100}%`,
+                                        height: `${item.height * 100}%`
+                                    }}
+                                />
+                            ))}
+
                             {!isViewing && (
                                 <div className="absolute inset-0 flex flex-col justify-end">
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/10" />
@@ -670,6 +708,20 @@ export const PosterCardStack = ({
                                             unoptimized
                                             className="object-cover"
                                         />
+                                        
+                                        {/* Hotspot Overlays */}
+                                        {poster.markedItems && poster.markedItems.map((item) => (
+                                            <div
+                                                key={item.id}
+                                                className="absolute border-[1.5px] border-red-500 bg-red-500/12 pointer-events-none z-10"
+                                                style={{
+                                                    left: `${item.x * 100}%`,
+                                                    top: `${item.y * 100}%`,
+                                                    width: `${item.width * 100}%`,
+                                                    height: `${item.height * 100}%`
+                                                }}
+                                            />
+                                        ))}
                                     </div>
 
                                     {/* Status Badge */}
@@ -695,6 +747,22 @@ export const PosterCardStack = ({
                         })}
                     </div>
                 </div>
+
+                {allClassified && (
+                    <div className="w-full max-w-sm pt-2 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                        <PremiumButton
+                            onClick={() => onComplete?.(posters)}
+                            rightIcon={ArrowRight}
+                            className="w-full h-12 rounded-2xl font-bold text-base shadow-xl shadow-primary/20 group"
+                        >
+                            Next: Offer Details
+                            <span className="ml-1 opacity-50 group-hover:translate-x-1 transition-transform">➔</span>
+                        </PremiumButton>
+                        <p className="text-[10px] text-center mt-3 opacity-40 font-bold uppercase tracking-widest">
+                            {posters.length} posters ready for review
+                        </p>
+                    </div>
+                )}
             </div>
         );
     }

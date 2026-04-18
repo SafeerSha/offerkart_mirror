@@ -22,15 +22,6 @@ export default function PosterDesignerPage() {
                         ]}
                     />
 
-                    <div className="mt-4 mb-6 space-y-1">
-                        <Heading className="text-gradient font-bold tracking-tight">
-                            Poster Designer
-                        </Heading>
-                        <Text className="opacity-50 text-base">
-                            Design custom offer posters with text, shapes, and product cards.
-                        </Text>
-                    </div>
-
                     <Suspense
                         fallback={
                             <div className="flex items-center justify-center min-h-[500px]">
