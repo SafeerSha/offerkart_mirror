@@ -70,8 +70,8 @@ interface MarkedItem {
     width: number;
     height: number;
     name: string;
-    mainCategory: string;
-    subcategories: string[];
+    mainCategory?: string;
+    subcategories?: string[];
     description: string;
     productImage: string;
     oldPrice: number;
