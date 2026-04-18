@@ -64,22 +64,6 @@ async function preprocessImageForOCR(
     return canvas.toDataURL('image/png', 1.0);
 }
 
-interface MarkedItem {
-    id: string;
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    name: string;
-    mainCategory?: string;
-    subcategories?: string[];
-    description: string;
-    productImage: string;
-    oldPrice: number;
-    offerPrice: number;
-    currency: string;
-}
-
 interface PosterData {
     posterSrc: string;
     markedItems: MarkedItem[];
@@ -247,9 +231,27 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
             }
 
             ctx.drawImage(img, x * scaleX, y * scaleY, sw, sh, 0, 0, sw, sh);
-            const croppedDataUrl = canvas.toDataURL();
+            
+            let croppedDataUrl: string;
+            let useFallbackImage = false;
+            try {
+                croppedDataUrl = canvas.toDataURL();
+            } catch (e) {
+                if (e instanceof DOMException && e.name === 'SecurityError') {
+                    console.warn('Image source blocks CORS - falling back to source image for OCR');
+                    croppedDataUrl = posterData.posterSrc;
+                    useFallbackImage = true;
+                } else {
+                    throw e;
+                }
+            }
 
-            const processedDataUrl = await preprocessImageForOCR(canvas, ctx);
+            let processedDataUrl: string;
+            if (useFallbackImage) {
+                processedDataUrl = croppedDataUrl;
+            } else {
+                processedDataUrl = await preprocessImageForOCR(canvas, ctx);
+            }
 
             let ocrText = '';
             try {
@@ -267,6 +269,13 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
 
                 console.log('OCR Confidence:', result.data.confidence, 'Extracted text:', ocrText);
             } catch (ocrError) {
+                if (useFallbackImage) {
+                    console.warn('CORS blocked image cannot be processed by OCR:', ocrError);
+                    toast.error('Cannot process cross-origin images. Please enter details manually.');
+                    setIsProcessing(false);
+                    handleEditItem(tempItem);
+                    return;
+                }
                 console.warn("Tesseract OCR initialization failed:", ocrError);
                 toast.error("OCR failed. Please enter product details manually.");
                 setIsProcessing(false);
@@ -504,6 +513,7 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                                         width={1200}
                                         height={1600}
                                         unoptimized
+                                        crossOrigin="anonymous"
                                         className="w-full h-auto block rounded-2xl"
                                         onLoad={() => setImageSize({ width: imgRef.current!.offsetWidth, height: imgRef.current!.offsetHeight })}
                                         draggable={false}
