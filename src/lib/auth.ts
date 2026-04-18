@@ -1,6 +1,7 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { ENDPOINTS } from "@/lib/api/endpoints";
+import { backend } from "@/lib/api/backendClient";
 
 export const authOptions: NextAuthOptions = {
     providers: [
@@ -14,21 +15,20 @@ export const authOptions: NextAuthOptions = {
                 if (!credentials?.email || !credentials?.password) return null;
 
                 try {
-                    const response = await fetch(ENDPOINTS.AUTH.LOGIN, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            email: credentials.email,
-                            password: credentials.password,
-                        }),
+                    const res = await backend.post<any>(ENDPOINTS.AUTH.LOGIN, {
+                        email: credentials.email,
+                        password: credentials.password,
                     });
 
-                    const result = await response.json();
-
-                    if (response.ok && result.status === "success") {
-                        const { token, ...user } = result.data;
+                    if (res.success && res.data) {
+                        const result = res.data as any;
+                        
+                        // Handle both { status: "success", data: {...} } and direct data structures
+                        const userData = result.status === "success" ? result.data : result;
+                        
+                        const { token, ...user } = userData;
                         return {
-                            id: user.id,
+                            id: user.id || user.uid || "1",
                             name: user.full_name,
                             full_name: user.full_name,
                             email: user.email,
@@ -48,10 +48,10 @@ export const authOptions: NextAuthOptions = {
     callbacks: {
         async jwt({ token, user, trigger, session }) {
             if (user) {
-                token.accessToken = user.accessToken;
+                token.accessToken = (user as any).accessToken;
                 token.user = user;
-                if (user.shopId) {
-                    token.shopId = user.shopId;
+                if ((user as any).shopId) {
+                    token.shopId = (user as any).shopId;
                 }
             }
             if (trigger === "update" && session?.shopId) {
@@ -60,10 +60,10 @@ export const authOptions: NextAuthOptions = {
             return token;
         },
         async session({ session, token }) {
-            session.user = token.user;
-            session.shopId = token.shopId;
+            (session as any).user = token.user;
+            (session as any).shopId = token.shopId;
             if (session.user && token.shopId) {
-                session.user.shopId = token.shopId;
+                (session.user as any).shopId = token.shopId;
             }
             return session;
         }

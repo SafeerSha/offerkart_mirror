@@ -2,7 +2,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getMyShops, getShops, getShopDetails, addShop, updateShop } from "@/lib/api/shop";
 import { getBranches, addBranch, updateBranch, deleteBranch, getBranchDetails } from "@/lib/api/branch";
 import { createOffer, updateOffer, deleteOffer, getAllOffers, getOfferById, getFeaturedShops, getFeaturedOffers, getPaginatedOffers, toggleOfferStatus } from "@/lib/api/offers";
+import { getAllProducts } from "@/lib/api/products";
 import { s3Api } from "@/lib/api/s3";
+
 
 // Query Keys
 export const queryKeys = {
@@ -22,7 +24,11 @@ export const queryKeys = {
   featuredShops: ["featuredShops"] as const,
   featuredOffers: ["featuredOffers"] as const,
   paginatedOffers: (page: number, limit: number) => ["paginatedOffers", page, limit] as const,
+
+  // Product keys
+  products: ["products"] as const,
 };
+
 
 // ============ SHOP HOOKS ============
 
@@ -236,3 +242,13 @@ export function useDeleteImage() {
     },
   });
 }
+
+// ============ PRODUCT HOOKS ============
+
+export function useAllProducts() {
+  return useQuery({
+    queryKey: queryKeys.products,
+    queryFn: getAllProducts,
+    staleTime: 5 * 60 * 1000,
+  });
+}

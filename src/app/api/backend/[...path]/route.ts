@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { config } from "@/lib/config";
 
-const UPSTREAM_API_BASE_URL = "https://offersnearu.vercel.app/api";
+const UPSTREAM_API_BASE_URL = config.api.upstreamBaseUrl;
+
 const PUBLIC_PATHS = new Set([
     "business/auth/login",
     "business/auth/register",

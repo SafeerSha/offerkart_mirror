@@ -1,17 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense, useMemo } from "react";
 import { Heading, Text, SectionTitle } from "@/components/shared/Typography";
-import { getMyShops } from "@/lib/api/shop";
 import { toast } from "sonner";
 import { PremiumCard } from "@/components/shared/PremiumCard";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { AppModal } from "@/components/shared/AppModal";
-import { s3Api } from "@/lib/api/s3";
-import { getAllOffers, deleteOffer, toggleOfferStatus } from "@/lib/api/offers";
-import { getAllProducts } from "@/lib/api/products";
 import { Product } from "@/lib/types/product";
-import { Branch } from "@/lib/types/branch";
 import {
     AlertTriangle,
     ArrowUpRight,
@@ -47,7 +42,6 @@ import { PremiumDatePicker } from "@/components/shared/PremiumDatePicker";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import Image from "next/image";
-import { MarkedPoster } from "@/components/shared/MarkedPoster";
 import { useSearchParams, useRouter } from "next/navigation";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import { cn, getRelativeTime } from "@/lib/utils";
@@ -56,6 +50,7 @@ import { StatusToggleButton } from "@/components/shared/StatusToggleButton";
 import { storage } from "@/lib/storage";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import { useMyShops, useAllOffers, useAllProducts, useDeleteOffer, useToggleOfferStatus } from "@/hooks/useApi";
 
 function DashboardContent() {
     const { data: session } = useSession();
@@ -63,46 +58,64 @@ function DashboardContent() {
     const router = useRouter();
     const isMobile = useIsMobile();
     const [activeTab, setActiveTab] = useState("offers");
-
     const [isShopActive, setIsShopActive] = useState(true);
-    const [shops, setShops] = useState<any[]>([]);
-    const [isLoadingShops, setIsLoadingShops] = useState(true);
-    const [publishedOffers, setPublishedOffers] = useState<any[]>([]);
-    const [isLoadingOffers, setIsLoadingOffers] = useState(true);
 
-    const [products, setProducts] = useState<Product[]>([]);
-    const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+    // ================= API DATA HOOKS =================
+    
+    // 1. Fetch Shops
+    const { data: shopsResponse, isLoading: isLoadingShops } = useMyShops();
+    const shops = useMemo(() => {
+        if (!shopsResponse?.success || !shopsResponse?.data) return [];
+        const result = shopsResponse.data as any;
+        return Array.isArray(result) ? result : (result.data || []);
+    }, [shopsResponse]);
 
-    // Date range state for offers filter
-    const getWeekStart = () => {
+    // Derived Active Shop ID
+    const activeShopId = useMemo(() => {
+        const sid = session?.shopId ?? (session?.user as any)?.shopId;
+        if (sid) return String(sid);
+        if (shops.length > 0) return String(shops[0].id);
+        return null;
+    }, [session, shops]);
+
+    // 2. Fetch Offers for current shop
+    const { data: offersResponse, isLoading: isLoadingOffers } = useAllOffers(activeShopId || undefined);
+    const publishedOffers = useMemo(() => {
+        if (!offersResponse?.success || !offersResponse?.data) return [];
+        const result = offersResponse.data as any;
+        return Array.isArray(result) ? result : (result.data || []);
+    }, [offersResponse]);
+
+    // 3. Fetch Products
+    const { data: productsData, isLoading: isLoadingProducts } = useAllProducts();
+    const products = (productsData || []) as Product[];
+
+    // ================= MUTATIONS =================
+    const { mutateAsync: deleteOfferMutation } = useDeleteOffer();
+    const { mutateAsync: toggleStatusMutation } = useToggleOfferStatus();
+
+    // ================= LOCAL UI STATE =================
+    const [dateFrom, setDateFrom] = useState<Date>(() => {
         const now = new Date();
         const dayOfWeek = now.getDay();
         const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
         return new Date(now.setDate(diff));
-    };
-    const getWeekEnd = () => {
+    });
+    const [dateTo, setDateTo] = useState<Date>(() => {
         const now = new Date();
         const dayOfWeek = now.getDay();
         const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? 0 : 7);
         return new Date(now.setDate(diff));
-    };
-    const [dateFrom, setDateFrom] = useState<Date>(getWeekStart);
-    const [dateTo, setDateTo] = useState<Date>(getWeekEnd);
+    });
     const [showDatePopup, setShowDatePopup] = useState(false);
     const [previewLogo, setPreviewLogo] = useState<{ src: string, name: string, markedItems?: any[] } | null>(null);
     const tabsRef = useRef<HTMLDivElement>(null);
     const user = session?.user as any;
-
-
-
-    // Delete offer state
     const [offerToDelete, setOfferToDelete] = useState<any | null>(null);
-
-    // Logout state
     const [isLoggingOut, setIsLoggingOut] = useState(false);
-    const [openTooltipIndex, setOpenTooltipIndex] = useState<number | null>(null);
 
-    // Revert to mark logic
+    // ================= EVENT HANDLERS =================
+
     const handleRevertToMark = async (offer: any) => {
         try {
             const editingPosters = (offer.posters || [{
@@ -119,10 +132,7 @@ function DashboardContent() {
                 editingPosters[0].title = offer.title;
             }
 
-            // Save to current session
             await storage.setItem("currentEditingPosters", editingPosters);
-
-            // Remove from published
             const stored = await storage.getItem<any[]>("markedPosters");
             if (stored) {
                 const updated = stored.filter((o) => o.batchId !== offer.batchId);
@@ -137,27 +147,17 @@ function DashboardContent() {
         }
     };
 
-    // Navigate to the dedicated edit offer page
     const openEditModal = (offer: any) => {
         const id = String(offer.offerId || offer.id || offer.batchId);
         router.push(`/shop-manager/edit-offer/${id}`);
     };
 
-    // Delete offer
     const handleDeleteOffer = async (offer: any) => {
         try {
-            let shopId = session?.shopId ?? (session?.user as any)?.shopId;
-            if (!shopId && shops.length > 0) shopId = shops[0].id;
-
-            if (shopId) {
+            if (activeShopId) {
                 const idToUse = offer.offerId || offer.id || offer.batchId;
-                const res = await deleteOffer(String(idToUse), String(shopId));
+                const res = await deleteOfferMutation({ id: String(idToUse), shopId: activeShopId });
                 if (res.success) {
-                    setPublishedOffers(prev => prev.filter(o =>
-                        (o.offerId !== offer.offerId && offer.offerId) ||
-                        (o.id !== offer.id && offer.id) ||
-                        (o.batchId !== offer.batchId && offer.batchId)
-                    ));
                     toast.success("Offer deleted");
                 } else {
                     throw new Error(res.error || "Failed to delete");
@@ -171,25 +171,12 @@ function DashboardContent() {
         }
     };
 
-    // Toggle offer status
     const handleToggleOfferStatus = async (offer: any) => {
         try {
-            let shopId = session?.shopId ?? (session?.user as any)?.shopId;
-            if (!shopId && shops.length > 0) shopId = shops[0].id;
-
-            if (shopId) {
+            if (activeShopId) {
                 const idToUse = offer.offerId || offer.id || offer.batchId;
-                const res = await toggleOfferStatus(String(idToUse), String(shopId));
+                const res = await toggleStatusMutation({ id: String(idToUse), shopId: activeShopId });
                 if (res.success) {
-                    setPublishedOffers(prev => prev.map(o => {
-                        const isMatch = (o.offerId === offer.offerId && offer.offerId) ||
-                            (o.id === offer.id && offer.id) ||
-                            (o.batchId === offer.batchId && offer.batchId);
-                        if (isMatch) {
-                            return { ...o, status: o.status === 'active' ? 'paused' : 'active' };
-                        }
-                        return o;
-                    }));
                     toast.success(`Offer ${offer.status === 'active' ? 'paused' : 'resumed'}`);
                 } else {
                     throw new Error(res.error || "Failed to toggle status");
@@ -202,100 +189,14 @@ function DashboardContent() {
     };
 
     useEffect(() => {
-        async function fetchShops() {
-            try {
-                const response = await getMyShops();
-
-                if (response.success && response.data) {
-                    const result = response.data as any;
-                    // Handle both { data: [...] } and direct [...] response structures
-                    const shopList = Array.isArray(result) ? result : (result.data || []);
-                    setShops(Array.isArray(shopList) ? shopList : []);
-                } else {
-                    console.error("Failed to fetch shops:", response.error);
-                    toast.error(`Failed to load shops: ${response.error || "Unknown error"}`);
-                }
-            } catch (error: any) {
-                console.error("Error fetching shops:", error);
-                toast.error(`Network error: ${error.message || "Could not reach server"}`);
-            } finally {
-                setIsLoadingShops(false);
-            }
-        }
-
-        if (session) {
-            fetchShops();
-        }
-    }, [session]);
-
-    useEffect(() => {
-        async function fetchOffers() {
-            let shopId = session?.shopId ?? (session?.user as any)?.shopId;
-            if (!shopId && shops.length > 0) shopId = shops[0].id;
-
-            if (!shopId) {
-                setIsLoadingOffers(false);
-                return;
-            }
-
-            console.log("Starting fetchOffers for shopId:", shopId);
-            try {
-                const res = await getAllOffers(String(shopId));
-                console.log("Offers response:", res);
-                if (res.success && res.data) {
-                    const list = Array.isArray(res.data) ? res.data : (res.data as any).data || [];
-                    setPublishedOffers(Array.isArray(list) ? list : []);
-                }
-            } catch (error) {
-                console.error("Error fetching offers:", error);
-            } finally {
-                setIsLoadingOffers(false);
-            }
-        }
-        const shopId = session?.shopId ?? (session?.user as any)?.shopId;
-        if (session && (shopId || (shops && shops.length > 0))) {
-            fetchOffers();
-        } else if (!session) {
-            console.log("No session, skipping fetchOffers");
-            setIsLoadingOffers(false);
-        } else {
-            console.log("Session exists but no shopId found yet", {
-                sessionShopId: shopId,
-                shopsCount: shops.length
-            });
-        }
-    }, [session, shops]);
-
-    useEffect(() => {
-        async function fetchProducts() {
-            try {
-                const data = await getAllProducts();
-                setProducts(data);
-            } catch (error) {
-                console.error("Error fetching products:", error);
-            } finally {
-                setIsLoadingProducts(false);
-            }
-        }
-        if (session) {
-            fetchProducts();
-        }
-    }, [session]);
-
-    useEffect(() => {
         const tab = searchParams.get("tab");
         if (tab === "shops") {
             setActiveTab("shops");
-
             const scrollTimeout = setTimeout(() => {
                 if (tabsRef.current) {
                     const elementPosition = tabsRef.current.getBoundingClientRect().top + window.pageYOffset;
                     const offsetPosition = elementPosition - 120;
-
-                    window.scrollTo({
-                        top: offsetPosition,
-                        behavior: "smooth"
-                    });
+                    window.scrollTo({ top: offsetPosition, behavior: "smooth" });
                 }
             }, 800);
             return () => clearTimeout(scrollTimeout);
@@ -312,9 +213,8 @@ function DashboardContent() {
     return (
         <main className="min-h-screen pt-20 lg:pt-32 pb-12 bg-[radial-gradient(circle_at_top_right,hsl(var(--color-primary)/0.05)_0%,transparent_50%)]">
             <div className="container mx-auto px-4">
-                <Breadcrumbs
-                    items={[{ label: "Shop Dashboard" }]}
-                />
+                <Breadcrumbs items={[{ label: "Shop Dashboard" }]} />
+                
                 {/* Header Section */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
                     <div>
@@ -340,7 +240,6 @@ function DashboardContent() {
 
                 {/* Quick Stats */}
                 <div className="mb-12">
-                    {/* Mobile: Horizontal Scroll */}
                     <div className="md:hidden">
                         <div className="flex items-center justify-between mb-3">
                             <h3 className="text-sm font-semibold text-gray-700">Quick Stats</h3>
@@ -377,33 +276,17 @@ function DashboardContent() {
                                 </PremiumCard>
                             </div>
                             <div className="w-[85vw] sm:w-[220px] flex-none shrink-0 snap-center">
-                                <StatCard
-                                    icon={BarChart3}
-                                    label="Total Views"
-                                    value="1.2k"
-                                    trend="+15%"
-                                />
+                                <StatCard icon={BarChart3} label="Total Views" value="1.2k" trend="+15%" />
                             </div>
                             <div className="w-[85vw] sm:w-[220px] flex-none shrink-0 snap-center">
-                                <StatCard
-                                    icon={MousePointer2}
-                                    label="Engagement"
-                                    value="48"
-                                    trend="+8 up"
-                                />
+                                <StatCard icon={MousePointer2} label="Engagement" value="48" trend="+8 up" />
                             </div>
                             <div className="w-[85vw] sm:w-[220px] flex-none shrink-0 snap-center">
-                                <StatCard
-                                    icon={Tag}
-                                    label="Conv. Rate"
-                                    value="4.8%"
-                                    trend="+0.5%"
-                                />
+                                <StatCard icon={Tag} label="Conv. Rate" value="4.8%" trend="+0.5%" />
                             </div>
                         </div>
                     </div>
 
-                    {/* Desktop: Grid */}
                     <div className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-4">
                         <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 transition-all duration-300 rounded-2xl">
                             <div className="p-4 flex items-center gap-3">
@@ -429,38 +312,19 @@ function DashboardContent() {
                                 </div>
                             </div>
                         </PremiumCard>
-                        <StatCard
-                            icon={BarChart3}
-                            label="Total Views"
-                            value="1.2k"
-                            trend="+15% vs last month"
-                        />
-                        <StatCard
-                            icon={MousePointer2}
-                            label="Audience Engagement"
-                            value="48"
-                            trend="8 new today"
-                        />
-                        <StatCard
-                            icon={Tag}
-                            label="Conversion Rate"
-                            value="4.8%"
-                            trend="+0.5%"
-                        />
+                        <StatCard icon={BarChart3} label="Total Views" value="1.2k" trend="+15% vs last month" />
+                        <StatCard icon={MousePointer2} label="Audience Engagement" value="48" trend="8 new today" />
+                        <StatCard icon={Tag} label="Conversion Rate" value="4.8%" trend="+0.5%" />
                     </div>
                 </div>
 
                 {/* Main Content Areas */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Unified Control Center - Shows second on mobile, second on desktop */}
-                    {/* Side Column Content (Desktop: Right, Mobile: Top) */}
                     <div className="lg:col-span-1 space-y-6 order-2">
                         {/* Shop Profile Spotlight */}
                         {!isLoadingShops && shops.length > 0 && (
                             <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:shadow-2xl hover:shadow-primary/5 transition-all duration-500">
-                                {/* Compressed Solid Cover Header */}
                                 <div className="h-16 bg-orange-500/[0.08] relative">
-                                    {/* Action Status Overlay */}
                                     <div className="absolute top-3 right-3 z-20 scale-90 origin-top-right">
                                         <StatusToggleButton
                                             status={isShopActive ? 'active' : 'paused'}
@@ -468,10 +332,8 @@ function DashboardContent() {
                                         />
                                     </div>
                                 </div>
-
                                 <div className="px-5 pb-5 -mt-8 relative z-10">
                                     <div className="flex flex-col items-center text-center">
-                                        {/* Reduced Logo Spotlight */}
                                         <div
                                             className="w-16 h-16 rounded-2xl bg-white p-1 shadow-xl shadow-black/5 ring-4 ring-white relative group/logo cursor-pointer"
                                             onClick={() => shops[0].logo_url && setPreviewLogo({ src: shops[0].logo_url, name: shops[0].shop_name })}
@@ -492,23 +354,16 @@ function DashboardContent() {
                                                 </div>
                                             </div>
                                         </div>
-
-                                        {/* Shop Info - Compact */}
                                         <div className="mt-3 w-full">
                                             <div className="flex items-center justify-center gap-2 mb-0.5">
                                                 <h3 className="text-lg font-black text-gray-900 tracking-tight">{shops[0].shop_name}</h3>
-                                                <div className={cn(
-                                                    "w-1.5 h-1.5 rounded-full",
-                                                    isShopActive ? "bg-green-500 animate-pulse" : "bg-gray-300"
-                                                )} />
+                                                <div className={cn("w-1.5 h-1.5 rounded-full", isShopActive ? "bg-green-500 animate-pulse" : "bg-gray-300")} />
                                             </div>
                                             <div className="flex items-center justify-center gap-1 text-[12px] text-gray-500 font-medium">
                                                 <MapPin className="w-3 h-3 text-primary/60" />
                                                 {shops[0].city}
                                             </div>
                                         </div>
-
-                                        {/* Stats Quick View - Compact */}
                                         <div className="grid grid-cols-2 gap-4 w-full mt-4 py-2.5 border-y border-primary/5">
                                             <div className="text-center">
                                                 <div className="text-xs font-bold text-gray-900">{publishedOffers.length}</div>
@@ -519,8 +374,6 @@ function DashboardContent() {
                                                 <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Items</div>
                                             </div>
                                         </div>
-
-                                        {/* Bottom Actions - Reduced Padding */}
                                         <div className="grid grid-cols-2 gap-2 w-full mt-4">
                                             <Link href={`/shop-manager/${shops[0].id}/branches`} className="w-full">
                                                 <PremiumButton variant="outline" size="sm" className="w-full rounded-xl py-3.5 border-primary/10 hover:border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary gap-1.5">
@@ -539,42 +392,20 @@ function DashboardContent() {
                                 </div>
                             </PremiumCard>
                         )}
-
-                        {/* Control Center - Quick Utility Actions */}
                         <PremiumCard variant="glass" padding="none" className="overflow-hidden shadow-lg shadow-black/5">
                             <div className="p-5">
                                 <SectionTitle className="mb-4 text-xs text-gray-400 font-bold uppercase tracking-widest">Quick Utilities</SectionTitle>
-
                                 <div className="grid grid-cols-2 gap-3">
-                                    <ActionButton
-                                        icon={Settings}
-                                        label="Business"
-                                        href="/shop-manager/shop-settings"
-                                        variant="grid"
-                                    />
-                                    <ActionButton
-                                        icon={Paintbrush}
-                                        label="Designer"
-                                        href="/shop-manager/poster-designer"
-                                        variant="grid"
-                                    />
-                                    <ActionButton
-                                        icon={BarChart3}
-                                        label="Analysis"
-                                        variant="grid"
-                                    />
-                                    <ActionButton
-                                        icon={LogOut}
-                                        label="Logout"
-                                        className="text-rose-500"
-                                        variant="grid"
-                                    />
+                                    <ActionButton icon={Settings} label="Business" href="/shop-manager/shop-settings" variant="grid" />
+                                    <ActionButton icon={Paintbrush} label="Designer" href="/shop-manager/poster-designer" variant="grid" />
+                                    <ActionButton icon={BarChart3} label="Analysis" variant="grid" />
+                                    <ActionButton icon={LogOut} label="Logout" className="text-rose-500" variant="grid" onClick={handleLogout} />
                                 </div>
                             </div>
                         </PremiumCard>
                     </div>
 
-                    {/* Main Content Tabs - Shows first on mobile, first on desktop */}
+                    {/* Tabs Content */}
                     <div className="lg:col-span-2 space-y-6 order-1 scroll-mt-24 md:scroll-mt-32" ref={tabsRef}>
                         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                             <PremiumCard variant="glass" padding="none" className="overflow-hidden">
@@ -582,12 +413,10 @@ function DashboardContent() {
                                     <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-3 mb-2">
                                         <TabsList className="bg-primary/5 p-1 gap-1 w-full xs:w-auto">
                                             <TabsTrigger value="offers" className="flex-1 xs:flex-none data-[state=active]:bg-orange-500 data-[state=active]:text-white gap-2 transition-all">
-                                                <Tag className="w-4 h-4" />
-                                                Offers
+                                                <Tag className="w-4 h-4" /> Offers
                                             </TabsTrigger>
                                             <TabsTrigger value="products" className="flex-1 xs:flex-none data-[state=active]:bg-orange-500 data-[state=active]:text-white gap-2 transition-all">
-                                                <Package className="w-4 h-4" />
-                                                Products
+                                                <Package className="w-4 h-4" /> Products
                                             </TabsTrigger>
                                         </TabsList>
                                         <Link href="#" className="text-sm font-medium text-primary hover:underline px-1">View All</Link>
@@ -596,7 +425,6 @@ function DashboardContent() {
 
                                 <div className="p-4">
                                     <TabsContent value="offers" className="mt-0 space-y-3 focus-visible:ring-0">
-                                        {/* Add Offer Button - Only show if no offers exist */}
                                         {!isLoadingOffers && publishedOffers.length === 0 && (
                                             <Link href="/shop-manager/create-offer" className="block">
                                                 <div className="p-1 rounded-xl border-2 border-dashed border-primary/20 hover:border-primary/40 bg-primary/5 hover:bg-primary/10 transition-all group cursor-pointer">
@@ -604,203 +432,97 @@ function DashboardContent() {
                                                         <div className="w-10 h-10 rounded-xl bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center transition-colors">
                                                             <Plus className="w-5 h-5 text-primary" />
                                                         </div>
-                                                        <div className="text-left">
-                                                            <h4 className="font-bold text-gray-900 group-hover:text-primary transition-colors">Add New Offer</h4>
-                                                        </div>
+                                                        <div className="text-left"><h4 className="font-bold text-gray-900 group-hover:text-primary transition-colors">Add New Offer</h4></div>
                                                     </div>
                                                 </div>
                                             </Link>
                                         )}
-
                                         <div className="space-y-4">
                                             {isLoadingOffers ? (
-                                                <div className="p-4 flex items-center justify-center">
-                                                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                                                </div>
+                                                <div className="p-4 flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
                                             ) : publishedOffers.length > 0 ? (
                                                 publishedOffers.map((offer, idx) => (
                                                     <div key={offer.offerId || offer.batchId || idx} className="relative group rounded-2xl bg-white border border-gray-100 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 overflow-hidden">
                                                         <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
-                                                            {/* Information Section */}
                                                             <div className="flex items-center gap-4 min-w-0 flex-1 pl-1">
                                                                 <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-gray-50 flex items-center justify-center shrink-0 overflow-hidden ring-4 ring-gray-50/50 group-hover:ring-primary/10 transition-all">
                                                                     {offer.posters?.[0]?.posterSrc || offer.posterSrc ? (
-                                                                        <Image
-                                                                            src={offer.posters?.[0]?.posterSrc || offer.posterSrc}
-                                                                            alt=""
-                                                                            fill
-                                                                            unoptimized
-                                                                            className="object-cover group-hover:scale-110 transition-transform duration-500"
-                                                                        />
+                                                                        <Image src={offer.posters?.[0]?.posterSrc || offer.posterSrc} alt="" fill unoptimized className="object-cover group-hover:scale-110 transition-transform duration-500" />
                                                                     ) : (
                                                                         <Tag className="w-6 h-6 text-gray-300 group-hover:text-primary transition-colors rotate-12" />
                                                                     )}
                                                                 </div>
-
                                                                 <div className="min-w-0 flex-1">
                                                                     <div className="flex items-center gap-2 mb-1.5">
-                                                                        <h4 className="font-bold text-base sm:text-lg text-gray-900 truncate leading-tight group-hover:text-primary transition-colors">
-                                                                            {offer.title || "Untitled Offer"}
-                                                                        </h4>
-                                                                        <div className={cn(
-                                                                            "px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-wider shadow-sm border shrink-0",
-                                                                            offer.status === "active"
-                                                                                ? "bg-emerald-50 text-emerald-600 border-emerald-100"
-                                                                                : "bg-gray-50 text-gray-400 border-gray-200"
-                                                                        )}>
-                                                                            {offer.status || "active"}
-                                                                        </div>
+                                                                        <h4 className="font-bold text-base sm:text-lg text-gray-900 truncate leading-tight group-hover:text-primary transition-colors">{offer.title || "Untitled Offer"}</h4>
+                                                                        <div className={cn("px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-wider shadow-sm border shrink-0", offer.status === "active" ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-gray-50 text-gray-400 border-gray-200")}>{offer.status || "active"}</div>
                                                                     </div>
-
                                                                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[10px] sm:text-xs">
-                                                                        <div className="flex items-center gap-1.5 text-slate-400 font-medium">
-                                                                            <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                                                                            <span className="truncate">{getRelativeTime(offer.createdAt || offer.validFrom) ? `Posted ${getRelativeTime(offer.createdAt || offer.validFrom)}` : "Active"}</span>
-                                                                        </div>
-
+                                                                        <div className="flex items-center gap-1.5 text-slate-400 font-medium"><Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" /><span className="truncate">{getRelativeTime(offer.createdAt || offer.validFrom) ? `Posted ${getRelativeTime(offer.createdAt || offer.validFrom)}` : "Active"}</span></div>
                                                                         {(offer.branches || offer.branchNames || offer.branchName) && (
                                                                             <div className="flex items-center gap-1.5 py-1 px-2.5 rounded-lg bg-orange-50 text-orange-600 font-bold text-[10px] uppercase tracking-wide border border-orange-100">
                                                                                 <GitBranch className="w-3 h-3" />
-                                                                                <span className="truncate max-w-[120px]">
-                                                                                    {offer.branches ? (
-                                                                                        offer.branches.length > 1
-                                                                                            ? `${offer.branches[0].branchName} +${offer.branches.length - 1}`
-                                                                                            : offer.branches[0].branchName
-                                                                                    ) : (offer.branchNames ? offer.branchNames[0] : offer.branchName)}
-                                                                                </span>
+                                                                                <span className="truncate max-w-[120px]">{offer.branches ? (offer.branches.length > 1 ? `${offer.branches[0].branchName} +${offer.branches.length - 1}` : offer.branches[0].branchName) : (offer.branchNames ? offer.branchNames[0] : offer.branchName)}</span>
                                                                             </div>
                                                                         )}
                                                                     </div>
                                                                 </div>
                                                             </div>
-
-                                                            {/* Middle/Bottom: Validity & Actions Section */}
                                                             <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 shrink-0 w-full sm:w-auto">
-                                                                {/* Validity - Compact Line */}
                                                                 <div className="flex flex-col items-center sm:items-end w-full sm:w-auto">
-                                                                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 sm:mb-2">
-                                                                        <Calendar className="w-3 h-3" />
-                                                                        Offer Validity
-                                                                    </div>
+                                                                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 sm:mb-2"><Calendar className="w-3 h-3" /> Offer Validity</div>
                                                                     <div className="flex items-center gap-3 text-xs font-semibold text-gray-600">
-                                                                        <div className="flex flex-col sm:flex-row items-center sm:gap-2">
-                                                                            <span className="text-[9px] sm:text-[10px] text-gray-400 uppercase tracking-widest leading-none mb-1 sm:mb-0">From</span>
-                                                                            <span className="text-gray-800">{offer.validFrom ? new Date(offer.validFrom).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).toLowerCase() : 'n/a'}</span>
-                                                                        </div>
+                                                                        <div className="flex flex-col sm:flex-row items-center sm:gap-2"><span className="text-[9px] sm:text-[10px] text-gray-400 uppercase tracking-widest leading-none mb-1 sm:mb-0">From</span><span className="text-gray-800">{offer.validFrom ? new Date(offer.validFrom).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).toLowerCase() : 'n/a'}</span></div>
                                                                         <ArrowRight className="w-3 h-3 text-gray-300" />
-                                                                        <div className="flex flex-col sm:flex-row items-center sm:gap-2">
-                                                                            <span className="text-[9px] sm:text-[10px] text-gray-400 uppercase tracking-widest leading-none mb-1 sm:mb-0">To</span>
-                                                                            <span className="text-gray-800">{offer.validTo ? new Date(offer.validTo).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).toLowerCase() : 'n/a'}</span>
-                                                                        </div>
+                                                                        <div className="flex flex-col sm:flex-row items-center sm:gap-2"><span className="text-[9px] sm:text-[10px] text-gray-400 uppercase tracking-widest leading-none mb-1 sm:mb-0">To</span><span className="text-gray-800">{offer.validTo ? new Date(offer.validTo).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).toLowerCase() : 'n/a'}</span></div>
                                                                     </div>
                                                                 </div>
-
-                                                                {/* Action Groups */}
                                                                 <div className="flex flex-row sm:flex-col items-center gap-3 w-full sm:w-auto justify-between sm:justify-center px-4 sm:px-0 sm:pl-8 border-l-0 sm:border-l border-gray-100">
                                                                     <div className="flex items-center gap-2 group/toggle">
-                                                                        <span className={cn(
-                                                                            "text-[9px] font-black uppercase tracking-widest transition-colors",
-                                                                            offer.status === 'active' ? "text-emerald-500" : "text-gray-400"
-                                                                        )}>
-                                                                            {offer.status === 'active' ? 'Live' : 'Paused'}
-                                                                        </span>
-                                                                        <StatusToggleButton
-                                                                            status={offer.status || 'active'}
-                                                                            onChange={() => handleToggleOfferStatus(offer)}
-                                                                            className="scale-90"
-                                                                        />
+                                                                        <span className={cn("text-[9px] font-black uppercase tracking-widest transition-colors", offer.status === 'active' ? "text-emerald-500" : "text-gray-400")}>{offer.status === 'active' ? 'Live' : 'Paused'}</span>
+                                                                        <StatusToggleButton status={offer.status || 'active'} onChange={() => handleToggleOfferStatus(offer)} className="scale-90" />
                                                                     </div>
-
                                                                     <div className="flex gap-2.5">
-                                                                        <button
-                                                                            onClick={() => openEditModal(offer)}
-                                                                            className="p-3 rounded-xl bg-gray-50 text-gray-400 hover:bg-primary hover:text-secondary hover:shadow-lg transition-all duration-300"
-                                                                            title="Edit offer"
-                                                                        >
-                                                                            <Pencil className="w-4 h-4" />
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={() => setOfferToDelete(offer)}
-                                                                            className="p-3 rounded-xl bg-gray-50 text-gray-400 hover:bg-rose-500 hover:text-white hover:shadow-lg transition-all duration-300"
-                                                                            title="Delete offer"
-                                                                        >
-                                                                            <Trash2 className="w-4 h-4" />
-                                                                        </button>
+                                                                        <button onClick={() => openEditModal(offer)} className="p-3 rounded-xl bg-gray-50 text-gray-400 hover:bg-primary hover:text-secondary hover:shadow-lg transition-all duration-300" title="Edit offer"><Pencil className="w-4 h-4" /></button>
+                                                                        <button onClick={() => setOfferToDelete(offer)} className="p-3 rounded-xl bg-gray-50 text-gray-400 hover:bg-rose-500 hover:text-white hover:shadow-lg transition-all duration-300" title="Delete offer"><Trash2 className="w-4 h-4" /></button>
                                                                     </div>
                                                                 </div>
                                                             </div>
                                                         </div>
                                                     </div>
                                                 ))
-
                                             ) : (
                                                 <div className="p-8 rounded-xl border border-dashed border-primary/10 opacity-60 flex flex-col items-center justify-center text-center">
-                                                    <Tag className="w-12 h-12 mb-4 text-primary/30" />
-                                                    <p className="text-sm font-medium mb-1">No offers published yet</p>
-                                                    <p className="text-xs opacity-60 italic">Your active offers will appear here</p>
+                                                    <Tag className="w-12 h-12 mb-4 text-primary/30" /><p className="text-sm font-medium mb-1">No offers published yet</p><p className="text-xs opacity-60 italic">Your active offers will appear here</p>
                                                 </div>
                                             )}
                                         </div>
                                     </TabsContent>
 
-
                                     <TabsContent value="products" className="mt-0 space-y-3 focus-visible:ring-0">
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             {isLoadingProducts ? (
-                                                <div className="col-span-full p-8 flex flex-col items-center justify-center bg-gray-50/50 rounded-2xl border-2 border-dashed border-gray-100">
-                                                    <Loader2 className="w-6 h-6 animate-spin text-primary/40 mb-2" />
-                                                    <p className="text-xs text-gray-400 font-medium">Loading catalog...</p>
-                                                </div>
+                                                <div className="col-span-full p-8 flex flex-col items-center justify-center bg-gray-50/50 rounded-2xl border-2 border-dashed border-gray-100"><Loader2 className="w-6 h-6 animate-spin text-primary/40 mb-2" /><p className="text-xs text-gray-400 font-medium">Loading catalog...</p></div>
                                             ) : products.length > 0 ? (
                                                 products.map((product) => (
                                                     <div key={product.id} className="group relative flex items-center gap-3 p-3 rounded-xl bg-gray-50/50 border border-gray-100 hover:border-primary/20 hover:bg-white hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 overflow-hidden">
                                                         <div className="relative w-16 h-16 rounded-lg bg-white overflow-hidden shrink-0 border border-gray-100 shadow-sm">
-                                                            {product.image && (
-                                                                <Image
-                                                                    src={product.image}
-                                                                    alt={product.name}
-                                                                    fill
-                                                                    unoptimized
-                                                                    className="object-cover group-hover:scale-110 transition-transform duration-500"
-                                                                />
-                                                            )}
-                                                            <div className="absolute top-1 left-1">
-                                                                <div className="px-1 py-0.5 rounded bg-white/90 backdrop-blur-sm shadow-sm border border-gray-100">
-                                                                    <p className="text-[8px] font-black text-primary uppercase tracking-tighter">New</p>
-                                                                </div>
-                                                            </div>
+                                                            {product.image && <Image src={product.image} alt={product.name} fill unoptimized className="object-cover group-hover:scale-110 transition-transform duration-500" />}
+                                                            <div className="absolute top-1 left-1"><div className="px-1 py-0.5 rounded bg-white/90 backdrop-blur-sm shadow-sm border border-gray-100"><p className="text-[8px] font-black text-primary uppercase tracking-tighter">New</p></div></div>
                                                         </div>
-
                                                         <div className="min-w-0 flex-1">
                                                             <div className="text-[9px] font-bold text-orange-500 uppercase tracking-widest mb-0.5">{product.category}</div>
                                                             <h4 className="font-bold text-xs text-gray-900 truncate group-hover:text-primary transition-colors">{product.name}</h4>
-                                                            <div className="flex items-center gap-2 mt-1">
-                                                                <span className="text-base font-black text-primary tracking-tighter leading-none">₹{product.price}</span>
-                                                                {product.originalPrice && (
-                                                                    <span className="text-[10px] text-gray-400 line-through font-medium">₹{product.originalPrice}</span>
-                                                                )}
-                                                            </div>
+                                                            <div className="flex items-center gap-2 mt-1"><span className="text-base font-black text-primary tracking-tighter leading-none">₹{product.price}</span>{product.originalPrice && <span className="text-[10px] text-gray-400 line-through font-medium">₹{product.originalPrice}</span>}</div>
                                                         </div>
-
-                                                        {/* Hover Actions - More Compact */}
                                                         <div className="absolute top-1.5 right-1.5 flex flex-col gap-1 translate-x-12 group-hover:translate-x-0 transition-transform duration-300">
-                                                            <button className="p-1.5 rounded-lg bg-white border border-gray-100 text-gray-400 hover:text-primary hover:border-primary transition-all shadow-sm">
-                                                                <Pencil className="w-3 h-3" />
-                                                            </button>
-                                                            <button className="p-1.5 rounded-lg bg-white border border-gray-100 text-gray-400 hover:text-rose-500 hover:border-rose-200 transition-all shadow-sm">
-                                                                <Trash2 className="w-3 h-3" />
-                                                            </button>
+                                                            <button className="p-1.5 rounded-lg bg-white border border-gray-100 text-gray-400 hover:text-primary hover:border-primary transition-all shadow-sm"><Pencil className="w-3 h-3" /></button>
+                                                            <button className="p-1.5 rounded-lg bg-white border border-gray-100 text-gray-400 hover:text-rose-500 hover:border-rose-200 transition-all shadow-sm"><Trash2 className="w-3 h-3" /></button>
                                                         </div>
                                                     </div>
                                                 ))
                                             ) : (
-                                                <div className="col-span-full p-12 flex flex-col items-center justify-center bg-gray-50/50 rounded-2xl border-2 border-dashed border-gray-100 text-center">
-                                                    <div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center mb-4">
-                                                        <Package className="w-8 h-8 text-primary/20" />
-                                                    </div>
-                                                    <p className="text-base font-bold text-gray-900">Your Catalog is Empty</p>
-                                                    <p className="text-sm text-gray-500 max-w-xs mt-1">Start adding products to showcase them to your customers.</p>
-                                                </div>
+                                                <div className="col-span-full p-12 flex flex-col items-center justify-center bg-gray-50/50 rounded-2xl border-2 border-dashed border-gray-100 text-center"><div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center mb-4"><Package className="w-8 h-8 text-primary/20" /></div><p className="text-base font-bold text-gray-900">Your Catalog is Empty</p><p className="text-sm text-gray-500 max-w-xs mt-1">Start adding products to showcase them to your customers.</p></div>
                                             )}
                                         </div>
                                     </TabsContent>
@@ -808,153 +530,50 @@ function DashboardContent() {
                             </PremiumCard>
                         </Tabs>
                     </div>
-                </div >
-            </div >
+                </div>
+            </div>
 
-            {/* ──── Offers Date Range Popup ──── */}
-            <AppModal
-                open={showDatePopup}
-                onOpenChange={setShowDatePopup}
-                title="Filter Offers by Date"
-                description="Select a date range to view offer statistics."
-            >
+            {/* Date Range Modal */}
+            <AppModal open={showDatePopup} onOpenChange={setShowDatePopup} title="Filter Offers by Date" description="Select a date range to view offer statistics.">
                 <div className="space-y-4 py-2">
                     <div className="grid grid-cols-2 gap-4">
-                        <PremiumDatePicker
-                            label="From"
-                            date={dateFrom}
-                            setDate={(d) => d && setDateFrom(d)}
-                            placeholder="Start date"
-                        />
-                        <PremiumDatePicker
-                            label="To"
-                            date={dateTo}
-                            setDate={(d) => d && setDateTo(d)}
-                            placeholder="End date"
-                        />
+                        <PremiumDatePicker label="From" date={dateFrom} setDate={(d) => d && setDateFrom(d)} />
+                        <PremiumDatePicker label="To" date={dateTo} setDate={(d) => d && setDateTo(d)} />
                     </div>
-
-                    {/* Quick filters */}
-                    <div className="flex flex-wrap gap-2">
-                        <button
-                            onClick={() => {
-                                const now = new Date();
-                                const dayOfWeek = now.getDay();
-                                const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-                                setDateFrom(new Date(now.setDate(diff)));
-                                const endDiff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? 0 : 7);
-                                setDateTo(new Date(now.setDate(endDiff)));
-                            }}
-                            className="text-xs px-3 py-1.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                        >
-                            This Week
-                        </button>
-                        <button
-                            onClick={() => {
-                                const now = new Date();
-                                setDateFrom(new Date(now.getFullYear(), now.getMonth(), 1));
-                                setDateTo(new Date(now.getFullYear(), now.getMonth() + 1, 0));
-                            }}
-                            className="text-xs px-3 py-1.5 rounded-full bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
-                        >
-                            This Month
-                        </button>
-                        <button
-                            onClick={() => {
-                                const now = new Date();
-                                setDateFrom(new Date(now.getFullYear(), 0, 1));
-                                setDateTo(new Date(now.getFullYear(), 11, 31));
-                            }}
-                            className="text-xs px-3 py-1.5 rounded-full bg-muted text-muted-foreground hover:bg-muted/80 transition-colors"
-                        >
-                            This Year
-                        </button>
-                    </div>
-
-                    {/* Stats summary based on date range */}
                     <div className="pt-4 border-t">
                         <h4 className="text-sm font-medium mb-3">Offers in selected period</h4>
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="p-3 rounded-lg bg-emerald-500/10">
-                                <p className="text-xs text-muted-foreground mb-1">New Active Offers</p>
-                                <p className="text-2xl font-bold text-emerald-600">
-                                    {publishedOffers.filter(o => o.status === 'active' && new Date(o.lastEdited) >= dateFrom && new Date(o.lastEdited) <= dateTo).length}
-                                </p>
-                            </div>
-                            <div className="p-3 rounded-lg bg-gray-500/10">
-                                <p className="text-xs text-muted-foreground mb-1">New Paused Offers</p>
-                                <p className="text-2xl font-bold text-gray-600">
-                                    {publishedOffers.filter(o => o.status !== 'active' && new Date(o.lastEdited) >= dateFrom && new Date(o.lastEdited) <= dateTo).length}
-                                </p>
-                            </div>
+                            <div className="p-3 rounded-lg bg-emerald-500/10"><p className="text-xs text-muted-foreground mb-1">Active</p><p className="text-2xl font-bold text-emerald-600">{publishedOffers.filter(o => o.status === 'active').length}</p></div>
+                            <div className="p-3 rounded-lg bg-gray-500/10"><p className="text-xs text-muted-foreground mb-1">Paused</p><p className="text-2xl font-bold text-gray-600">{publishedOffers.filter(o => o.status !== 'active').length}</p></div>
                         </div>
                     </div>
-
-                    <div className="flex justify-end gap-3 pt-4">
-                        <PremiumButton variant="outline" onClick={() => setShowDatePopup(false)} className="rounded-xl">
-                            Close
-                        </PremiumButton>
-                    </div>
+                    <div className="flex justify-end gap-3 pt-4"><PremiumButton variant="outline" onClick={() => setShowDatePopup(false)} className="rounded-xl">Close</PremiumButton></div>
                 </div>
-            </AppModal >
+            </AppModal>
 
-
-
-            {/* ──── Delete Confirm Dialog ──── */}
-            <AppModal
-                open={!!offerToDelete}
-                onOpenChange={(open) => { if (!open) setOfferToDelete(null); }}
-                title="Delete Offer"
-                description="Are you sure you want to delete this offer? This action cannot be undone."
-            >
+            {/* Delete Modal */}
+            <AppModal open={!!offerToDelete} onOpenChange={(open) => { if (!open) setOfferToDelete(null); }} title="Delete Offer" description="Are you sure you want to delete this offer? This action cannot be undone.">
                 <div className="space-y-4">
                     <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700 flex items-start gap-3">
                         <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
-                        <div>
-                            <p className="font-semibold">"{offerToDelete?.title || 'Untitled'}"</p>
-                            <p className="mt-1 text-xs opacity-80">This will permanently remove this offer and all its poster data.</p>
-                        </div>
+                        <div><p className="font-semibold">"{offerToDelete?.title || 'Untitled'}"</p><p className="mt-1 text-xs opacity-80">This will permanently remove this offer.</p></div>
                     </div>
                     <div className="flex gap-3 justify-end">
-                        <PremiumButton variant="outline" onClick={() => setOfferToDelete(null)} className="rounded-xl">
-                            Cancel
-                        </PremiumButton>
-                        <PremiumButton
-                            onClick={() => offerToDelete && handleDeleteOffer(offerToDelete)}
-                            className="rounded-xl px-6 bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20"
-                        >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Confirm Delete
-                        </PremiumButton>
+                        <PremiumButton variant="outline" onClick={() => setOfferToDelete(null)} className="rounded-xl">Cancel</PremiumButton>
+                        <PremiumButton onClick={() => offerToDelete && handleDeleteOffer(offerToDelete)} className="rounded-xl px-6 bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20"><Trash2 className="w-4 h-4 mr-2" />Confirm Delete</PremiumButton>
                     </div>
                 </div>
             </AppModal>
 
-
-
-            {/* Image Preview Modal */}
-            {
-                previewLogo && (
-                    <ImagePreviewModal
-                        src={previewLogo.src}
-                        alt={previewLogo.name}
-                        markedItems={previewLogo.markedItems}
-                        isOpen={!!previewLogo}
-                        onClose={() => setPreviewLogo(null)}
-                    />
-                )
-            }
+            {/* Logo Preview */}
+            {previewLogo && <ImagePreviewModal src={previewLogo.src} alt={previewLogo.name} isOpen={!!previewLogo} onClose={() => setPreviewLogo(null)} />}
         </main>
     );
 }
 
 export default function ShopManagerPage() {
     return (
-        <Suspense fallback={
-            <div className="min-h-screen flex items-center justify-center">
-                <Loader2 className="w-10 h-10 text-primary animate-spin" />
-            </div>
-        }>
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="w-10 h-10 text-primary animate-spin" /></div>}>
             <DashboardContent />
         </Suspense>
     );
@@ -964,74 +583,25 @@ function StatCard({ icon: Icon, label, value, trend }: { icon: any, label: strin
     return (
         <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 transition-all duration-300 rounded-2xl h-full">
             <div className="p-4 flex items-center gap-3 h-full">
-                <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform flex-shrink-0">
-                    <Icon className="w-5 h-5" />
-                </div>
+                <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform flex-shrink-0"><Icon className="w-5 h-5" /></div>
                 <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2 mb-0.5">
-                        <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate">{label}</h3>
-                    </div>
-                    <div className="flex items-end justify-between gap-2">
-                        <div className="text-2xl font-black text-gray-900 tracking-tighter leading-none shrink-0">{value}</div>
-                        <div className="text-[9px] font-black text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded-lg whitespace-nowrap mb-0.5">
-                            {trend}
-                        </div>
-                    </div>
+                    <div className="flex items-center justify-between gap-2 mb-0.5"><h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate">{label}</h3></div>
+                    <div className="flex items-end justify-between gap-2"><div className="text-2xl font-black text-gray-900 tracking-tighter leading-none shrink-0">{value}</div><div className="text-[9px] font-black text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded-lg whitespace-nowrap mb-0.5">{trend}</div></div>
                 </div>
             </div>
         </PremiumCard>
     );
 }
 
-function ActionButton({
-    icon: Icon,
-    label,
-    href,
-    className,
-    variant = "default"
-}: {
-    icon: any,
-    label: string,
-    href?: string,
-    className?: string,
-    variant?: "default" | "grid"
-}) {
+function ActionButton({ icon: Icon, label, href, className, variant = "default", onClick }: { icon: any, label: string, href?: string, className?: string, variant?: "default" | "grid", onClick?: () => void }) {
     const isGrid = variant === "grid";
-
     const content = (
         <>
-            <div className={cn(
-                "p-2 rounded-lg transition-all duration-300",
-                isGrid ? "bg-orange-100/50 text-orange-600 group-hover:bg-primary group-hover:text-white" : "bg-primary/10 text-primary group-hover:scale-110"
-            )}>
-                <Icon className={cn(isGrid ? "w-4 h-4" : "w-5 h-5", className && "text-inherit")} />
-            </div>
-            <span className={cn(
-                "font-bold transition-colors",
-                isGrid ? "text-[11px] sm:text-xs text-gray-500 group-hover:text-primary mt-1" : "font-medium"
-            )}>{label}</span>
+            <div className={cn("p-2 rounded-lg transition-all duration-300", isGrid ? "bg-orange-100/50 text-orange-600 group-hover:bg-primary group-hover:text-white" : "bg-primary/10 text-primary group-hover:scale-110")}><Icon className={cn(isGrid ? "w-4 h-4" : "w-5 h-5", className && "text-inherit")} /></div>
+            <span className={cn("font-bold transition-colors", isGrid ? "text-[11px] sm:text-xs text-gray-500 group-hover:text-primary mt-1" : "font-medium")}>{label}</span>
         </>
     );
-
-    const baseStyles = cn(
-        "flex transition-all duration-300 w-full text-left group",
-        isGrid
-            ? "flex-col items-center justify-center p-4 rounded-2xl bg-gray-50/50 border border-gray-100 hover:border-primary/20 hover:bg-white hover:shadow-lg hover:shadow-primary/5"
-            : "items-center gap-3 p-4 rounded-xl bg-background/40 border border-primary/5 hover:border-primary/30 hover:bg-primary/5",
-        className
-    );
-
-    if (href) {
-        return (
-            <Link href={href} className={baseStyles}>
-                {content}
-            </Link>
-        );
-    }
-
-    return (
-        <button className={baseStyles}>
-            {content}
-        </button>
-    );
+    const baseStyles = cn("flex transition-all duration-300 w-full text-left group", isGrid ? "flex-col items-center justify-center p-4 rounded-2xl bg-gray-50/50 border border-gray-100 hover:border-primary/20 hover:bg-white hover:shadow-lg hover:shadow-primary/5" : "items-center gap-3 p-4 rounded-xl bg-background/40 border border-primary/5 hover:border-primary/30 hover:bg-primary/5", className);
+    if (href) return <Link href={href} className={baseStyles}>{content}</Link>;
+    return <button onClick={onClick} className={baseStyles}>{content}</button>;
 }

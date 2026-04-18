@@ -1,44 +1,22 @@
-import { apiClient } from "./apiClient";
+import { backend } from "./backendClient";
 import { ENDPOINTS } from "./endpoints";
 
 export async function addBranch(shopId: string, data: any) {
-    const endpoint = ENDPOINTS.BRANCH.BASE(shopId);
-
-    return await apiClient(endpoint, {
-        method: "POST",
-        body: JSON.stringify(data),
-    });
+    return await backend.post(ENDPOINTS.BRANCH.BASE(shopId), data);
 }
 
 export async function updateBranch(shopId: string, branchId: string, data: any) {
-    const endpoint = ENDPOINTS.BRANCH.DETAILS(shopId, branchId);
-
-    return await apiClient(endpoint, {
-        method: "PUT",
-        body: JSON.stringify(data),
-    });
+    return await backend.put(ENDPOINTS.BRANCH.DETAILS(shopId, branchId), data);
 }
 
 export async function getBranches(shopId: string) {
-    const endpoint = ENDPOINTS.BRANCH.BASE(shopId);
-
-    return await apiClient(endpoint, {
-        method: "GET",
-    });
+    return await backend.get(ENDPOINTS.BRANCH.BASE(shopId));
 }
 
 export async function getBranchDetails(shopId: string, branchId: string) {
-    const endpoint = ENDPOINTS.BRANCH.DETAILS(shopId, branchId);
-
-    return await apiClient(endpoint, {
-        method: "GET",
-    });
+    return await backend.get(ENDPOINTS.BRANCH.DETAILS(shopId, branchId));
 }
 
 export async function deleteBranch(shopId: string, branchId: string) {
-    const endpoint = ENDPOINTS.BRANCH.DETAILS(shopId, branchId);
-
-    return await apiClient(endpoint, {
-        method: "DELETE",
-    });
+    return await backend.delete(ENDPOINTS.BRANCH.DETAILS(shopId, branchId));
 }

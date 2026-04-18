@@ -1,6 +1,6 @@
 import { FEATURED_SHOPS, FEATURED_OFFERS } from "./mockData";
 import { Offer, OfferPayload } from "../types/offer";
-import { apiClient } from "./apiClient";
+import { backend } from "./backendClient";
 import { ENDPOINTS } from "./endpoints";
 
 const DEFAULT_USER_OFFER_IMAGE = "/images/shop-registration-bg-light.png";
@@ -128,7 +128,6 @@ async function fetchUserOffersPage({
     });
 
     const normalizedShopId = normalizeOptionalQueryValue(shopId);
-
     if (normalizedShopId !== undefined) {
         params.set("shopId", normalizedShopId);
     }
@@ -145,40 +144,9 @@ async function fetchUserOffersPage({
         }
     }
 
-    try {
-        const response = await fetch(`${ENDPOINTS.USER_OFFER.BASE}?${params.toString()}`, {
-            headers: {
-                Accept: "application/json",
-            },
-        });
+    const response = await backend.get<UserOfferApiResponse>(`${ENDPOINTS.USER_OFFER.BASE}?${params.toString()}`);
 
-        const result = (await response.json()) as UserOfferApiResponse | { message?: string; error?: string };
-
-        if (!response.ok || !("success" in result) || !result.success) {
-            return {
-                success: false,
-                data: [],
-                page,
-                limit,
-                count: 0,
-                hasMore: false,
-                error: ("message" in result ? result.message : undefined) || ("error" in result ? result.error : undefined) || "Failed to load offers",
-            };
-        }
-
-        const mappedOffers = result.data.map(mapUserOfferToOffer);
-        const totalCount = typeof result.count === "number" ? result.count : mappedOffers.length;
-
-        return {
-            success: true,
-            data: mappedOffers,
-            page: result.page,
-            limit: result.limit,
-            count: totalCount,
-            hasMore: result.page * result.limit < totalCount,
-        };
-    } catch (error: any) {
-        console.error("Public offer request failed:", error);
+    if (!response.success || !response.data) {
         return {
             success: false,
             data: [],
@@ -186,34 +154,38 @@ async function fetchUserOffersPage({
             limit,
             count: 0,
             hasMore: false,
-            error: error.message || "Network error or server unreachable",
+            error: response.error || "Failed to load offers",
         };
     }
+
+    const result = response.data;
+    const mappedOffers = result.data.map(mapUserOfferToOffer);
+    const totalCount = typeof result.count === "number" ? result.count : mappedOffers.length;
+
+    return {
+        success: true,
+        data: mappedOffers,
+        page: result.page,
+        limit: result.limit,
+        count: totalCount,
+        hasMore: result.page * result.limit < totalCount,
+    };
 }
 
 export async function createOffer(payload: OfferPayload, shopId: string) {
-    return apiClient<Offer>(ENDPOINTS.OFFER.BASE, {
-        method: "POST",
-        headers: {
-            shopId,
-        },
-        body: JSON.stringify(payload),
+    return backend.post<Offer>(ENDPOINTS.OFFER.BASE, payload, {
+        headers: { shopId },
     });
 }
 
 export async function updateOffer(id: string, payload: OfferPayload, shopId: string) {
-    return apiClient<Offer>(ENDPOINTS.OFFER.DETAILS(id), {
-        method: "PUT",
-        headers: {
-            shopId,
-        },
-        body: JSON.stringify(payload),
+    return backend.put<Offer>(ENDPOINTS.OFFER.DETAILS(id), payload, {
+        headers: { shopId },
     });
 }
 
 export async function deleteOffer(id: string, shopId?: string) {
-    return apiClient<void>(ENDPOINTS.OFFER.DETAILS(id), {
-        method: "DELETE",
+    return backend.delete<void>(ENDPOINTS.OFFER.DETAILS(id), {
         headers: shopId ? { shopId } : {},
     });
 }
@@ -233,7 +205,7 @@ export async function getFeaturedOffers() {
 }
 
 export async function getAllOffers(shopId?: string) {
-    return apiClient<Offer[]>(ENDPOINTS.OFFER.BASE, {
+    return backend.get<Offer[]>(ENDPOINTS.OFFER.BASE, {
         headers: shopId ? { shopId } : {},
     });
 }
@@ -298,14 +270,11 @@ export async function getUserOfferById(id: string | number) {
 }
 
 export async function getOfferById(id: string) {
-    return apiClient<Offer>(ENDPOINTS.OFFER.DETAILS(id));
+    return backend.get<Offer>(ENDPOINTS.OFFER.DETAILS(id));
 }
 
 export async function toggleOfferStatus(id: string, shopId: string) {
-    return apiClient<Offer>(ENDPOINTS.OFFER.INACTIVATE(id), {
-        method: "PATCH",
-        headers: {
-            shopId,
-        },
+    return backend.patch<Offer>(ENDPOINTS.OFFER.INACTIVATE(id), null, {
+        headers: { shopId },
     });
 }
