@@ -1,32 +1,28 @@
-const IS_SERVER = typeof window === 'undefined';
-export const API_BASE_URL = IS_SERVER 
-    ? 'https://offersnearu.vercel.app/api' 
-    : (process.env.NEXT_PUBLIC_API_BASE_URL || '/api/proxy');
-
 export const ENDPOINTS = {
     AUTH: {
-        REGISTER: `${API_BASE_URL}/business/auth/register`,
-        LOGIN: `${API_BASE_URL}/business/auth/login`,
+        REGISTER: `business/auth/register`,
+        LOGIN: `business/auth/login`,
     },
     SHOP: {
-        BASE: `${API_BASE_URL}/business/shop`,
-        MY_SHOPS: `${API_BASE_URL}/business/shop/my-shops`,
-        DETAILS: (id: string) => `${API_BASE_URL}/business/shop/${id}`,
+        BASE: `business/shop`,
+        MY_SHOPS: `business/shop/my-shops`,
+        DETAILS: (id: string) => `business/shop/${id}`,
     },
     BRANCH: {
-        BASE: (shopId: string) => `${API_BASE_URL}/business/shop/${shopId}/branches`,
-        DETAILS: (shopId: string, branchId: string) => `${API_BASE_URL}/business/shop/${shopId}/branches/${branchId}`,
+        BASE: (shopId: string) => `business/shop/${shopId}/branches`,
+        DETAILS: (shopId: string, branchId: string) => `business/shop/${shopId}/branches/${branchId}`,
     },
     S3_IMAGE: {
-        BASE: `${API_BASE_URL}/business/image`,
-        UPLOAD: `${API_BASE_URL}/business/image/upload`,
+        BASE: `business/image`,
+        UPLOAD: `business/image/upload`,
     },
     OFFER: {
-        BASE: `${API_BASE_URL}/business/offer`,
-        DETAILS: (id: string) => `${API_BASE_URL}/business/offer/${id}`,
-        INACTIVATE: (id: string) => `${API_BASE_URL}/business/offer/inactivate/${id}`,
+        BASE: `business/offer`,
+        DETAILS: (id: string) => `business/offer/${id}`,
+        INACTIVATE: (id: string) => `business/offer/inactivate/${id}`,
     },
     USER_OFFER: {
-        BASE: `${API_BASE_URL}/user/offer`,
+        BASE: `user/offer`,
     }
 };
+

@@ -19,6 +19,7 @@ import { PremiumButton } from "@/components/shared/PremiumButton";
 import { PremiumInput } from "@/components/shared/PremiumInput";
 import { AppModal } from "@/components/shared/AppModal";
 import { cn } from "@/lib/utils";
+import { MarkedItem } from "@/lib/types/offer";
 import { toast } from "sonner";
 import { storage } from "@/lib/storage";
 import { MarkedItem as MarkedItemType } from "@/lib/types/offer";
