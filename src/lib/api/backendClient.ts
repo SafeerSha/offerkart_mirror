@@ -1,5 +1,8 @@
 import { config } from "../config";
 import { z } from "zod";
+import { ApiResponse } from "../types/api";
+import { sanitizePayload } from "../security";
+
 
 const IS_SERVER = typeof window === "undefined";
 const BACKEND_PROXY_PREFIX = config.api.proxyPrefix;
@@ -82,10 +85,8 @@ export const backend = {
                 headers,
             });
 
-            // 6. Parse Response
-            const result = await response.json();
-
-            // 7. Handle 401 Global Intercept (Client-side only)
+            // 6. Handle Global Intercepts by Status (e.g. 401)
+            // We do this BEFORE parsing JSON to handle empty 401 bodies
             if (response.status === 401 && !IS_SERVER) {
                 const { signOut } = await import("next-auth/react");
                 signOut({ callbackUrl: "/login" });
@@ -95,6 +96,26 @@ export const backend = {
                 };
             }
 
+            // 7. Safe Body Extraction
+            let result: any = {};
+            const contentType = response.headers.get("content-type") || "";
+            
+            if (response.status !== 204 && contentType.includes("application/json")) {
+                const text = await response.text();
+                if (text) {
+                    try {
+                        result = JSON.parse(text);
+                    } catch (e) {
+                        console.error("[API JSON Parse Error]:", e, "Raw text:", text);
+                        return {
+                            success: false,
+                            error: "Received an invalid JSON response from the server.",
+                        };
+                    }
+                }
+            }
+
+            // 8. Handle non-OK statuses
             if (!response.ok) {
                 return {
                     success: false,
@@ -102,7 +123,7 @@ export const backend = {
                 };
             }
 
-            // 7. Validate with Zod if schema provided
+            // 9. Validate with Zod if schema provided
             if (schema) {
                 const validation = schema.safeParse(result);
                 if (!validation.success) {
@@ -116,6 +137,7 @@ export const backend = {
                 data: result,
                 message: result.message,
             };
+
 
         } catch (error: any) {
             console.error("Backend Request Failure:", error);

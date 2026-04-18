@@ -1,4 +1,7 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getToken } from "next-auth/jwt";
 import { config } from "@/lib/config";
+
 
 const UPSTREAM_API_BASE_URL = config.api.upstreamBaseUrl;
 
@@ -64,8 +67,9 @@ async function handleProxy(request: NextRequest, context: { params: Promise<{ pa
     const headers = filterRequestHeaders(request, body !== undefined);
 
     if (!isPublicPath(upstreamPath)) {
-        const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+        const token = await getToken({ req: request, secret: config.auth.secret });
         const accessToken = typeof token?.accessToken === "string" ? token.accessToken : null;
+
 
         if (!accessToken) {
             return NextResponse.json(

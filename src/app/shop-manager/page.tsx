@@ -49,6 +49,7 @@ import { ImagePreviewModal } from "@/components/shared/ImagePreviewModal";
 import { StatusToggleButton } from "@/components/shared/StatusToggleButton";
 import { storage } from "@/lib/storage";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { useMyShops, useAllOffers, useAllProducts, useDeleteOffer, useToggleOfferStatus } from "@/hooks/useApi";
 
@@ -81,9 +82,9 @@ function DashboardContent() {
     // 2. Fetch Offers for current shop
     const { data: offersResponse, isLoading: isLoadingOffers } = useAllOffers(activeShopId || undefined);
     const publishedOffers = useMemo(() => {
-        if (!offersResponse?.success || !offersResponse?.data) return [];
+        if (!offersResponse?.success || !offersResponse?.data) return [] as any[];
         const result = offersResponse.data as any;
-        return Array.isArray(result) ? result : (result.data || []);
+        return (Array.isArray(result) ? result : (result.data || [])) as any[];
     }, [offersResponse]);
 
     // 3. Fetch Products
@@ -250,79 +251,115 @@ function DashboardContent() {
                         </div>
                         <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide px-1">
                             <div className="w-[85vw] sm:w-[240px] flex-none shrink-0 snap-center">
-                                <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 transition-all duration-300 rounded-2xl">
-                                    <div className="p-3.5 flex items-center gap-3">
-                                        <div className="p-2 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform flex-shrink-0">
-                                            <Package className="w-5 h-5" />
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                            <div className="flex items-center justify-between gap-2 mb-0.5">
-                                                <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate">Offers</h3>
-                                                <div className="flex items-center gap-1 text-[9px] text-emerald-500 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded-lg whitespace-nowrap">
-                                                    <Calendar className="w-2.5 h-2.5" />
-                                                    Active
+                                {isLoadingOffers ? (
+                                    <Skeleton className="h-24 w-full rounded-2xl" />
+                                ) : (
+                                    <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 transition-all duration-300 rounded-2xl">
+                                        <div className="p-3.5 flex items-center gap-3">
+                                            <div className="p-2 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform flex-shrink-0">
+                                                <Package className="w-5 h-5" />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center justify-between gap-2 mb-0.5">
+                                                    <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate">Offers</h3>
+                                                    <div className="flex items-center gap-1 text-[9px] text-emerald-500 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded-lg whitespace-nowrap">
+                                                        <Calendar className="w-2.5 h-2.5" />
+                                                        Active
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-baseline gap-2">
+                                                    <div className="text-xl font-black text-gray-900 tracking-tight">
+                                                        {publishedOffers.filter((o: any) => o.status === 'active').length}
+                                                    </div>
+                                                    <span className="text-[10px] text-gray-400 font-medium truncate">
+                                                        / {publishedOffers.filter((o: any) => o.status !== 'active').length} paused
+                                                    </span>
                                                 </div>
                                             </div>
-                                            <div className="flex items-baseline gap-2">
-                                                <div className="text-xl font-black text-gray-900 tracking-tight">
-                                                    {publishedOffers.filter(o => o.status === 'active').length}
-                                                </div>
-                                                <span className="text-[10px] text-gray-400 font-medium truncate">
-                                                    / {publishedOffers.filter(o => o.status !== 'active').length} paused
-                                                </span>
-                                            </div>
                                         </div>
-                                    </div>
-                                </PremiumCard>
+                                    </PremiumCard>
+                                )}
                             </div>
                             <div className="w-[85vw] sm:w-[220px] flex-none shrink-0 snap-center">
-                                <StatCard icon={BarChart3} label="Total Views" value="1.2k" trend="+15%" />
+                                <StatCard icon={BarChart3} label="Total Views" value="1.2k" trend="+15%" isLoading={isLoadingOffers} />
                             </div>
                             <div className="w-[85vw] sm:w-[220px] flex-none shrink-0 snap-center">
-                                <StatCard icon={MousePointer2} label="Engagement" value="48" trend="+8 up" />
+                                <StatCard icon={MousePointer2} label="Engagement" value="48" trend="+8 up" isLoading={isLoadingOffers} />
                             </div>
                             <div className="w-[85vw] sm:w-[220px] flex-none shrink-0 snap-center">
-                                <StatCard icon={Tag} label="Conv. Rate" value="4.8%" trend="+0.5%" />
+                                <StatCard icon={Tag} label="Conv. Rate" value="4.8%" trend="+0.5%" isLoading={isLoadingOffers} />
                             </div>
                         </div>
+
                     </div>
 
                     <div className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-4">
-                        <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 transition-all duration-300 rounded-2xl">
-                            <div className="p-4 flex items-center gap-3">
-                                <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform flex-shrink-0">
-                                    <Package className="w-5 h-5 transition-transform" />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                    <div className="flex items-center justify-between gap-2 mb-0.5">
-                                        <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate">Offers</h3>
-                                        <div className="flex items-center gap-1 text-[10px] text-emerald-500 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-lg whitespace-nowrap">
-                                            <Calendar className="w-3 h-3" />
-                                            Live
+                        {isLoadingOffers ? (
+                            <Skeleton className="h-24 w-full rounded-2xl" />
+                        ) : (
+                            <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 transition-all duration-300 rounded-2xl">
+                                <div className="p-4 flex items-center gap-3">
+                                    <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform flex-shrink-0">
+                                        <Package className="w-5 h-5 transition-transform" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center justify-between gap-2 mb-0.5">
+                                            <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate">Offers</h3>
+                                            <div className="flex items-center gap-1 text-[10px] text-emerald-500 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-lg whitespace-nowrap">
+                                                <Calendar className="w-3 h-3" />
+                                                Live
+                                            </div>
+                                        </div>
+                                        <div className="flex items-baseline gap-2">
+                                            <div className="text-2xl font-black text-gray-900 tracking-tighter">
+                                                {publishedOffers.filter((o: any) => o.status === 'active').length}
+                                            </div>
+                                            <span className="text-[11px] text-gray-400 font-medium truncate mt-1">
+                                                / {publishedOffers.filter((o: any) => o.status !== 'active').length} paused
+                                            </span>
                                         </div>
                                     </div>
-                                    <div className="flex items-baseline gap-2">
-                                        <div className="text-2xl font-black text-gray-900 tracking-tighter">
-                                            {publishedOffers.filter(o => o.status === 'active').length}
-                                        </div>
-                                        <span className="text-[11px] text-gray-400 font-medium truncate mt-1">
-                                            / {publishedOffers.filter(o => o.status !== 'active').length} paused
-                                        </span>
-                                    </div>
                                 </div>
-                            </div>
-                        </PremiumCard>
-                        <StatCard icon={BarChart3} label="Total Views" value="1.2k" trend="+15% vs last month" />
-                        <StatCard icon={MousePointer2} label="Audience Engagement" value="48" trend="8 new today" />
-                        <StatCard icon={Tag} label="Conversion Rate" value="4.8%" trend="+0.5%" />
+                            </PremiumCard>
+                        )}
+                        <StatCard icon={BarChart3} label="Total Views" value="1.2k" trend="+15% vs last month" isLoading={isLoadingOffers} />
+                        <StatCard icon={MousePointer2} label="Audience Engagement" value="48" trend="8 new today" isLoading={isLoadingOffers} />
+                        <StatCard icon={Tag} label="Conversion Rate" value="4.8%" trend="+0.5%" isLoading={isLoadingOffers} />
                     </div>
+
                 </div>
 
                 {/* Main Content Areas */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-1 space-y-6 order-2">
                         {/* Shop Profile Spotlight */}
+                        {isLoadingShops && (
+                            <PremiumCard variant="glass" padding="none" className="overflow-hidden">
+                                <div className="h-16 bg-gray-100/50 animate-pulse" />
+                                <div className="px-5 pb-5 -mt-8 relative z-10 flex flex-col items-center">
+                                    <Skeleton className="w-16 h-16 rounded-2xl bg-white shadow-lg shadow-black/5" />
+                                    <Skeleton className="h-6 w-40 mt-3 rounded-lg" />
+                                    <Skeleton className="h-4 w-24 mt-2 rounded-lg" />
+                                    <div className="grid grid-cols-2 gap-4 w-full mt-4 py-2.5 border-y border-primary/5">
+                                        <div className="space-y-2">
+                                            <Skeleton className="h-4 w-8 mx-auto" />
+                                            <Skeleton className="h-2 w-12 mx-auto" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Skeleton className="h-4 w-8 mx-auto" />
+                                            <Skeleton className="h-2 w-12 mx-auto" />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3 w-full mt-4">
+                                        <Skeleton className="h-10 w-full rounded-xl" />
+                                        <Skeleton className="h-10 w-full rounded-xl" />
+                                    </div>
+                                </div>
+                            </PremiumCard>
+                        )}
+
                         {!isLoadingShops && shops.length > 0 && (
+
                             <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:shadow-2xl hover:shadow-primary/5 transition-all duration-500">
                                 <div className="h-16 bg-orange-500/[0.08] relative">
                                     <div className="absolute top-3 right-3 z-20 scale-90 origin-top-right">
@@ -425,22 +462,56 @@ function DashboardContent() {
 
                                 <div className="p-4">
                                     <TabsContent value="offers" className="mt-0 space-y-3 focus-visible:ring-0">
-                                        {!isLoadingOffers && publishedOffers.length === 0 && (
-                                            <Link href="/shop-manager/create-offer" className="block">
-                                                <div className="p-1 rounded-xl border-2 border-dashed border-primary/20 hover:border-primary/40 bg-primary/5 hover:bg-primary/10 transition-all group cursor-pointer">
-                                                    <div className="flex items-center justify-center gap-3">
-                                                        <div className="w-10 h-10 rounded-xl bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center transition-colors">
-                                                            <Plus className="w-5 h-5 text-primary" />
+                                        {isLoadingOffers ? (
+                                            <div className="space-y-4">
+                                                {[1, 2, 3].map((i) => (
+                                                    <div key={i} className="relative rounded-2xl bg-white border border-gray-100 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-5 animate-pulse">
+                                                        <div className="flex items-center gap-4 min-w-0 flex-1">
+                                                            <Skeleton className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl shrink-0" />
+                                                            <div className="min-w-0 flex-1 space-y-2">
+                                                                <div className="flex items-center gap-2">
+                                                                    <Skeleton className="h-5 w-1/2 rounded-md" />
+                                                                    <Skeleton className="h-4 w-16 rounded-full" />
+                                                                </div>
+                                                                <div className="flex gap-3">
+                                                                    <Skeleton className="h-3 w-24 rounded" />
+                                                                    <Skeleton className="h-3 w-20 rounded" />
+                                                                </div>
+                                                            </div>
                                                         </div>
-                                                        <div className="text-left"><h4 className="font-bold text-gray-900 group-hover:text-primary transition-colors">Add New Offer</h4></div>
+                                                        <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 shrink-0 w-full sm:w-auto">
+                                                            <div className="flex flex-col items-center sm:items-end w-full sm:w-auto space-y-2">
+                                                                <Skeleton className="h-2 w-20" />
+                                                                <Skeleton className="h-4 w-32" />
+                                                            </div>
+                                                            <div className="flex flex-row sm:flex-col items-center gap-3 w-full sm:w-auto justify-between sm:justify-center px-4 sm:px-0 sm:pl-8 border-l-0 sm:border-l border-gray-100">
+                                                                <Skeleton className="h-4 w-12" />
+                                                                <div className="flex gap-2">
+                                                                    <Skeleton className="h-10 w-10 rounded-xl" />
+                                                                    <Skeleton className="h-10 w-10 rounded-xl" />
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            </Link>
-                                        )}
-                                        <div className="space-y-4">
-                                            {isLoadingOffers ? (
-                                                <div className="p-4 flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
-                                            ) : publishedOffers.length > 0 ? (
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <>
+                                                {publishedOffers.length === 0 && (
+                                                    <Link href="/shop-manager/create-offer" className="block">
+                                                        <div className="p-1 rounded-xl border-2 border-dashed border-primary/20 hover:border-primary/40 bg-primary/5 hover:bg-primary/10 transition-all group cursor-pointer">
+                                                            <div className="flex items-center justify-center gap-3">
+                                                                <div className="w-10 h-10 rounded-xl bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center transition-colors">
+                                                                    <Plus className="w-5 h-5 text-primary" />
+                                                                </div>
+                                                                <div className="text-left"><h4 className="font-bold text-gray-900 group-hover:text-primary transition-colors">Add New Offer</h4></div>
+                                                            </div>
+                                                        </div>
+                                                    </Link>
+                                                )}
+                                                <div className="space-y-4">
+                                                    {publishedOffers.length > 0 ? (
+
                                                 publishedOffers.map((offer, idx) => (
                                                     <div key={offer.offerId || offer.batchId || idx} className="relative group rounded-2xl bg-white border border-gray-100 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 overflow-hidden">
                                                         <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
@@ -497,12 +568,25 @@ function DashboardContent() {
                                                 </div>
                                             )}
                                         </div>
-                                    </TabsContent>
+                                    </>
+                                )}
+                            </TabsContent>
 
-                                    <TabsContent value="products" className="mt-0 space-y-3 focus-visible:ring-0">
+                            <TabsContent value="products" className="mt-0 space-y-3 focus-visible:ring-0">
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             {isLoadingProducts ? (
-                                                <div className="col-span-full p-8 flex flex-col items-center justify-center bg-gray-50/50 rounded-2xl border-2 border-dashed border-gray-100"><Loader2 className="w-6 h-6 animate-spin text-primary/40 mb-2" /><p className="text-xs text-gray-400 font-medium">Loading catalog...</p></div>
+                                                <>
+                                                    {[1, 2, 3, 4].map((i) => (
+                                                        <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50/50 border border-gray-100 animate-pulse">
+                                                            <Skeleton className="w-16 h-16 rounded-lg shrink-0" />
+                                                            <div className="min-w-0 flex-1 space-y-2">
+                                                                <Skeleton className="h-2 w-16" />
+                                                                <Skeleton className="h-4 w-3/4" />
+                                                                <Skeleton className="h-5 w-20" />
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </>
                                             ) : products.length > 0 ? (
                                                 products.map((product) => (
                                                     <div key={product.id} className="group relative flex items-center gap-3 p-3 rounded-xl bg-gray-50/50 border border-gray-100 hover:border-primary/20 hover:bg-white hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 overflow-hidden">
@@ -543,8 +627,8 @@ function DashboardContent() {
                     <div className="pt-4 border-t">
                         <h4 className="text-sm font-medium mb-3">Offers in selected period</h4>
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="p-3 rounded-lg bg-emerald-500/10"><p className="text-xs text-muted-foreground mb-1">Active</p><p className="text-2xl font-bold text-emerald-600">{publishedOffers.filter(o => o.status === 'active').length}</p></div>
-                            <div className="p-3 rounded-lg bg-gray-500/10"><p className="text-xs text-muted-foreground mb-1">Paused</p><p className="text-2xl font-bold text-gray-600">{publishedOffers.filter(o => o.status !== 'active').length}</p></div>
+                            <div className="p-3 rounded-lg bg-emerald-500/10"><p className="text-xs text-muted-foreground mb-1">Active</p><p className="text-2xl font-bold text-emerald-600">{publishedOffers.filter((o: any) => o.status === 'active').length}</p></div>
+                            <div className="p-3 rounded-lg bg-gray-500/10"><p className="text-xs text-muted-foreground mb-1">Paused</p><p className="text-2xl font-bold text-gray-600">{publishedOffers.filter((o: any) => o.status !== 'active').length}</p></div>
                         </div>
                     </div>
                     <div className="flex justify-end gap-3 pt-4"><PremiumButton variant="outline" onClick={() => setShowDatePopup(false)} className="rounded-xl">Close</PremiumButton></div>
@@ -579,7 +663,10 @@ export default function ShopManagerPage() {
     );
 }
 
-function StatCard({ icon: Icon, label, value, trend }: { icon: any, label: string, value: string, trend: string }) {
+function StatCard({ icon: Icon, label, value, trend, isLoading }: { icon: any, label: string, value: string, trend: string, isLoading?: boolean }) {
+    if (isLoading) {
+        return <Skeleton className="h-20 w-full rounded-2xl" />;
+    }
     return (
         <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 transition-all duration-300 rounded-2xl h-full">
             <div className="p-4 flex items-center gap-3 h-full">
@@ -592,6 +679,7 @@ function StatCard({ icon: Icon, label, value, trend }: { icon: any, label: strin
         </PremiumCard>
     );
 }
+
 
 function ActionButton({ icon: Icon, label, href, className, variant = "default", onClick }: { icon: any, label: string, href?: string, className?: string, variant?: "default" | "grid", onClick?: () => void }) {
     const isGrid = variant === "grid";
