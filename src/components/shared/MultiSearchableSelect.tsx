@@ -56,16 +56,15 @@ export function MultiSearchableSelect({
         onChange(selectedValues.filter((v) => v !== value));
     };
 
-    const selectedLabels = selectedValues
-        .map((v) => options.find((o) => o.value === v)?.label)
-        .filter(Boolean) as string[];
+    const hasSelection = selectedValues.length > 0;
 
     return (
         <div ref={wrapperRef} className={cn("relative", className)}>
             <div
                 className={cn(
-                    "flex items-center w-full min-h-[44px] px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl transition-all cursor-pointer flex-wrap gap-1.5",
-                    isOpen && "border-orange-500 ring-2 ring-orange-100",
+                    "flex items-center w-full min-h-[48px] px-3.5 py-2 bg-gray-50/50 border border-gray-200/80 rounded-2xl transition-all cursor-pointer flex-wrap gap-2 group",
+                    isOpen && "border-orange-500 ring-4 ring-orange-500/10 bg-white shadow-lg shadow-orange-500/5",
+                    !isOpen && "hover:border-orange-300 hover:bg-gray-50",
                     disabled && "opacity-50 cursor-not-allowed"
                 )}
                 onClick={() => {
@@ -78,21 +77,25 @@ export function MultiSearchableSelect({
                 }}
             >
                 {/* Selected chips */}
-                {selectedLabels.map((label, i) => (
-                    <span
-                        key={selectedValues[i]}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-100 text-orange-700 rounded-md text-xs font-medium max-w-[140px]"
-                    >
-                        <span className="truncate">{label}</span>
-                        <button
-                            type="button"
-                            onClick={(e) => removeChip(selectedValues[i], e)}
-                            className="shrink-0 hover:bg-orange-200 rounded-full p-0.5 transition-colors"
+                {selectedValues.map((val) => {
+                    const option = options.find(o => o.value === val);
+                    if (!option) return null;
+                    return (
+                        <span
+                            key={val}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-orange-500/10 to-orange-600/10 text-orange-700 border border-orange-200/50 rounded-lg text-xs font-bold shadow-sm animate-in zoom-in-95 duration-200"
                         >
-                            <X className="w-3 h-3" />
-                        </button>
-                    </span>
-                ))}
+                            <span className="truncate max-w-[120px]">{option.label}</span>
+                            <button
+                                type="button"
+                                onClick={(e) => removeChip(val, e)}
+                                className="shrink-0 hover:bg-orange-500 hover:text-white rounded-md p-0.5 transition-all"
+                            >
+                                <X className="w-3 h-3" />
+                            </button>
+                        </span>
+                    );
+                })}
 
                 {/* Search input when open, placeholder when closed */}
                 {isOpen ? (
@@ -108,7 +111,7 @@ export function MultiSearchableSelect({
                             onClick={(e) => e.stopPropagation()}
                         />
                     </div>
-                ) : selectedLabels.length === 0 ? (
+                ) : !hasSelection ? (
                     <span className="flex-1 text-sm text-gray-400 truncate">{placeholder}</span>
                 ) : null}
 

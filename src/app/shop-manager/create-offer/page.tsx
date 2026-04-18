@@ -194,7 +194,7 @@ function CreateOfferContent() {
                     let s3Url = "";
                     if (poster.uploadPromise) {
                         s3Url = await poster.uploadPromise;
-                    } else {
+                    } else if (poster.file) {
                         const res = await s3Api.uploadImage(poster.file).catch(() => null);
                         const payload = (res?.data as any)?.data || res?.data;
                         const uploadedUrl = payload?.url || payload?.fileUrl || payload?.imageUrl || (res?.data as any)?.imageUrl || (typeof payload === 'string' ? payload : null);
@@ -290,6 +290,9 @@ function CreateOfferContent() {
                     if (poster.uploadPromise) {
                         s3Url = await poster.uploadPromise;
                     } else {
+                        if (!poster.file) {
+                             throw new Error("Missing poster file or S3 url for upload.");
+                        }
                         const res = await s3Api.uploadImage(poster.file).catch(() => null);
                         const payload = (res?.data as any)?.data || res?.data;
                         const uploadedUrl = payload?.url || payload?.fileUrl || payload?.imageUrl || (res?.data as any)?.imageUrl || (typeof payload === 'string' ? payload : null);

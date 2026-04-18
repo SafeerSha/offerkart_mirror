@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { storage } from "@/lib/storage";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { MarkedItem } from "@/lib/types/offer";
 
 // --- Image Preprocessing for OCR ---
 /**
@@ -82,21 +83,7 @@ async function preprocessImageForOCR(
 
 // --- Types ---
 
-interface MarkedItem {
-    id: string;
-    x: number;      // Relative coordinates (0-1)
-    y: number;
-    width: number;
-    height: number;
-    name: string;
-    mainCategory: string;
-    subcategories: string[];
-    description: string;
-    productImage: string;
-    oldPrice: number;
-    offerPrice: number;
-    currency: string;
-}
+// Local specialized types removed in favor of global types from @/lib/types/offer
 
 interface PosterData {
     posterSrc: string;
@@ -114,6 +101,7 @@ function HotspotEditorContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const fromPreview = searchParams.get('from') === 'preview';
+    const isEditFlow = searchParams.get('returnTo') === 'edit-offer';
     const posterIndex = parseInt(searchParams.get('index') || '0', 10);
 
     // Multi-poster state
@@ -531,23 +519,32 @@ function HotspotEditorContent() {
             return;
         }
 
-        if (fromPreview) {
+        if (fromPreview || isEditFlow) {
             try {
-                const stack = await storage.getItem<any[]>('poster_stack_resume') || [];
+                // If we are in the edit flow, we use 'currentEditingPosters' instead of 'poster_stack_resume'
+                const storageKey = isEditFlow ? 'currentEditingPosters' : 'poster_stack_resume';
+                const stack = await storage.getItem<any[]>(storageKey) || [];
+                
                 if (stack[posterIndex]) {
                     stack[posterIndex] = {
                         ...stack[posterIndex],
                         markedItems: posterData.markedItems,
                         type: 'marked_poster'
                     };
-                    await storage.setItem('poster_stack_resume', stack);
-                    toast.success("Poster markings updated");
-                    router.push(`/shop-manager/create-offer?resume=true&previewIndex=${posterIndex}`);
+                    await storage.setItem(storageKey, stack);
+                    toast.success(isEditFlow ? "Hotspots updated" : "Poster markings updated");
+                    
+                    if (isEditFlow) {
+                        const returnUrl = await storage.getItem<string>('edit_offer_return');
+                        router.push(returnUrl || '/shop-manager');
+                    } else {
+                        router.push(`/shop-manager/create-offer?resume=true&previewIndex=${posterIndex}`);
+                    }
                     return;
                 }
             } catch (err) {
                 console.error("Failed to update poster stack:", err);
-                toast.error("Failed to save changes to stack");
+                toast.error("Failed to save changes");
             }
         }
 
@@ -645,8 +642,13 @@ function HotspotEditorContent() {
             await storage.removeItem('currentEditingPosters');
             toast.success("Changes discarded");
 
-            if (fromPreview) {
-                router.push(`/shop-manager/create-offer?resume=true&previewIndex=${posterIndex}`);
+            if (fromPreview || isEditFlow) {
+                if (isEditFlow) {
+                    const returnUrl = await storage.getItem<string>('edit_offer_return');
+                    router.push(returnUrl || '/shop-manager');
+                } else {
+                    router.push(`/shop-manager/create-offer?resume=true&previewIndex=${posterIndex}`);
+                }
                 return;
             }
             router.push('/shop-manager/create-offer');

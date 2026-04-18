@@ -21,6 +21,7 @@ import { AppModal } from "@/components/shared/AppModal";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { storage } from "@/lib/storage";
+import { MarkedItem } from "@/lib/types/offer";
 
 async function preprocessImageForOCR(
     canvas: HTMLCanvasElement,
