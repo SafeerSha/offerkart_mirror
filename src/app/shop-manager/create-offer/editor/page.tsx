@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { storage } from "@/lib/storage";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { MarkedItem } from "@/lib/types/offer";
+import { MarkedItem as MarkedItemType } from "@/lib/types/offer";
 
 // --- Image Preprocessing for OCR ---
 /**
@@ -87,7 +87,7 @@ async function preprocessImageForOCR(
 
 interface PosterData {
     posterSrc: string;
-    markedItems: MarkedItem[];
+    markedItems: MarkedItemType[];
     currency: string;
     aspectRatio?: number;
 }
@@ -120,9 +120,10 @@ function HotspotEditorContent() {
     const [currentRect, setCurrentRect] = useState<Rect | null>(null);
     const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
     const [showModal, setShowModal] = useState(false);
-    const [currentMarkedItem, setCurrentMarkedItem] = useState<MarkedItem | null>(null);
+    const [currentMarkedItem, setCurrentMarkedItem] = useState<MarkedItemType | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [highlightedId, setHighlightedId] = useState<string | null>(null);
+    const [imgCrossOrigin, setImgCrossOrigin] = useState<"anonymous" | undefined>("anonymous");
 
     const [formData, setFormData] = useState({
         name: '',
@@ -178,6 +179,13 @@ function HotspotEditorContent() {
 
                 const activePoster = multiData[targetIndex];
                 setActivePosterIndex(targetIndex);
+                console.log('Standalone Editor Initial Load:', {
+                    posterIndex: targetIndex,
+                    posterId: activePoster.id,
+                    markedItemsCount: activePoster.markedItems?.length,
+                    markedItems: activePoster.markedItems
+                });
+                setImgCrossOrigin("anonymous"); // Reset for new poster
                 setPosterData({
                     posterSrc: activePoster.posterSrc,
                     markedItems: activePoster.markedItems || [],
@@ -210,6 +218,7 @@ function HotspotEditorContent() {
         // Load new poster
         const target = allPosters[index];
         setActivePosterIndex(index);
+        setImgCrossOrigin("anonymous"); // Reset for new poster
         setPosterData({
             posterSrc: target.posterSrc,
             markedItems: target.markedItems || [],
@@ -265,7 +274,7 @@ function HotspotEditorContent() {
         const relH = height / container.offsetHeight;
 
         const id = crypto.randomUUID();
-        const tempItem: MarkedItem = {
+        const tempItem: MarkedItemType = {
             id, x: relX, y: relY, width: relW, height: relH,
             name: 'Processing...', mainCategory: '', subcategories: [], description: '', productImage: '',
             oldPrice: 0, offerPrice: 0, currency: posterData.currency
@@ -278,15 +287,32 @@ function HotspotEditorContent() {
         setIsProcessing(true);
         try {
             const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d')!;
-            const container = containerRef.current!;
-            const img = imgRef.current!;
+            const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+            const container = containerRef.current;
+            const img = imgRef.current;
+
+            if (!container || !img) return;
+
+            // Robust validation of image and measurements
+            if (!img.complete || img.naturalWidth === 0 || container.offsetWidth === 0) {
+                console.error("Image or Container state check failed:", { 
+                    complete: img.complete, 
+                    naturalWidth: img.naturalWidth, 
+                    containerWidth: container.offsetWidth 
+                });
+                throw new Error('Image not fully loaded. Please wait a moment and try again.');
+            }
 
             const scaleX = img.naturalWidth / container.offsetWidth;
             const scaleY = img.naturalHeight / container.offsetHeight;
 
-            const sw = width * scaleX;
-            const sh = height * scaleY;
+            const sw = Math.round(width * scaleX);
+            const sh = Math.round(height * scaleY);
+            
+            if (sw <= 0 || sh <= 0) {
+                throw new Error('Selection is too small to process.');
+            }
+
             canvas.width = sw;
             canvas.height = sh;
 
@@ -361,7 +387,7 @@ function HotspotEditorContent() {
                 }
             }
 
-            const updatedItem: MarkedItem = {
+            const updatedItem: MarkedItemType = {
                 ...tempItem,
                 name: extractedName || 'Marked Product',
                 description: extractedDescription,
@@ -388,7 +414,7 @@ function HotspotEditorContent() {
 
     // --- Item Management ---
 
-    const handleEditItem = (item: MarkedItem) => {
+    const handleEditItem = (item: MarkedItemType) => {
         setCurrentMarkedItem(item);
         setFormData({
             name: item.name === 'Processing...' ? '' : item.name,
@@ -416,7 +442,7 @@ function HotspotEditorContent() {
         e.preventDefault();
         if (!currentMarkedItem) return;
 
-        const updatedItem: MarkedItem = {
+        const updatedItem: MarkedItemType = {
             ...currentMarkedItem,
             name: formData.name,
             mainCategory: formData.mainCategory,
@@ -808,14 +834,24 @@ function HotspotEditorContent() {
                                         width={1200}
                                         height={1200}
                                         unoptimized
+                                        crossOrigin={imgCrossOrigin}
                                         className="w-full h-auto block rounded-2xl"
-                                        onLoad={() => {
-                                            const ratio = (imgRef.current?.naturalWidth || 1) / (imgRef.current?.naturalHeight || 1);
+                                        onLoad={(e) => {
+                                            const target = e.currentTarget;
+                                            const ratio = (target.naturalWidth || 1) / (target.naturalHeight || 1);
                                             setPosterData(prev => ({ ...prev, aspectRatio: ratio }));
                                             setImageSize({
-                                                width: imgRef.current?.offsetWidth || 0,
-                                                height: imgRef.current?.offsetHeight || 0
+                                                width: target.offsetWidth || 0,
+                                                height: target.offsetHeight || 0
                                             });
+                                        }}
+                                        onError={() => {
+                                            if (imgCrossOrigin === "anonymous") {
+                                                console.warn("CORS load failed, retrying without crossOrigin...");
+                                                setImgCrossOrigin(undefined);
+                                            } else {
+                                                toast.error("Failed to load image. Even without CORS, the image source appears unreachable.");
+                                            }
                                         }}
                                         draggable={false}
                                     />

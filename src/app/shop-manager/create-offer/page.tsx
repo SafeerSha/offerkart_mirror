@@ -636,6 +636,7 @@ function CreateOfferContent() {
                             }}
                             placeholder="Select start date"
                             error={publishErrors.validFrom}
+                            minDate={new Date()}
                         />
                         <PremiumDatePicker
                             label="Valid To"
@@ -646,6 +647,7 @@ function CreateOfferContent() {
                             }}
                             placeholder="Select end date"
                             error={publishErrors.validTo}
+                            minDate={validFrom || new Date()}
                         />
                     </div>
 
