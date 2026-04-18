@@ -1,6 +1,5 @@
 import { ApiResponse } from "../types/api";
 import { sanitizePayload } from "../security";
-import { getSession } from "next-auth/react";
 
 export async function apiClient<T>(
     endpoint: string,
@@ -19,10 +18,6 @@ export async function apiClient<T>(
             }
         }
 
-        // Automatically attach Bearer token if it exists (from NextAuth)
-        const session = await getSession();
-        const tokenValue = (session as any)?.accessToken;
-
         const isFormData = body instanceof FormData;
 
         const response = await fetch(endpoint, {
@@ -31,7 +26,6 @@ export async function apiClient<T>(
             headers: {
                 ...(isFormData ? {} : body ? { "Content-Type": "application/json" } : {}),
                 "Accept": "application/json",
-                ...(tokenValue ? { "Authorization": `Bearer ${tokenValue}` } : {}),
                 ...options.headers,
             },
         });

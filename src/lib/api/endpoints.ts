@@ -1,7 +1,7 @@
 const IS_SERVER = typeof window === 'undefined';
 export const API_BASE_URL = IS_SERVER 
     ? 'https://offersnearu.vercel.app/api' 
-    : (process.env.NEXT_PUBLIC_API_BASE_URL || '/api/proxy');
+    : '/api/backend';
 
 export const ENDPOINTS = {
     AUTH: {

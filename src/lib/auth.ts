@@ -48,10 +48,10 @@ export const authOptions: NextAuthOptions = {
     callbacks: {
         async jwt({ token, user, trigger, session }) {
             if (user) {
-                token.accessToken = (user as any).accessToken;
+                token.accessToken = user.accessToken;
                 token.user = user;
-                if ((user as any).shopId) {
-                    token.shopId = (user as any).shopId;
+                if (user.shopId) {
+                    token.shopId = user.shopId;
                 }
             }
             if (trigger === "update" && session?.shopId) {
@@ -60,8 +60,7 @@ export const authOptions: NextAuthOptions = {
             return token;
         },
         async session({ session, token }) {
-            session.accessToken = token.accessToken as string;
-            session.user = token.user as any;
+            session.user = token.user;
             session.shopId = token.shopId;
             if (session.user && token.shopId) {
                 session.user.shopId = token.shopId;

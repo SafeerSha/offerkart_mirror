@@ -22,6 +22,7 @@ import { AppModal } from "@/components/shared/AppModal";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { storage } from "@/lib/storage";
+import { MarkedItem } from "@/lib/types/offer";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 
 // --- Image Preprocessing for OCR ---
@@ -82,21 +83,7 @@ async function preprocessImageForOCR(
 
 // --- Types ---
 
-interface MarkedItem {
-    id: string;
-    x: number;      // Relative coordinates (0-1)
-    y: number;
-    width: number;
-    height: number;
-    name: string;
-    mainCategory: string;
-    subcategories: string[];
-    description: string;
-    productImage: string;
-    oldPrice: number;
-    offerPrice: number;
-    currency: string;
-}
+
 
 interface PosterData {
     posterSrc: string;
