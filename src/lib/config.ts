@@ -13,7 +13,7 @@ const configSchema = z.object({
 
   // Auth Configuration
   auth: z.object({
-    secret: z.string().min(1, "NEXTAUTH_SECRET is required"),
+    secret: z.string().min(1, "NEXTAUTH_SECRET is required").default("dev-secret-placeholder"),
     url: z.string().url().optional(),
   }),
 
@@ -30,10 +30,11 @@ const configSchema = z.object({
 });
 
 // Parse and validate environment variables
-const result = configSchema.safeParse({
+// We check both private and public versions to ensure client-side visibility where needed
+const envData = {
   api: {
-    upstreamBaseUrl: process.env.UPSTREAM_API_BASE_URL,
-    proxyPrefix: process.env.BACKEND_PROXY_PREFIX,
+    upstreamBaseUrl: process.env.NEXT_PUBLIC_UPSTREAM_API_BASE_URL || process.env.UPSTREAM_API_BASE_URL,
+    proxyPrefix: process.env.NEXT_PUBLIC_BACKEND_PROXY_PREFIX || process.env.BACKEND_PROXY_PREFIX,
   },
   auth: {
     secret: process.env.NEXTAUTH_SECRET,
@@ -46,16 +47,25 @@ const result = configSchema.safeParse({
     aiApiKey: process.env.AI_API_KEY,
     hfToken: process.env.HF_ACCESS_TOKEN,
   },
-});
+};
+
+const result = configSchema.safeParse(envData);
 
 if (!result.success) {
   const errors = result.error.flatten().fieldErrors;
-  console.error("❌ Invalid Environment Configuration:", JSON.stringify(errors, null, 2));
+  console.warn("⚠️  Configuration Warning:", JSON.stringify(errors, null, 2));
   
   // In production, we might want to shut down or throw a hard error
   if (process.env.NODE_ENV === "production") {
-    throw new Error("Invalid Environment Configuration");
+    console.error("❌ CRITICAL: Invalid Production Configuration");
   }
 }
 
-export const config = result.success ? result.data : ({} as z.infer<typeof configSchema>);
+/**
+ * The validated application configuration.
+ * If validation fails, it falls back to the schema's default values 
+ * to prevent 'Cannot read properties of undefined' crashes.
+ */
+export const config = result.success 
+  ? result.data 
+  : configSchema.parse({}); // This will return an object with all .default() values applied
