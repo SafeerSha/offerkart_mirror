@@ -19,9 +19,10 @@ export async function apiClient<T>(
             }
         }
 
-        // Automatically attach Bearer token if it exists (from NextAuth)
+        // Automatically attach Bearer token and shopId if they exist (from NextAuth)
         const session = await getSession();
         const tokenValue = (session as any)?.accessToken;
+        const shopId = (session as any)?.shopId;
 
         const isFormData = body instanceof FormData;
 
@@ -32,6 +33,7 @@ export async function apiClient<T>(
                 ...(isFormData ? {} : body ? { "Content-Type": "application/json" } : {}),
                 "Accept": "application/json",
                 ...(tokenValue ? { "Authorization": `Bearer ${tokenValue}` } : {}),
+                ...(shopId ? { "shopId": shopId } : {}),
                 ...options.headers,
             },
         });

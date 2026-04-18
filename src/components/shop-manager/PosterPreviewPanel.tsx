@@ -79,7 +79,7 @@ export function PosterPreviewPanel({
             "flex flex-col bg-white overflow-hidden animate-in fade-in duration-300 shadow-2xl transition-colors",
             variant === "overlay" 
                 ? "relative w-full h-[95%] sm:h-[90%] max-w-5xl mx-auto my-auto rounded-3xl border border-zinc-200 p-4 md:p-8 opacity-100" 
-                : "absolute inset-0"
+                : "absolute inset-0 p-5 sm:p-7 rounded-[2rem] border border-zinc-100 shadow-sm"
         )}>
             {/* Header */}
             <div className="flex items-center justify-between mb-4 shrink-0">

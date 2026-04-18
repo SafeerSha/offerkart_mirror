@@ -1,0 +1,540 @@
+"use client";
+
+import { useState, useEffect, Suspense } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { toast } from "sonner";
+import {
+    CalendarDays,
+    Check,
+    GitBranch,
+    Loader2,
+    Tag,
+    Bell,
+    CheckCircle2,
+    ArrowLeft,
+    Type,
+    Send
+} from "lucide-react";
+import { Heading, Text, Subheading } from "@/components/shared/Typography";
+import Breadcrumbs from "@/components/shared/Breadcrumbs";
+import { PremiumCard } from "@/components/shared/PremiumCard";
+import { PremiumButton } from "@/components/shared/PremiumButton";
+import { PremiumInput } from "@/components/shared/PremiumInput";
+import { PremiumDatePicker } from "@/components/shared/PremiumDatePicker";
+import { MultiSearchableSelect } from "@/components/shared/MultiSearchableSelect";
+import { StatusToggleButton } from "@/components/shared/StatusToggleButton";
+import { AppModal } from "@/components/shared/AppModal";
+import { cn, formatDateLocal } from "@/lib/utils";
+import { getOfferById, updateOffer } from "@/lib/api/offers";
+import { getBranches } from "@/lib/api/branch";
+import { getMyShops } from "@/lib/api/shop";
+import { s3Api } from "@/lib/api/s3";
+import { Branch } from "@/lib/types/branch";
+import { storage } from "@/lib/storage";
+import { PosterCardStack, PosterItem } from "@/components/shop-manager/PosterCardStack";
+import type { PosterPreviewState } from "@/components/shop-manager/PosterCardStack";
+import { PosterPreviewPanel } from "@/components/shop-manager/PosterPreviewPanel";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+// Local type for API data before mapping to PosterItem
+interface EditPoster {
+    id?: string;
+    posterSrc: string;
+    type: "just_post" | "marked_poster" | "unclassified";
+    markedItems?: any[];
+    order?: number;
+}
+
+// ─── Page wrapper ─────────────────────────────────────────────────────────────
+export default function EditOfferPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center">
+                <Loader2 className="w-10 h-10 text-primary animate-spin" />
+            </div>
+        }>
+            <EditOfferContent />
+        </Suspense>
+    );
+}
+
+// ─── Main content ─────────────────────────────────────────────────────────────
+function EditOfferContent() {
+    const params = useParams();
+    const offerId = String(params.id);
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const { data: session } = useSession();
+
+    // Loading / saving
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const [showDetailsModal, setShowDetailsModal] = useState(false);
+
+    // Form state
+    const [title, setTitle] = useState("");
+    const [validFrom, setValidFrom] = useState<Date | undefined>();
+    const [validTo, setValidTo] = useState<Date | undefined>();
+    const [selectedBranchIds, setSelectedBranchIds] = useState<string[]>([]);
+    const [isActive, setIsActive] = useState(true);
+    const [posters, setPosters] = useState<PosterItem[]>([]);
+
+    // Branch data
+    const [branches, setBranches] = useState<Branch[]>([]);
+    const [isBranchesLoading, setIsBranchesLoading] = useState(false);
+
+    // Validation errors
+    const [errors, setErrors] = useState<{ title?: string; dates?: string; branch?: string }>({});
+
+    // UI state mirroring create-offer
+    const [isEditing, setIsEditing] = useState(false);
+    const [previewState, setPreviewState] = useState<PosterPreviewState | null>(null);
+
+    // ── Load offer from API ──────────────────────────────────────────────────
+    useEffect(() => {
+        const load = async () => {
+            setIsLoading(true);
+            try {
+                // Fetch from API
+                const res = await getOfferById(offerId);
+                
+                if (res.success && res.data) {
+                    const raw = res.data as any;
+                    // Handle wrapped responses (e.g., { success, data: { ... } }) or direct responses
+                    const offer = raw?.data ?? raw;
+                    
+                    if (process.env.NODE_ENV === "development") {
+                        console.log("Edit Offer Data:", { raw, offer });
+                    }
+
+                    // Ultra-resilient title extraction
+                    setTitle(offer.title || offer.offerName || offer.offer_name || "");
+                    
+                    // Ultra-resilient dates
+                    const fromDate = offer.validFrom || offer.valid_from || offer.startDate || offer.start_date;
+                    const toDate = offer.validTo || offer.valid_to || offer.endDate || offer.end_date;
+                    setValidFrom(fromDate ? new Date(fromDate) : undefined);
+                    setValidTo(toDate ? new Date(toDate) : undefined);
+                    
+                    setIsActive(offer.status === "active" || offer.isActive || offer.is_active || false);
+                    
+                    // Ultra-resilient branch ID extraction
+                    let bIdsRaw = offer.branchIds || offer.branch_ids || offer.branches || offer.offerBranches || offer.offer_branches || offer.offer_branch_links || [];
+                    
+                    // If we got an empty array but there are other potential sources, try them
+                    if (Array.isArray(bIdsRaw) && bIdsRaw.length === 0) {
+                        bIdsRaw = offer.offerBranches || offer.offer_branches || offer.branchIds || offer.branch_ids || offer.offer_branch_links || [];
+                    }
+
+                    if (typeof bIdsRaw === 'string') {
+                        bIdsRaw = bIdsRaw.split(',').map(s => s.trim());
+                    }
+                    
+                    const bIds = (Array.isArray(bIdsRaw) ? bIdsRaw : [bIdsRaw])
+                        .map((item: any) => {
+                            if (!item) return null;
+                            if (typeof item === 'object') {
+                                // Prioritize branchId/branch_id as "id" in join tables is often the link ID, not the branch ID
+                                return item.branchId || item.branch_id || item.id || item.value;
+                            }
+                            return item;
+                        })
+                        .filter(Boolean)
+                        .map(String);
+                    
+                    setSelectedBranchIds(bIds);
+
+                    // Ultra-resilient poster extraction
+                    let postersRaw = offer.posters || offer.poster_links || offer.offer_posters;
+                    
+                    // If no posters array, try to construct one from single image fields
+                    if (!postersRaw || (Array.isArray(postersRaw) && postersRaw.length === 0)) {
+                        const singleOfferImage = offer.posterSrc || offer.poster_src || offer.image || offer.imageUrl || offer.image_url || offer.url;
+                        if (singleOfferImage && typeof singleOfferImage === 'string') {
+                            postersRaw = [{
+                                id: offer.id || '1',
+                                posterSrc: singleOfferImage,
+                                type: 'just_post',
+                                markedItems: []
+                            }];
+                        } else {
+                            postersRaw = [];
+                        }
+                    }
+
+                    const apiPosters: PosterItem[] = (Array.isArray(postersRaw) ? postersRaw : [])
+                        .filter((p: any) => !!(p.posterSrc || p.poster_src || p.imageUrl || p.image_url || p.url))
+                        .map((p: any, i: number) => {
+                            const marked = p.markedItems || p.marked_items || [];
+                            return {
+                                id: String(p.id || i),
+                                previewUrl: p.posterSrc || p.poster_src || p.imageUrl || p.image_url || p.url,
+                                type: marked.length > 0 ? "marked_poster" : "just_post",
+                                markedItems: marked,
+                            };
+                        });
+                    
+                    setPosters(apiPosters);
+                } else {
+                    toast.error("Failed to load offer");
+                    router.push("/shop-manager");
+                    return;
+                }
+            } catch (err) {
+                console.error(err);
+                toast.error("Network error loading offer");
+                router.push("/shop-manager");
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        load();
+    }, [offerId]);
+
+    // ── Load branches ────────────────────────────────────────────────────────
+    useEffect(() => {
+        const loadBranches = async () => {
+            setIsBranchesLoading(true);
+            try {
+                let shopId = (session as any)?.shopId ?? (session?.user as any)?.shopId;
+                if (!shopId) {
+                    const shopRes = await getMyShops();
+                    if (shopRes.success && shopRes.data) {
+                        const list = Array.isArray(shopRes.data) ? shopRes.data : (shopRes.data as any).data || [];
+                        if (list.length > 0) shopId = list[0].id;
+                    }
+                }
+                if (!shopId) return;
+                const res = await getBranches(shopId);
+                if (res.success && res.data) {
+                    const list = Array.isArray(res.data) ? res.data : (res.data as any).data || [];
+                    setBranches(Array.isArray(list) ? list : []);
+                }
+            } catch (err) {
+                console.error("Failed to load branches", err);
+            } finally {
+                setIsBranchesLoading(false);
+            }
+        };
+        if (session) loadBranches();
+    }, [session]);
+
+    // ── Validation ───────────────────────────────────────────────────────────
+    const validate = () => {
+        const e: typeof errors = {};
+        if (!title.trim()) e.title = "Offer title is required";
+        if (!validFrom || !validTo) e.dates = "Both dates are required";
+        else if (validFrom > validTo) e.dates = "Start date must be before end date";
+        if (selectedBranchIds.length === 0) e.branch = "Select at least one branch";
+        setErrors(e);
+        return Object.keys(e).length === 0;
+    };
+
+    // ── Save ─────────────────────────────────────────────────────────────────
+    const handleSave = async () => {
+        if (!validate()) return;
+        
+        setIsSaving(true);
+        try {
+            let shopId = (session as any)?.shopId ?? (session?.user as any)?.shopId;
+            const selectedBranches = branches.filter(b => selectedBranchIds.includes(String(b.id)));
+
+            const posterData = await Promise.all(
+                posters.map(async (poster, i) => {
+                    let s3Url = poster.previewUrl || "";
+                    if (poster.uploadPromise) {
+                        s3Url = await poster.uploadPromise;
+                    } else if (poster.file) {
+                        const res = await s3Api.uploadImage(poster.file).catch(() => null);
+                        const payload = (res?.data as any)?.data || res?.data;
+                        const uploadedUrl = payload?.url || payload?.fileUrl || payload?.imageUrl || (res?.data as any)?.imageUrl || (typeof payload === 'string' ? payload : null);
+                        if (!res || !res.success || !uploadedUrl) throw new Error("Upload failed for one of the new posters.");
+                        s3Url = uploadedUrl;
+                    }
+                    return {
+                        posterSrc: s3Url,
+                        type: poster.type,
+                        order: i + 1,
+                        // STRICT WHITE-LIST: Rebuild markedItems from scratch to omit ALL DB metadata
+                        markedItems: (poster.markedItems || []).map((item: any) => ({
+                            name: item.name,
+                            description: item.description,
+                            top: item.top,
+                            left: item.left,
+                            offerPrice: item.offerPrice,
+                            oldPrice: item.oldPrice,
+                            currency: item.currency,
+                            productImage: item.productImage,
+                            productUrl: item.productUrl,
+                            mainCategory: item.mainCategory,
+                            subcategories: item.subcategories
+                        }))
+                    };
+                })
+            );
+
+            const payload = {
+                title: title.trim(),
+                isActive,
+                status: isActive ? "active" : "paused",
+                validFrom: validFrom ? formatDateLocal(validFrom) : "",
+                validTo: validTo ? formatDateLocal(validTo) : "",
+                branchIds: selectedBranches.map(b => b.id),
+                branchNames: selectedBranches.map(b => b.branch_name),
+                branchCity: selectedBranches[0]?.city ?? "",
+                posters: posterData,
+            };
+
+            const res = await updateOffer(offerId, payload as any, String(shopId));
+            if (res.success) {
+                await storage.removeItem("currentEditingPosters");
+                await storage.removeItem("edit_offer_return");
+                toast.success("Offer updated successfully!");
+                router.push("/shop-manager");
+            } else {
+                throw new Error(res.error || "Update failed");
+            }
+        } catch (err: any) {
+            toast.error(`Failed to save: ${err.message}`);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleFinish = (finalPosters: PosterItem[]) => {
+        setPosters(finalPosters);
+        setShowDetailsModal(true);
+    };
+
+    if (isLoading) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+                    <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                </div>
+                <Text className="opacity-50 font-bold uppercase tracking-widest text-[10px]">Loading offer...</Text>
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-screen bg-background">
+            <div className="h-16 lg:h-32" />
+
+            <main className="w-full relative overflow-hidden bg-background min-h-screen">
+                <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-[500px] h-[500px] bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/2 w-[400px] h-[400px] bg-secondary/5 rounded-full blur-3xl pointer-events-none" />
+
+                <div className={cn(
+                    "mx-auto relative px-4 lg:px-8 py-4 md:py-12 transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]",
+                    isEditing ? "max-w-[1400px]" : previewState ? "max-w-full" : "max-w-6xl"
+                )}>
+                    {!isEditing && (
+                        <Breadcrumbs items={[
+                            { label: "Dashboard", href: "/shop-manager" },
+                            { label: "Edit Offer" },
+                        ]} />
+                    )}
+
+                    <div className={cn(
+                        "transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col gap-10",
+                        isEditing ? "mt-0" : "mt-8 lg:flex-row",
+                        !isEditing && (previewState ? "lg:items-stretch" : "lg:items-start")
+                    )}>
+                        <div className={cn(
+                            "space-y-6 flex flex-col min-h-0 transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] w-full",
+                            isEditing ? "w-full" : previewState ? "lg:flex-1" : "lg:flex-[2]"
+                        )}>
+                            {!isEditing && (
+                                <div className="space-y-1">
+                                    <Heading className="text-gradient font-bold tracking-tight">
+                                        Edit Offer
+                                    </Heading>
+                                    <Text className="opacity-50 text-base">
+                                        Update posters, adjust tags, and save changes.
+                                    </Text>
+                                </div>
+                            )}
+
+                            <PremiumCard className={cn(
+                                isEditing ? "p-0 border-0 bg-transparent shadow-none" : "p-4 sm:p-6 overflow-visible"
+                            )}>
+                                <PosterCardStack
+                                    initialPosters={posters}
+                                    onComplete={handleFinish}
+                                    onEditingChange={setIsEditing}
+                                    onPreviewChange={setPreviewState}
+                                    submitButtonText="Review & Save Updates"
+                                    editorReturnTo="edit-offer"
+                                    editorReturnUrl={`/shop-manager/edit-offer/${offerId}`}
+                                />
+                            </PremiumCard>
+
+                            {!isEditing && (
+                                <PremiumButton
+                                    variant="outline"
+                                    className="w-full rounded-2xl h-14"
+                                    onClick={() => router.back()}
+                                    leftIcon={ArrowLeft}
+                                >
+                                    Cancel & Go Back
+                                </PremiumButton>
+                            )}
+                        </div>
+
+                        {!isEditing && (
+                            <div className={cn(
+                                "transition-all w-full flex flex-col relative",
+                                previewState ? "lg:flex-1 duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]" : "space-y-6 lg:flex-1 duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
+                            )}>
+                                {previewState && (
+                                    <div className="hidden lg:block h-full min-h-[500px] relative">
+                                        <PosterPreviewPanel
+                                            posters={previewState.posters}
+                                            initialIndex={previewState.index}
+                                            isPreparing={previewState.isPreparing}
+                                            onClose={() => { previewState.onClose(); setPreviewState(null); }}
+                                            onEditMarking={(i) => { previewState.onEditMarking(i); }}
+                                            onAddMarking={(i) => { previewState.onAddMarking(i); }}
+                                            variant="inline"
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </main>
+
+            {/* Mobile Preview Overlay */}
+            {previewState && (
+                <div className="lg:hidden">
+                    <PosterPreviewPanel
+                        posters={previewState.posters}
+                        initialIndex={previewState.index}
+                        isPreparing={previewState.isPreparing}
+                        onClose={() => { previewState.onClose(); setPreviewState(null); }}
+                        onEditMarking={(i) => { previewState.onEditMarking(i); }}
+                        onAddMarking={(i) => { previewState.onAddMarking(i); }}
+                        variant="overlay"
+                    />
+                </div>
+            )}
+
+                {/* Final Details & Save Modal */}
+                <AppModal
+                    open={showDetailsModal}
+                    onOpenChange={setShowDetailsModal}
+                    title="Update Offer"
+                    description="Review and update your campaign details."
+                >
+                    <div className="space-y-5">
+                            <PremiumInput
+                                label="Campaign Title"
+                                icon={Type}
+                                type="text"
+                                value={title}
+                                onChange={e => {
+                                    setTitle(e.target.value);
+                                    if (errors.title) setErrors(prev => ({ ...prev, title: undefined }));
+                                }}
+                                placeholder="e.g. Weekend Mega Sale 2024"
+                                error={errors.title}
+                                autoFocus
+                            />
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <PremiumDatePicker
+                                    label="Valid From"
+                                    date={validFrom}
+                                    setDate={d => {
+                                        setValidFrom(d);
+                                        if (errors.dates) setErrors(prev => ({ ...prev, dates: undefined }));
+                                    }}
+                                    placeholder="Select start date"
+                                    error={errors.dates}
+                                />
+                                <PremiumDatePicker
+                                    label="Valid To"
+                                    date={validTo}
+                                    setDate={d => {
+                                        setValidTo(d);
+                                        if (errors.dates) setErrors(prev => ({ ...prev, dates: undefined }));
+                                    }}
+                                    placeholder="Select end date"
+                                    error={errors.dates}
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium flex items-center gap-2 text-foreground ml-1">
+                                    <GitBranch className="w-4 h-4 text-muted-foreground" />
+                                    Branches
+                                </label>
+                                {isBranchesLoading ? (
+                                    <div className="h-11 rounded-xl border border-primary/10 bg-background/40 animate-pulse" />
+                                ) : (
+                                    <MultiSearchableSelect
+                                        options={branches.map(b => ({
+                                            label: `${b.branch_name} — ${b.city}`,
+                                            value: String(b.id)
+                                        }))}
+                                        selectedValues={selectedBranchIds}
+                                        onChange={vals => {
+                                            setSelectedBranchIds(vals);
+                                            if (vals.length > 0 && errors.branch) setErrors(prev => ({ ...prev, branch: undefined }));
+                                        }}
+                                        placeholder="Select branches"
+                                    />
+                                )}
+                                {errors.branch && <p className="text-xs font-medium text-destructive ml-1">{errors.branch}</p>}
+                            </div>
+
+                            <div className="p-4 rounded-xl bg-muted/50 border border-border/50 text-sm">
+                                <div className="flex justify-between">
+                                    <span className="opacity-60">Total posters</span>
+                                    <span className="font-bold">{posters.length}</span>
+                                </div>
+                            </div>
+
+                        <div className="flex items-center justify-between pt-4 border-t border-primary/10">
+                            <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-1.5 hidden sm:flex">
+                                    <div className={cn(
+                                        "w-2 h-2 rounded-full",
+                                        isActive ? "bg-[#1cc080]" : "bg-gray-400"
+                                    )} />
+                                    <span className={cn(
+                                        "text-[13px] font-bold uppercase tracking-wider",
+                                        isActive ? "text-slate-800" : "text-gray-500"
+                                    )}>
+                                        {isActive ? "Active" : "Paused"}
+                                    </span>
+                                </div>
+                                <StatusToggleButton status={isActive ? "active" : "paused"} onChange={(newStatus) => setIsActive(newStatus === "active")} />
+                            </div>
+                            <div className="flex gap-3">
+                                <PremiumButton
+                                    variant="outline"
+                                    onClick={() => setShowDetailsModal(false)}
+                                    className="rounded-xl"
+                                >
+                                    Cancel
+                                </PremiumButton>
+                                <PremiumButton
+                                    onClick={handleSave}
+                                    isLoading={isSaving}
+                                    leftIcon={Send}
+                                    className="rounded-xl"
+                                    disabled={isSaving || isLoading || isBranchesLoading}
+                                >
+                                    {isSaving ? "Updating Offer..." : (isLoading || isBranchesLoading) ? "Synchronizing... ⏳" : "Confirm & Update"}
+                                </PremiumButton>
+                            </div>
+                        </div>
+                    </div>
+                </AppModal>
+        </div>
+    );
+}
