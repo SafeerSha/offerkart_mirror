@@ -1,67 +1,299 @@
-import { FEATURED_SHOPS, FEATURED_OFFERS, ALL_OFFERS } from './mockData';
-import { Offer, OfferPayload } from '../types/offer';
-import { apiClient } from './apiClient';
-import { ENDPOINTS } from './endpoints';
+import { FEATURED_SHOPS, FEATURED_OFFERS } from "./mockData";
+import { Offer, OfferPayload } from "../types/offer";
+import { apiClient } from "./apiClient";
+import { ENDPOINTS } from "./endpoints";
 
-// Simulate API delay
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const DEFAULT_USER_OFFER_IMAGE = "/images/shop-registration-bg-light.png";
+const DEFAULT_USER_OFFER_LIMIT = 8;
+const MAX_PUBLIC_OFFER_PAGES = 20;
+
+interface UserOfferApiItem {
+    id: number;
+    offerName: string;
+    shopName: string;
+    shopLogo: string | null;
+    totalPosters: number;
+    defaultPoster: string | null;
+    daysLeft: number | null;
+    distanceKm: number | null;
+}
+
+interface UserOfferApiResponse {
+    success: boolean;
+    page: number;
+    limit: number;
+    sort: string;
+    count: number;
+    data: UserOfferApiItem[];
+    message?: string;
+}
+
+interface UserOfferQuery {
+    page?: number;
+    limit?: number;
+    sort?: string;
+    shopId?: string;
+    latitude?: number | null;
+    longitude?: number | null;
+}
+
+interface PaginatedOffersResult {
+    success: boolean;
+    data: Offer[];
+    page: number;
+    limit: number;
+    count: number;
+    hasMore: boolean;
+    error?: string;
+}
+
+function normalizeOptionalQueryValue(value?: number | string | null) {
+    if (value === undefined || value === null || value === "") return undefined;
+    return String(value);
+}
+
+function formatDistance(distanceKm: number | null) {
+    if (distanceKm === null || Number.isNaN(distanceKm)) {
+        return "Location unavailable";
+    }
+
+    if (distanceKm < 1) {
+        return `${Math.round(distanceKm * 1000)} m away`;
+    }
+
+    return `${distanceKm.toFixed(distanceKm < 10 ? 1 : 0)} km away`;
+}
+
+function formatDaysLeft(daysLeft: number | null) {
+    if (daysLeft === null || Number.isNaN(daysLeft)) {
+        return undefined;
+    }
+
+    if (daysLeft <= 0) {
+        return "Ends today";
+    }
+
+    return `${daysLeft} day${daysLeft === 1 ? "" : "s"} left`;
+}
+
+function mapUserOfferToOffer(item: UserOfferApiItem): Offer {
+    const primaryImage = item.defaultPoster || item.shopLogo || DEFAULT_USER_OFFER_IMAGE;
+
+    return {
+        id: item.id,
+        offerId: item.id,
+        shopName: item.shopName,
+        offerName: item.offerName,
+        title: item.offerName,
+        image: primaryImage,
+        posterSrc: primaryImage,
+        posters: primaryImage
+            ? [
+                {
+                    id: `poster-${item.id}`,
+                    posterSrc: primaryImage,
+                    type: "just_post",
+                    markedItems: [],
+                },
+            ]
+            : [],
+        category: "Offers",
+        location: formatDistance(item.distanceKm),
+        discount: formatDaysLeft(item.daysLeft),
+        validFrom: undefined,
+        validTo: undefined,
+        totalPosters: item.totalPosters,
+        numberOfPosters: item.totalPosters,
+        daysLeft: item.daysLeft,
+        distanceKm: item.distanceKm,
+        shopLogo: item.shopLogo,
+        description: `${item.offerName} from ${item.shopName}`,
+        isActive: true,
+        status: "active",
+    };
+}
+
+async function fetchUserOffersPage({
+    page = 1,
+    limit = DEFAULT_USER_OFFER_LIMIT,
+    sort = "latest",
+    shopId,
+    latitude,
+    longitude,
+}: UserOfferQuery = {}): Promise<PaginatedOffersResult> {
+    const params = new URLSearchParams({
+        page: String(page),
+        limit: String(limit),
+        sort,
+    });
+
+    const normalizedShopId = normalizeOptionalQueryValue(shopId);
+
+    if (normalizedShopId !== undefined) {
+        params.set("shopId", normalizedShopId);
+    }
+
+    if (sort === "nearby") {
+        const normalizedLatitude = normalizeOptionalQueryValue(latitude);
+        const normalizedLongitude = normalizeOptionalQueryValue(longitude);
+
+        if (normalizedLatitude !== undefined) {
+            params.set("latitude", normalizedLatitude);
+        }
+        if (normalizedLongitude !== undefined) {
+            params.set("longitude", normalizedLongitude);
+        }
+    }
+
+    try {
+        const response = await fetch(`${ENDPOINTS.USER_OFFER.BASE}?${params.toString()}`, {
+            headers: {
+                Accept: "application/json",
+            },
+        });
+
+        const result = (await response.json()) as UserOfferApiResponse | { message?: string; error?: string };
+
+        if (!response.ok || !("success" in result) || !result.success) {
+            return {
+                success: false,
+                data: [],
+                page,
+                limit,
+                count: 0,
+                hasMore: false,
+                error: ("message" in result ? result.message : undefined) || ("error" in result ? result.error : undefined) || "Failed to load offers",
+            };
+        }
+
+        const mappedOffers = result.data.map(mapUserOfferToOffer);
+        const totalCount = typeof result.count === "number" ? result.count : mappedOffers.length;
+
+        return {
+            success: true,
+            data: mappedOffers,
+            page: result.page,
+            limit: result.limit,
+            count: totalCount,
+            hasMore: result.page * result.limit < totalCount,
+        };
+    } catch (error: any) {
+        console.error("Public offer request failed:", error);
+        return {
+            success: false,
+            data: [],
+            page,
+            limit,
+            count: 0,
+            hasMore: false,
+            error: error.message || "Network error or server unreachable",
+        };
+    }
+}
 
 export async function createOffer(payload: OfferPayload, shopId: string) {
     return apiClient<Offer>(ENDPOINTS.OFFER.BASE, {
-        method: 'POST',
+        method: "POST",
         headers: {
-            'shopId': shopId // Explicitly keeping it for now as it's passed in
+            shopId,
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
     });
 }
 
 export async function updateOffer(id: string, payload: OfferPayload, shopId: string) {
     return apiClient<Offer>(ENDPOINTS.OFFER.DETAILS(id), {
-        method: 'PUT',
+        method: "PUT",
         headers: {
-            'shopId': shopId
+            shopId,
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
     });
 }
 
 export async function deleteOffer(id: string, shopId?: string) {
     return apiClient<void>(ENDPOINTS.OFFER.DETAILS(id), {
-        method: 'DELETE',
-        headers: shopId ? { 'shopId': shopId } : {}
+        method: "DELETE",
+        headers: shopId ? { shopId } : {},
     });
 }
 
 export async function getFeaturedShops() {
     return {
         success: true,
-        data: FEATURED_SHOPS
+        data: FEATURED_SHOPS,
     };
 }
 
 export async function getFeaturedOffers() {
     return {
         success: true,
-        data: FEATURED_OFFERS
+        data: FEATURED_OFFERS,
     };
 }
 
 export async function getAllOffers(shopId?: string) {
     return apiClient<Offer[]>(ENDPOINTS.OFFER.BASE, {
-        headers: shopId ? { 'shopId': shopId } : {}
+        headers: shopId ? { shopId } : {},
     });
 }
 
-export async function getPaginatedOffers(page: number = 1, limit: number = 8) {
-    await delay(800); // Simulate network latency
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
-    const paginatedItems = ALL_OFFERS.slice(startIndex, endIndex);
+export async function getPaginatedOffers(page: number = 1, limit: number = DEFAULT_USER_OFFER_LIMIT, query: Omit<UserOfferQuery, "page" | "limit"> = {}) {
+    return fetchUserOffersPage({
+        page,
+        limit,
+        ...query,
+    });
+}
+
+export async function getAllUserOffers(query: Omit<UserOfferQuery, "page"> = {}) {
+    const limit = query.limit ?? 100;
+    const allOffers: Offer[] = [];
+    let page = 1;
+    let hasMore = true;
+    let error: string | undefined;
+
+    while (hasMore && page <= MAX_PUBLIC_OFFER_PAGES) {
+        const result = await fetchUserOffersPage({
+            ...query,
+            page,
+            limit,
+        });
+
+        if (!result.success) {
+            error = result.error;
+            break;
+        }
+
+        allOffers.push(...result.data);
+        hasMore = result.hasMore;
+        page += 1;
+    }
 
     return {
-        data: paginatedItems,
-        hasMore: endIndex < ALL_OFFERS.length
+        success: !error,
+        data: allOffers,
+        error,
+    };
+}
+
+export async function getUserOfferById(id: string | number) {
+    const allOffersResult = await getAllUserOffers({ limit: 100 });
+
+    if (!allOffersResult.success) {
+        return {
+            success: false,
+            data: null,
+            error: allOffersResult.error,
+        };
+    }
+
+    const offer = allOffersResult.data.find((item) => String(item.id) === String(id)) || null;
+
+    return {
+        success: !!offer,
+        data: offer,
+        error: offer ? undefined : "Offer not found",
     };
 }
 
@@ -71,9 +303,9 @@ export async function getOfferById(id: string) {
 
 export async function toggleOfferStatus(id: string, shopId: string) {
     return apiClient<Offer>(ENDPOINTS.OFFER.INACTIVATE(id), {
-        method: 'PATCH',
+        method: "PATCH",
         headers: {
-            'shopId': shopId
-        }
+            shopId,
+        },
     });
 }

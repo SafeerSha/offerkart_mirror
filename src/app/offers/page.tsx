@@ -7,7 +7,7 @@ export const revalidate = 300;
 
 export default async function OffersPage() {
     // Fetch initial data on the server for ISR
-    const [offersResult, featuredShops] = await Promise.all([
+    const [offersResult, featuredOffersResult] = await Promise.all([
         getPaginatedOffers(1, 8),
         getFeaturedOffers()
     ]);
@@ -15,8 +15,8 @@ export default async function OffersPage() {
     return (
         <Suspense fallback={<div className="min-h-screen bg-gray-50/50 pt-28 flex items-center justify-center">Loading...</div>}>
             <OffersClient
-                initialOffers={offersResult.data as any}
-                initialFeaturedShops={featuredShops}
+                initialOffers={offersResult.data}
+                initialFeaturedShops={featuredOffersResult.success ? featuredOffersResult.data : []}
                 hasMoreInitial={offersResult.hasMore}
             />
         </Suspense>

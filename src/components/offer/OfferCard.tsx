@@ -1,32 +1,36 @@
 "use client";
 
 import { useState } from "react";
-import Image, { StaticImageData } from "next/image";
+import { StaticImageData } from "next/image";
 import { useRouter } from "next/navigation";
-import { MapPin, Clock, ArrowRight, Heart, Tag } from "lucide-react";
-import { PremiumButton } from "@/components/shared/PremiumButton";
+import { MapPin, Clock, Heart, Tag } from "lucide-react";
 import { PremiumCard } from "@/components/shared/PremiumCard";
 import { MarkedPoster } from "@/components/shared/MarkedPoster";
 import { Poster } from "@/lib/types/offer";
 
 interface OfferCardProps {
-  id: number;
-  shopName: string;
-  offerName: string;
-  image: string | StaticImageData;
+  id?: number | string;
+  offerId?: number;
+  shopName?: string;
+  offerName?: string;
+  title?: string;
+  image?: string | StaticImageData;
   posters?: Poster[];
-  category: string;
-  location: string;
-  validFrom: string;
-  validTo: string;
+  category?: string;
+  location?: string;
+  validFrom?: string;
+  validTo?: string;
   discount?: string;
   branchName?: string;
+  daysLeft?: number | null;
 }
 
 const OfferCard = ({
   id,
+  offerId,
   shopName,
   offerName,
+  title,
   image,
   category,
   location,
@@ -34,26 +38,34 @@ const OfferCard = ({
   validTo,
   discount,
   branchName,
+  daysLeft,
   posters,
 }: OfferCardProps) => {
   const router = useRouter();
   const [isHovered, setIsHovered] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
+  const offerDisplayName = offerName || title || "Untitled Offer";
+  const primaryId = id ?? offerId ?? 0;
+  const footerLocation = branchName ?? location ?? "Location unavailable";
+  const footerValidity = typeof daysLeft === "number"
+    ? (daysLeft <= 0 ? "Ends today" : `${daysLeft} day${daysLeft === 1 ? "" : "s"} left`)
+    : [validFrom, validTo].filter(Boolean).join(" - ") || "Live now";
+  const posterSrc = posters?.[0]?.posterSrc || (typeof image === "string" ? image : image?.src) || "/images/shop-registration-bg-light.png";
 
   return (
     <PremiumCard
       variant="premium"
       padding="none"
       className="group cursor-pointer h-full flex flex-col border-none overflow-hidden hover:shadow-2xl hover:shadow-orange-500/10 transition-all duration-500 rounded-[2rem]"
-      onClick={() => router.push(`/offer/${id}`)}
+      onClick={() => router.push(`/offer/${primaryId}`)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Image Container */}
       <div className="relative flex-1 overflow-hidden bg-gray-100 min-h-[320px]">
         <MarkedPoster 
-          src={posters?.[0]?.posterSrc || (image as string)}
-          alt={shopName}
+          src={posterSrc}
+          alt={shopName || offerDisplayName}
           markedItems={posters?.[0]?.markedItems || []}
           className={cn("w-full h-full transition-transform duration-1000 ease-out", isHovered ? "scale-110" : "scale-100")}
           showNames={false}
@@ -72,9 +84,11 @@ const OfferCard = ({
                 {discount}
               </span>
             )}
-            <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/20 backdrop-blur-md text-white border border-white/20">
-              {category}
-            </span>
+            {category && (
+              <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/20 backdrop-blur-md text-white border border-white/20">
+                {category}
+              </span>
+            )}
           </div>
 
           <button
@@ -96,10 +110,10 @@ const OfferCard = ({
         {/* Content Info */}
         <div className="absolute bottom-5 left-5 right-5 pointer-events-none">
           <h4 className="text-xl font-bold text-white mb-1 drop-shadow-sm line-clamp-1">
-            {shopName}
+            {shopName || "OfferKart"}
           </h4>
           <p className="text-white/80 text-sm font-medium line-clamp-2 drop-shadow-sm leading-snug">
-            {offerName}
+            {offerDisplayName}
           </p>
         </div>
       </div>
@@ -108,11 +122,11 @@ const OfferCard = ({
       <div className="px-6 py-4 flex items-center justify-between text-xs font-semibold bg-white border-t border-gray-50">
         <div className="flex items-center gap-1.5 text-gray-500">
           <MapPin className="w-4 h-4 text-orange-500" />
-          <span className="line-clamp-1">{branchName ?? location}</span>
+          <span className="line-clamp-1">{footerLocation}</span>
         </div>
         <div className="flex items-center gap-1.5 text-gray-500">
           <Clock className="w-4 h-4 text-orange-500" />
-          <span>{validFrom} - {validTo}</span>
+          <span>{footerValidity}</span>
         </div>
       </div>
     </PremiumCard>

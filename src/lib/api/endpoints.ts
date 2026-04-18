@@ -25,5 +25,8 @@ export const ENDPOINTS = {
         BASE: `${API_BASE_URL}/business/offer`,
         DETAILS: (id: string) => `${API_BASE_URL}/business/offer/${id}`,
         INACTIVATE: (id: string) => `${API_BASE_URL}/business/offer/inactivate/${id}`,
+    },
+    USER_OFFER: {
+        BASE: `${API_BASE_URL}/user/offer`,
     }
 };
