@@ -21,7 +21,7 @@ import { AppModal } from "@/components/shared/AppModal";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { storage } from "@/lib/storage";
-import { MarkedItem } from "@/lib/types/offer";
+import { MarkedItem as MarkedItemType } from "@/lib/types/offer";
 
 async function preprocessImageForOCR(
     canvas: HTMLCanvasElement,
@@ -66,7 +66,7 @@ async function preprocessImageForOCR(
 
 interface PosterData {
     posterSrc: string;
-    markedItems: MarkedItem[];
+    markedItems: MarkedItemType[];
     currency: string;
 }
 
@@ -74,9 +74,9 @@ interface HotspotEditorProps {
     poster: {
         id: string;
         posterSrc: string;
-        markedItems: MarkedItem[];
+        markedItems: MarkedItemType[];
     };
-    onSave: (markedItems: MarkedItem[]) => void;
+    onSave: (markedItems: MarkedItemType[]) => void;
     onCancel: () => void;
 }
 
@@ -94,7 +94,7 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
     const [currentRect, setCurrentRect] = useState<Rect | null>(null);
     const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
     const [showModal, setShowModal] = useState(false);
-    const [currentMarkedItem, setCurrentMarkedItem] = useState<MarkedItem | null>(null);
+    const [currentMarkedItem, setCurrentMarkedItem] = useState<MarkedItemType | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [highlightedId, setHighlightedId] = useState<string | null>(null);
 
@@ -119,6 +119,7 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
     const [categorySearch, setCategorySearch] = useState('');
     const [mainCategoryOpen, setMainCategoryOpen] = useState(false);
     const [mainCategorySearch, setMainCategorySearch] = useState('');
+    const [imgCrossOrigin, setImgCrossOrigin] = useState<"anonymous" | undefined>("anonymous");
 
     const containerRef = useRef<HTMLDivElement>(null);
     const imgRef = useRef<HTMLImageElement>(null);
@@ -128,12 +129,29 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
 
     // Keep state in sync with props
     useEffect(() => {
+        console.log('HotspotEditor Received Poster:', {
+            id: poster.id,
+            totalMarked: poster.markedItems?.length,
+            markedItems: poster.markedItems
+        });
+
         setPosterData({
             posterSrc: poster.posterSrc,
             markedItems: poster.markedItems || [],
             currency: '₹'
         });
-        setImageSize({ width: 0, height: 0 });
+
+        // Reset CORS setting for new images
+        setImgCrossOrigin("anonymous");
+
+        // ONLY reset image size if the source image actually changes
+        // This prevents flickering/disappearing hotspots if the parent re-renders 
+        // with the same poster but different metadata.
+        if (posterData.posterSrc !== poster.posterSrc) {
+            console.log('Poster source changed, resetting image size');
+            setImageSize({ width: 0, height: 0 });
+        }
+        
         setShowModal(false);
         setHighlightedId(null);
     }, [poster.id, poster.posterSrc, poster.markedItems]);
@@ -198,7 +216,7 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
         const relH = height / imageSize.height;
 
         const id = crypto.randomUUID();
-        const tempItem: MarkedItem = {
+        const tempItem: MarkedItemType = {
             id, x: relX, y: relY, width: relW, height: relH,
             name: 'Processing...', mainCategory: '', subcategories: [], description: '', productImage: '',
             oldPrice: 0, offerPrice: 0, currency: posterData.currency
@@ -210,15 +228,22 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
         setIsProcessing(true);
         try {
             const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d')!;
+            const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
             const img = imgRef.current;
 
-            if (!img || !img.naturalWidth || !img.naturalHeight || !imageSize.width || !imageSize.height) {
-                throw new Error('Image not loaded or has invalid dimensions');
+            // Robust validation of image and measurements
+            if (!img || !img.complete || img.naturalWidth === 0 || !imageSize.width || !imageSize.height) {
+                console.error("Image state check failed:", { 
+                    imgExists: !!img, 
+                    complete: img?.complete, 
+                    naturalWidth: img?.naturalWidth, 
+                    measureWidth: imageSize.width 
+                });
+                throw new Error('Image not fully loaded or has invalid dimensions. Please wait a moment and try again.');
             }
 
-            const scaleX = img.naturalWidth / imageSize.width || 1;
-            const scaleY = img.naturalHeight / imageSize.height || 1;
+            const scaleX = img.naturalWidth / imageSize.width;
+            const scaleY = img.naturalHeight / imageSize.height;
 
             const sw = Math.max(1, Math.round(width * scaleX));
             const sh = Math.max(1, Math.round(height * scaleY));
@@ -227,7 +252,7 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
 
             // Validate canvas has valid dimensions before drawing
             if (canvas.width === 0 || canvas.height === 0) {
-                throw new Error('Failed to create valid canvas dimensions');
+                throw new Error('Failed to create valid cropping area.');
             }
 
             ctx.drawImage(img, x * scaleX, y * scaleY, sw, sh, 0, 0, sw, sh);
@@ -304,7 +329,7 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                 }
             }
 
-            const updatedItem: MarkedItem = {
+            const updatedItem: MarkedItemType = {
                 ...tempItem,
                 name: extractedName || 'Marked Product',
                 description: extractedDescription,
@@ -328,7 +353,7 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
         }
     };
 
-    const handleEditItem = (item: MarkedItem) => {
+    const handleEditItem = (item: MarkedItemType) => {
         setCurrentMarkedItem(item);
         setFormData({
             name: item.name === 'Processing...' ? '' : item.name,
@@ -373,7 +398,7 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
             return;
         }
 
-        const updatedItem: MarkedItem = {
+        const updatedItem: MarkedItemType = {
             ...currentMarkedItem,
             name: formData.name,
             mainCategory: formData.mainCategory,
@@ -513,9 +538,20 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                                         width={1200}
                                         height={1600}
                                         unoptimized
-                                        crossOrigin="anonymous"
+                                        crossOrigin={imgCrossOrigin}
                                         className="w-full h-auto block rounded-2xl"
-                                        onLoad={() => setImageSize({ width: imgRef.current!.offsetWidth, height: imgRef.current!.offsetHeight })}
+                                        onLoad={(e) => {
+                                            const target = e.currentTarget;
+                                            setImageSize({ width: target.offsetWidth, height: target.offsetHeight });
+                                        }}
+                                        onError={() => {
+                                            if (imgCrossOrigin === "anonymous") {
+                                                console.warn("CORS load failed, retrying without crossOrigin...");
+                                                setImgCrossOrigin(undefined);
+                                            } else {
+                                                toast.error("Failed to load image. Even without CORS, the image source appears unreachable.");
+                                            }
+                                        }}
                                         draggable={false}
                                     />
                                 )}

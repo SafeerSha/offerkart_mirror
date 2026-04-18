@@ -166,7 +166,31 @@ function EditOfferContent() {
                     const apiPosters: PosterItem[] = (Array.isArray(postersRaw) ? postersRaw : [])
                         .filter((p: any) => !!(p.posterSrc || p.poster_src || p.imageUrl || p.image_url || p.url))
                         .map((p: any, i: number) => {
-                            const marked = p.markedItems || p.marked_items || [];
+                            // Extract marked items from API structure (offerProducts -> areas)
+                            let marked: any[] = p.markedItems || p.marked_items || [];
+                            
+                            if (marked.length === 0 && p.offerProducts && Array.isArray(p.offerProducts)) {
+                                marked = p.offerProducts.flatMap((prod: any) => {
+                                    const areas = prod.areas || prod.offerProductAreas || [];
+                                    return areas.map((area: any) => ({
+                                        id: String(area.id || Math.random().toString(36).substr(2, 9)),
+                                        x: area.xPercent ?? area.x_percent ?? 0,
+                                        y: area.yPercent ?? area.y_percent ?? 0,
+                                        width: area.widthPercent ?? area.width_percent ?? 0,
+                                        height: area.heightPercent ?? area.height_percent ?? 0,
+                                        name: prod.displayName || prod.display_name || '',
+                                        description: prod.displayDescription || prod.display_description || '',
+                                        oldPrice: prod.originalPrice || prod.original_price || 0,
+                                        offerPrice: prod.offerPrice || prod.offer_price || 0,
+                                        productImage: prod.imageUrl || prod.image_url || '',
+                                        currency: '₹',
+                                        mainCategory: prod.mainCategory || prod.main_category || '',
+                                        subcategories: prod.subcategories || prod.sub_categories || [],
+                                        productUrl: prod.productUrl || prod.product_url || ''
+                                    }));
+                                });
+                            }
+
                             return {
                                 id: String(p.id || i),
                                 previewUrl: p.posterSrc || p.poster_src || p.imageUrl || p.image_url || p.url,
@@ -175,6 +199,7 @@ function EditOfferContent() {
                             };
                         });
                     
+                    console.log("Mapped Posters:", apiPosters);
                     setPosters(apiPosters);
                 } else {
                     toast.error("Failed to load offer");
@@ -260,8 +285,10 @@ function EditOfferContent() {
                         markedItems: (poster.markedItems || []).map((item: any) => ({
                             name: item.name,
                             description: item.description,
-                            top: item.top,
-                            left: item.left,
+                            x: item.x,
+                            y: item.y,
+                            width: item.width,
+                            height: item.height,
                             offerPrice: item.offerPrice,
                             oldPrice: item.oldPrice,
                             currency: item.currency,
@@ -454,6 +481,7 @@ function EditOfferContent() {
                                     }}
                                     placeholder="Select start date"
                                     error={errors.dates}
+                                    minDate={new Date()}
                                 />
                                 <PremiumDatePicker
                                     label="Valid To"
@@ -464,6 +492,7 @@ function EditOfferContent() {
                                     }}
                                     placeholder="Select end date"
                                     error={errors.dates}
+                                    minDate={validFrom || new Date()}
                                 />
                             </div>
 

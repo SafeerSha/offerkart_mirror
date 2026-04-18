@@ -590,6 +590,20 @@ export const PosterCardStack = ({
                                 className="w-full h-auto block object-contain"
                             />
 
+                            {/* Hotspot Overlays on Big Card */}
+                            {currentPoster.markedItems && currentPoster.markedItems.map((item) => (
+                                <div
+                                    key={item.id}
+                                    className="absolute border-[1.5px] border-red-500 bg-red-500/10 pointer-events-none z-20 shadow-sm"
+                                    style={{
+                                        left: `${item.x * 100}%`,
+                                        top: `${item.y * 100}%`,
+                                        width: `${item.width * 100}%`,
+                                        height: `${item.height * 100}%`
+                                    }}
+                                />
+                            ))}
+
                             {!isViewing && (
                                 <div className="absolute inset-0 flex flex-col justify-end">
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/10" />
@@ -694,6 +708,20 @@ export const PosterCardStack = ({
                                             unoptimized
                                             className="object-cover"
                                         />
+                                        
+                                        {/* Hotspot Overlays */}
+                                        {poster.markedItems && poster.markedItems.map((item) => (
+                                            <div
+                                                key={item.id}
+                                                className="absolute border-[1.5px] border-red-500 bg-red-500/12 pointer-events-none z-10"
+                                                style={{
+                                                    left: `${item.x * 100}%`,
+                                                    top: `${item.y * 100}%`,
+                                                    width: `${item.width * 100}%`,
+                                                    height: `${item.height * 100}%`
+                                                }}
+                                            />
+                                        ))}
                                     </div>
 
                                     {/* Status Badge */}
