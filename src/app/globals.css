@@ -224,8 +224,6 @@
   .glass-header {
     background-color: hsla(var(--background), 0.8);
     backdrop-filter: blur(20px);
-    border-bottom: 1px solid;
-    border-color: hsla(var(--border), 0.5);
     box-shadow: var(--shadow-glass);
   }
 
@@ -241,7 +239,8 @@
     background-color: hsl(var(--card));
     border-radius: 0.75rem;
     border: 1px solid;
-    border-color: hsla(var(--border), 0.5);
+    border-color: var(--border);
+    opacity: 0.8;
     overflow: hidden;
     box-shadow: var(--shadow-card);
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
