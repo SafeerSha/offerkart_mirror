@@ -21,15 +21,48 @@ import {
     Layers,
     Grid3X3,
     Move,
+    Undo2,
+    Redo2,
+    RotateCcw,
+    AlignLeft,
+    AlignCenter,
+    AlignRight,
+    AlignStartVertical,
+    AlignCenterVertical,
+    AlignEndVertical,
+    Smartphone,
+    Monitor,
+    Sparkles,
+    Lock,
+    Unlock,
+    Eye,
+    EyeOff,
+    ArrowUpRight,
+    Search,
+    ChevronRight,
+    Loader2,
+    Settings,
+    Minus,
+    Award,
+    Zap,
+    Waves,
+    Octagon,
+    Cloud,
+    Bookmark
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PREMIUM_GRADIENTS, ASPECT_RATIOS, GOOGLE_FONTS, ABSTRACT_MODELS } from "@/lib/designPresets";
+import { generateTaglines, suggestPalette } from "@/lib/ai/posterAI";
+import { useAllProducts } from "@/hooks/useApi";
+import { toast } from "sonner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+type ElType = "text" | "shape" | "product-card";
+type ShapeKind = "rect" | "circle" | "triangle" | "star" | "blob" | "badge" | "burst" | "ribbon" | "pill" | "wave";
 
 /* ================================================================
    TYPES
    ================================================================ */
-
-type ElType = "text" | "shape" | "product-card";
-type ShapeKind = "rect" | "circle" | "triangle" | "star";
 
 interface CanvasElement {
     id: string;
@@ -39,14 +72,24 @@ interface CanvasElement {
     w: number;
     h: number;
     zIndex: number;
+    isLocked?: boolean;
+    isVisible?: boolean;
+    name?: string;
     // Text
     text?: string;
     fontSize?: number;
     fontWeight?: number;
     color?: string;
+    fontFamily?: string;
+    letterSpacing?: number;
+    lineHeight?: number;
+    textAlign?: "left" | "center" | "right";
+    shadow?: string;
+    isGlass?: boolean;
     // Shape
     shapeKind?: ShapeKind;
     fill?: string;
+    opacity?: number;
     // Product Card
     cardImage?: string;
     cardTitle?: string;
@@ -81,26 +124,71 @@ const CANVAS_H = 1123;
    SHAPE SVG HELPER
    ================================================================ */
 
-function ShapeSVG({ kind, fill }: { kind: ShapeKind; fill: string }) {
+function getShapeClipPath(kind: ShapeKind): string | undefined {
+    switch (kind) {
+        case "circle": return "circle(50% at 50% 50%)";
+        case "triangle": return "polygon(50% 5%, 95% 95%, 5% 95%)";
+        case "star": return "polygon(50% 5%, 61% 35%, 95% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 5% 35%, 39% 35%)";
+        case "badge": return "polygon(50% 0%, 58% 15%, 75% 15%, 70% 32%, 85% 45%, 70% 58%, 75% 75%, 58% 75%, 50% 90%, 42% 75%, 25% 75%, 30% 58%, 15% 45%, 30% 32%, 25% 15%, 42% 15%)";
+        case "burst": return "polygon(50% 2%, 55% 25%, 78% 18%, 68% 40%, 95% 50%, 68% 60%, 78% 82%, 55% 75%, 50% 98%, 45% 75%, 22% 82%, 32% 60%, 5% 50%, 32% 40%, 22% 18%, 45% 25%)";
+        case "ribbon": return "polygon(0% 20%, 100% 20%, 100% 80%, 0% 80%, 20% 50%)";
+        case "pill": return "inset(25% 0% 25% 0% round 50px)";
+        case "wave": return "polygon(0% 50%, 10% 40%, 20% 35%, 40% 40%, 60% 60%, 80% 65%, 90% 60%, 100% 50%, 100% 100%, 0% 100%)";
+        default: return undefined;
+    }
+}
+
+function ShapeSVG({ kind, fill, opacity = 1, isGlass }: { kind: ShapeKind; fill: string; opacity?: number; isGlass?: boolean }) {
+    const finalFill = isGlass ? "transparent" : fill;
     const svgs: Record<ShapeKind, React.ReactNode> = {
         rect: (
-            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
-                <rect x="0" y="0" width="100" height="100" fill={fill} rx="8" />
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full" style={{ opacity }}>
+                <rect x="0" y="0" width="100" height="100" fill={finalFill} rx="8" />
             </svg>
         ),
         circle: (
-            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
-                <ellipse cx="50" cy="50" rx="50" ry="50" fill={fill} />
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full" style={{ opacity }}>
+                <ellipse cx="50" cy="50" rx="50" ry="50" fill={finalFill} />
             </svg>
         ),
         triangle: (
-            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
-                <polygon points="50,5 95,95 5,95" fill={fill} />
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full" style={{ opacity }}>
+                <polygon points="50,5 95,95 5,95" fill={finalFill} />
             </svg>
         ),
         star: (
-            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
-                <polygon points="50,5 61,35 95,35 68,57 79,91 50,70 21,91 32,57 5,35 39,35" fill={fill} />
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full" style={{ opacity }}>
+                <polygon points="50,5 61,35 95,35 68,57 79,91 50,70 21,91 32,57 5,35 39,35" fill={finalFill} />
+            </svg>
+        ),
+        blob: (
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full" style={{ opacity }}>
+                <path d="M45,20 Q60,10 75,30 T90,60 Q80,90 50,95 T10,70 Q5,40 45,20" fill={finalFill} />
+            </svg>
+        ),
+        badge: (
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full" style={{ opacity }}>
+                <path d="M50 0 L58 15 L75 15 L70 32 L85 45 L70 58 L75 75 L58 75 L50 90 L42 75 L25 75 L30 58 L15 45 L30 32 L25 15 L42 15 Z" fill={finalFill} stroke={finalFill} strokeWidth="2" strokeLinejoin="round" />
+            </svg>
+        ),
+        burst: (
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full" style={{ opacity }}>
+                <path d="M50 2 L55 25 L78 18 L68 40 L95 50 L68 60 L78 82 L55 75 L50 98 L45 75 L22 82 L32 60 L5 50 L32 40 L22 18 L45 25 Z" fill={finalFill} />
+            </svg>
+        ),
+        ribbon: (
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full" style={{ opacity }}>
+                <path d="M0 20 L100 20 L100 80 L0 80 L20 50 Z" fill={finalFill} />
+            </svg>
+        ),
+        pill: (
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full" style={{ opacity }}>
+                <rect x="0" y="25" width="100" height="50" rx="25" fill={finalFill} />
+            </svg>
+        ),
+        wave: (
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full" style={{ opacity }}>
+                <path d="M0 50 C 20 20, 80 80, 100 50 L 100 100 L 0 100 Z" fill={finalFill} />
             </svg>
         ),
     };
@@ -131,7 +219,7 @@ function ProductCardContent({ el, onUpdate }: { el: CanvasElement; onUpdate: (id
         const onMouseMove = (moveEvent: MouseEvent) => {
             const dx = moveEvent.clientX - startX;
             const dy = moveEvent.clientY - startY;
-            
+
             const newSubLayout = {
                 ...el.subLayout,
                 [id]: {
@@ -165,7 +253,7 @@ function ProductCardContent({ el, onUpdate }: { el: CanvasElement; onUpdate: (id
         const onMouseMove = (moveEvent: MouseEvent) => {
             const dx = moveEvent.clientX - startX;
             const dy = moveEvent.clientY - startY;
-            
+
             const newSubLayout = {
                 ...el.subLayout,
                 [id]: {
@@ -211,13 +299,13 @@ function ProductCardContent({ el, onUpdate }: { el: CanvasElement; onUpdate: (id
                 isGlass ? "bg-white/30 backdrop-blur-md border-white/20 shadow-xl" : "border-border/10",
                 isUnlocked ? "bg-white" : ""
             )}
-            style={{ 
+            style={{
                 backgroundColor: isGlass ? undefined : (isGradient && !isUnlocked ? undefined : (el.cardBg || "#ffffff")),
                 backgroundImage: isGradient && !isUnlocked ? "linear-gradient(135deg, #f97316 0%, #dc2626 100%)" : undefined
             }}
         >
             {/* Image Section */}
-            <div 
+            <div
                 className={cn(
                     "bg-gray-100 flex items-center justify-center overflow-hidden relative shrink-0",
                     isSplit && !isUnlocked ? "w-[40%] h-full" : "w-full h-[55%]",
@@ -235,7 +323,7 @@ function ProductCardContent({ el, onUpdate }: { el: CanvasElement; onUpdate: (id
 
                 {/* Internal Resize handle for image */}
                 {isUnlocked && (
-                    <div 
+                    <div
                         className="absolute bottom-0 right-0 w-3 h-3 bg-blue-500 rounded-tl-sm cursor-nwse-resize z-20"
                         onMouseDown={(e) => handleSubResize("image", e)}
                     />
@@ -251,7 +339,7 @@ function ProductCardContent({ el, onUpdate }: { el: CanvasElement; onUpdate: (id
 
             {/* Internal Shapes (Elements nested inside card) */}
             {el.internalElements?.map(subEl => (
-                <div 
+                <div
                     key={subEl.id}
                     className="absolute cursor-move"
                     style={{
@@ -260,10 +348,10 @@ function ProductCardContent({ el, onUpdate }: { el: CanvasElement; onUpdate: (id
                         width: subEl.w,
                         height: subEl.h,
                         backgroundColor: subEl.fill,
-                        clipPath: subEl.type === "shape" ? 
-                            (subEl.shapeKind === "circle" ? "circle(50% at 50% 50%)" : 
-                            (subEl.shapeKind === "triangle" ? "polygon(50% 0%, 0% 100%, 100% 100%)" : 
-                            (subEl.shapeKind === "star" ? "polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)" : "none"))) : "none",
+                        clipPath: subEl.type === "shape" ?
+                            (subEl.shapeKind === "circle" ? "circle(50% at 50% 50%)" :
+                                (subEl.shapeKind === "triangle" ? "polygon(50% 0%, 0% 100%, 100% 100%)" :
+                                    (subEl.shapeKind === "star" ? "polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)" : "none"))) : "none",
                         borderRadius: subEl.shapeKind === "rect" ? "4px" : "0",
                         zIndex: 15
                     }}
@@ -278,7 +366,7 @@ function ProductCardContent({ el, onUpdate }: { el: CanvasElement; onUpdate: (id
                         const onMouseMove = (mv: MouseEvent) => {
                             const dx = mv.clientX - startX;
                             const dy = mv.clientY - startY;
-                            const updatedShapes = el.internalElements?.map(s => 
+                            const updatedShapes = el.internalElements?.map(s =>
                                 s.id === subEl.id ? { ...s, x: initialX + dx, y: initialY + dy } : s
                             );
                             onUpdate(el.id, { internalElements: updatedShapes });
@@ -327,7 +415,7 @@ function ProductCardContent({ el, onUpdate }: { el: CanvasElement; onUpdate: (id
                 </div>
 
                 {/* Price Section */}
-                <div 
+                <div
                     className={cn(
                         "flex items-center gap-2 mt-auto pt-1",
                         isModern && !isUnlocked ? "bg-orange-50 -mx-2.5 -mb-2.5 px-2.5 py-1.5 border-t border-orange-100" : "",
@@ -344,12 +432,12 @@ function ProductCardContent({ el, onUpdate }: { el: CanvasElement; onUpdate: (id
                             {el.cardOldPrice}
                         </span>
                     )}
-                    <span 
+                    <span
                         className={cn(
                             "text-lg font-extrabold",
                             isModern && !isUnlocked ? "text-orange-600" : (isGradient && !isUnlocked ? "text-yellow-300" : "text-red-500")
-                        )} 
-                        data-editable="offerPrice" 
+                        )}
+                        data-editable="offerPrice"
                         suppressContentEditableWarning
                     >
                         {el.cardOfferPrice || "₹0"}
@@ -409,20 +497,96 @@ export default function PosterDesigner() {
     const [nextZ, setNextZ] = useState(1);
     const [showGrid, setShowGrid] = useState(false);
     const [gridCols, setGridCols] = useState(3);
-    const [gridRows, setGridRows] = useState(4); // Based on A4 ratio (~794/1123)
+    const [gridRows, setGridRows] = useState(4);
     const [savedPosters, setSavedPosters] = useState<SavedPoster[]>([]);
+
+    // Canvas Sizing
+    const [canvasSize, setCanvasSize] = useState({ w: 794, h: 1123 });
+    const [zoom, setZoom] = useState(0.85);
+
+    // History (Undo/Redo)
+    const [history, setHistory] = useState<{ elements: CanvasElement[]; bg: string }[]>([]);
+    const [historyIndex, setHistoryIndex] = useState(-1);
+
+    // AI Studio State
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [aiTaglines, setAiTaglines] = useState<string[]>([]);
+
+    // Product Binding
+    const { data: productsData } = useAllProducts();
+    const products = (productsData || []) as any[];
+    const [showProductModal, setShowProductModal] = useState(false);
+    const [guides, setGuides] = useState<{ x?: number; y?: number; type: "x" | "y" }[]>([]);
+
+    const SHADOW_PRESETS = [
+        { name: "None", value: "none" },
+        { name: "Soft", value: "0 4px 12px rgba(0,0,0,0.1)" },
+        { name: "Deep", value: "0 12px 32px rgba(0,0,0,0.2)" },
+        { name: "Float", value: "0 20px 50px rgba(0,0,0,0.15)" },
+        { name: "Glow", value: "0 0 20px rgba(249,115,22,0.4)" },
+        { name: "Inner", value: "inset 0 2px 4px rgba(0,0,0,0.1)" },
+    ];
 
     // Load from localStorage on mount
     useEffect(() => {
+        // Load fonts
+        const fontLinks = GOOGLE_FONTS.map(f => f.name.replace(/\s+/g, '+') + ":wght@300;400;600;700;900").join('&family=');
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = `https://fonts.googleapis.com/css2?family=${fontLinks}&display=swap`;
+        document.head.appendChild(link);
+
         const stored = localStorage.getItem("offerKart_posters");
         if (stored) {
             try {
-                setSavedPosters(JSON.parse(stored));
+                const parsed = JSON.parse(stored);
+                setSavedPosters(parsed);
             } catch (e) {
                 console.error("Failed to load posters", e);
             }
         }
+
+        // Initial history snapshot
+        saveHistory([], "#ffffff");
     }, []);
+
+    // Save history snapshot
+    const saveHistory = useCallback((els: CanvasElement[], bg: string) => {
+        setHistory(prev => {
+            const newHistory = prev.slice(0, historyIndex + 1);
+            return [...newHistory, { elements: JSON.parse(JSON.stringify(els)), bg }].slice(-30);
+        });
+        setHistoryIndex(prev => Math.min(prev + 1, 29));
+    }, [historyIndex]);
+
+    const undo = () => {
+        if (historyIndex > 0) {
+            const prev = history[historyIndex - 1];
+            setElements(prev.elements);
+            setCanvasBg(prev.bg);
+            setHistoryIndex(historyIndex - 1);
+            setSelectedId(null);
+        }
+    };
+
+    const redo = () => {
+        if (historyIndex < history.length - 1) {
+            const next = history[historyIndex + 1];
+            setElements(next.elements);
+            setCanvasBg(next.bg);
+            setHistoryIndex(historyIndex + 1);
+            setSelectedId(null);
+        }
+    };
+
+    // Auto-save history after major changes (throttled)
+    const historyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const recordChange = useCallback(() => {
+        if (historyTimeoutRef.current) clearTimeout(historyTimeoutRef.current);
+        historyTimeoutRef.current = setTimeout(() => {
+            saveHistory(elements, canvasBg);
+        }, 800);
+    }, [elements, canvasBg, saveHistory]);
 
     // Save to localStorage when updated
     useEffect(() => {
@@ -456,6 +620,14 @@ export default function PosterDesigner() {
     } | null>(null);
 
     const canvasRef = useRef<HTMLDivElement>(null);
+    const resetCanvas = () => {
+        if (confirm("Are you sure you want to clear the entire canvas? This cannot be undone (except via Undo).")) {
+            setElements([]);
+            setCanvasBg("#ffffff");
+            recordChange();
+            toast.success("Canvas cleared");
+        }
+    };
 
     /* ---------- HELPERS ---------- */
     const genId = () => crypto.randomUUID();
@@ -506,8 +678,8 @@ export default function PosterDesigner() {
                 fill: "#f97316",
                 zIndex: 100,
             };
-            updateEl(selectedEl.id!, { 
-                internalElements: [...(selectedEl.internalElements || []), newInternalShape] 
+            updateEl(selectedEl.id!, {
+                internalElements: [...(selectedEl.internalElements || []), newInternalShape]
             });
             return;
         }
@@ -585,15 +757,70 @@ export default function PosterDesigner() {
         setSelectedId(null);
     };
 
+    /* ---------- ALIGNMENT TOOLS ---------- */
+    const alignSelected = (dir: "left" | "center" | "right" | "top" | "middle" | "bottom") => {
+        if (!selectedId) return;
+        const el = elements.find(e => e.id === selectedId);
+        if (!el) return;
+
+        const elNode = document.getElementById(`canvas-el-${selectedId}`);
+        const w = elNode?.offsetWidth || el.w || 100;
+        const h = elNode?.offsetHeight || el.h || 40;
+
+        let patch: Partial<CanvasElement> = {};
+        if (dir === "left") patch.x = 0;
+        if (dir === "center") patch.x = (canvasSize.w - w) / 2;
+        if (dir === "right") patch.x = canvasSize.w - w;
+        if (dir === "top") patch.y = 0;
+        if (dir === "middle") patch.y = (canvasSize.h - h) / 2;
+        if (dir === "bottom") patch.y = canvasSize.h - h;
+
+        updateEl(selectedId, patch);
+        recordChange();
+    };
+
+    /* ---------- AI STUDIO HANDLERS ---------- */
+    const handleGenerateTaglines = async (productName: string, category: string) => {
+        setIsGenerating(true);
+        try {
+            const results = await generateTaglines(productName, category);
+            setAiTaglines(results);
+            toast.success("AI Taglines generated!");
+        } catch (error: any) {
+            if (error.message?.includes("Setup Required")) {
+                toast.error("AI Setup Needed: Add OPENROUTER_API_KEY to your .env file.");
+            } else {
+                toast.error("Failed to generate taglines. Using fallbacks.");
+            }
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    const handleSuggestPalette = async (imgUrl?: string) => {
+        setIsGenerating(true);
+        try {
+            const colors = await suggestPalette(imgUrl);
+            // Just notify or set a palette choice
+            toast.info(`AI suggests: ${colors.join(", ")}`);
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
     /* ---------- IMAGE FILE HANDLER ---------- */
     const handleCardFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (!file) return;
+        if (!file || file.size > 2 * 1024 * 1024) {
+            toast.error("Image too large (max 2MB)");
+            return;
+        }
         const reader = new FileReader();
         reader.onload = (ev) => {
             const result = ev.target?.result as string;
             setCardFilePreview(result);
             setCardForm((f) => ({ ...f, image: result }));
+            recordChange();
         };
         reader.readAsDataURL(file);
     };
@@ -630,14 +857,59 @@ export default function PosterDesigner() {
                 let newX = startElX + (e.clientX - startMouseX);
                 let newY = startElY + (e.clientY - startMouseY);
 
-                // Get the actual rendered width/height
+                // Smart Alignment Guides
                 const elNode = document.getElementById(`canvas-el-${elId}`);
                 const elW = elNode?.offsetWidth || el.w || 100;
                 const elH = elNode?.offsetHeight || el.h || 40;
+                
+                const snapThreshold = 5;
+                const activeGuides: { x?: number; y?: number; type: "x" | "y" }[] = [];
+                
+                // Potential snap points (Centers)
+                const canvasCenterX = canvasSize.w / 2;
+                const canvasCenterY = canvasSize.h / 2;
+                
+                // X-Axis Snapping (Vertical Lines)
+                if (Math.abs(newX + elW / 2 - canvasCenterX) < snapThreshold) {
+                    newX = canvasCenterX - elW / 2;
+                    activeGuides.push({ x: canvasCenterX, type: "x" });
+                }
+                
+                // Y-Axis Snapping (Horizontal Lines)
+                if (Math.abs(newY + elH / 2 - canvasCenterY) < snapThreshold) {
+                    newY = canvasCenterY - elH / 2;
+                    activeGuides.push({ y: canvasCenterY, type: "y" });
+                }
 
-                newX = Math.max(0, Math.min(CANVAS_W - elW, newX));
-                newY = Math.max(0, Math.min(CANVAS_H - elH, newY));
+                // Snap to other elements
+                elements.forEach(other => {
+                    if (other.id === elId || !other.isVisible) return;
+                    const otherNode = document.getElementById(`canvas-el-${other.id}`);
+                    const otherW = otherNode?.offsetWidth || other.w || 100;
+                    const otherH = otherNode?.offsetHeight || other.h || 40;
+                    
+                    // Vertical Alignment (X)
+                    if (Math.abs(newX - other.x) < snapThreshold) {
+                        newX = other.x;
+                        activeGuides.push({ x: other.x, type: "x" });
+                    } else if (Math.abs(newX + elW - (other.x + otherW)) < snapThreshold) {
+                        newX = other.x + otherW - elW;
+                        activeGuides.push({ x: other.x + otherW, type: "x" });
+                    }
+                    
+                    // Horizontal Alignment (Y)
+                    if (Math.abs(newY - other.y) < snapThreshold) {
+                        newY = other.y;
+                        activeGuides.push({ y: other.y, type: "y" });
+                    } else if (Math.abs(newY + elH - (other.y + otherH)) < snapThreshold) {
+                        newY = other.y + otherH - elH;
+                        activeGuides.push({ y: other.y + otherH, type: "y" });
+                    }
+                });
 
+                setGuides(activeGuides);
+                newX = Math.max(0, Math.min(canvasSize.w - elW, newX));
+                newY = Math.max(0, Math.min(canvasSize.h - elH, newY));
                 updateEl(elId, { x: newX, y: newY });
             }
 
@@ -681,7 +953,25 @@ export default function PosterDesigner() {
     const onGlobalMouseUp = useCallback(() => {
         dragRef.current = null;
         resizeRef.current = null;
+        setGuides([]);
     }, []);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "Delete" || e.key === "Backspace") {
+                // Don't delete if focused on input/textarea
+                const active = document.activeElement;
+                if (active?.tagName === "INPUT" || active?.tagName === "TEXTAREA" || (active as HTMLElement)?.contentEditable === "true") return;
+
+                if (selectedId) {
+                    deleteSelected();
+                    recordChange();
+                }
+            }
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [selectedId, deleteSelected, recordChange]);
 
     useEffect(() => {
         window.addEventListener("mousemove", onGlobalMouseMove);
@@ -781,13 +1071,13 @@ export default function PosterDesigner() {
                 const allElements = clonedDoc.getElementsByTagName("*");
                 for (let i = 0; i < allElements.length; i++) {
                     const el = allElements[i] as HTMLElement;
-                    
+
                     // We check computed styles because Tailwind classes won't show in el.style
                     // But we must use the window of the CLONED document or the global window carefully.
                     // clonedDoc.defaultView is the window for the clone.
                     const win = clonedDoc.defaultView || window;
                     const style = win.getComputedStyle(el);
-                    
+
                     const props: (keyof CSSStyleDeclaration)[] = ["backgroundColor", "color", "borderColor", "fill", "stroke" as any];
                     props.forEach(prop => {
                         const val = style[prop] as string;
@@ -824,556 +1114,665 @@ export default function PosterDesigner() {
        RENDER
        ================================================================ */
     return (
-        <div className="flex h-[calc(100vh-5rem)] w-full overflow-hidden rounded-2xl border border-border/50 shadow-lg">
-            {/* ===== LEFT PANEL ===== */}
-            <div className="w-[220px] min-w-[220px] bg-card border-r border-border/50 flex flex-col p-4 gap-3">
-                <div className="flex items-center gap-2 mb-1">
-                    <Layers className="w-4 h-4 text-primary" />
-                    <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Add Product</span>
+        <div className="flex h-[calc(100vh-100px)] w-full overflow-hidden rounded-2xl bg-white border border-gray-200 shadow-2xl font-inter">
+            {/* TOOLBAR (Top) */}
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-6 py-2.5 rounded-2xl bg-white/80 backdrop-blur-xl border border-gray-100 shadow-2xl z-50 transition-all hover:bg-white">
+                 <button onClick={undo} disabled={historyIndex <= 0} className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 disabled:opacity-30 transition-all"><Undo2 className="w-4 h-4" /></button>
+                <button onClick={redo} disabled={historyIndex >= history.length - 1} className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 disabled:opacity-30 transition-all"><Redo2 className="w-4 h-4" /></button>
+                <div className="w-px h-4 bg-gray-200 mx-1" />
+                <button onClick={resetCanvas} className="p-2 rounded-xl text-gray-500 hover:bg-orange-50 hover:text-orange-600 transition-all" title="Reset Canvas">
+                    <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+                <div className="w-px h-4 bg-gray-200 mx-1" />
+                <button onClick={() => setZoom(prev => Math.max(0.2, prev - 0.1))} className="p-2 rounded-xl text-gray-500 hover:bg-gray-100" title="Zoom Out"><Minus className="w-4 h-4" /></button>
+                <span className="text-[10px] font-black text-gray-400 w-10 text-center">{Math.round(zoom * 100)}%</span>
+                <button onClick={() => setZoom(prev => Math.min(2, prev + 0.1))} className="p-2 rounded-xl text-gray-500 hover:bg-gray-100"><Plus className="w-4 h-4" /></button>
+                <div className="w-px h-4 bg-gray-200 mx-1" />
+                <div className="flex items-center gap-1">
+                    <button onClick={() => alignSelected("left")} className="p-2 rounded-lg text-gray-400 hover:text-orange-500 hover:bg-orange-50 transition-all"><AlignLeft className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => alignSelected("center")} className="p-2 rounded-lg text-gray-400 hover:text-orange-500 hover:bg-orange-50 transition-all"><AlignCenter className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => alignSelected("right")} className="p-2 rounded-lg text-gray-400 hover:text-orange-500 hover:bg-orange-50 transition-all"><AlignRight className="w-3.5 h-3.5" /></button>
                 </div>
-                <PremiumButton
-                    onClick={() => {
-                        setCardForm({ image: "", title: "", desc: "", offerPrice: "", oldPrice: "" });
-                        setCardFilePreview(null);
-                        setShowCardModal(true);
-                    }}
-                    leftIcon={Plus}
-                    className="rounded-xl w-full"
-                >
-                    Add Product Card
-                </PremiumButton>
-
-                <div className="flex-1" />
-                <span className="text-[10px] text-muted-foreground text-center">Poster Designer v1.0</span>
+                <div className="w-px h-4 bg-gray-200 mx-1" />
+                <button onClick={exportPNG} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-600 text-white font-black text-[10px] uppercase tracking-widest shadow-lg shadow-orange-500/20 hover:bg-orange-700 active:scale-95 transition-all">
+                    <Download className="w-3.5 h-3.5" /> Export PNG
+                </button>
             </div>
 
-            {/* ===== CENTER ===== */}
-            <div className="flex-1 flex flex-col bg-muted/40 overflow-hidden">
-                {/* Top bar */}
-                <div className="h-12 bg-card border-b border-border/50 flex items-center justify-between px-4 shrink-0">
-                    <div className="text-xs text-muted-foreground font-medium">
-                        {elements.length} elements on canvas
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <PremiumButton onClick={exportPNG} variant="outline" leftIcon={Download} className="rounded-xl h-8 text-xs px-4">
-                            PNG
-                        </PremiumButton>
-                        <PremiumButton onClick={savePoster} leftIcon={Plus} className="rounded-xl h-8 text-xs px-5">
-                            Done
-                        </PremiumButton>
-                    </div>
-                </div>
-
-                {/* Workspace */}
-                <div className="flex-1 overflow-auto flex items-start justify-center p-10">
-                    <div
-                        id="poster-canvas"
-                        ref={canvasRef}
-                        className="relative shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
-                        style={{
-                            width: CANVAS_W,
-                            height: CANVAS_H,
-                            minWidth: CANVAS_W,
-                            minHeight: CANVAS_H,
-                            backgroundColor: canvasBg,
-                            backgroundImage: showGrid
-                                ? `linear-gradient(to right, rgba(0,0,0,0.12) 1px, transparent 1px),
-                                   linear-gradient(to bottom, rgba(0,0,0,0.12) 1px, transparent 1px)`
-                                : "none",
-                            backgroundSize: `${CANVAS_W / gridCols}px ${CANVAS_H / gridRows}px`,
-                        }}
-                        onMouseDown={handleCanvasClick}
-                    >
-                        {elements.map((el) => {
-                            const isSelected = el.id === selectedId;
-                            const isText = el.type === "text";
-                            const isAutoSized = isText && el.w === 0;
-
-                            return (
-                                <div
-                                    key={el.id}
-                                    id={`canvas-el-${el.id}`}
-                                    className={cn(
-                                        "absolute select-none",
-                                        isSelected
-                                            ? "outline-2 outline-dashed outline-blue-500 outline-offset-2"
-                                            : "",
-                                        "cursor-grab active:cursor-grabbing"
-                                    )}
-                                    style={{
-                                        left: el.x,
-                                        top: el.y,
-                                        width: isAutoSized ? "auto" : el.w,
-                                        height: isAutoSized ? "auto" : el.h,
-                                        zIndex: el.zIndex,
-                                        ...(isText
-                                            ? {
-                                                fontSize: el.fontSize,
-                                                fontWeight: el.fontWeight,
-                                                color: el.color,
-                                                padding: "6px 10px",
-                                                whiteSpace: "pre-wrap" as const,
-                                                wordBreak: "break-word" as const,
-                                            }
-                                            : {}),
-                                    }}
-                                    onMouseDown={(e) => {
-                                        // Don't drag if click is on a resize handle
-                                        if ((e.target as HTMLElement).dataset.handle) return;
-                                        // Don't drag if contentEditable
-                                        if ((e.target as HTMLElement).contentEditable === "true") return;
-                                        startDrag(e, el.id);
-                                    }}
-                                    onDoubleClick={(e) => {
-                                        if (isText) makeEditable(e, el.id);
-                                        else if (el.type === "product-card") makeEditable(e, el.id, "card");
-                                    }}
-                                >
-                                    {/* CONTENT */}
-                                    {isText && (el.text || "")}
-                                    {el.type === "shape" && <ShapeSVG kind={el.shapeKind!} fill={el.fill!} />}
-                                    {el.type === "product-card" && <ProductCardContent el={el} onUpdate={updateEl} />}
-
-                                    {/* RESIZE HANDLES */}
-                                    {isSelected &&
-                                        HANDLE_POSITIONS.map((pos) => (
-                                            <div
-                                                key={pos}
-                                                data-handle={pos}
-                                                className={cn(
-                                                    "absolute w-2.5 h-2.5 bg-blue-500 border border-white rounded-sm z-10",
-                                                    handleCursorMap[pos],
-                                                    handlePositionClasses[pos]
-                                                )}
-                                                onMouseDown={(e) => startResize(e, el.id, pos)}
-                                            />
-                                        ))}
+            <div className="flex-1 flex overflow-hidden bg-[#f0f2f5] relative">
+                {/* LEFT INSPECTOR */}
+                <div
+                    className={cn(
+                        "w-[320px] bg-white border-r border-gray-100 flex flex-col h-full relative z-[60] shadow-[20px_0_40px_rgba(0,0,0,0.02)] transition-all duration-300 ease-in-out overflow-y-auto custom-scrollbar",
+                        selectedId ? "translate-x-0" : "-translate-x-full absolute pointer-events-none"
+                    )}
+                >
+                    {selectedEl && (
+                        <div className="p-6 space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
+                            <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-1.5 h-6 bg-orange-500 rounded-full" />
+                                    <h3 className="text-[10px] font-black text-gray-900 uppercase tracking-widest">Inspector</h3>
                                 </div>
-                            );
-                        })}
-                    </div>
-
-                    {/* SAVED POSTERS GALLERY */}
-                    {savedPosters.length > 0 && (
-                        <div className="w-full max-w-[840px] mt-12 pb-20">
-                            <div className="flex items-center gap-3 mb-6">
-                                <div className="h-px flex-1 bg-border/50" />
-                                <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                                    <Layers className="w-4 h-4 text-primary" />
-                                    Your Saved Posters
-                                </h3>
-                                <div className="h-px flex-1 bg-border/50" />
+                                <button onClick={deleteSelected} className="p-2 rounded-xl bg-red-100 text-red-600 hover:bg-red-200 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
                             </div>
-                            
-                            <div className="grid grid-cols-3 gap-6">
-                                {savedPosters.map((p) => (
-                                    <div 
-                                        key={p.id} 
-                                        className="group relative bg-card border border-border/50 rounded-2xl p-4 shadow-sm hover:shadow-xl transition-all hover:-translate-y-1"
-                                    >
-                                        <div 
-                                            className="w-full aspect-[1/1.4] rounded-lg border border-border/30 overflow-hidden mb-3 relative bg-white"
-                                            style={{ backgroundColor: p.canvasBg }}
-                                        >
-                                            {/* Mini preview logic could go here, but for now we'll just show info */}
-                                            <div className="absolute inset-0 flex items-center justify-center opacity-20 group-hover:opacity-40 transition-opacity">
-                                                <ImageIcon className="w-12 h-12" />
+
+                            <div className="space-y-6">
+                                {selectedEl.type === "text" && (
+                                    <>
+                                        <div className="space-y-1.5">
+                                            <p className="text-[9px] font-bold text-gray-400 uppercase mb-2 ml-1">Typography</p>
+                                            <select
+                                                className="w-full text-xs font-black p-4 rounded-2xl border bg-gray-50/30 focus:ring-4 focus:ring-orange-500/10 transition-all outline-none"
+                                                value={selectedEl.fontFamily}
+                                                onChange={(e) => { updateEl(selectedId!, { fontFamily: e.target.value }); recordChange(); }}
+                                            >
+                                                {GOOGLE_FONTS.map(f => <option key={f.name} value={f.value}>{f.name}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="space-y-1.5">
+                                                <p className="text-[9px] font-bold text-gray-400 uppercase ml-1">Size</p>
+                                                <input
+                                                    type="number"
+                                                    className="w-full h-12 px-3 rounded-2xl border font-bold text-xs bg-gray-50/30 text-center"
+                                                    value={selectedEl.fontSize}
+                                                    onChange={(e) => { updateEl(selectedId!, { fontSize: parseInt(e.target.value) }); recordChange(); }}
+                                                />
                                             </div>
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent flex items-end p-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <div className="flex w-full gap-2">
-                                                    <button 
-                                                        onClick={() => loadPoster(p)}
-                                                        className="flex-1 bg-white text-black text-[10px] font-bold py-1.5 rounded-lg hover:bg-orange-500 hover:text-white transition-colors"
-                                                    >
-                                                        Edit
-                                                    </button>
-                                                    <button 
-                                                        onClick={() => deleteSavedPoster(p.id)}
-                                                        className="w-8 h-8 flex items-center justify-center bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-                                                    >
-                                                        <Trash2 className="w-3.5 h-3.5" />
-                                                    </button>
+                                            <div className="space-y-1.5">
+                                                <p className="text-[9px] font-bold text-gray-400 uppercase ml-1">Weight</p>
+                                                <select
+                                                    className="w-full h-12 px-2 rounded-2xl border font-bold text-center text-[10px] uppercase bg-gray-50/30 appearance-none"
+                                                    value={selectedEl.fontWeight}
+                                                    onChange={(e) => { updateEl(selectedId!, { fontWeight: parseInt(e.target.value) }); recordChange(); }}
+                                                >
+                                                    <option value="300">Light</option>
+                                                    <option value="400">Regular</option>
+                                                    <option value="600">Semi</option>
+                                                    <option value="700">Bold</option>
+                                                    <option value="900">Heavy</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+
+                                {selectedEl.type !== "product-card" && (
+                                    <div className="pt-2">
+                                        <p className="text-[9px] font-bold text-gray-400 uppercase mb-4 ml-1">Opacity & Colors</p>
+                                        <div className="flex flex-col gap-6">
+                                            <div className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 border border-gray-100">
+                                                <input
+                                                    type="color"
+                                                    className="w-12 h-12 rounded-xl overflow-hidden cursor-pointer border-none p-0 shadow-sm"
+                                                    value={selectedEl.color || selectedEl.fill || "#000000"}
+                                                    onChange={(e) => {
+                                                        if (selectedEl.type === "text") updateEl(selectedId!, { color: e.target.value });
+                                                        else updateEl(selectedId!, { fill: e.target.value });
+                                                        recordChange();
+                                                    }}
+                                                />
+                                                <div className="flex-1">
+                                                    <p className="text-[10px] font-black text-gray-900 uppercase">HEX Color</p>
+                                                    <p className="text-[10px] font-bold text-gray-400 font-mono tracking-wider">{selectedEl.color || selectedEl.fill || "#000000"}</p>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <div className="flex items-center justify-between text-[11px]">
-                                            <span className="text-muted-foreground">
-                                                {new Date(p.timestamp).toLocaleDateString()}
-                                            </span>
-                                            <span className="font-bold text-primary">
-                                                {p.elements.length} components
-                                            </span>
+
+                                            <div className="space-y-3 px-1">
+                                                <div className="flex justify-between items-center text-[9px] font-black text-gray-400 uppercase">
+                                                    <span>Transparency</span>
+                                                    <span>{Math.round((selectedEl.opacity ?? 1) * 100)}%</span>
+                                                </div>
+                                                <input
+                                                    type="range" min="0" max="1" step="0.1" value={selectedEl.opacity ?? 1}
+                                                    onChange={(e) => { updateEl(selectedId!, { opacity: parseFloat(e.target.value) }); recordChange(); }}
+                                                    className="w-full h-1.5 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {/* ===== RIGHT PANEL ===== */}
-            <div className="w-[240px] min-w-[240px] bg-card border-l border-border/50 flex flex-col p-4 gap-4 overflow-y-auto">
-                {/* Canvas Background */}
-                <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                        <Palette className="w-3.5 h-3.5 text-primary" />
-                        <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Canvas Background</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <label className="text-xs text-muted-foreground">Color</label>
-                        <input
-                            type="color"
-                            value={canvasBg}
-                            onChange={(e) => setCanvasBg(e.target.value)}
-                            className="w-9 h-8 rounded-lg border border-border/50 cursor-pointer"
-                        />
-                    </div>
-
-                    {/* Grid Toggle */}
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <Grid3X3 className="w-3.5 h-3.5 text-primary" />
-                            <label className="text-xs text-muted-foreground">Show Grid</label>
-                        </div>
-                        <button
-                            onClick={() => setShowGrid(!showGrid)}
-                            className={cn(
-                                "relative inline-flex h-5.5 w-10 shrink-0 cursor-pointer items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                                showGrid ? "bg-orange-100" : "bg-slate-300"
-                            )}
-                        >
-                            <span
-                                className={cn(
-                                    "pointer-events-none block h-4.5 w-4.5 rounded-full bg-orange-500 shadow-[0_1px_3px_rgba(0,0,0,0.3)] ring-0 transition-transform",
-                                    showGrid ? "translate-x-4.5" : "translate-x-0.5"
                                 )}
-                            />
-                        </button>
-                    </div>
 
-                    {showGrid && (
-                        <div className="space-y-3 pt-1 border-t border-border/20 mt-2">
-                            <div className="flex flex-col gap-1.5">
-                                <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Presets</label>
-                                <div className="grid grid-cols-3 gap-1">
-                                    {[4, 5, 6].map((n) => (
-                                        <button
-                                            key={n}
-                                            onClick={() => {
-                                                setGridCols(n);
-                                                setGridRows(n);
-                                            }}
-                                            className={cn(
-                                                "text-[10px] py-1 rounded-md border transition-all",
-                                                gridCols === n && gridRows === n
-                                                    ? "bg-primary/20 border-primary text-primary font-bold"
-                                                    : "bg-muted/30 border-border/50 text-muted-foreground hover:bg-muted/50"
-                                            )}
-                                        >
-                                            {n}x{n}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-2">
-                                <div className="space-y-1">
-                                    <label className="text-[10px] text-muted-foreground">Cols</label>
-                                    <input
-                                        type="number"
-                                        min={2}
-                                        max={50}
-                                        value={gridCols}
-                                        onChange={(e) => setGridCols(Math.max(2, parseInt(e.target.value) || 2))}
-                                        className="w-full bg-background/40 border border-border/50 rounded-md px-1.5 py-1 text-[11px] focus:outline-none focus:border-primary/50"
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-[10px] text-muted-foreground">Rows</label>
-                                    <input
-                                        type="number"
-                                        min={2}
-                                        max={50}
-                                        value={gridRows}
-                                        onChange={(e) => setGridRows(Math.max(2, parseInt(e.target.value) || 2))}
-                                        className="w-full bg-background/40 border border-border/50 rounded-md px-1.5 py-1 text-[11px] focus:outline-none focus:border-primary/50"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                <div className="h-px bg-border/50" />
-
-                {/* Add Text */}
-                <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                        <Type className="w-3.5 h-3.5 text-primary" />
-                        <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Add Text</span>
-                    </div>
-                    <PremiumButton
-                        onClick={() => addTextElement("🔥 Special Offer!", 36, 700)}
-                        leftIcon={Heading1}
-                        className="rounded-xl w-full text-xs h-9"
-                    >
-                        Offer Title
-                    </PremiumButton>
-                    <PremiumButton
-                        variant="outline"
-                        onClick={() => addTextElement("Your text here", 16, 400)}
-                        leftIcon={FileText}
-                        className="rounded-xl w-full text-xs h-9"
-                    >
-                        Normal Text
-                    </PremiumButton>
-                </div>
-
-                <div className="h-px bg-border/50" />
-
-                {/* Add Shapes */}
-                <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                        <Paintbrush className="w-3.5 h-3.5 text-primary" />
-                        <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Add Shapes</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-1.5">
-                        <PremiumButton variant="outline" onClick={() => addShape("rect")} className="rounded-xl text-xs h-9 px-2">
-                            <Square className="w-3.5 h-3.5 mr-1" /> Rect
-                        </PremiumButton>
-                        <PremiumButton variant="outline" onClick={() => addShape("circle")} className="rounded-xl text-xs h-9 px-2">
-                            <Circle className="w-3.5 h-3.5 mr-1" /> Circle
-                        </PremiumButton>
-                        <PremiumButton variant="outline" onClick={() => addShape("triangle")} className="rounded-xl text-xs h-9 px-2">
-                            <Triangle className="w-3.5 h-3.5 mr-1" /> Triangle
-                        </PremiumButton>
-                        <PremiumButton variant="outline" onClick={() => addShape("star")} className="rounded-xl text-xs h-9 px-2">
-                            <Star className="w-3.5 h-3.5 mr-1" /> Star
-                        </PremiumButton>
-                    </div>
-                </div>
-
-                <div className="h-px bg-border/50" />
-
-                {/* Element Style (contextual) */}
-                {selectedEl ? (
-                    <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                            <Paintbrush className="w-3.5 h-3.5 text-primary" />
-                            <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Element Style</span>
-                        </div>
-
-                        {/* Fill color — for shapes and product cards */}
-                        {(selectedEl.type === "shape" || selectedEl.type === "product-card") && (
-                            <div className="flex items-center gap-2">
-                                <label className="text-xs text-muted-foreground">Fill Color</label>
-                                <input
-                                    type="color"
-                                    value={selectedEl.type === "shape" ? (selectedEl.fill || "#7c3aed") : (selectedEl.cardBg || "#ffffff")}
-                                    onChange={(e) => {
-                                        if (selectedEl.type === "shape") updateEl(selectedEl.id, { fill: e.target.value });
-                                        else updateEl(selectedEl.id, { cardBg: e.target.value });
-                                    }}
-                                    className="w-9 h-8 rounded-lg border border-border/50 cursor-pointer"
-                                />
-                            </div>
-                        )}
-
-                        {/* Font size — for text */}
-                        {selectedEl.type === "text" && (
-                            <div className="flex items-center gap-2">
-                                <label className="text-xs text-muted-foreground">Font Size</label>
-                                <input
-                                    type="number"
-                                    min={8}
-                                    max={200}
-                                    value={selectedEl.fontSize || 16}
-                                    onChange={(e) => updateEl(selectedEl.id, { fontSize: Number(e.target.value) })}
-                                    className="w-20 bg-background/40 border border-border/50 rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none focus:border-primary/50"
-                                />
-                            </div>
-                        )}
-
-                        {/* Card Styling — for product cards */}
-                        {selectedEl.type === "product-card" && (
-                            <div className="space-y-4 pt-1 border-t border-border/20">
-                                <div className="flex items-center justify-between">
-                                    <label className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1.5">
-                                        <Move className="w-3 h-3" />
-                                        Custom Layout
-                                    </label>
-                                    <button
-                                        onClick={() => updateEl(selectedEl.id!, { 
-                                            isLayoutUnlocked: !selectedEl.isLayoutUnlocked,
-                                            subLayout: selectedEl.isLayoutUnlocked ? {} : {
-                                                image: { x: 10, y: 10, w: 60, h: 60 },
-                                                title: { x: 80, y: 15 },
-                                                desc: { x: 80, y: 35 },
-                                                prices: { x: 80, y: 65 }
-                                            }
-                                        })}
-                                        className={cn(
-                                            "px-2 py-1 rounded text-[10px] font-bold transition-all",
-                                            selectedEl.isLayoutUnlocked 
-                                                ? "bg-orange-500 text-white shadow-sm" 
-                                                : "bg-muted text-muted-foreground hover:bg-muted-foreground/10"
-                                        )}
-                                    >
-                                        {selectedEl.isLayoutUnlocked ? "Unlocked" : "Unlock"}
-                                    </button>
-                                </div>
-
-                                {selectedEl.isLayoutUnlocked && (
-                                    <div className="flex flex-col gap-2 p-2 bg-orange-50/30 rounded-lg border border-orange-100">
-                                        <p className="text-[9px] text-orange-600 font-medium">Tips: Drag internal elements to move. Resize Image via the blue handle.</p>
-                                        <div className="flex gap-2">
+                                <div className="space-y-4 pt-4 border-t border-gray-50">
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-[9px] font-bold text-gray-400 uppercase ml-1">Wow Effects</p>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[8px] font-black text-gray-400 uppercase">Glass</span>
                                             <button 
-                                                onClick={() => addShape("rect")}
-                                                className="flex-1 py-1 text-[9px] bg-white border border-orange-200 rounded text-orange-600 hover:bg-orange-50"
+                                                onClick={() => { updateEl(selectedId!, { isGlass: !selectedEl.isGlass }); recordChange(); }}
+                                                className={cn(
+                                                    "w-10 h-5 rounded-full transition-all relative flex items-center px-1",
+                                                    selectedEl.isGlass ? "bg-orange-500" : "bg-gray-200"
+                                                )}
                                             >
-                                                Add Shape to Card
+                                                <div className={cn("w-3.5 h-3.5 rounded-full bg-white transition-all", selectedEl.isGlass ? "translate-x-4" : "translate-x-0")} />
                                             </button>
                                         </div>
                                     </div>
-                                )}
-
-                                {!selectedEl.isLayoutUnlocked && (
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] uppercase font-bold text-muted-foreground">Card Style</label>
-                                        <div className="grid grid-cols-3 gap-1">
-                                            {(["classic", "badge", "modern", "glass", "split", "gradient"] as const).map((s) => (
+                                    
+                                    <div className="space-y-2">
+                                        <p className="text-[8px] font-bold text-gray-400 uppercase ml-1">Shadow Preset</p>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            {SHADOW_PRESETS.map(s => (
                                                 <button
-                                                    key={s}
-                                                    onClick={() => updateEl(selectedEl.id!, { cardStyle: s })}
+                                                    key={s.name}
+                                                    onClick={() => { updateEl(selectedId!, { shadow: s.value }); recordChange(); }}
                                                     className={cn(
-                                                        "text-[8px] py-2 rounded-md border transition-all capitalize",
-                                                        selectedEl.cardStyle === s
-                                                            ? "bg-primary/20 border-primary text-primary font-bold shadow-sm"
-                                                            : "bg-muted/30 border-border/50 text-muted-foreground hover:bg-muted/50"
+                                                        "px-2 py-2 rounded-lg border text-[8px] font-black uppercase transition-all",
+                                                        selectedEl.shadow === s.value ? "border-orange-500 bg-orange-50 text-orange-600" : "border-gray-100 bg-white text-gray-400 hover:border-gray-200"
                                                     )}
                                                 >
-                                                    {s}
+                                                    {s.name}
                                                 </button>
                                             ))}
                                         </div>
                                     </div>
-                                )}
-                                
-                                {selectedEl.cardStyle === "badge" && !selectedEl.isLayoutUnlocked && (
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] uppercase font-bold text-muted-foreground">Badge Text</label>
-                                        <input
-                                            type="text"
-                                            value={selectedEl.badgeText || ""}
-                                            onChange={(e) => updateEl(selectedEl.id!, { badgeText: e.target.value })}
-                                            placeholder="-50%"
-                                            className="w-full bg-background/40 border border-border/50 rounded-lg px-2 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary/50"
-                                        />
+                                </div>
+
+                                <div className="pt-8 border-t border-gray-50">
+                                    <p className="text-[8px] font-black text-gray-300 uppercase tracking-[.2em] mb-4 text-center">Layer Information</p>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div className="p-3 rounded-xl bg-gray-50/50 border border-gray-100 flex flex-col items-center">
+                                            <span className="text-[8px] font-bold text-gray-400 uppercase">Z-Index</span>
+                                            <span className="text-xs font-black text-gray-600">{selectedEl.zIndex}</span>
+                                        </div>
+                                        <div className="p-3 rounded-xl bg-gray-50/50 border border-gray-100 flex flex-col items-center">
+                                            <span className="text-[8px] font-bold text-gray-400 uppercase">Status</span>
+                                            <span className={cn("text-[9px] font-black uppercase italic", selectedEl.isLocked ? "text-orange-500" : "text-emerald-500")}>
+                                                {selectedEl.isLocked ? "Locked" : "Unlocked"}
+                                            </span>
+                                        </div>
                                     </div>
-                                )}
-
-                                {selectedEl.isLayoutUnlocked && (
-                                    <button
-                                        onClick={() => updateEl(selectedEl.id!, { subLayout: {}, internalElements: [] })}
-                                        className="w-full py-1.5 text-[10px] bg-muted/50 hover:bg-muted text-muted-foreground rounded-md border border-border/50 transition-colors"
-                                    >
-                                        Reset Layout & Shapes
-                                    </button>
-                                )}
+                                </div>
                             </div>
-                        )}
-
-                        <PremiumButton
-                            variant="destructive"
-                            onClick={deleteSelected}
-                            leftIcon={Trash2}
-                            className="rounded-xl w-full text-xs h-9"
-                            glow={false}
+                        </div>
+                    )}
+                </div>
+                {/* CANVAS WORKSPACE */}
+                <div className="flex-1 overflow-auto custom-scrollbar flex items-center justify-center p-20" onMouseDown={handleCanvasClick}>
+                    <div
+                        style={{
+                            transform: `scale(${zoom})`,
+                            transformOrigin: "center center",
+                            transition: "transform 0.1s ease-out",
+                            padding: "40px",
+                        }}
+                    >
+                        <div
+                            id="poster-canvas"
+                            ref={canvasRef}
+                            className="relative shadow-[0_40px_120px_-20px_rgba(0,0,0,0.3)] group/canvas"
+                            style={{
+                                width: canvasSize.w,
+                                height: canvasSize.h,
+                                backgroundColor: (canvasBg.includes("-gradient") || canvasBg.startsWith("url")) ? "transparent" : canvasBg,
+                                backgroundImage: (canvasBg.includes("-gradient") || canvasBg.startsWith("url")) ? canvasBg : (showGrid
+                                    ? `linear-gradient(to right, rgba(0,0,0,0.05) 1px, transparent 1px),
+                                       linear-gradient(to bottom, rgba(0,0,0,0.05) 1px, transparent 1px)`
+                                    : "none"),
+                                backgroundSize: canvasBg.startsWith("url") ? "auto" : "cover",
+                            }}
                         >
-                            Delete Element
-                        </PremiumButton>
+                            {/* ALIGNMENT GUIDES */}
+                            {guides.map((g, i) => (
+                                <div 
+                                    key={i}
+                                    className="absolute bg-orange-400/60 z-[1000] pointer-events-none"
+                                    style={{
+                                        left: g.type === "x" ? g.x : 0,
+                                        top: g.type === "y" ? g.y : 0,
+                                        width: g.type === "x" ? "1px" : "100%",
+                                        height: g.type === "y" ? "1px" : "100%",
+                                        borderStyle: "dashed",
+                                        borderWidth: g.type === "x" ? "0 0 0 1px" : "1px 0 0 0",
+                                        borderColor: "rgba(249, 115, 22, 0.6)"
+                                    }}
+                                />
+                            ))}
+                            {elements.map((el) => {
+                                if (el.isVisible === false) return null;
+                                return (
+                                    <div
+                                        key={el.id}
+                                        id={`canvas-el-${el.id}`}
+                                        className={cn(
+                                            "absolute transition-shadow duration-300",
+                                            selectedId === el.id ? "z-[9999]" : ""
+                                        )}
+                                        style={{
+                                            left: el.x,
+                                            top: el.y,
+                                            width: el.type === "text" ? "auto" : el.w,
+                                            height: el.type === "text" ? "auto" : el.h,
+                                            zIndex: el.zIndex,
+                                            cursor: selectedId === el.id ? "grab" : "pointer",
+                                            borderWidth: el.isGlass ? "1px" : "2px",
+                                            borderStyle: "solid",
+                                            borderColor: selectedId === el.id ? "#f97316" : (el.isGlass ? "rgba(255, 255, 255, 0.4)" : "transparent"),
+                                            boxShadow: el.shadow || (selectedId === el.id ? "0 0 0 4px rgba(249, 115, 22, 0.1)" : (el.isGlass ? "0 8px 32px 0 rgba(31, 38, 135, 0.15)" : "none")),
+                                            borderRadius: el.type === "shape" && el.shapeKind === "circle" ? "50%" : (el.isGlass ? "24px" : "4px"),
+                                            clipPath: el.isGlass && el.type === "shape" ? getShapeClipPath(el.shapeKind!) : undefined,
+                                            backdropFilter: el.isGlass ? "blur(20px) saturate(180%)" : "none",
+                                            background: el.isGlass 
+                                                ? `linear-gradient(135deg, ${el.fill}66 0%, ${el.fill}1A 100%)`
+                                                : undefined,
+                                            boxSizing: "border-box",
+                                            filter: el.isGlass && el.type === "shape" && el.shapeKind !== "rect" && el.shapeKind !== "circle" 
+                                                ? "drop-shadow(0 0 1px rgba(255,255,255,0.4))" 
+                                                : "none",
+                                        }}
+                                        onClick={(e) => { e.stopPropagation(); setSelectedId(el.id); }}
+                                        onMouseDown={(e) => !el.isLocked && startDrag(e, el.id)}
+                                    >
+                                        {el.type === "text" && (
+                                            <div
+                                                className="whitespace-pre-wrap select-none p-2 min-w-[20px]"
+                                                style={{
+                                                    fontSize: el.fontSize,
+                                                    fontWeight: el.fontWeight,
+                                                    color: el.color,
+                                                    fontFamily: el.fontFamily || "inherit",
+                                                    letterSpacing: el.letterSpacing ? `${el.letterSpacing}px` : "normal",
+                                                    lineHeight: el.lineHeight || 1.2,
+                                                    textAlign: el.textAlign || "left",
+                                                    textShadow: el.shadow || "none",
+                                                    opacity: el.opacity ?? 1,
+                                                }}
+                                            >
+                                                {el.text}
+                                            </div>
+                                        )}
+                                        {el.type === "shape" && <ShapeSVG kind={el.shapeKind!} fill={el.fill!} opacity={el.opacity} isGlass={el.isGlass} />}
+                                        {el.type === "product-card" && <ProductCardContent el={el} onUpdate={updateEl} />}
+
+                                        {/* Selection UI */}
+                                        {selectedId === el.id && !el.isLocked && (
+                                            <>
+                                                {HANDLE_POSITIONS.map((h) => (
+                                                    <div
+                                                        key={h}
+                                                        className={cn(
+                                                            "absolute w-2.5 h-2.5 bg-white border-2 border-orange-500 rounded-full z-50 shadow-sm hover:scale-150 transition-transform",
+                                                            handlePositionClasses[h],
+                                                            handleCursorMap[h]
+                                                        )}
+                                                        onMouseDown={(e) => startResize(e, el.id, h)}
+                                                    />
+                                                ))}
+                                            </>
+                                        )}
+                                        {el.isLocked && (
+                                            <div className="absolute -top-3 -right-3 bg-white p-1 rounded-full shadow-lg border border-gray-100">
+                                                <Lock className="w-3 h-3 text-orange-500" />
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
-                ) : (
-                    <p className="text-xs text-muted-foreground text-center py-3">
-                        Click an element on the canvas to edit its style.
-                    </p>
-                )}
+                </div>
             </div>
 
-            {/* ===== PRODUCT CARD MODAL ===== */}
-            <AppModal
-                open={showCardModal}
-                onOpenChange={setShowCardModal}
-                title="Add Product Card"
-                description="Fill in the product details to add a card to the canvas."
-            >
-                <div className="space-y-4">
-                    <div className="space-y-2">
-                        <label className="text-xs font-medium text-muted-foreground ml-1">Product Image</label>
-                        <input
-                            type="file"
-                            accept="image/*"
-                            onChange={handleCardFileChange}
-                            className="text-xs w-full file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-primary/10 file:text-primary file:font-medium file:text-xs file:cursor-pointer"
-                        />
-                        <div className="w-full h-36 rounded-xl bg-muted/50 border border-dashed border-border/50 flex items-center justify-center overflow-hidden">
-                            {cardFilePreview ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img src={cardFilePreview} alt="Preview" className="max-w-full max-h-full object-contain" />
+            {/* SIDEBAR */}
+            <div className="w-[360px] bg-white border-l border-gray-100 flex flex-col h-full relative z-[60] shadow-[-20px_0_40px_rgba(0,0,0,0.02)]">
+                <Tabs defaultValue="add" className="w-full flex flex-col h-full">
+                    <div className="p-4 border-b bg-gray-50/50">
+                        <TabsList className="grid grid-cols-4 w-full h-10 p-1 bg-gray-100/50 rounded-xl">
+                            <TabsTrigger value="add" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm"><Plus className="w-4 h-4" /></TabsTrigger>
+                            <TabsTrigger value="design" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm"><Paintbrush className="w-4 h-4" /></TabsTrigger>
+                            <TabsTrigger value="layers" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm"><Layers className="w-4 h-4" /></TabsTrigger>
+                            <TabsTrigger value="ai" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-orange-500"><Sparkles className="w-4 h-4" /></TabsTrigger>
+                        </TabsList>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto custom-scrollbar">
+                        <TabsContent value="add" className="m-0 p-6 space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
+                            <section>
+                                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-1">Typography</h3>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button onClick={() => { addTextElement("Heading", 48, 900); recordChange(); }} className="flex flex-col items-center justify-center p-5 rounded-2xl border border-gray-50 bg-gray-50/30 hover:border-orange-500/30 hover:bg-orange-50/50 hover:shadow-lg hover:shadow-orange-500/5 transition-all group">
+                                        <Heading1 className="w-6 h-6 mb-2 text-gray-400 group-hover:text-orange-500" />
+                                        <span className="text-[10px] font-black text-gray-600 uppercase tracking-tighter">Big Header</span>
+                                    </button>
+                                    <button onClick={() => { addTextElement("Add text body...", 16, 400); recordChange(); }} className="flex flex-col items-center justify-center p-5 rounded-2xl border border-gray-50 bg-gray-50/30 hover:border-orange-500/30 hover:bg-orange-50/50 hover:shadow-lg hover:shadow-orange-500/5 transition-all group">
+                                        <Type className="w-6 h-6 mb-2 text-gray-400 group-hover:text-orange-500" />
+                                        <span className="text-[10px] font-black text-gray-600 uppercase tracking-tighter">Body Text</span>
+                                    </button>
+                                </div>
+                            </section>
+
+                            <section>
+                                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-1">Decoratives</h3>
+                                <div className="grid grid-cols-5 gap-3">
+                                    {[
+                                        { icon: Square, kind: "rect" as ShapeKind, label: "Square" },
+                                        { icon: Circle, kind: "circle" as ShapeKind, label: "Circle" },
+                                        { icon: Triangle, kind: "triangle" as ShapeKind, label: "Triangle" },
+                                        { icon: Star, kind: "star" as ShapeKind, label: "Star" },
+                                        { icon: Triangle, kind: "blob" as ShapeKind, label: "Organic Blob" },
+                                        { icon: Award, kind: "badge" as ShapeKind, label: "Seal Badge" },
+                                        { icon: Zap, kind: "burst" as ShapeKind, label: "Offer Burst" },
+                                        { icon: Bookmark, kind: "ribbon" as ShapeKind, label: "Price Tag" },
+                                        { icon: Octagon, kind: "pill" as ShapeKind, label: "Pill Shape" },
+                                        { icon: Waves, kind: "wave" as ShapeKind, label: "Wave Section" }
+                                    ].map(s => (
+                                        <button key={s.kind} onClick={() => { addShape(s.kind); recordChange(); }} className="flex flex-col items-center justify-center p-3 rounded-xl border border-gray-50 bg-gray-50/30 hover:border-orange-500/30 hover:bg-orange-50/50 transition-all group gap-2">
+                                            <s.icon className="w-5 h-5 text-gray-400 group-hover:text-orange-500" />
+                                            <span className="text-[8px] font-bold text-gray-500 uppercase tracking-tighter group-hover:text-orange-600">{s.label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </section>
+
+                            <section>
+                                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-1">Smart Catalog</h3>
+                                <div className="space-y-3">
+                                    <button
+                                        onClick={() => setShowProductModal(true)}
+                                        className="w-full flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 shadow-xl shadow-orange-500/20 hover:scale-[1.02] active:scale-95 transition-all group"
+                                    >
+                                        <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30">
+                                            <ImageIcon className="w-6 h-6 text-white" />
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="font-black text-xs text-white uppercase tracking-wider">Import Product</p>
+                                            <p className="text-[9px] text-white/70 font-medium tracking-tight">Sync from your shop products</p>
+                                        </div>
+                                        <ChevronRight className="w-4 h-4 text-white/50 ml-auto" />
+                                    </button>
+
+                                    <button
+                                        onClick={() => {
+                                            setCardForm({ image: "", title: "", desc: "", offerPrice: "", oldPrice: "" });
+                                            setCardFilePreview(null);
+                                            setShowCardModal(true);
+                                        }}
+                                        className="w-full flex items-center gap-4 p-4 rounded-2xl bg-white border border-gray-100 hover:border-orange-500/30 hover:bg-orange-50/50 transition-all group"
+                                    >
+                                        <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100 group-hover:bg-white transition-colors">
+                                            <Plus className="w-6 h-6 text-gray-400 group-hover:text-orange-500" />
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="font-bold text-xs text-gray-900 uppercase tracking-wider">Custom Product</p>
+                                            <p className="text-[9px] text-gray-500 font-medium tracking-tight">Manually enter details</p>
+                                        </div>
+                                    </button>
+                                </div>
+                            </section>
+                        </TabsContent>
+
+                        <TabsContent value="design" className="m-0 p-6 space-y-8">
+                            <section>
+                                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-1">Canvas Presets</h3>
+                                <div className="grid grid-cols-4 gap-2">
+                                    {ASPECT_RATIOS.map(ratio => (
+                                        <button
+                                            key={ratio.name}
+                                            onClick={() => { setCanvasSize({ w: ratio.w, h: ratio.h }); recordChange(); }}
+                                            className={cn(
+                                                "flex flex-col items-center justify-center p-4 rounded-2xl border transition-all gap-2",
+                                                canvasSize.w === ratio.w && canvasSize.h === ratio.h ? "border-orange-500 bg-orange-50/50 text-orange-600 shadow-lg shadow-orange-500/10" : "border-gray-50 bg-gray-50/10 hover:border-orange-200 text-gray-400"
+                                            )}
+                                        >
+                                            <div className="p-2 rounded-lg bg-white shadow-sm border border-gray-50">
+                                                {ratio.icon === "Smartphone" ? <Smartphone className="w-4 h-4" /> : ratio.icon === "Square" ? <Square className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
+                                            </div>
+                                            <span className="text-[8px] font-black uppercase tracking-tight">{ratio.name}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </section>
+
+                            <section>
+                                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-1">Studio Gradients</h3>
+                                <div className="grid grid-cols-5 gap-3">
+                                    {PREMIUM_GRADIENTS.map((grad, i) => (
+                                        <button
+                                            key={i}
+                                            onClick={() => { setCanvasBg(grad.value); recordChange(); }}
+                                            className={cn(
+                                                "aspect-square rounded-2xl border-4 transition-all hover:scale-110 hover:shadow-xl",
+                                                canvasBg === grad.value ? "border-white ring-4 ring-orange-500/20 scale-105" : "border-transparent"
+                                            )}
+                                            style={{ background: grad.value }}
+                                            title={grad.name}
+                                        />
+                                    ))}
+                                </div>
+                            </section>
+
+                            <section>
+                                <div className="flex items-center gap-2 mb-4 px-1">
+                                    <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Abstract Models</h3>
+                                </div>
+                                <div className="grid grid-cols-5 gap-3">
+                                    {ABSTRACT_MODELS.map((model, i) => (
+                                        <button
+                                            key={i}
+                                            onClick={() => { setCanvasBg(model.value); recordChange(); }}
+                                            className={cn(
+                                                "aspect-square rounded-2xl border-4 transition-all hover:scale-110 hover:shadow-xl relative overflow-hidden",
+                                                canvasBg === model.value ? "border-white ring-4 ring-indigo-500/20 scale-105" : "border-transparent"
+                                            )}
+                                            style={{ background: model.value, backgroundSize: "cover" }}
+                                            title={model.name}
+                                        >
+                                            <div className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-colors" />
+                                        </button>
+                                    ))}
+                                </div>
+                            </section>
+                        </TabsContent>
+
+                        <TabsContent value="layers" className="m-0 p-6 space-y-4">
+                            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">Visual Hierarchy</h3>
+                            {elements.length === 0 ? (
+                                <div className="text-center py-12 text-gray-400 text-xs italic bg-gray-50 rounded-2xl border border-dashed">No elements yet</div>
                             ) : (
-                                <span className="text-xs text-muted-foreground">No image selected</span>
+                                <div className="space-y-2">
+                                    {[...elements].sort((a, b) => b.zIndex - a.zIndex).map(el => (
+                                        <div
+                                            key={el.id}
+                                            className={cn(
+                                                "group flex items-center gap-3 p-3 rounded-2xl border transition-all cursor-pointer",
+                                                selectedId === el.id ? "border-orange-500 bg-orange-50/30 shadow-lg shadow-orange-500/5" : "border-gray-50 bg-white hover:border-gray-200"
+                                            )}
+                                            onClick={() => setSelectedId(el.id)}
+                                        >
+                                            <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center shrink-0 text-gray-400 group-hover:bg-white group-hover:text-orange-500 transition-colors shadow-sm">
+                                                {el.type === "text" ? <Type className="w-5 h-5" /> : el.type === "shape" ? <Square className="w-5 h-5" /> : <ImageIcon className="w-5 h-5" />}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[11px] font-black text-gray-900 truncate uppercase tracking-tighter">
+                                                    {el.name || (el.type === "text" ? (el.text?.substring(0, 15) || "Text Layer") : el.type === "shape" ? `${el.shapeKind} Layer` : "Smart Card")}
+                                                </p>
+                                                <p className="text-[8px] font-bold text-gray-400 uppercase">Depth: {el.zIndex}</p>
+                                            </div>
+                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); setSelectedId(el.id); deleteSelected(); recordChange(); }}
+                                                    className="p-2 rounded-lg text-red-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                                                    title="Delete Layer"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </button>
+                                                <button onClick={(e) => { e.stopPropagation(); updateEl(el.id, { isLocked: !el.isLocked }); recordChange(); }} className={cn("p-2 rounded-lg", el.isLocked ? "bg-orange-100 text-orange-600" : "text-gray-300 hover:bg-gray-100")}>
+                                                    {el.isLocked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                                                </button>
+                                                <button onClick={(e) => { e.stopPropagation(); updateEl(el.id, { isVisible: el.isVisible === false }); recordChange(); }} className={cn("p-2 rounded-lg", el.isVisible === false ? "bg-red-100 text-red-600" : "text-gray-300 hover:bg-gray-100")}>
+                                                    {el.isVisible === false ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </TabsContent>
+
+                        <TabsContent value="ai" className="m-0 p-6 space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                            <div className="p-6 rounded-3xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-2xl shadow-indigo-500/20 relative overflow-hidden group">
+                                <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-1000" />
+                                <div className="relative z-10">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="p-2 bg-white/20 rounded-xl backdrop-blur-md"><Sparkles className="w-6 h-6" /></div>
+                                        <h3 className="font-black text-xs uppercase tracking-widest">AI Studio</h3>
+                                    </div>
+                                    <p className="text-[10px] text-white/80 font-medium leading-relaxed mb-6">Let AI generate catchy headlines or suggest the perfect color combination for your shop.</p>
+
+                                    <div className="space-y-3">
+                                        <button
+                                            onClick={() => handleGenerateTaglines("Big Sale", "Festive")}
+                                            disabled={isGenerating}
+                                            className="w-full py-4 bg-white text-indigo-600 font-black text-[10px] uppercase tracking-widest rounded-2xl shadow-xl active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-3"
+                                        >
+                                            {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Type className="w-4 h-4" />}
+                                            Generate Headlines
+                                        </button>
+                                        <button
+                                            onClick={() => handleSuggestPalette()}
+                                            disabled={isGenerating}
+                                            className="w-full py-4 bg-white/20 text-white border border-white/30 font-black text-[10px] uppercase tracking-widest rounded-2xl backdrop-blur-md active:scale-95 transition-all disabled:opacity-50"
+                                        >
+                                            Suggest Palette
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {aiTaglines.length > 0 && (
+                                <div className="space-y-3 pt-4">
+                                    <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest px-2">AI Results</h4>
+                                    {aiTaglines.map((line, i) => (
+                                        <div key={i} onClick={() => { addTextElement(line, 48, 900); recordChange(); }} className="group p-4 rounded-2xl border border-gray-100 bg-white hover:border-indigo-500 hover:shadow-lg transition-all cursor-pointer">
+                                            <p className="text-xs font-bold text-gray-800 leading-snug group-hover:text-indigo-600">{line}</p>
+                                            <div className="mt-2 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <span className="text-[8px] font-black text-indigo-400 uppercase tracking-tighter italic">Click to insert</span>
+                                                <ChevronRight className="w-3 h-3 text-indigo-300" />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </TabsContent>
+                    </div>
+                </Tabs>
+            </div>
+
+            {/* CATALOG SYNC MODAL */}
+            <AppModal open={showProductModal} onOpenChange={setShowProductModal} title="Catalog Sync" description="Select a product to generate a designer card instantly.">
+                <div className="space-y-4 py-4">
+                    <div className="max-h-[400px] overflow-y-auto pr-2 custom-scrollbar space-y-2">
+                        {products.map((p) => (
+                            <div
+                                key={p.id}
+                                className="flex items-center gap-4 p-4 rounded-2xl border border-gray-50 bg-gray-50/20 hover:border-orange-500/30 hover:bg-orange-50/50 cursor-pointer transition-all active:scale-95 group"
+                                onClick={() => {
+                                    setCardForm({ image: p.image || "", title: p.name, desc: p.description || "", offerPrice: `₹${p.price}`, oldPrice: p.originalPrice ? `₹${p.originalPrice}` : "" });
+                                    setCardFilePreview(p.image || "");
+                                    addProductCard();
+                                    setShowProductModal(false);
+                                    recordChange();
+                                    toast.success("Product imported!");
+                                }}
+                            >
+                                <div className="w-12 h-12 rounded-xl bg-white border border-gray-100 overflow-hidden shadow-sm shrink-0">
+                                    {p.image && <img src={p.image} alt="" className="w-full h-full object-cover" />}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-black text-gray-900 truncate uppercase tracking-tighter group-hover:text-orange-500 transition-colors">{p.name}</p>
+                                    <p className="text-[10px] font-bold text-emerald-600">₹{p.price}</p>
+                                </div>
+                                <div className="p-2 rounded-xl bg-white/50 text-orange-500 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"><ArrowUpRight className="w-4 h-4" /></div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </AppModal>
+
+            {/* CUSTOM PRODUCT MODAL */}
+            <AppModal open={showCardModal} onOpenChange={setShowCardModal} title="Custom Product" description="Manually create a premium product card for your poster.">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-6">
+                    {/* Left: Image Upload & Preview */}
+                    <div className="space-y-4">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Product Photo</label>
+                        <div className="relative aspect-square rounded-3xl bg-gray-50 border-2 border-dashed border-gray-200 flex flex-col items-center justify-center overflow-hidden group hover:border-orange-500/50 transition-all">
+                            {cardFilePreview ? (
+                                <img src={cardFilePreview} alt="Preview" className="w-full h-full object-cover" />
+                            ) : (
+                                <>
+                                    <ImageIcon className="w-10 h-10 text-gray-300 mb-3 group-hover:scale-110 transition-transform" />
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase italic">Drop or click to upload</p>
+                                </>
+                            )}
+                            <input
+                                type="file"
+                                className="absolute inset-0 opacity-0 cursor-pointer"
+                                accept="image/*"
+                                onChange={handleCardFileChange}
+                            />
+                            {cardFilePreview && (
+                                <button
+                                    onClick={() => { setCardFilePreview(null); setCardForm(f => ({ ...f, image: "" })); }}
+                                    className="absolute top-4 right-4 p-2 rounded-xl bg-white/80 backdrop-blur-md text-red-500 shadow-xl opacity-0 group-hover:opacity-100 transition-all hover:bg-white"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
                             )}
                         </div>
                     </div>
 
-                    <PremiumInput
-                        label="Title"
-                        icon={Type}
-                        placeholder="Product name"
-                        value={cardForm.title}
-                        onChange={(e) => setCardForm((f) => ({ ...f, title: e.target.value }))}
-                    />
+                    {/* Right: Form Details */}
+                    <div className="space-y-6">
+                        <div className="space-y-4">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Product Name</label>
+                                <PremiumInput
+                                    value={cardForm.title}
+                                    onChange={(e) => setCardForm(f => ({ ...f, title: e.target.value }))}
+                                    placeholder="e.g. Premium Leather Watch"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Description</label>
+                                <textarea
+                                    className="w-full px-4 py-3 rounded-2xl border bg-gray-50/50 text-sm font-medium focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500/50 transition-all outline-none resize-none min-h-[80px]"
+                                    value={cardForm.desc}
+                                    onChange={(e) => setCardForm(f => ({ ...f, desc: e.target.value }))}
+                                    placeholder="Briefly describe the offer..."
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Sale Price</label>
+                                    <PremiumInput
+                                        value={cardForm.offerPrice}
+                                        onChange={(e) => setCardForm(f => ({ ...f, offerPrice: e.target.value }))}
+                                        placeholder="₹999"
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">MRP Price</label>
+                                    <PremiumInput
+                                        value={cardForm.oldPrice}
+                                        onChange={(e) => setCardForm(f => ({ ...f, oldPrice: e.target.value }))}
+                                        placeholder="₹1499"
+                                    />
+                                </div>
+                            </div>
+                        </div>
 
-                    <div className="space-y-2">
-                        <label className="text-xs font-medium text-muted-foreground ml-1">Description</label>
-                        <textarea
-                            className="w-full bg-background/40 border border-primary/10 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-primary/50 placeholder:text-muted-foreground resize-none min-h-[60px]"
-                            placeholder="Short description"
-                            value={cardForm.desc}
-                            onChange={(e) => setCardForm((f) => ({ ...f, desc: e.target.value }))}
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                        <PremiumInput
-                            label="Offer Price"
-                            placeholder="₹199"
-                            value={cardForm.offerPrice}
-                            onChange={(e) => setCardForm((f) => ({ ...f, offerPrice: e.target.value }))}
-                        />
-                        <PremiumInput
-                            label="Old Price"
-                            placeholder="₹499"
-                            value={cardForm.oldPrice}
-                            onChange={(e) => setCardForm((f) => ({ ...f, oldPrice: e.target.value }))}
-                        />
-                    </div>
-
-                    <div className="flex gap-3 justify-end pt-2">
                         <PremiumButton
-                            variant="outline"
-                            onClick={() => setShowCardModal(false)}
-                            className="rounded-xl"
+                            onClick={addProductCard}
+                            className="w-full py-6 rounded-2xl bg-gradient-to-r from-orange-500 to-red-600 shadow-xl shadow-orange-500/20 active:scale-95 transition-all text-sm font-black uppercase tracking-widest"
                         >
-                            Cancel
-                        </PremiumButton>
-                        <PremiumButton onClick={addProductCard} className="rounded-xl">
-                            Save
+                            Create Product Card
                         </PremiumButton>
                     </div>
                 </div>
             </AppModal>
+
         </div>
     );
 }
