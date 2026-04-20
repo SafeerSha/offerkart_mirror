@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Image, { StaticImageData } from "next/image";
-import { ChevronLeft, ChevronRight, Star, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight, Star, Zap, Rocket } from "lucide-react";
+import { PremiumButton } from "@/components/shared/PremiumButton";
+import { Heading, Subheading, Text } from "@/components/shared/Typography";
 
 interface FeaturedShop {
   id: number;
@@ -57,19 +58,17 @@ const FeaturedCarousel = ({ shops }: FeaturedCarouselProps) => {
       <div className="container mx-auto px-4 relative">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
-            <div className="relative">
-              <div className="p-3 rounded-2xl gradient-futuristic">
-                <Sparkles className="w-6 h-6 text-primary-foreground" />
-              </div>
-              <div className="absolute -inset-1 rounded-2xl border border-primary/20" />
+            <div className="p-3 rounded-2xl bg-primary/10 border border-primary/20">
+              <Zap className="w-6 h-6 text-primary" />
             </div>
             <div>
-              <h2 className="font-serif text-3xl font-bold text-primary">
+              <Subheading className="text-3xl font-bold mb-0">
                 Featured Offers
-              </h2>
-              <p className="text-sm text-muted-foreground mt-1">Handpicked premium offers just for you</p>
+              </Subheading>
+              <Text className="text-sm mt-1">Handpicked premium offers just for you</Text>
             </div>
           </div>
+
           <div className="flex items-center gap-3">
             {/* Progress Bar */}
             <div className="hidden sm:flex items-center gap-2 mr-4">
@@ -84,26 +83,26 @@ const FeaturedCarousel = ({ shops }: FeaturedCarouselProps) => {
               </span>
             </div>
 
-            <Button
+            <PremiumButton
               variant="outline"
               size="icon"
               onClick={prevSlide}
               onMouseEnter={() => setIsAutoPlaying(false)}
               onMouseLeave={() => setIsAutoPlaying(true)}
-              className="rounded-full border-primary/30 hover:bg-primary hover:text-primary-foreground hover:border-primary hover:scale-110 transition-all duration-300"
+              className="rounded-full border-orange-500/50 hover:border-orange-500 h-10 w-10 group"
             >
-              <ChevronLeft className="w-5 h-5" />
-            </Button>
-            <Button
+              <ChevronLeft className="w-5 h-5 text-orange-500 group-hover:scale-110 transition-transform" />
+            </PremiumButton>
+            <PremiumButton
               variant="outline"
               size="icon"
               onClick={nextSlide}
               onMouseEnter={() => setIsAutoPlaying(false)}
               onMouseLeave={() => setIsAutoPlaying(true)}
-              className="rounded-full border-primary/30 hover:bg-primary hover:text-primary-foreground hover:border-primary hover:scale-110 transition-all duration-300"
+              className="rounded-full border-orange-500/50 hover:border-orange-500 h-10 w-10 group"
             >
-              <ChevronRight className="w-5 h-5" />
-            </Button>
+              <ChevronRight className="w-5 h-5 text-orange-500 group-hover:scale-110 transition-transform" />
+            </PremiumButton>
           </div>
         </div>
 
@@ -132,11 +131,12 @@ const FeaturedCarousel = ({ shops }: FeaturedCarouselProps) => {
                   <div className="absolute inset-0 rounded-2xl border border-primary/20 group-hover:border-primary/40 transition-colors duration-300" />
                   <div className="absolute inset-1 rounded-xl border border-primary/10 group-hover:border-primary/30 transition-colors duration-300" />
 
-                  <div className="absolute inset-0 overflow-hidden rounded-2xl">
+                  <div className="absolute inset-0 overflow-hidden rounded-2xl bg-muted/20">
                     <Image
                       src={offer.image}
                       alt={offer.name}
                       fill
+                      unoptimized
                       className="object-cover transition-transform duration-700 group-hover:scale-110"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 via-foreground/20 to-transparent group-hover:from-foreground/60" />
@@ -151,16 +151,16 @@ const FeaturedCarousel = ({ shops }: FeaturedCarouselProps) => {
 
                   <div className="absolute top-4 left-4">
                     <span className="badge-futuristic">
-                      <Sparkles className="w-3 h-3 mr-1" />
+                      <Rocket className="w-3 h-3 mr-1" />
                       {offer.badge}
                     </span>
                   </div>
 
                   <div className="absolute bottom-0 left-0 right-0 p-6">
-                    <h3 className="font-serif text-2xl font-bold text-white mb-2 group-hover:text-primary transition-colors">
+                    <Subheading className="text-2xl font-bold text-white mb-2 group-hover:text-primary transition-colors">
                       {offer.name}
-                    </h3>
-                    <p className="text-white/90 text-lg leading-tight">{offer.offer}</p>
+                    </Subheading>
+                    <Text className="text-white/90 text-lg leading-tight">{offer.offer}</Text>
                   </div>
                 </div>
               </div>

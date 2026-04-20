@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import Image, { StaticImageData } from "next/image";
-import { ArrowLeft, Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import Header from "@/components/layout/Header";
+import { Tag, ChevronLeft, ChevronRight } from "lucide-react";
+import { PremiumButton } from "@/components/shared/PremiumButton";
+import { Subheading, Text } from "@/components/shared/Typography";
+import { MarkedPoster } from "@/components/shared/MarkedPoster";
+import { Poster } from "@/lib/types/offer";
+
+import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import OfferCard from "@/components/offer/OfferCard";
 
 interface OfferDetail {
@@ -14,14 +16,18 @@ interface OfferDetail {
     shopName: string;
     offerName: string;
     images: (string | StaticImageData)[];
+    posters?: Poster[];
     category: string;
     location: string;
-    validUntil: string;
+    validFrom: string;
+    validTo: string;
     discount: string;
     rating: number;
     reviews: number;
     price: string;
     originalPrice: string;
+    branchId?: number | string;
+    branchName?: string;
 }
 
 interface SimilarOffer {
@@ -31,8 +37,10 @@ interface SimilarOffer {
     image: string | StaticImageData;
     category: string;
     location: string;
-    validUntil: string;
+    validFrom: string;
+    validTo: string;
     discount?: string;
+    branchName?: string;
 }
 
 interface OfferDetailClientProps {
@@ -41,9 +49,32 @@ interface OfferDetailClientProps {
 }
 
 export default function OfferDetailClient({ offer, similarOffers }: OfferDetailClientProps) {
-    const router = useRouter();
     const [posterIndex, setPosterIndex] = useState(0);
     const [similarCarouselIndex, setSimilarCarouselIndex] = useState(0);
+
+    const [breadcrumbItems, setBreadcrumbItems] = useState([
+        { label: "Offers", href: "/offers" },
+        { label: offer.offerName }
+    ]);
+
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const referrer = document.referrer;
+            const origin = window.location.origin;
+
+            if (referrer === origin || referrer === origin + "/") {
+                // If coming from Home, show simple Home > [Offer] path
+                setBreadcrumbItems([{ label: offer.offerName }]);
+            } else if (referrer.includes("/offers")) {
+                // If coming from Offers list, preserve filters in the breadcrumb link
+                const path = referrer.replace(origin, "");
+                setBreadcrumbItems([
+                    { label: "Offers", href: path },
+                    { label: offer.offerName }
+                ]);
+            }
+        }
+    }, [offer.offerName]);
 
     const nextPoster = () => {
         setPosterIndex((prev) => (prev + 1) % offer.images.length);
@@ -66,21 +97,14 @@ export default function OfferDetailClient({ offer, similarOffers }: OfferDetailC
 
     return (
         <div className="min-h-screen bg-background">
-            <Header />
+
 
             {/* Hero Spacer */}
-            <div className="h-32 lg:h-24" />
+            <div className="h-40 lg:h-36" />
 
-            {/* Back Button */}
+            {/* Breadcrumbs */}
             <div className="container mx-auto px-4 py-4">
-                <Button
-                    variant="ghost"
-                    onClick={() => router.back()}
-                    className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
-                >
-                    <ArrowLeft className="w-4 h-4" />
-                    Back to Offers
-                </Button>
+                <Breadcrumbs items={breadcrumbItems} />
             </div>
 
             <div className="container mx-auto px-4 pb-16">
@@ -88,38 +112,39 @@ export default function OfferDetailClient({ offer, similarOffers }: OfferDetailC
                 <div className="max-w-lg mx-auto mb-16">
                     <div className="relative aspect-[3/4] overflow-hidden rounded-2xl border border-primary/20">
                         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-secondary/10" />
-                        <Image
-                            src={offer.images[posterIndex]}
+                        <MarkedPoster
+                            src={offer.posters?.[posterIndex]?.posterSrc || (offer.images[posterIndex] as string)}
                             alt={offer.shopName}
-                            fill
-                            className="object-cover transition-opacity duration-300"
+                            markedItems={offer.posters?.[posterIndex]?.markedItems || []}
+                            className="w-full h-full"
+                            showNames={true}
                         />
                         <div className="absolute top-4 left-4">
-                            <Badge className="badge-futuristic">
-                                <Sparkles className="w-3 h-3 mr-1" />
+                            <span className="badge-futuristic">
+                                <Tag className="w-3 h-3 mr-1" />
                                 {offer.discount}
-                            </Badge>
+                            </span>
                         </div>
 
                         {/* Carousel Navigation */}
                         {offer.images.length > 1 && (
                             <>
-                                <Button
+                                <PremiumButton
                                     variant="secondary"
                                     size="icon"
                                     onClick={prevPoster}
-                                    className="absolute left-4 top-1/2 -translate-y-1/2 backdrop-blur-sm"
+                                    className="absolute left-4 top-1/2 -translate-y-1/2 backdrop-blur-sm h-10 w-10 rounded-full"
                                 >
                                     <ChevronLeft className="w-4 h-4" />
-                                </Button>
-                                <Button
+                                </PremiumButton>
+                                <PremiumButton
                                     variant="secondary"
                                     size="icon"
                                     onClick={nextPoster}
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 backdrop-blur-sm"
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 backdrop-blur-sm h-10 w-10 rounded-full"
                                 >
                                     <ChevronRight className="w-4 h-4" />
-                                </Button>
+                                </PremiumButton>
 
                                 {/* Dots Indicator */}
                                 <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
@@ -140,24 +165,24 @@ export default function OfferDetailClient({ offer, similarOffers }: OfferDetailC
                 {/* Similar Offers Carousel */}
                 <div className="mt-16">
                     <div className="flex items-center justify-between mb-8">
-                        <h3 className="text-2xl font-bold">Similar Offers</h3>
+                        <Subheading className="text-2xl font-bold">Similar Offers</Subheading>
                         <div className="flex items-center gap-2">
-                            <Button
+                            <PremiumButton
                                 variant="outline"
                                 size="icon"
                                 onClick={prevSimilarSlide}
-                                className="rounded-full border-border/50 hover:bg-primary hover:text-primary-foreground hover:border-primary"
+                                className="rounded-full border-border/50 h-10 w-10"
                             >
                                 <ChevronLeft className="w-4 h-4" />
-                            </Button>
-                            <Button
+                            </PremiumButton>
+                            <PremiumButton
                                 variant="outline"
                                 size="icon"
                                 onClick={nextSimilarSlide}
-                                className="rounded-full border-border/50 hover:bg-primary hover:text-primary-foreground hover:border-primary"
+                                className="rounded-full border-border/50 h-10 w-10"
                             >
                                 <ChevronRight className="w-4 h-4" />
-                            </Button>
+                            </PremiumButton>
                         </div>
                     </div>
 

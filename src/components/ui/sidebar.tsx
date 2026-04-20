@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
+import * as SeparatorPrimitive from "@radix-ui/react-separator";
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { VariantProps, cva } from "class-variance-authority";
 import { PanelLeft } from "lucide-react";
 
