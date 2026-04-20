@@ -63,16 +63,24 @@ export const backend = {
                 const { getServerSession } = await import("next-auth/next");
                 const { authOptions } = await import("@/lib/auth");
                 
-                const session = await getServerSession(authOptions);
-                const accessToken = (session as any)?.accessToken;
-                
-                if (accessToken && !headers.has("Authorization")) {
-                    headers.set("Authorization", `Bearer ${accessToken}`);
+                let session = null;
+                try {
+                    // Wrap in try-catch to avoid "Dynamic server usage" errors during static build
+                    session = await getServerSession(authOptions);
+                } catch (error) {
+                    // Silently fail during build/static generation phase
                 }
-                
-                const shopId = (session as any)?.shopId;
-                if (shopId && !headers.has("shopId")) {
-                    headers.set("shopId", shopId);
+
+                if (session) {
+                    const accessToken = (session as any)?.accessToken;
+                    if (accessToken && !headers.has("Authorization")) {
+                        headers.set("Authorization", `Bearer ${accessToken}`);
+                    }
+                    
+                    const shopId = (session as any)?.shopId;
+                    if (shopId && !headers.has("shopId")) {
+                        headers.set("shopId", shopId);
+                    }
                 }
             }
             // Note: On the client, we rely on http-only cookies sent to our local proxy route

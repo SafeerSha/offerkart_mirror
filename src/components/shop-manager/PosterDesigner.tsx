@@ -48,7 +48,10 @@ import {
     Waves,
     Octagon,
     Cloud,
-    Bookmark
+    Bookmark,
+    ShoppingBag,
+    Package,
+    AlertTriangle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PREMIUM_GRADIENTS, ASPECT_RATIOS, GOOGLE_FONTS, ABSTRACT_MODELS } from "@/lib/designPresets";
@@ -86,6 +89,8 @@ interface CanvasElement {
     textAlign?: "left" | "center" | "right";
     shadow?: string;
     isGlass?: boolean;
+    borderRadius?: string | number;
+    shadowIntensity?: number;
     // Shape
     shapeKind?: ShapeKind;
     fill?: string;
@@ -495,6 +500,7 @@ export default function PosterDesigner() {
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [canvasBg, setCanvasBg] = useState("#ffffff");
     const [nextZ, setNextZ] = useState(1);
+    const canvasRef = useRef<HTMLDivElement>(null);
     const [showGrid, setShowGrid] = useState(false);
     const [gridCols, setGridCols] = useState(3);
     const [gridRows, setGridRows] = useState(4);
@@ -597,6 +603,7 @@ export default function PosterDesigner() {
     const [showCardModal, setShowCardModal] = useState(false);
     const [cardForm, setCardForm] = useState({ image: "", title: "", desc: "", offerPrice: "", oldPrice: "" });
     const [cardFilePreview, setCardFilePreview] = useState<string | null>(null);
+    const [showResetConfirm, setShowResetConfirm] = useState(false);
 
     // Drag state
     const dragRef = useRef<{
@@ -619,14 +626,13 @@ export default function PosterDesigner() {
         startH: number;
     } | null>(null);
 
-    const canvasRef = useRef<HTMLDivElement>(null);
-    const resetCanvas = () => {
-        if (confirm("Are you sure you want to clear the entire canvas? This cannot be undone (except via Undo).")) {
-            setElements([]);
-            setCanvasBg("#ffffff");
-            recordChange();
-            toast.success("Canvas cleared");
-        }
+    const resetCanvas = () => setShowResetConfirm(true);
+    const handleResetConfirm = () => {
+        setElements([]);
+        setCanvasBg("#ffffff");
+        recordChange();
+        setShowResetConfirm(false);
+        // toast.success("Canvas cleared"); // Ensuring toast is handled if available
     };
 
     /* ---------- HELPERS ---------- */
@@ -861,20 +867,20 @@ export default function PosterDesigner() {
                 const elNode = document.getElementById(`canvas-el-${elId}`);
                 const elW = elNode?.offsetWidth || el.w || 100;
                 const elH = elNode?.offsetHeight || el.h || 40;
-                
+
                 const snapThreshold = 5;
                 const activeGuides: { x?: number; y?: number; type: "x" | "y" }[] = [];
-                
+
                 // Potential snap points (Centers)
                 const canvasCenterX = canvasSize.w / 2;
                 const canvasCenterY = canvasSize.h / 2;
-                
+
                 // X-Axis Snapping (Vertical Lines)
                 if (Math.abs(newX + elW / 2 - canvasCenterX) < snapThreshold) {
                     newX = canvasCenterX - elW / 2;
                     activeGuides.push({ x: canvasCenterX, type: "x" });
                 }
-                
+
                 // Y-Axis Snapping (Horizontal Lines)
                 if (Math.abs(newY + elH / 2 - canvasCenterY) < snapThreshold) {
                     newY = canvasCenterY - elH / 2;
@@ -887,7 +893,7 @@ export default function PosterDesigner() {
                     const otherNode = document.getElementById(`canvas-el-${other.id}`);
                     const otherW = otherNode?.offsetWidth || other.w || 100;
                     const otherH = otherNode?.offsetHeight || other.h || 40;
-                    
+
                     // Vertical Alignment (X)
                     if (Math.abs(newX - other.x) < snapThreshold) {
                         newX = other.x;
@@ -896,7 +902,7 @@ export default function PosterDesigner() {
                         newX = other.x + otherW - elW;
                         activeGuides.push({ x: other.x + otherW, type: "x" });
                     }
-                    
+
                     // Horizontal Alignment (Y)
                     if (Math.abs(newY - other.y) < snapThreshold) {
                         newY = other.y;
@@ -906,6 +912,28 @@ export default function PosterDesigner() {
                         activeGuides.push({ y: other.y + otherH, type: "y" });
                     }
                 });
+
+                // Snap to Grid (if enabled)
+                if (showGrid) {
+                    const cellW = canvasSize.w / gridCols;
+                    const cellH = canvasSize.h / gridRows;
+
+                    // Vertical grid lines
+                    for (let i = 0; i <= gridCols; i++) {
+                        const gx = i * cellW;
+                        if (Math.abs(newX - gx) < snapThreshold) { newX = gx; activeGuides.push({ x: gx, type: "x" }); }
+                        else if (Math.abs(newX + elW - gx) < snapThreshold) { newX = gx - elW; activeGuides.push({ x: gx, type: "x" }); }
+                        else if (Math.abs(newX + elW / 2 - gx) < snapThreshold) { newX = gx - elW / 2; activeGuides.push({ x: gx, type: "x" }); }
+                    }
+
+                    // Horizontal grid lines
+                    for (let j = 0; j <= gridRows; j++) {
+                        const gy = j * cellH;
+                        if (Math.abs(newY - gy) < snapThreshold) { newY = gy; activeGuides.push({ y: gy, type: "y" }); }
+                        else if (Math.abs(newY + elH - gy) < snapThreshold) { newY = gy - elH; activeGuides.push({ y: gy, type: "y" }); }
+                        else if (Math.abs(newY + elH / 2 - gy) < snapThreshold) { newY = gy - elH / 2; activeGuides.push({ y: gy, type: "y" }); }
+                    }
+                }
 
                 setGuides(activeGuides);
                 newX = Math.max(0, Math.min(canvasSize.w - elW, newX));
@@ -1117,12 +1145,42 @@ export default function PosterDesigner() {
         <div className="flex h-[calc(100vh-100px)] w-full overflow-hidden rounded-2xl bg-white border border-gray-200 shadow-2xl font-inter">
             {/* TOOLBAR (Top) */}
             <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-6 py-2.5 rounded-2xl bg-white/80 backdrop-blur-xl border border-gray-100 shadow-2xl z-50 transition-all hover:bg-white">
-                 <button onClick={undo} disabled={historyIndex <= 0} className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 disabled:opacity-30 transition-all"><Undo2 className="w-4 h-4" /></button>
+                <button onClick={undo} disabled={historyIndex <= 0} className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 disabled:opacity-30 transition-all"><Undo2 className="w-4 h-4" /></button>
                 <button onClick={redo} disabled={historyIndex >= history.length - 1} className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 disabled:opacity-30 transition-all"><Redo2 className="w-4 h-4" /></button>
                 <div className="w-px h-4 bg-gray-200 mx-1" />
-                <button onClick={resetCanvas} className="p-2 rounded-xl text-gray-500 hover:bg-orange-50 hover:text-orange-600 transition-all" title="Reset Canvas">
-                    <RotateCcw className="w-3.5 h-3.5" />
-                </button>
+                <div className="relative group">
+                    <button
+                        onClick={() => setShowResetConfirm(!showResetConfirm)}
+                        className={cn(
+                            "p-2 rounded-xl transition-all",
+                            showResetConfirm ? "bg-red-50 text-red-600 ring-4 ring-red-500/10" : "text-gray-500 hover:bg-gray-100"
+                        )}
+                        title="Reset Canvas"
+                    >
+                        <RotateCcw className="w-4 h-4" />
+                    </button>
+
+                    {showResetConfirm && (
+                        <div className="absolute top-[calc(100%+12px)] left-1/2 -translate-x-1/2 w-48 p-2 rounded-2xl bg-white border border-gray-100 shadow-2xl animate-in fade-in zoom-in-95 duration-200 z-[100]">
+                            <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-t border-l border-gray-100 rotate-45" />
+                            <p className="text-[10px] font-black text-gray-900 uppercase tracking-widest text-center mb-3">Reset All?</p>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setShowResetConfirm(false)}
+                                    className="flex-1 py-2 rounded-lg border border-gray-50 text-[9px] font-bold text-gray-400 uppercase bg-gray-50 transition-all"
+                                >
+                                    No
+                                </button>
+                                <button
+                                    onClick={handleResetConfirm}
+                                    className="flex-1 py-2 rounded-lg bg-red-600 text-[9px] font-black text-white uppercase hover:bg-red-700 transition-all shadow-md shadow-red-500/20"
+                                >
+                                    Yes
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
                 <div className="w-px h-4 bg-gray-200 mx-1" />
                 <button onClick={() => setZoom(prev => Math.max(0.2, prev - 0.1))} className="p-2 rounded-xl text-gray-500 hover:bg-gray-100" title="Zoom Out"><Minus className="w-4 h-4" /></button>
                 <span className="text-[10px] font-black text-gray-400 w-10 text-center">{Math.round(zoom * 100)}%</span>
@@ -1239,7 +1297,7 @@ export default function PosterDesigner() {
                                         <p className="text-[9px] font-bold text-gray-400 uppercase ml-1">Wow Effects</p>
                                         <div className="flex items-center gap-2">
                                             <span className="text-[8px] font-black text-gray-400 uppercase">Glass</span>
-                                            <button 
+                                            <button
                                                 onClick={() => { updateEl(selectedId!, { isGlass: !selectedEl.isGlass }); recordChange(); }}
                                                 className={cn(
                                                     "w-10 h-5 rounded-full transition-all relative flex items-center px-1",
@@ -1250,7 +1308,7 @@ export default function PosterDesigner() {
                                             </button>
                                         </div>
                                     </div>
-                                    
+
                                     <div className="space-y-2">
                                         <p className="text-[8px] font-bold text-gray-400 uppercase ml-1">Shadow Preset</p>
                                         <div className="grid grid-cols-3 gap-2">
@@ -1308,15 +1366,17 @@ export default function PosterDesigner() {
                                 height: canvasSize.h,
                                 backgroundColor: (canvasBg.includes("-gradient") || canvasBg.startsWith("url")) ? "transparent" : canvasBg,
                                 backgroundImage: (canvasBg.includes("-gradient") || canvasBg.startsWith("url")) ? canvasBg : (showGrid
-                                    ? `linear-gradient(to right, rgba(0,0,0,0.05) 1px, transparent 1px),
-                                       linear-gradient(to bottom, rgba(0,0,0,0.05) 1px, transparent 1px)`
+                                    ? `linear-gradient(to right, rgba(0,0,0,0.1) 1px, transparent 1px),
+                                       linear-gradient(to bottom, rgba(0,0,0,0.1) 1px, transparent 1px)`
                                     : "none"),
-                                backgroundSize: canvasBg.startsWith("url") ? "auto" : "cover",
+                                backgroundSize: showGrid
+                                    ? `${canvasSize.w / gridCols}px ${canvasSize.h / gridRows}px`
+                                    : "cover",
                             }}
                         >
                             {/* ALIGNMENT GUIDES */}
                             {guides.map((g, i) => (
-                                <div 
+                                <div
                                     key={i}
                                     className="absolute bg-orange-400/60 z-[1000] pointer-events-none"
                                     style={{
@@ -1354,12 +1414,12 @@ export default function PosterDesigner() {
                                             borderRadius: el.type === "shape" && el.shapeKind === "circle" ? "50%" : (el.isGlass ? "24px" : "4px"),
                                             clipPath: el.isGlass && el.type === "shape" ? getShapeClipPath(el.shapeKind!) : undefined,
                                             backdropFilter: el.isGlass ? "blur(20px) saturate(180%)" : "none",
-                                            background: el.isGlass 
+                                            background: el.isGlass
                                                 ? `linear-gradient(135deg, ${el.fill}66 0%, ${el.fill}1A 100%)`
                                                 : undefined,
                                             boxSizing: "border-box",
-                                            filter: el.isGlass && el.type === "shape" && el.shapeKind !== "rect" && el.shapeKind !== "circle" 
-                                                ? "drop-shadow(0 0 1px rgba(255,255,255,0.4))" 
+                                            filter: el.isGlass && el.type === "shape" && el.shapeKind !== "rect" && el.shapeKind !== "circle"
+                                                ? "drop-shadow(0 0 1px rgba(255,255,255,0.4))"
                                                 : "none",
                                         }}
                                         onClick={(e) => { e.stopPropagation(); setSelectedId(el.id); }}
@@ -1416,19 +1476,61 @@ export default function PosterDesigner() {
             </div>
 
             {/* SIDEBAR */}
-            <div className="w-[360px] bg-white border-l border-gray-100 flex flex-col h-full relative z-[60] shadow-[-20px_0_40px_rgba(0,0,0,0.02)]">
-                <Tabs defaultValue="add" className="w-full flex flex-col h-full">
+            <div className="w-[360px] bg-white border-l border-gray-100 flex flex-col h-full relative z-40 shadow-[-20px_0_40px_rgba(0,0,0,0.02)]">
+                <Tabs defaultValue="products" className="w-full flex flex-col h-full">
                     <div className="p-4 border-b bg-gray-50/50">
-                        <TabsList className="grid grid-cols-4 w-full h-10 p-1 bg-gray-100/50 rounded-xl">
-                            <TabsTrigger value="add" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm"><Plus className="w-4 h-4" /></TabsTrigger>
+                        <TabsList className="grid grid-cols-5 w-full h-10 p-1 bg-gray-100/50 rounded-xl">
+                            <TabsTrigger value="products" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-orange-600"><ShoppingBag className="w-4 h-4" /></TabsTrigger>
+                            <TabsTrigger value="elements" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm"><Plus className="w-4 h-4" /></TabsTrigger>
                             <TabsTrigger value="design" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm"><Paintbrush className="w-4 h-4" /></TabsTrigger>
                             <TabsTrigger value="layers" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm"><Layers className="w-4 h-4" /></TabsTrigger>
-                            <TabsTrigger value="ai" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-orange-500"><Sparkles className="w-4 h-4" /></TabsTrigger>
+                            <TabsTrigger value="ai" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-indigo-500"><Sparkles className="w-4 h-4" /></TabsTrigger>
                         </TabsList>
                     </div>
-
                     <div className="flex-1 overflow-y-auto custom-scrollbar">
-                        <TabsContent value="add" className="m-0 p-6 space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
+                        <TabsContent value="products" className="m-0 p-6 space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
+                            <section>
+                                <div className="space-y-3">
+                                    <button
+                                        onClick={() => setShowProductModal(true)}
+                                        className="w-full flex items-center gap-4 p-3.5 rounded-2xl bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/20 hover:border-orange-500/40 hover:bg-orange-500/5 transition-all group"
+                                    >
+                                        <div className="w-10 h-10 rounded-xl bg-orange-500 shadow-lg shadow-orange-500/20 flex items-center justify-center shrink-0">
+                                            <ShoppingBag className="w-5 h-5 text-white" />
+                                        </div>
+                                        <div className="text-left flex-1">
+                                            <p className="font-black text-[11px] text-gray-800 uppercase tracking-wide">Import Product</p>
+                                            <p className="text-[8px] text-gray-400 font-medium tracking-tight">Sync from your digital inventory</p>
+                                        </div>
+                                        <ChevronRight className="w-3.5 h-3.5 text-orange-200 group-hover:text-orange-500 transition-colors" />
+                                    </button>
+
+                                    <button
+                                        onClick={() => {
+                                            setCardForm({ image: "", title: "", desc: "", offerPrice: "", oldPrice: "" });
+                                            setCardFilePreview(null);
+                                            setShowCardModal(true);
+                                        }}
+                                        className="w-full flex items-center gap-4 p-3.5 rounded-2xl bg-white border border-gray-100 hover:border-orange-500/20 hover:bg-gray-50 transition-all group"
+                                    >
+                                        <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100 group-hover:bg-white transition-colors shrink-0 shadow-sm">
+                                            <Plus className="w-5 h-5 text-gray-400 group-hover:text-orange-500" />
+                                        </div>
+                                        <div className="text-left flex-1">
+                                            <p className="font-bold text-[11px] text-gray-900 uppercase tracking-wide">Custom Product</p>
+                                            <p className="text-[8px] text-gray-400 font-medium tracking-tight">Manually enter offer details</p>
+                                        </div>
+                                        <ChevronRight className="w-3.5 h-3.5 text-gray-100 group-hover:text-gray-300 transition-colors" />
+                                    </button>
+                                </div>
+                            </section>
+
+                            <div className="w-full h-px bg-gray-50" />
+
+                            {/* FUTURE: Active elements/products will list here */}
+                        </TabsContent>
+
+                        <TabsContent value="elements" className="m-0 p-6 space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
                             <section>
                                 <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-1">Typography</h3>
                                 <div className="grid grid-cols-2 gap-3">
@@ -1466,40 +1568,132 @@ export default function PosterDesigner() {
                                 </div>
                             </section>
 
-                            <section>
-                                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-1">Smart Catalog</h3>
-                                <div className="space-y-3">
+                            <section className="pt-6 border-t border-gray-50/50">
+                                <div className="flex items-center justify-between mb-4 px-1">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-1 h-4 bg-orange-200 rounded-full" />
+                                        <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Grid & Guides</h3>
+                                    </div>
                                     <button
-                                        onClick={() => setShowProductModal(true)}
-                                        className="w-full flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 shadow-xl shadow-orange-500/20 hover:scale-[1.02] active:scale-95 transition-all group"
+                                        onClick={() => setShowGrid(!showGrid)}
+                                        className={cn(
+                                            "w-9 h-5 rounded-full transition-all relative flex items-center px-1",
+                                            showGrid ? "bg-orange-500 shadow-md shadow-orange-500/20" : "bg-gray-200"
+                                        )}
                                     >
-                                        <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30">
-                                            <ImageIcon className="w-6 h-6 text-white" />
-                                        </div>
-                                        <div className="text-left">
-                                            <p className="font-black text-xs text-white uppercase tracking-wider">Import Product</p>
-                                            <p className="text-[9px] text-white/70 font-medium tracking-tight">Sync from your shop products</p>
-                                        </div>
-                                        <ChevronRight className="w-4 h-4 text-white/50 ml-auto" />
-                                    </button>
-
-                                    <button
-                                        onClick={() => {
-                                            setCardForm({ image: "", title: "", desc: "", offerPrice: "", oldPrice: "" });
-                                            setCardFilePreview(null);
-                                            setShowCardModal(true);
-                                        }}
-                                        className="w-full flex items-center gap-4 p-4 rounded-2xl bg-white border border-gray-100 hover:border-orange-500/30 hover:bg-orange-50/50 transition-all group"
-                                    >
-                                        <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100 group-hover:bg-white transition-colors">
-                                            <Plus className="w-6 h-6 text-gray-400 group-hover:text-orange-500" />
-                                        </div>
-                                        <div className="text-left">
-                                            <p className="font-bold text-xs text-gray-900 uppercase tracking-wider">Custom Product</p>
-                                            <p className="text-[9px] text-gray-500 font-medium tracking-tight">Manually enter details</p>
-                                        </div>
+                                        <div className={cn("w-3 h-3 bg-white rounded-full transition-all shadow-sm", showGrid ? "translate-x-4" : "translate-x-0")} />
                                     </button>
                                 </div>
+
+                                {showGrid && (
+                                    <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                                        <div className="grid grid-cols-5 gap-2">
+                                            {[2, 3, 4, 5, 6].map(n => (
+                                                <button
+                                                    key={n}
+                                                    onClick={() => { setGridCols(n); setGridRows(n); recordChange(); }}
+                                                    className={cn(
+                                                        "py-2 rounded-xl border text-[10px] font-black transition-all",
+                                                        gridCols === n && gridRows === n ? "border-orange-500 bg-orange-50 text-orange-600" : "border-gray-50 bg-white text-gray-400 hover:border-gray-200"
+                                                    )}
+                                                >
+                                                    {n}x{n}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div className="flex items-center gap-2 p-2 rounded-xl bg-gray-50/50 border border-transparent focus-within:border-orange-100 transition-all">
+                                                <span className="text-[8px] font-black text-gray-300 uppercase w-6">Cols</span>
+                                                <input type="number" value={gridCols} onChange={e => setGridCols(parseInt(e.target.value) || 1)} className="bg-transparent w-full text-[10px] font-bold text-gray-600 outline-none" />
+                                            </div>
+                                            <div className="flex items-center gap-2 p-2 rounded-xl bg-gray-50/50 border border-transparent focus-within:border-orange-100 transition-all">
+                                                <span className="text-[8px] font-black text-gray-300 uppercase w-6">Rows</span>
+                                                <input type="number" value={gridRows} onChange={e => setGridRows(parseInt(e.target.value) || 1)} className="bg-transparent w-full text-[10px] font-bold text-gray-600 outline-none" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </section>
+
+                            <section className="pt-8 mt-4 border-t border-gray-50/50">
+                                <div className="flex items-center justify-between mb-4 px-1">
+                                    <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Selection Tools</h3>
+                                    {selectedId && (
+                                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-orange-50 text-[7px] font-black text-orange-500 uppercase tracking-tighter">Active</div>
+                                    )}
+                                </div>
+
+                                {!selectedId ? (
+                                    <div className="py-12 px-6 rounded-3xl border border-dashed border-gray-100 bg-gray-50/30 flex flex-col items-center justify-center text-center">
+                                        <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center mb-4 text-gray-200">
+                                            <Move className="w-6 h-6" />
+                                        </div>
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-relaxed">
+                                            Select an element<br />to unlock tools
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4 animate-in fade-in zoom-in-95 duration-300">
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <button
+                                                onClick={() => {
+                                                    const maxZ = Math.max(...elements.map(e => e.zIndex), 0);
+                                                    updateEl(selectedId, { zIndex: maxZ + 1 });
+                                                    recordChange();
+                                                }}
+                                                className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border border-gray-50 bg-white hover:border-indigo-500/20 hover:bg-indigo-50/10 transition-all group"
+                                            >
+                                                <AlignStartVertical className="w-4 h-4 text-gray-400 group-hover:text-indigo-500" />
+                                                <span className="text-[8px] font-black text-gray-500 uppercase tracking-tighter">Bring to Front</span>
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    const minZ = Math.min(...elements.map(e => e.zIndex), 0);
+                                                    updateEl(selectedId, { zIndex: minZ - 1 });
+                                                    recordChange();
+                                                }}
+                                                className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border border-gray-50 bg-white hover:border-indigo-500/20 hover:bg-indigo-50/10 transition-all group"
+                                            >
+                                                <AlignEndVertical className="w-4 h-4 text-gray-400 group-hover:text-indigo-500" />
+                                                <span className="text-[8px] font-black text-gray-500 uppercase tracking-tighter">Send to Back</span>
+                                            </button>
+                                        </div>
+
+                                        <div className="space-y-2 pt-2">
+                                            <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest px-1">Style Presets</p>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <button
+                                                    onClick={() => {
+                                                        updateEl(selectedId, { isGlass: true, opacity: 0.3, fill: "#ffffff", borderRadius: "24px" });
+                                                        recordChange();
+                                                    }}
+                                                    className="flex items-center gap-2 p-3 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 hover:scale-[1.02] transition-all"
+                                                >
+                                                    <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                                                    <span className="text-[9px] font-black text-indigo-700 uppercase tracking-tighter">Elite Glass</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        updateEl(selectedId, { isGlass: false, opacity: 1, shadowIntensity: 0 });
+                                                        recordChange();
+                                                    }}
+                                                    className="flex items-center gap-2 p-3 rounded-2xl border border-gray-100 bg-white hover:bg-gray-50 transition-all"
+                                                >
+                                                    <RotateCcw className="w-3.5 h-3.5 text-gray-400" />
+                                                    <span className="text-[9px] font-black text-gray-600 uppercase tracking-tighter">Clear Style</span>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            onClick={() => { deleteSelected(); recordChange(); }}
+                                            className="w-full flex items-center justify-center gap-2 p-3 mt-4 rounded-xl border border-red-50 bg-red-50/20 text-red-500 hover:bg-red-50 transition-all"
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                            <span className="text-[9px] font-black uppercase tracking-widest">Delete Element</span>
+                                        </button>
+                                    </div>
+                                )}
                             </section>
                         </TabsContent>
 
@@ -1660,7 +1854,7 @@ export default function PosterDesigner() {
                 </Tabs>
             </div>
 
-            {/* CATALOG SYNC MODAL */}
+
             <AppModal open={showProductModal} onOpenChange={setShowProductModal} title="Catalog Sync" description="Select a product to generate a designer card instantly.">
                 <div className="space-y-4 py-4">
                     <div className="max-h-[400px] overflow-y-auto pr-2 custom-scrollbar space-y-2">
