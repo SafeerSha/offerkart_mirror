@@ -60,14 +60,14 @@ import { useAllProducts } from "@/hooks/useApi";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type ElType = "text" | "shape" | "product-card";
-type ShapeKind = "rect" | "circle" | "triangle" | "star" | "blob" | "badge" | "burst" | "ribbon" | "pill" | "wave";
+export type ElType = "text" | "shape" | "product-card" | "image";
+export type ShapeKind = "rect" | "circle" | "triangle" | "star" | "blob" | "badge" | "burst" | "ribbon" | "pill" | "wave";
 
 /* ================================================================
    TYPES
    ================================================================ */
 
-interface CanvasElement {
+export interface CanvasElement {
     id: string;
     type: ElType;
     x: number;
@@ -102,11 +102,15 @@ interface CanvasElement {
     cardOfferPrice?: string;
     cardOldPrice?: string;
     cardBg?: string;
-    cardStyle?: "classic" | "badge" | "modern" | "glass" | "split" | "gradient";
+    cardStyle?: "classic" | "badge" | "modern" | "glass" | "split" | "gradient" | "retail";
     badgeText?: string;
     isLayoutUnlocked?: boolean;
     subLayout?: Record<string, { x: number; y: number; w?: number; h?: number }>;
     internalElements?: CanvasElement[];
+    // Template slot marker — true for grid cells generated from a template
+    isTemplateSlot?: boolean;
+    // Image
+    imageSrc?: string;
 }
 
 interface SavedPoster {
@@ -148,7 +152,7 @@ function ShapeSVG({ kind, fill, opacity = 1, isGlass }: { kind: ShapeKind; fill:
     const svgs: Record<ShapeKind, React.ReactNode> = {
         rect: (
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full" style={{ opacity }}>
-                <rect x="0" y="0" width="100" height="100" fill={finalFill} rx="8" />
+                <rect x="0" y="0" width="100" height="100" fill={finalFill} />
             </svg>
         ),
         circle: (
@@ -210,6 +214,7 @@ function ProductCardContent({ el, onUpdate }: { el: CanvasElement; onUpdate: (id
     const isGlass = el.cardStyle === "glass";
     const isSplit = el.cardStyle === "split";
     const isGradient = el.cardStyle === "gradient";
+    const isRetail = el.cardStyle === "retail";
     const isUnlocked = el.isLayoutUnlocked;
 
     const handleSubDrag = (id: string, e: React.MouseEvent) => {
@@ -299,10 +304,11 @@ function ProductCardContent({ el, onUpdate }: { el: CanvasElement; onUpdate: (id
     return (
         <div
             className={cn(
-                "flex w-full h-full rounded-xl overflow-hidden shadow-md group border relative",
+                "flex w-full h-full overflow-hidden shadow-md group border relative",
                 isSplit && !isUnlocked ? "flex-row" : "flex-col",
                 isGlass ? "bg-white/30 backdrop-blur-md border-white/20 shadow-xl" : "border-border/10",
-                isUnlocked ? "bg-white" : ""
+                isRetail ? "border-gray-200 border-dashed" : "",
+                isUnlocked ? "bg-white rounded-xl" : "rounded-none"
             )}
             style={{
                 backgroundColor: isGlass ? undefined : (isGradient && !isUnlocked ? undefined : (el.cardBg || "#ffffff")),
@@ -357,7 +363,7 @@ function ProductCardContent({ el, onUpdate }: { el: CanvasElement; onUpdate: (id
                             (subEl.shapeKind === "circle" ? "circle(50% at 50% 50%)" :
                                 (subEl.shapeKind === "triangle" ? "polygon(50% 0%, 0% 100%, 100% 100%)" :
                                     (subEl.shapeKind === "star" ? "polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)" : "none"))) : "none",
-                        borderRadius: subEl.shapeKind === "rect" ? "4px" : "0",
+                        borderRadius: 0,
                         zIndex: 15
                     }}
                     onMouseDown={(e) => {
@@ -420,42 +426,57 @@ function ProductCardContent({ el, onUpdate }: { el: CanvasElement; onUpdate: (id
                 </div>
 
                 {/* Price Section */}
-                <div
-                    className={cn(
-                        "flex items-center gap-2 mt-auto pt-1",
-                        isModern && !isUnlocked ? "bg-orange-50 -mx-2.5 -mb-2.5 px-2.5 py-1.5 border-t border-orange-100" : "",
-                        isUnlocked ? "border border-dashed border-blue-400 p-1 bg-blue-50/20" : ""
-                    )}
-                    style={getSubStyle("prices")}
-                    onMouseDown={(e) => handleSubDrag("prices", e)}
-                >
-                    {el.cardOldPrice && (
-                        <span className={cn(
-                            "text-xs line-through",
-                            isGradient && !isUnlocked ? "text-white/60" : "text-gray-400"
-                        )} data-editable="oldPrice" suppressContentEditableWarning>
-                            {el.cardOldPrice}
-                        </span>
-                    )}
-                    <span
+                {!isRetail ? (
+                    <div
                         className={cn(
-                            "text-lg font-extrabold",
-                            isModern && !isUnlocked ? "text-orange-600" : (isGradient && !isUnlocked ? "text-yellow-300" : "text-red-500")
+                            "flex items-center gap-2 mt-auto pt-1",
+                            isModern && !isUnlocked ? "bg-orange-50 -mx-2.5 -mb-2.5 px-2.5 py-1.5 border-t border-orange-100" : "",
+                            isUnlocked ? "border border-dashed border-blue-400 p-1 bg-blue-50/20" : ""
                         )}
-                        data-editable="offerPrice"
-                        suppressContentEditableWarning
+                        style={getSubStyle("prices")}
+                        onMouseDown={(e) => handleSubDrag("prices", e)}
                     >
-                        {el.cardOfferPrice || "₹0"}
-                    </span>
-                    {(isModern || isGradient) && !isUnlocked && (
-                        <div className={cn(
-                            "ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded uppercase",
-                            isModern ? "bg-orange-500 text-white" : "bg-white text-orange-600"
-                        )}>
-                            Offer
-                        </div>
-                    )}
-                </div>
+                        {el.cardOldPrice && (
+                            <span className={cn(
+                                "text-xs line-through",
+                                isGradient && !isUnlocked ? "text-white/60" : "text-gray-400"
+                            )} data-editable="oldPrice" suppressContentEditableWarning>
+                                {el.cardOldPrice}
+                            </span>
+                        )}
+                        <span
+                            className={cn(
+                                "text-lg font-extrabold",
+                                isModern && !isUnlocked ? "text-orange-600" : (isGradient && !isUnlocked ? "text-yellow-300" : "text-red-500")
+                            )}
+                            data-editable="offerPrice"
+                            suppressContentEditableWarning
+                        >
+                            {el.cardOfferPrice || "₹0"}
+                        </span>
+                        {(isModern || isGradient) && !isUnlocked && (
+                            <div className={cn(
+                                "ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-none uppercase",
+                                isModern ? "bg-orange-500 text-white" : "bg-white text-orange-600"
+                            )}>
+                                Offer
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <div className="absolute bottom-0 left-0 right-0 bg-white p-1">
+                         <div className="flex items-center gap-1">
+                            <div className="bg-red-600 text-white px-2 py-1 flex flex-col items-center justify-center min-w-[50px] rounded-none shadow-sm">
+                                <span className="text-[7px] font-bold leading-none opacity-80">QAR</span>
+                                <span className="text-sm font-black leading-none">{el.cardOfferPrice}</span>
+                            </div>
+                            <div className="flex flex-col min-w-0">
+                                {el.cardOldPrice && <span className="text-[8px] text-gray-400 line-through leading-none">{el.cardOldPrice}</span>}
+                                <span className="text-[10px] font-bold text-gray-900 truncate leading-tight uppercase">{el.cardTitle}</span>
+                            </div>
+                         </div>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -494,12 +515,27 @@ const handlePositionClasses: Record<HandlePos, string> = {
    MAIN COMPONENT
    ================================================================ */
 
-export default function PosterDesigner() {
+import { TemplateConfig } from '@/lib/posterTemplates';
+
+export default function PosterDesigner({ 
+    initialElements = [], 
+    initialBg = "#ffffff",
+    templateConfig,
+    onBack
+}: { 
+    initialElements?: CanvasElement[], 
+    initialBg?: string,
+    templateConfig?: TemplateConfig,
+    onBack?: () => void
+}) {
     /* ---------- STATE ---------- */
-    const [elements, setElements] = useState<CanvasElement[]>([]);
+    const [elements, setElements] = useState<CanvasElement[]>(initialElements);
     const [selectedId, setSelectedId] = useState<string | null>(null);
-    const [canvasBg, setCanvasBg] = useState("#ffffff");
-    const [nextZ, setNextZ] = useState(1);
+    const [canvasBg, setCanvasBg] = useState(initialBg);
+    const [nextZ, setNextZ] = useState(() => {
+        const maxZ = initialElements.reduce((max, el) => Math.max(max, el.zIndex || 0), 0);
+        return maxZ + 1;
+    });
     const canvasRef = useRef<HTMLDivElement>(null);
     const [showGrid, setShowGrid] = useState(false);
     const [gridCols, setGridCols] = useState(3);
@@ -604,6 +640,18 @@ export default function PosterDesigner() {
     const [cardForm, setCardForm] = useState({ image: "", title: "", desc: "", offerPrice: "", oldPrice: "" });
     const [cardFilePreview, setCardFilePreview] = useState<string | null>(null);
     const [showResetConfirm, setShowResetConfirm] = useState(false);
+    const imageInputRef = useRef<HTMLInputElement>(null);
+
+    // Placeholder slot popup — tracks which slot was clicked
+    const [placeholderPopupId, setPlaceholderPopupId] = useState<string | null>(null);
+    const [targetPlaceholderId, setTargetPlaceholderId] = useState<string | null>(null);
+
+    // Drag-to-slot: which placeholder is currently hovered by a dragged product-card
+    const [dragOverPlaceholderId, setDragOverPlaceholderId] = useState<string | null>(null);
+
+    // Keep a ref so drag callbacks always see fresh elements (avoid stale closure)
+    const elementsRef = useRef<CanvasElement[]>(elements);
+    useEffect(() => { elementsRef.current = elements; }, [elements]);
 
     // Drag state
     const dragRef = useRef<{
@@ -706,30 +754,81 @@ export default function PosterDesigner() {
         setSelectedId(el.id);
     };
 
-    const addProductCard = () => {
+    const addImageElement = (src: string) => {
         const z = bumpZ();
         const el: CanvasElement = {
             id: genId(),
-            type: "product-card",
-            x: 280,
-            y: 400,
-            w: 220,
-            h: 280,
+            type: "image",
+            x: 200,
+            y: 300,
+            w: 200,
+            h: 200,
             zIndex: z,
-            cardImage: cardFilePreview || "",
-            cardTitle: cardForm.title || "Product",
-            cardDesc: cardForm.desc,
-            cardOfferPrice: cardForm.offerPrice || "₹0",
-            cardOldPrice: cardForm.oldPrice,
-            cardBg: "#ffffff",
-            cardStyle: "classic",
-            badgeText: "-50%",
+            imageSrc: src,
+            opacity: 1,
         };
         setElements((prev) => [...prev, el]);
+        setSelectedId(el.id);
+    };
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                if (event.target?.result) {
+                    addImageElement(event.target.result as string);
+                    recordChange();
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    // Determine if a product-card element is an unfilled placeholder slot
+    const isPlaceholderCard = (el: CanvasElement) =>
+        el.type === "product-card" && (el.cardTitle === "Product Name" || el.cardTitle === "Product") && !el.cardImage;
+
+    const addProductCard = (
+        replaceId?: string,
+        directData?: { image: string; title: string; desc: string; offerPrice: string; oldPrice: string }
+    ) => {
+        const z = bumpZ();
+        const targetEl = replaceId ? elements.find(e => e.id === replaceId) : null;
+        // directData takes priority over state — needed because setState is async
+        const image   = directData?.image      ?? cardFilePreview ?? "";
+        const title   = directData?.title      ?? cardForm.title  ?? "";
+        const desc    = directData?.desc       ?? cardForm.desc   ?? "";
+        const offerPr = directData?.offerPrice ?? cardForm.offerPrice ?? "";
+        const oldPr   = directData?.oldPrice   ?? cardForm.oldPrice   ?? "";
+        const el: CanvasElement = {
+            id: replaceId ?? genId(),
+            type: "product-card",
+            x: targetEl?.x ?? 280,
+            y: targetEl?.y ?? 400,
+            w: targetEl?.w ?? 220,
+            h: targetEl?.h ?? 280,
+            zIndex: targetEl?.zIndex ?? z,
+            cardImage: image,
+            cardTitle: title || "Product",
+            cardDesc: desc,
+            cardOfferPrice: offerPr || "₹0",
+            cardOldPrice: oldPr,
+            cardBg: "#ffffff",
+            cardStyle: "retail",
+            badgeText: "-50%",
+        };
+        if (replaceId) {
+            setElements(prev => prev.map(e => e.id === replaceId ? el : e));
+        } else {
+            setElements(prev => [...prev, el]);
+        }
         setSelectedId(el.id);
         setShowCardModal(false);
         setCardForm({ image: "", title: "", desc: "", offerPrice: "", oldPrice: "" });
         setCardFilePreview(null);
+        setTargetPlaceholderId(null);
+        setPlaceholderPopupId(null);
     };
 
     const savePoster = () => {
@@ -835,12 +934,67 @@ export default function PosterDesigner() {
     const startDrag = (e: React.MouseEvent, elId: string) => {
         e.preventDefault();
         e.stopPropagation();
-        const el = elements.find((e) => e.id === elId);
+        const el = elementsRef.current.find((e) => e.id === elId);
         if (!el) return;
 
-        // Bring to top
-        const z = bumpZ();
-        updateEl(elId, { zIndex: z });
+        // Always compute z from the live ref so we're above freshly rebuilt grid slots
+        const topZ = Math.max(...elementsRef.current.map(e => e.zIndex), 0) + 1;
+
+        // ── Filled template slot drag: extract product as floating card ──
+        // The slot resets to empty in-place; a new free card is dragged.
+        if (el.type === 'product-card' && el.isTemplateSlot && !isPlaceholderCard(el)) {
+            const newId = genId();
+            const floatingCard: CanvasElement = {
+                id: newId,
+                type: 'product-card',
+                x: el.x,
+                y: el.y,
+                w: el.w,
+                h: el.h,
+                zIndex: topZ,   // guaranteed above all slots
+                cardImage:      el.cardImage,
+                cardTitle:      el.cardTitle,
+                cardDesc:       el.cardDesc,
+                cardOfferPrice: el.cardOfferPrice,
+                cardOldPrice:   el.cardOldPrice,
+                cardBg:         el.cardBg,
+                cardStyle:      el.cardStyle ?? 'retail',
+                badgeText:      el.badgeText,
+                // No isTemplateSlot — this is a free card
+            };
+
+            // Reset source slot to empty + create floating card in one atomic update
+            const nextElements = elementsRef.current.map(e => e.id === elId ? {
+                ...e,
+                cardImage:      '',
+                cardTitle:      'Product Name',
+                cardDesc:       'Description',
+                cardOfferPrice: '₹00',
+                cardOldPrice:   '₹00',
+            } : e).concat(floatingCard);
+
+            setElements(nextElements);
+            // Sync ref immediately so onGlobalMouseMove sees the new card on the first event
+            elementsRef.current = nextElements;
+
+            setSelectedId(newId);
+            dragRef.current = {
+                elId: newId,
+                startMouseX: e.clientX,
+                startMouseY: e.clientY,
+                startElX: el.x,
+                startElY: el.y,
+            };
+            return;
+        }
+
+        // ── Normal element drag ──
+        // Update the element's z-index using the live ref value, sync ref immediately
+        const nextElements = elementsRef.current.map(e =>
+            e.id === elId ? { ...e, zIndex: topZ } : e
+        );
+        setElements(nextElements);
+        elementsRef.current = nextElements;   // sync ref so first mousemove event sees it
         setSelectedId(elId);
 
         dragRef.current = {
@@ -857,7 +1011,7 @@ export default function PosterDesigner() {
             // Handle drag
             if (dragRef.current) {
                 const { elId, startMouseX, startMouseY, startElX, startElY } = dragRef.current;
-                const el = elements.find((e) => e.id === elId);
+                const el = elementsRef.current.find((e) => e.id === elId);
                 if (!el) return;
 
                 let newX = startElX + (e.clientX - startMouseX);
@@ -939,6 +1093,29 @@ export default function PosterDesigner() {
                 newX = Math.max(0, Math.min(canvasSize.w - elW, newX));
                 newY = Math.max(0, Math.min(canvasSize.h - elH, newY));
                 updateEl(elId, { x: newX, y: newY });
+
+                // ── Drag-to-slot detection ──────────────────────────────────
+                // Only relevant when dragging a filled (non-placeholder) product-card
+                const liveEls = elementsRef.current;
+                const dragged = liveEls.find(e => e.id === elId);
+                if (dragged?.type === 'product-card' && !isPlaceholderCard(dragged)) {
+                    const dragCX = newX + elW / 2;
+                    const dragCY = newY + elH / 2;
+                    let hit: string | null = null;
+                    for (const other of liveEls) {
+                        if (other.id === elId || !isPlaceholderCard(other)) continue;
+                        const otherNode = document.getElementById(`canvas-el-${other.id}`);
+                        const oW = otherNode?.offsetWidth  || other.w || 100;
+                        const oH = otherNode?.offsetHeight || other.h || 100;
+                        if (
+                            dragCX >= other.x && dragCX <= other.x + oW &&
+                            dragCY >= other.y && dragCY <= other.y + oH
+                        ) { hit = other.id; break; }
+                    }
+                    setDragOverPlaceholderId(hit);
+                } else {
+                    setDragOverPlaceholderId(null);
+                }
             }
 
             // Handle resize
@@ -979,10 +1156,85 @@ export default function PosterDesigner() {
     );
 
     const onGlobalMouseUp = useCallback(() => {
+        // ── Drag-to-slot: merge on drop ──────────────────────────────────
+        if (dragRef.current) {
+            const { elId } = dragRef.current;
+            const liveEls = elementsRef.current;
+            const dragged = liveEls.find(e => e.id === elId);
+
+            // Check current hover state synchronously via a DOM lookup
+            const placeholderNode = document.querySelector('[data-drop-target="true"]') as HTMLElement | null;
+            const placeholderId = placeholderNode?.dataset.placeholderId ?? null;
+
+            // Use the state-tracked dragOverPlaceholderId
+            // We can read it directly since this is inside the same closure scope
+            if (dragged?.type === 'product-card' && !isPlaceholderCard(dragged)) {
+                // Find the current dragOverPlaceholder via elementsRef + DOM overlap
+                const draggedNode = document.getElementById(`canvas-el-${elId}`);
+                if (draggedNode) {
+                    const dRect = draggedNode.getBoundingClientRect();
+                    const dragCX = dRect.left + dRect.width / 2;
+                    const dragCY = dRect.top  + dRect.height / 2;
+                    let hitPlaceholder: CanvasElement | null = null;
+                    for (const other of liveEls) {
+                        if (other.id === elId || !isPlaceholderCard(other)) continue;
+                        const oNode = document.getElementById(`canvas-el-${other.id}`);
+                        if (!oNode) continue;
+                        const oRect = oNode.getBoundingClientRect();
+                        if (
+                            dragCX >= oRect.left && dragCX <= oRect.right &&
+                            dragCY >= oRect.top  && dragCY <= oRect.bottom
+                        ) { hitPlaceholder = other; break; }
+                    }
+
+                    if (hitPlaceholder) {
+                        const productData = {
+                            cardImage:      dragged.cardImage,
+                            cardTitle:      dragged.cardTitle,
+                            cardDesc:       dragged.cardDesc,
+                            cardOfferPrice: dragged.cardOfferPrice,
+                            cardOldPrice:   dragged.cardOldPrice,
+                            cardStyle:      dragged.cardStyle ?? 'retail',
+                            badgeText:      dragged.badgeText,
+                        };
+                        setElements(prev => prev
+                            // If source was a template slot → reset it to empty placeholder
+                            // If source was a free-floating card → remove it
+                            .filter(e => dragged.isTemplateSlot ? true : e.id !== elId)
+                            .map(e => {
+                                if (e.id === elId && dragged.isTemplateSlot) {
+                                    // Reset source slot back to empty placeholder
+                                    return {
+                                        ...e,
+                                        cardImage: '',
+                                        cardTitle: 'Product Name',
+                                        cardDesc: 'Description',
+                                        cardOfferPrice: '₹00',
+                                        cardOldPrice: '₹00',
+                                    };
+                                }
+                                if (e.id === hitPlaceholder!.id) {
+                                    // Fill target placeholder with product data
+                                    return { ...e, ...productData };
+                                }
+                                return e;
+                            })
+                        );
+                        setSelectedId(hitPlaceholder.id);
+                        setDragOverPlaceholderId(null);
+                        dragRef.current = null;
+                        resizeRef.current = null;
+                        setGuides([]);
+                        return;
+                    }
+                }
+            }
+        }
         dragRef.current = null;
         resizeRef.current = null;
         setGuides([]);
-    }, []);
+        setDragOverPlaceholderId(null);
+    }, [isPlaceholderCard]);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -1135,6 +1387,7 @@ export default function PosterDesigner() {
     const handleCanvasClick = (e: React.MouseEvent) => {
         if (e.target === canvasRef.current) {
             setSelectedId(null);
+            setPlaceholderPopupId(null);
         }
     };
 
@@ -1145,6 +1398,18 @@ export default function PosterDesigner() {
         <div className="flex h-[calc(100vh-100px)] w-full overflow-hidden rounded-2xl bg-white border border-gray-200 shadow-2xl font-inter">
             {/* TOOLBAR (Top) */}
             <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-6 py-2.5 rounded-2xl bg-white/80 backdrop-blur-xl border border-gray-100 shadow-2xl z-50 transition-all hover:bg-white">
+                {onBack && (
+                    <>
+                        <button 
+                            onClick={onBack} 
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-orange-50 text-orange-600 hover:bg-orange-100 transition-all border border-orange-200/50 mr-1"
+                        >
+                            <ChevronRight className="w-3.5 h-3.5 rotate-180" />
+                            <span className="text-[10px] font-black uppercase tracking-tighter">Templates</span>
+                        </button>
+                        <div className="w-px h-4 bg-gray-200 mx-1" />
+                    </>
+                )}
                 <button onClick={undo} disabled={historyIndex <= 0} className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 disabled:opacity-30 transition-all"><Undo2 className="w-4 h-4" /></button>
                 <button onClick={redo} disabled={historyIndex >= history.length - 1} className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 disabled:opacity-30 transition-all"><Redo2 className="w-4 h-4" /></button>
                 <div className="w-px h-4 bg-gray-200 mx-1" />
@@ -1207,6 +1472,7 @@ export default function PosterDesigner() {
                 >
                     {selectedEl && (
                         <div className="p-6 space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
+
                             <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center gap-2">
                                     <div className="w-1.5 h-6 bg-orange-500 rounded-full" />
@@ -1254,6 +1520,15 @@ export default function PosterDesigner() {
                                             </div>
                                         </div>
                                     </>
+                                )}
+
+                                {selectedEl.type === "image" && (
+                                    <div className="space-y-1.5">
+                                        <p className="text-[9px] font-bold text-gray-400 uppercase mb-2 ml-1">Image Settings</p>
+                                        <div className="p-4 rounded-2xl border border-gray-100 bg-gray-50/30 flex items-center justify-center overflow-hidden h-32">
+                                            <img src={selectedEl.imageSrc} alt="Preview" className="max-w-full max-h-full object-contain" />
+                                        </div>
+                                    </div>
                                 )}
 
                                 {selectedEl.type !== "product-card" && (
@@ -1348,7 +1623,7 @@ export default function PosterDesigner() {
                     )}
                 </div>
                 {/* CANVAS WORKSPACE */}
-                <div className="flex-1 overflow-auto custom-scrollbar flex items-center justify-center p-20" onMouseDown={handleCanvasClick}>
+                <div className="flex-1 overflow-auto custom-scrollbar flex items-start justify-center py-8 px-20" onMouseDown={handleCanvasClick}>
                     <div
                         style={{
                             transform: `scale(${zoom})`,
@@ -1360,7 +1635,7 @@ export default function PosterDesigner() {
                         <div
                             id="poster-canvas"
                             ref={canvasRef}
-                            className="relative shadow-[0_40px_120px_-20px_rgba(0,0,0,0.3)] group/canvas"
+                            className="relative shadow-[0_40px_120px_-20px_rgba(0,0,0,0.3)] group/canvas overflow-hidden"
                             style={{
                                 width: canvasSize.w,
                                 height: canvasSize.h,
@@ -1409,9 +1684,14 @@ export default function PosterDesigner() {
                                             cursor: selectedId === el.id ? "grab" : "pointer",
                                             borderWidth: el.isGlass ? "1px" : "2px",
                                             borderStyle: "solid",
-                                            borderColor: selectedId === el.id ? "#f97316" : (el.isGlass ? "rgba(255, 255, 255, 0.4)" : "transparent"),
-                                            boxShadow: el.shadow || (selectedId === el.id ? "0 0 0 4px rgba(249, 115, 22, 0.1)" : (el.isGlass ? "0 8px 32px 0 rgba(31, 38, 135, 0.15)" : "none")),
-                                            borderRadius: el.type === "shape" && el.shapeKind === "circle" ? "50%" : (el.isGlass ? "24px" : "4px"),
+                                            borderColor:
+                                                dragOverPlaceholderId === el.id ? "#22c55e" :
+                                                selectedId === el.id ? "#f97316" :
+                                                (el.isGlass ? "rgba(255, 255, 255, 0.4)" : "transparent"),
+                                            boxShadow:
+                                                dragOverPlaceholderId === el.id ? "0 0 0 5px rgba(34,197,94,0.25), 0 0 20px rgba(34,197,94,0.2)" :
+                                                el.shadow || (selectedId === el.id ? "0 0 0 4px rgba(249, 115, 22, 0.1)" : (el.isGlass ? "0 8px 32px 0 rgba(31, 38, 135, 0.15)" : "none")),
+                                            borderRadius: el.type === "shape" && el.shapeKind === "circle" ? "50%" : 0,
                                             clipPath: el.isGlass && el.type === "shape" ? getShapeClipPath(el.shapeKind!) : undefined,
                                             backdropFilter: el.isGlass ? "blur(20px) saturate(180%)" : "none",
                                             background: el.isGlass
@@ -1422,8 +1702,17 @@ export default function PosterDesigner() {
                                                 ? "drop-shadow(0 0 1px rgba(255,255,255,0.4))"
                                                 : "none",
                                         }}
-                                        onClick={(e) => { e.stopPropagation(); setSelectedId(el.id); }}
-                                        onMouseDown={(e) => !el.isLocked && startDrag(e, el.id)}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (isPlaceholderCard(el)) {
+                                                // Placeholder: open the choice popup, don't select
+                                                setPlaceholderPopupId(prev => prev === el.id ? null : el.id);
+                                                setSelectedId(null);
+                                            } else {
+                                                setSelectedId(el.id);
+                                            }
+                                        }}
+                                        onMouseDown={(e) => !el.isLocked && !isPlaceholderCard(el) && startDrag(e, el.id)}
                                     >
                                         {el.type === "text" && (
                                             <div
@@ -1444,7 +1733,95 @@ export default function PosterDesigner() {
                                             </div>
                                         )}
                                         {el.type === "shape" && <ShapeSVG kind={el.shapeKind!} fill={el.fill!} opacity={el.opacity} isGlass={el.isGlass} />}
-                                        {el.type === "product-card" && <ProductCardContent el={el} onUpdate={updateEl} />}
+                                        {el.type === "product-card" && (
+                                            isPlaceholderCard(el) ? (
+                                                /* ── PLACEHOLDER SLOT ── */
+                                                <div
+                                                    className="w-full h-full flex flex-col items-center justify-center gap-2 cursor-pointer select-none"
+                                                    style={{ background: el.cardBg || '#f8fafc', borderRadius: 0 }}
+                                                >
+                                                    {/* Drop zone overlay (shown when a card is dragged over) */}
+                                                    {dragOverPlaceholderId === el.id && (
+                                                        <div className="absolute inset-0 rounded-lg bg-green-500/10 flex flex-col items-center justify-center gap-2 pointer-events-none animate-pulse z-10">
+                                                            <div className="w-10 h-10 rounded-full bg-green-500/20 border-2 border-green-500 flex items-center justify-center">
+                                                                <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                                </svg>
+                                                            </div>
+                                                            <span className="text-[9px] font-black text-green-600 uppercase tracking-widest">Drop Here</span>
+                                                        </div>
+                                                    )}
+                                                    <div className={cn("w-10 h-10 rounded-full bg-white border-2 border-dashed flex items-center justify-center shadow-sm transition-all", dragOverPlaceholderId === el.id ? "border-green-400 opacity-0" : "border-gray-300 hover:border-orange-400 hover:shadow-orange-100")}>
+                                                        <Plus className="w-5 h-5 text-gray-400 hover:text-orange-500 transition-colors" />
+                                                    </div>
+                                                    <span className={cn("text-[9px] font-bold uppercase tracking-widest", dragOverPlaceholderId === el.id ? "opacity-0" : "text-gray-400")}>Add Product</span>
+
+                                                    {/* Slot Choice Popup */}
+                                                    {placeholderPopupId === el.id && (
+                                                        <div
+                                                            className="absolute z-[9999] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-52 bg-white rounded-2xl shadow-2xl border border-gray-100 p-3 space-y-2 animate-in fade-in zoom-in-95 duration-200"
+                                                            onClick={e => e.stopPropagation()}
+                                                        >
+                                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-center pb-1">Choose Item Type</p>
+                                                            <button
+                                                                className="w-full flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/20 hover:border-orange-500/40 transition-all group"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setTargetPlaceholderId(el.id);
+                                                                    setPlaceholderPopupId(null);
+                                                                    setShowProductModal(true);
+                                                                }}
+                                                            >
+                                                                <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center shrink-0">
+                                                                    <ShoppingBag className="w-4 h-4 text-white" />
+                                                                </div>
+                                                                <div className="text-left">
+                                                                    <p className="font-black text-[10px] text-gray-800 uppercase tracking-wide">Import Product</p>
+                                                                    <p className="text-[8px] text-gray-400">From your inventory</p>
+                                                                </div>
+                                                            </button>
+                                                            <button
+                                                                className="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-orange-500/20 hover:bg-gray-50 transition-all group"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setTargetPlaceholderId(el.id);
+                                                                    setCardForm({ image: '', title: '', desc: '', offerPrice: '', oldPrice: '' });
+                                                                    setCardFilePreview(null);
+                                                                    setPlaceholderPopupId(null);
+                                                                    setShowCardModal(true);
+                                                                }}
+                                                            >
+                                                                <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+                                                                    <Plus className="w-4 h-4 text-gray-500" />
+                                                                </div>
+                                                                <div className="text-left">
+                                                                    <p className="font-bold text-[10px] text-gray-900 uppercase tracking-wide">Custom Product</p>
+                                                                    <p className="text-[8px] text-gray-400">Enter details manually</p>
+                                                                </div>
+                                                            </button>
+                                                            <button
+                                                                className="w-full mt-1 text-[9px] text-gray-300 hover:text-gray-500 font-semibold uppercase tracking-widest py-1 transition-colors"
+                                                                onClick={(e) => { e.stopPropagation(); setPlaceholderPopupId(null); }}
+                                                            >
+                                                                Cancel
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <ProductCardContent el={el} onUpdate={updateEl} />
+                                            )
+                                        )}
+                                        {el.type === "image" && el.imageSrc && (
+                                            <div className="w-full h-full overflow-hidden flex items-center justify-center">
+                                                <img 
+                                                    src={el.imageSrc} 
+                                                    alt="Uploaded" 
+                                                    className="w-full h-full object-contain pointer-events-none"
+                                                    style={{ opacity: el.opacity ?? 1 }}
+                                                />
+                                            </div>
+                                        )}
 
                                         {/* Selection UI */}
                                         {selectedId === el.id && !el.isLocked && (
@@ -1525,6 +1902,131 @@ export default function PosterDesigner() {
                                 </div>
                             </section>
 
+                            {/* ── Product Grid Layout ── */}
+                            {templateConfig && templateConfig.id !== 'blank' && (() => {
+                                const { itemGrid, header, footer } = templateConfig;
+
+                                const GRID_PRESETS = [
+                                    { label: '1×1', cols: 1, rows: 1 },
+                                    { label: '2×1', cols: 2, rows: 1 },
+                                    { label: '2×2', cols: 2, rows: 2 },
+                                    { label: '3×2', cols: 3, rows: 2 },
+                                    { label: '3×3', cols: 3, rows: 3 },
+                                    { label: '4×3', cols: 4, rows: 3 },
+                                    { label: '4×4', cols: 4, rows: 4 },
+                                    { label: '2×4', cols: 2, rows: 4 },
+                                ];
+
+                                const currentSlots = elements.filter(e => e.isTemplateSlot);
+
+                                const rebuildGrid = (newCols: number, newRows: number) => {
+                                    const CANVAS_W = 794;
+                                    const CANVAS_H = 1123;
+                                    const gridTopPx    = header.height + itemGrid.padding.top;
+                                    const gridBottomPx = CANVAS_H - footer.height - itemGrid.padding.bottom;
+                                    const gridLeftPx   = itemGrid.padding.left;
+                                    const gridRightPx  = CANVAS_W - itemGrid.padding.right;
+                                    const gridWidth    = gridRightPx - gridLeftPx;
+                                    const gridHeight   = gridBottomPx - gridTopPx;
+                                    const gap          = itemGrid.gap;
+                                    const cellW = (gridWidth  - (newCols - 1) * gap) / newCols;
+                                    const cellH = (gridHeight - (newRows - 1) * gap) / newRows;
+
+                                    const filledData = elements
+                                        .filter(e => e.isTemplateSlot && !isPlaceholderCard(e))
+                                        .sort((a, b) => a.y !== b.y ? a.y - b.y : a.x - b.x)
+                                        .map(e => ({
+                                            cardImage:      e.cardImage,
+                                            cardTitle:      e.cardTitle,
+                                            cardDesc:       e.cardDesc,
+                                            cardOfferPrice: e.cardOfferPrice,
+                                            cardOldPrice:   e.cardOldPrice,
+                                            cardStyle:      e.cardStyle,
+                                            badgeText:      e.badgeText,
+                                        }));
+
+                                    const maxZ = Math.max(...elements.map(e => e.zIndex), 0);
+                                    let zCounter = maxZ + 1;
+                                    const newSlots: CanvasElement[] = [];
+                                    for (let row = 0; row < newRows; row++) {
+                                        for (let col = 0; col < newCols; col++) {
+                                            const idx = row * newCols + col;
+                                            const filled = filledData[idx];
+                                            newSlots.push({
+                                                id: `item-${row}-${col}-bg`,
+                                                type: 'product-card',
+                                                x: gridLeftPx + col * (cellW + gap),
+                                                y: gridTopPx  + row * (cellH + gap),
+                                                w: cellW,
+                                                h: cellH,
+                                                zIndex: zCounter++,
+                                                cardBg: itemGrid.cellBackground,
+                                                cardStyle: filled?.cardStyle ?? 'retail',
+                                                cardTitle:      filled?.cardTitle      ?? 'Product Name',
+                                                cardDesc:       filled?.cardDesc       ?? 'Description',
+                                                cardOfferPrice: filled?.cardOfferPrice ?? '₹00',
+                                                cardOldPrice:   filled?.cardOldPrice   ?? '₹00',
+                                                cardImage:      filled?.cardImage      ?? '',
+                                                badgeText:      filled?.badgeText      ?? '-50%',
+                                                isTemplateSlot: true,
+                                            } as CanvasElement);
+                                        }
+                                    }
+
+                                    const topSlotZ = Math.max(...newSlots.map(s => s.zIndex), 0);
+
+                                    setElements(prev => {
+                                        const nonSlots = prev.filter(e => !e.isTemplateSlot);
+                                        // Bump any floating product-card above the highest new slot
+                                        let floatZ = topSlotZ + 1;
+                                        const bumpedNonSlots = nonSlots.map(e =>
+                                            (e.type === 'product-card' && !e.isTemplateSlot)
+                                                ? { ...e, zIndex: floatZ++ }
+                                                : e
+                                        );
+                                        return [...bumpedNonSlots, ...newSlots];
+                                    });
+                                    setSelectedId(null);
+                                    recordChange();
+                                };
+
+                                return (
+                                    <section>
+                                        <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 px-1">Product Grid Layout</h3>
+                                        <div className="grid grid-cols-4 gap-2">
+                                            {GRID_PRESETS.map(preset => {
+                                                const isActive = currentSlots.length === preset.cols * preset.rows;
+                                                return (
+                                                    <button
+                                                        key={preset.label}
+                                                        onClick={() => rebuildGrid(preset.cols, preset.rows)}
+                                                        className={cn(
+                                                            'flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl border transition-all group',
+                                                            isActive
+                                                                ? 'border-orange-500 bg-orange-50/50 shadow-lg shadow-orange-500/10'
+                                                                : 'border-gray-100 bg-white hover:border-orange-200'
+                                                        )}
+                                                    >
+                                                        <div
+                                                            className="grid gap-[2px]"
+                                                            style={{ gridTemplateColumns: `repeat(${Math.min(preset.cols, 4)}, 1fr)`, width: 28, height: 20 }}
+                                                        >
+                                                            {Array.from({ length: Math.min(preset.cols * preset.rows, 16) }).map((_, i) => (
+                                                                <div key={i} className={cn('rounded-[1px]', isActive ? 'bg-orange-400' : 'bg-gray-200 group-hover:bg-orange-200')} />
+                                                            ))}
+                                                        </div>
+                                                        <span className={cn('text-[8px] font-black uppercase tracking-tight', isActive ? 'text-orange-600' : 'text-gray-500')}>
+                                                            {preset.label}
+                                                        </span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                        <p className="text-[8px] text-gray-300 font-medium mt-2 px-1">Filled products carry over in order</p>
+                                    </section>
+                                );
+                            })()}
+
                             <div className="w-full h-px bg-gray-50" />
 
                             {/* FUTURE: Active elements/products will list here */}
@@ -1565,6 +2067,32 @@ export default function PosterDesigner() {
                                             <span className="text-[8px] font-bold text-gray-500 uppercase tracking-tighter group-hover:text-orange-600">{s.label}</span>
                                         </button>
                                     ))}
+                                </div>
+                            </section>
+
+                            <section>
+                                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-1">Media</h3>
+                                <div className="space-y-3">
+                                    <input 
+                                        type="file" 
+                                        ref={imageInputRef} 
+                                        className="hidden" 
+                                        accept="image/*" 
+                                        onChange={handleImageUpload} 
+                                    />
+                                    <button 
+                                        onClick={() => imageInputRef.current?.click()}
+                                        className="w-full flex items-center gap-4 p-3.5 rounded-2xl bg-white border border-gray-100 hover:border-orange-500/20 hover:bg-gray-50 transition-all group"
+                                    >
+                                        <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100 group-hover:bg-white transition-colors shrink-0 shadow-sm">
+                                            <ImageIcon className="w-5 h-5 text-gray-400 group-hover:text-orange-500" />
+                                        </div>
+                                        <div className="text-left flex-1">
+                                            <p className="font-bold text-[11px] text-gray-900 uppercase tracking-wide">Upload Image</p>
+                                            <p className="text-[8px] text-gray-400 font-medium tracking-tight">Add logos or custom graphics</p>
+                                        </div>
+                                        <Plus className="w-3.5 h-3.5 text-gray-300 group-hover:text-orange-500 transition-colors" />
+                                    </button>
                                 </div>
                             </section>
 
@@ -1664,7 +2192,7 @@ export default function PosterDesigner() {
                                             <div className="grid grid-cols-2 gap-2">
                                                 <button
                                                     onClick={() => {
-                                                        updateEl(selectedId, { isGlass: true, opacity: 0.3, fill: "#ffffff", borderRadius: "24px" });
+                                                        updateEl(selectedId, { isGlass: true, opacity: 0.3, fill: "#ffffff", borderRadius: 0 });
                                                         recordChange();
                                                     }}
                                                     className="flex items-center gap-2 p-3 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 hover:scale-[1.02] transition-all"
@@ -1698,6 +2226,7 @@ export default function PosterDesigner() {
                         </TabsContent>
 
                         <TabsContent value="design" className="m-0 p-6 space-y-8">
+
                             <section>
                                 <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 px-1">Canvas Presets</h3>
                                 <div className="grid grid-cols-4 gap-2">
@@ -1863,12 +2392,17 @@ export default function PosterDesigner() {
                                 key={p.id}
                                 className="flex items-center gap-4 p-4 rounded-2xl border border-gray-50 bg-gray-50/20 hover:border-orange-500/30 hover:bg-orange-50/50 cursor-pointer transition-all active:scale-95 group"
                                 onClick={() => {
-                                    setCardForm({ image: p.image || "", title: p.name, desc: p.description || "", offerPrice: `₹${p.price}`, oldPrice: p.originalPrice ? `₹${p.originalPrice}` : "" });
-                                    setCardFilePreview(p.image || "");
-                                    addProductCard();
+                                    // Pass data directly — avoid async setState timing bug
+                                    addProductCard(targetPlaceholderId ?? undefined, {
+                                        image: p.image || '',
+                                        title: p.name,
+                                        desc: p.description || '',
+                                        offerPrice: `₹${p.price}`,
+                                        oldPrice: p.originalPrice ? `₹${p.originalPrice}` : '',
+                                    });
                                     setShowProductModal(false);
                                     recordChange();
-                                    toast.success("Product imported!");
+                                    toast.success('Product imported!');
                                 }}
                             >
                                 <div className="w-12 h-12 rounded-xl bg-white border border-gray-100 overflow-hidden shadow-sm shrink-0">
@@ -1958,7 +2492,7 @@ export default function PosterDesigner() {
                         </div>
 
                         <PremiumButton
-                            onClick={addProductCard}
+                            onClick={() => addProductCard(targetPlaceholderId ?? undefined)}
                             className="w-full py-6 rounded-2xl bg-gradient-to-r from-orange-500 to-red-600 shadow-xl shadow-orange-500/20 active:scale-95 transition-all text-sm font-black uppercase tracking-widest"
                         >
                             Create Product Card

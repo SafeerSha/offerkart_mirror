@@ -1060,11 +1060,18 @@ function HotspotEditorContent() {
                 </div>
             </main>
 
-            {/* --- Edit Modal --- */}
+            {/* --- Edit Side Panel --- */}
             {showModal && currentMarkedItem && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex justify-center items-center z-[100] p-4 md:p-8">
-                    <PremiumCard className="w-full max-w-2xl lg:max-w-3xl p-0 overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col bg-white max-h-[85vh] md:max-h-[90vh]">
-                        <form onSubmit={handleSaveForm} className="flex flex-col flex-1 overflow-hidden">
+                <div className="fixed inset-0 z-[100] overflow-hidden">
+                    {/* Backdrop */}
+                    <div 
+                        className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300"
+                        onClick={() => { setShowModal(false); setHighlightedId(null); }}
+                    />
+                    
+                    {/* Slide-out Panel */}
+                    <div className="fixed inset-y-0 right-0 w-full max-w-md md:max-w-xl bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-300 h-[100dvh]">
+                        <form onSubmit={handleSaveForm} className="flex flex-col h-full overflow-hidden">
                             <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-white shrink-0">
                                 <div className="flex items-center gap-3">
                                     <div className="p-2 bg-orange-50 rounded-lg">
@@ -1218,10 +1225,9 @@ function HotspotEditorContent() {
                                                                         onClick={() => {
                                                                             setFormData(p => ({
                                                                                 ...p,
-                                                                                subcategories: isSelected
-                                                                                    ? p.subcategories.filter(s => s !== sub)
-                                                                                    : [...p.subcategories, sub]
+                                                                                subcategories: isSelected ? [] : [sub]
                                                                             }));
+                                                                            setCategoryOpen(false); // Close dropdown after selection
                                                                         }}
                                                                         className={cn(
                                                                             "w-full text-left px-4 py-2.5 text-sm flex items-center justify-between hover:bg-gray-50 transition-colors cursor-pointer text-gray-700",
@@ -1317,7 +1323,7 @@ function HotspotEditorContent() {
                                 </button>
                             </div>
                         </form>
-                    </PremiumCard>
+                    </div>
                 </div>
             )}
 

@@ -62,7 +62,7 @@ function DashboardContent() {
     const [isShopActive, setIsShopActive] = useState(true);
 
     // ================= API DATA HOOKS =================
-    
+
     // 1. Fetch Shops
     const { data: shopsResponse, isLoading: isLoadingShops } = useMyShops();
     const shops = useMemo(() => {
@@ -191,17 +191,10 @@ function DashboardContent() {
 
     useEffect(() => {
         const tab = searchParams.get("tab");
-        if (tab === "shops") {
-            setActiveTab("shops");
-            const scrollTimeout = setTimeout(() => {
-                if (tabsRef.current) {
-                    const elementPosition = tabsRef.current.getBoundingClientRect().top + window.pageYOffset;
-                    const offsetPosition = elementPosition - 120;
-                    window.scrollTo({ top: offsetPosition, behavior: "smooth" });
-                }
-            }, 800);
-            return () => clearTimeout(scrollTimeout);
-        } else if (tab === "offers") {
+        if (tab === "offers" || tab === "products") {
+            setActiveTab(tab);
+        } else if (tab === "shops") {
+            // "shops" tab moved out, redirect to default "offers"
             setActiveTab("offers");
         }
     }, [searchParams]);
@@ -215,7 +208,7 @@ function DashboardContent() {
         <main className="min-h-screen pt-20 lg:pt-32 pb-12 bg-[radial-gradient(circle_at_top_right,hsl(var(--color-primary)/0.05)_0%,transparent_50%)]">
             <div className="container mx-auto px-4">
                 <Breadcrumbs items={[{ label: "Shop Dashboard" }]} />
-                
+
                 {/* Header Section */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
                     <div>
@@ -408,7 +401,7 @@ function DashboardContent() {
                                             </div>
                                             <div className="text-center">
                                                 <div className="text-xs font-bold text-gray-900">{products.length}</div>
-                                                <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Items</div>
+                                                <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Products</div>
                                             </div>
                                         </div>
                                         <div className="grid grid-cols-2 gap-2 w-full mt-4">
@@ -512,67 +505,67 @@ function DashboardContent() {
                                                 <div className="space-y-4">
                                                     {publishedOffers.length > 0 ? (
 
-                                                publishedOffers.map((offer, idx) => (
-                                                    <div key={offer.offerId || offer.batchId || idx} className="relative group rounded-2xl bg-white border border-gray-100 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 overflow-hidden">
-                                                        <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
-                                                            <div className="flex items-center gap-4 min-w-0 flex-1 pl-1">
-                                                                <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-gray-50 flex items-center justify-center shrink-0 overflow-hidden ring-4 ring-gray-50/50 group-hover:ring-primary/10 transition-all">
-                                                                    {offer.posters?.[0]?.posterSrc || offer.posterSrc ? (
-                                                                        <Image src={offer.posters?.[0]?.posterSrc || offer.posterSrc} alt="" fill unoptimized className="object-cover group-hover:scale-110 transition-transform duration-500" />
-                                                                    ) : (
-                                                                        <Tag className="w-6 h-6 text-gray-300 group-hover:text-primary transition-colors rotate-12" />
-                                                                    )}
-                                                                </div>
-                                                                <div className="min-w-0 flex-1">
-                                                                    <div className="flex items-center gap-2 mb-1.5">
-                                                                        <h4 className="font-bold text-base sm:text-lg text-gray-900 truncate leading-tight group-hover:text-primary transition-colors">{offer.title || "Untitled Offer"}</h4>
-                                                                        <div className={cn("px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-wider shadow-sm border shrink-0", offer.status === "active" ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-gray-50 text-gray-400 border-gray-200")}>{offer.status || "active"}</div>
-                                                                    </div>
-                                                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[10px] sm:text-xs">
-                                                                        <div className="flex items-center gap-1.5 text-slate-400 font-medium"><Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" /><span className="truncate">{getRelativeTime(offer.createdAt || offer.validFrom) ? `Posted ${getRelativeTime(offer.createdAt || offer.validFrom)}` : "Active"}</span></div>
-                                                                        {(offer.branches || offer.branchNames || offer.branchName) && (
-                                                                            <div className="flex items-center gap-1.5 py-1 px-2.5 rounded-lg bg-orange-50 text-orange-600 font-bold text-[10px] uppercase tracking-wide border border-orange-100">
-                                                                                <GitBranch className="w-3 h-3" />
-                                                                                <span className="truncate max-w-[120px]">{offer.branches ? (offer.branches.length > 1 ? `${offer.branches[0].branchName} +${offer.branches.length - 1}` : offer.branches[0].branchName) : (offer.branchNames ? offer.branchNames[0] : offer.branchName)}</span>
+                                                        publishedOffers.map((offer, idx) => (
+                                                            <div key={offer.offerId || offer.batchId || idx} className="relative group rounded-2xl bg-white border border-gray-100 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 overflow-hidden">
+                                                                <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+                                                                    <div className="flex items-center gap-4 min-w-0 flex-1 pl-1">
+                                                                        <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-gray-50 flex items-center justify-center shrink-0 overflow-hidden ring-4 ring-gray-50/50 group-hover:ring-primary/10 transition-all">
+                                                                            {offer.posters?.[0]?.posterSrc || offer.posterSrc ? (
+                                                                                <Image src={offer.posters?.[0]?.posterSrc || offer.posterSrc} alt="" fill unoptimized className="object-cover group-hover:scale-110 transition-transform duration-500" />
+                                                                            ) : (
+                                                                                <Tag className="w-6 h-6 text-gray-300 group-hover:text-primary transition-colors rotate-12" />
+                                                                            )}
+                                                                        </div>
+                                                                        <div className="min-w-0 flex-1">
+                                                                            <div className="flex items-center gap-2 mb-1.5">
+                                                                                <h4 className="font-bold text-base sm:text-lg text-gray-900 truncate leading-tight group-hover:text-primary transition-colors">{offer.title || "Untitled Offer"}</h4>
+                                                                                <div className={cn("px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-wider shadow-sm border shrink-0", offer.status === "active" ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-gray-50 text-gray-400 border-gray-200")}>{offer.status || "active"}</div>
                                                                             </div>
-                                                                        )}
+                                                                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[10px] sm:text-xs">
+                                                                                <div className="flex items-center gap-1.5 text-slate-400 font-medium"><Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" /><span className="truncate">{getRelativeTime(offer.createdAt || offer.validFrom) ? `Posted ${getRelativeTime(offer.createdAt || offer.validFrom)}` : "Active"}</span></div>
+                                                                                {(offer.branches || offer.branchNames || offer.branchName) && (
+                                                                                    <div className="flex items-center gap-1.5 py-1 px-2.5 rounded-lg bg-orange-50 text-orange-600 font-bold text-[10px] uppercase tracking-wide border border-orange-100">
+                                                                                        <GitBranch className="w-3 h-3" />
+                                                                                        <span className="truncate max-w-[120px]">{offer.branches ? (offer.branches.length > 1 ? `${offer.branches[0].branchName} +${offer.branches.length - 1}` : offer.branches[0].branchName) : (offer.branchNames ? offer.branchNames[0] : offer.branchName)}</span>
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 shrink-0 w-full sm:w-auto">
+                                                                        <div className="flex flex-col items-center sm:items-end w-full sm:w-auto">
+                                                                            <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 sm:mb-2"><Calendar className="w-3 h-3" /> Offer Validity</div>
+                                                                            <div className="flex items-center gap-3 text-xs font-semibold text-gray-600">
+                                                                                <div className="flex flex-col sm:flex-row items-center sm:gap-2"><span className="text-[9px] sm:text-[10px] text-gray-400 uppercase tracking-widest leading-none mb-1 sm:mb-0">From</span><span className="text-gray-800">{offer.validFrom ? new Date(offer.validFrom).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).toLowerCase() : 'n/a'}</span></div>
+                                                                                <ArrowRight className="w-3 h-3 text-gray-300" />
+                                                                                <div className="flex flex-col sm:flex-row items-center sm:gap-2"><span className="text-[9px] sm:text-[10px] text-gray-400 uppercase tracking-widest leading-none mb-1 sm:mb-0">To</span><span className="text-gray-800">{offer.validTo ? new Date(offer.validTo).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).toLowerCase() : 'n/a'}</span></div>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="flex flex-row sm:flex-col items-center gap-3 w-full sm:w-auto justify-between sm:justify-center px-4 sm:px-0 sm:pl-8 border-l-0 sm:border-l border-gray-100">
+                                                                            <div className="flex items-center gap-2 group/toggle">
+                                                                                <span className={cn("text-[9px] font-black uppercase tracking-widest transition-colors", offer.status === 'active' ? "text-emerald-500" : "text-gray-400")}>{offer.status === 'active' ? 'Live' : 'Paused'}</span>
+                                                                                <StatusToggleButton status={offer.status || 'active'} onChange={() => handleToggleOfferStatus(offer)} className="scale-90" />
+                                                                            </div>
+                                                                            <div className="flex gap-2.5">
+                                                                                <button onClick={() => openEditModal(offer)} className="p-3 rounded-xl bg-gray-50 text-gray-400 hover:bg-primary hover:text-secondary hover:shadow-lg transition-all duration-300" title="Edit offer"><Pencil className="w-4 h-4" /></button>
+                                                                                <button onClick={() => setOfferToDelete(offer)} className="p-3 rounded-xl bg-gray-50 text-gray-400 hover:bg-rose-500 hover:text-white hover:shadow-lg transition-all duration-300" title="Delete offer"><Trash2 className="w-4 h-4" /></button>
+                                                                            </div>
+                                                                        </div>
                                                                     </div>
                                                                 </div>
                                                             </div>
-                                                            <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 shrink-0 w-full sm:w-auto">
-                                                                <div className="flex flex-col items-center sm:items-end w-full sm:w-auto">
-                                                                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 sm:mb-2"><Calendar className="w-3 h-3" /> Offer Validity</div>
-                                                                    <div className="flex items-center gap-3 text-xs font-semibold text-gray-600">
-                                                                        <div className="flex flex-col sm:flex-row items-center sm:gap-2"><span className="text-[9px] sm:text-[10px] text-gray-400 uppercase tracking-widest leading-none mb-1 sm:mb-0">From</span><span className="text-gray-800">{offer.validFrom ? new Date(offer.validFrom).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).toLowerCase() : 'n/a'}</span></div>
-                                                                        <ArrowRight className="w-3 h-3 text-gray-300" />
-                                                                        <div className="flex flex-col sm:flex-row items-center sm:gap-2"><span className="text-[9px] sm:text-[10px] text-gray-400 uppercase tracking-widest leading-none mb-1 sm:mb-0">To</span><span className="text-gray-800">{offer.validTo ? new Date(offer.validTo).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).toLowerCase() : 'n/a'}</span></div>
-                                                                    </div>
-                                                                </div>
-                                                                <div className="flex flex-row sm:flex-col items-center gap-3 w-full sm:w-auto justify-between sm:justify-center px-4 sm:px-0 sm:pl-8 border-l-0 sm:border-l border-gray-100">
-                                                                    <div className="flex items-center gap-2 group/toggle">
-                                                                        <span className={cn("text-[9px] font-black uppercase tracking-widest transition-colors", offer.status === 'active' ? "text-emerald-500" : "text-gray-400")}>{offer.status === 'active' ? 'Live' : 'Paused'}</span>
-                                                                        <StatusToggleButton status={offer.status || 'active'} onChange={() => handleToggleOfferStatus(offer)} className="scale-90" />
-                                                                    </div>
-                                                                    <div className="flex gap-2.5">
-                                                                        <button onClick={() => openEditModal(offer)} className="p-3 rounded-xl bg-gray-50 text-gray-400 hover:bg-primary hover:text-secondary hover:shadow-lg transition-all duration-300" title="Edit offer"><Pencil className="w-4 h-4" /></button>
-                                                                        <button onClick={() => setOfferToDelete(offer)} className="p-3 rounded-xl bg-gray-50 text-gray-400 hover:bg-rose-500 hover:text-white hover:shadow-lg transition-all duration-300" title="Delete offer"><Trash2 className="w-4 h-4" /></button>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <div className="p-8 rounded-xl border border-dashed border-primary/10 opacity-60 flex flex-col items-center justify-center text-center">
+                                                            <Tag className="w-12 h-12 mb-4 text-primary/30" /><p className="text-sm font-medium mb-1">No offers published yet</p><p className="text-xs opacity-60 italic">Your active offers will appear here</p>
                                                         </div>
-                                                    </div>
-                                                ))
-                                            ) : (
-                                                <div className="p-8 rounded-xl border border-dashed border-primary/10 opacity-60 flex flex-col items-center justify-center text-center">
-                                                    <Tag className="w-12 h-12 mb-4 text-primary/30" /><p className="text-sm font-medium mb-1">No offers published yet</p><p className="text-xs opacity-60 italic">Your active offers will appear here</p>
+                                                    )}
                                                 </div>
-                                            )}
-                                        </div>
-                                    </>
-                                )}
-                            </TabsContent>
+                                            </>
+                                        )}
+                                    </TabsContent>
 
-                            <TabsContent value="products" className="mt-0 space-y-3 focus-visible:ring-0">
+                                    <TabsContent value="products" className="mt-0 space-y-3 focus-visible:ring-0">
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             {isLoadingProducts ? (
                                                 <>
