@@ -152,7 +152,7 @@ function ShapeSVG({ kind, fill, opacity = 1, isGlass }: { kind: ShapeKind; fill:
     const svgs: Record<ShapeKind, React.ReactNode> = {
         rect: (
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full" style={{ opacity }}>
-                <rect x="0" y="0" width="100" height="100" fill={finalFill} rx="8" />
+                <rect x="0" y="0" width="100" height="100" fill={finalFill} />
             </svg>
         ),
         circle: (
@@ -304,11 +304,11 @@ function ProductCardContent({ el, onUpdate }: { el: CanvasElement; onUpdate: (id
     return (
         <div
             className={cn(
-                "flex w-full h-full rounded-xl overflow-hidden shadow-md group border relative",
+                "flex w-full h-full overflow-hidden shadow-md group border relative",
                 isSplit && !isUnlocked ? "flex-row" : "flex-col",
                 isGlass ? "bg-white/30 backdrop-blur-md border-white/20 shadow-xl" : "border-border/10",
-                isRetail ? "rounded-none border-gray-200 border-dashed" : "",
-                isUnlocked ? "bg-white" : ""
+                isRetail ? "border-gray-200 border-dashed" : "",
+                isUnlocked ? "bg-white rounded-xl" : "rounded-none"
             )}
             style={{
                 backgroundColor: isGlass ? undefined : (isGradient && !isUnlocked ? undefined : (el.cardBg || "#ffffff")),
@@ -363,7 +363,7 @@ function ProductCardContent({ el, onUpdate }: { el: CanvasElement; onUpdate: (id
                             (subEl.shapeKind === "circle" ? "circle(50% at 50% 50%)" :
                                 (subEl.shapeKind === "triangle" ? "polygon(50% 0%, 0% 100%, 100% 100%)" :
                                     (subEl.shapeKind === "star" ? "polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)" : "none"))) : "none",
-                        borderRadius: subEl.shapeKind === "rect" ? "4px" : "0",
+                        borderRadius: 0,
                         zIndex: 15
                     }}
                     onMouseDown={(e) => {
@@ -456,7 +456,7 @@ function ProductCardContent({ el, onUpdate }: { el: CanvasElement; onUpdate: (id
                         </span>
                         {(isModern || isGradient) && !isUnlocked && (
                             <div className={cn(
-                                "ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded uppercase",
+                                "ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-none uppercase",
                                 isModern ? "bg-orange-500 text-white" : "bg-white text-orange-600"
                             )}>
                                 Offer
@@ -466,7 +466,7 @@ function ProductCardContent({ el, onUpdate }: { el: CanvasElement; onUpdate: (id
                 ) : (
                     <div className="absolute bottom-0 left-0 right-0 bg-white p-1">
                          <div className="flex items-center gap-1">
-                            <div className="bg-red-600 text-white px-2 py-1 flex flex-col items-center justify-center min-w-[50px] rounded-sm shadow-sm">
+                            <div className="bg-red-600 text-white px-2 py-1 flex flex-col items-center justify-center min-w-[50px] rounded-none shadow-sm">
                                 <span className="text-[7px] font-bold leading-none opacity-80">QAR</span>
                                 <span className="text-sm font-black leading-none">{el.cardOfferPrice}</span>
                             </div>
@@ -1691,7 +1691,7 @@ export default function PosterDesigner({
                                             boxShadow:
                                                 dragOverPlaceholderId === el.id ? "0 0 0 5px rgba(34,197,94,0.25), 0 0 20px rgba(34,197,94,0.2)" :
                                                 el.shadow || (selectedId === el.id ? "0 0 0 4px rgba(249, 115, 22, 0.1)" : (el.isGlass ? "0 8px 32px 0 rgba(31, 38, 135, 0.15)" : "none")),
-                                            borderRadius: el.type === "shape" && el.shapeKind === "circle" ? "50%" : (el.isGlass ? "24px" : "4px"),
+                                            borderRadius: el.type === "shape" && el.shapeKind === "circle" ? "50%" : 0,
                                             clipPath: el.isGlass && el.type === "shape" ? getShapeClipPath(el.shapeKind!) : undefined,
                                             backdropFilter: el.isGlass ? "blur(20px) saturate(180%)" : "none",
                                             background: el.isGlass
@@ -1738,7 +1738,7 @@ export default function PosterDesigner({
                                                 /* ── PLACEHOLDER SLOT ── */
                                                 <div
                                                     className="w-full h-full flex flex-col items-center justify-center gap-2 cursor-pointer select-none"
-                                                    style={{ background: el.cardBg || '#f8fafc', borderRadius: 8 }}
+                                                    style={{ background: el.cardBg || '#f8fafc', borderRadius: 0 }}
                                                 >
                                                     {/* Drop zone overlay (shown when a card is dragged over) */}
                                                     {dragOverPlaceholderId === el.id && (
@@ -2192,7 +2192,7 @@ export default function PosterDesigner({
                                             <div className="grid grid-cols-2 gap-2">
                                                 <button
                                                     onClick={() => {
-                                                        updateEl(selectedId, { isGlass: true, opacity: 0.3, fill: "#ffffff", borderRadius: "24px" });
+                                                        updateEl(selectedId, { isGlass: true, opacity: 0.3, fill: "#ffffff", borderRadius: 0 });
                                                         recordChange();
                                                     }}
                                                     className="flex items-center gap-2 p-3 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 hover:scale-[1.02] transition-all"

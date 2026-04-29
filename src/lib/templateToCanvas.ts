@@ -84,10 +84,30 @@ export function templateConfigToCanvasElements(
     const z = () => zCounter++;
 
     const shopName = shopData?.shopName?.toUpperCase() ?? 'YOUR SHOP NAME';
-    const branchLine = shopData?.branches?.join('  •  ') ?? '';
-    const contactParts = [shopData?.shopPhone, shopData?.shopEmail].filter(Boolean);
-    const contactLine = contactParts.join('  •  ');
-    const footerMainText = [branchLine, contactLine].filter(Boolean).join('  •  ') || 'YOUR BRANCHES  •  CONTACT INFO';
+    
+    // Header version (minimal)
+    const branchLineHeader = shopData?.branches?.join('  •  ') ?? '';
+    
+    const hasSecondary = !!config.footer.secondaryTextStyle;
+    
+    // Footer versions (with labels)
+    const branchesLabel = shopData?.branches?.length ? `Branches: ${shopData.branches.join('  •  ')}` : '';
+    const phoneLabel = shopData?.shopPhone ? `Mobile: ${shopData.shopPhone}` : '';
+    const emailLabel = shopData?.shopEmail ? `Email: ${shopData.shopEmail}` : '';
+    
+    const footerContactLine = [phoneLabel, emailLabel].filter(Boolean).join('  •  ');
+    
+    let footerMainText: string;
+    let footerSecondaryText: string | undefined;
+
+    if (hasSecondary) {
+        // Split: Main gets branches, Secondary gets contact
+        footerMainText = branchesLabel || 'BRANCHES';
+        footerSecondaryText = footerContactLine || 'CONTACT INFO';
+    } else {
+        // Single slot: show everything
+        footerMainText = [branchesLabel, footerContactLine].filter(Boolean).join('  •  ') || 'BRANCHES  •  CONTACT INFO';
+    }
 
     // ── Background decorative elements ──
     if (config.backgroundElements) {
@@ -186,7 +206,7 @@ export function templateConfigToCanvasElements(
     // Header tagline (branch info or validity)
     if (header.taglineStyle) {
         const tl = header.taglineStyle;
-        const taglineText = branchLine || 'VALID WHILE STOCKS LAST';
+        const taglineText = branchLineHeader || 'VALID WHILE STOCKS LAST';
         elements.push({
             id: 'header-tagline',
             type: 'text',
@@ -264,7 +284,7 @@ export function templateConfigToCanvasElements(
         zIndex: z(),
     } as CanvasElement);
 
-    // Footer secondary text (e.g. page number / contact)
+    // Footer secondary text (e.g. contact info)
     // Always rendered right-aligned across full canvas width to prevent overflow
     if (footer.secondaryTextStyle) {
         const ss2 = footer.secondaryTextStyle;
@@ -272,7 +292,7 @@ export function templateConfigToCanvasElements(
         elements.push({
             id: 'footer-secondary',
             type: 'text',
-            text: contactLine || 'PAGE 1',
+            text: footerSecondaryText || 'CONTACT INFO',
             x: isRight ? 0 : (ss2.x ?? 16),
             y: footerTop + (ss2.y ?? 14),
             w: isRight ? CANVAS_W - 16 : (ss2.textAlign === 'center' ? CANVAS_W : 0),
