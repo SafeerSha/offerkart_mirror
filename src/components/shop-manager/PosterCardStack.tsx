@@ -294,7 +294,14 @@ export const PosterCardStack = ({
 
         setTimeout(() => {
             setPosters((prev) => {
-                const updated: PosterItem[] = prev.map((p, i) => (i === currentIndex ? { ...p, type, uploadPromise: newUploadPromise } : p) as PosterItem);
+                const updated: PosterItem[] = prev.map((p, i) => {
+                    if (i !== currentIndex) return p as PosterItem;
+                    // If user switches to just_post, clear any previous markings.
+                    if (type === "just_post") {
+                        return { ...p, type, markedItems: [], uploadPromise: newUploadPromise } as PosterItem;
+                    }
+                    return { ...p, type, uploadPromise: newUploadPromise } as PosterItem;
+                });
                 const nextUnclassified = updated.findIndex((p) => p.type === "unclassified");
                 if (nextUnclassified === -1) {
                     setPhase("summary");
@@ -352,10 +359,15 @@ export const PosterCardStack = ({
     };
 
     const handleNext = () => {
-        const classified = posters.map((p) => ({
-            ...p,
-            type: p.type === "unclassified" ? ("just_post" as const) : p.type,
-        }));
+        const classified = posters.map((p) => {
+            const type = p.type === "unclassified" ? ("just_post" as const) : p.type;
+            return {
+                ...p,
+                type,
+                // Ensure markings are never carried when poster is not marked_poster.
+                markedItems: type === "marked_poster" ? (p.markedItems || []) : [],
+            };
+        });
         onComplete(classified);
     };
 
@@ -394,7 +406,7 @@ export const PosterCardStack = ({
             const editorFormatted = currentPosters.map((p) => ({
                 id: p.id,
                 posterSrc: p.previewUrl,
-                markedItems: p.markedItems || [],
+                markedItems: p.type === "marked_poster" ? (p.markedItems || []) : [],
                 type: p.type === "marked_poster" ? "mark_products" : "promotion_only",
                 title: (p as any).title || ""
             }));

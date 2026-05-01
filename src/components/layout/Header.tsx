@@ -1,10 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
-import { Search, User, LogIn, Menu, X, MapPinCheck, PlusCircle, MapPin, ChevronDown, ChevronUp, LayoutDashboard, Plus, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Search, User, LogIn, Menu, X, PlusCircle, MapPin, ChevronDown, LayoutDashboard, Plus, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useSession, signIn, signOut } from "next-auth/react";
 import {
@@ -162,7 +160,8 @@ const Header = () => {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [searchOpen, setSearchOpen] = useState(false);
     const [selectedLocation, setSelectedLocation] = useState("Location");
-    const [accountOpen, setAccountOpen] = useState(false);
+    const [islandLocationOpen, setIslandLocationOpen] = useState(false);
+    const [islandExpanded, setIslandExpanded] = useState(false);
     const [pincode, setPincode] = useState("");
     const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(null);
     const [dropdownLocations, setDropdownLocations] = useState(locations);
@@ -170,16 +169,56 @@ const Header = () => {
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const { data: session, status } = useSession();
     const isRegistered = status === "authenticated";
-    const user = session?.user as any;
+    type SessionUser = {
+        business_name?: string | null;
+        full_name?: string | null;
+    } & Record<string, unknown>;
+    const user = session?.user as SessionUser | undefined;
     const pathname = usePathname();
+    const headerRef = useRef<HTMLElement | null>(null);
 
     useEffect(() => {
         const handleScroll = () => {
-            setScrolled(window.scrollY > 20);
+            const nextScrolled = window.scrollY > 20;
+            setScrolled(nextScrolled);
+            if (!nextScrolled) {
+                setIslandLocationOpen(false);
+                setIslandExpanded(false);
+            }
         };
         window.addEventListener("scroll", handleScroll);
         return () => window.removeEventListener("scroll", handleScroll);
     }, []);
+
+    useEffect(() => {
+        if (!scrolled) return;
+        setSearchOpen(false);
+    }, [scrolled]);
+
+    useEffect(() => {
+        if (!scrolled || !islandExpanded) return;
+
+        const handlePointerDown = (e: PointerEvent) => {
+            const target = e.target as Node | null;
+            if (!target) return;
+            if (headerRef.current && headerRef.current.contains(target)) return;
+            if (islandLocationOpen) return;
+            setIslandExpanded(false);
+        };
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key !== "Escape") return;
+            if (islandLocationOpen) return;
+            setIslandExpanded(false);
+        };
+
+        window.addEventListener("pointerdown", handlePointerDown);
+        window.addEventListener("keydown", handleKeyDown);
+        return () => {
+            window.removeEventListener("pointerdown", handlePointerDown);
+            window.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [scrolled, islandExpanded, islandLocationOpen]);
 
     const fetchLocations = async (pin: string) => {
         setLoading(true);
@@ -197,197 +236,383 @@ const Header = () => {
         }
     };
 
+    const islandTitle =
+        pathname === "/"
+            ? "Home"
+            : pathname.startsWith("/offers") || pathname.startsWith("/offer/")
+                ? "Offers"
+                : pathname.startsWith("/products")
+                    ? "Products"
+                    : pathname.startsWith("/shop-manager")
+                        ? "Shop Manager"
+                        : pathname.startsWith("/profile")
+                            ? "Profile"
+                            : "OfferKart";
+
+    const mobileMenu = mobileMenuOpen && (
+        <div className="lg:hidden mt-4 p-6 glass-card rounded-2xl animate-in slide-in-from-top-5 duration-300 border border-primary/10 overflow-hidden pointer-events-auto">
+            {/* Mobile Search Bar Integration */}
+            <div className="relative mb-6">
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 p-1.5 bg-orange-500/10 rounded-lg">
+                    <Search className="w-4 h-4 text-orange-600" />
+                </div>
+                <input
+                    type="text"
+                    placeholder="Search shops, offers..."
+                    className="w-full pl-12 pr-4 py-3 bg-secondary/30 border border-primary/10 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium"
+                />
+            </div>
+
+            <nav className="flex flex-col gap-0">
+                <Link
+                    href="/"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={cn(
+                        "px-4 py-3 rounded-xl transition-all duration-300 border flex items-center justify-between",
+                        pathname === "/"
+                            ? "bg-orange-500/10 border-orange-500/20 text-orange-500 font-bold shadow-sm"
+                            : "hover:bg-orange-500/5 hover:text-orange-500 border-transparent hover:border-orange-500/20"
+                    )}
+                >
+                    <span>Home</span>
+                    {pathname === "/" && <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />}
+                </Link>
+                <Link
+                    href="/offers"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={cn(
+                        "px-4 py-3 rounded-xl transition-all duration-300 border flex items-center justify-between",
+                        (pathname === "/offers" || pathname.startsWith('/offer/'))
+                            ? "bg-orange-500/10 border-orange-500/20 text-orange-500 font-bold shadow-sm"
+                            : "hover:bg-orange-500/5 hover:text-orange-500 border-transparent hover:border-orange-500/20"
+                    )}
+                >
+                    <span>Offers</span>
+                    {(pathname === "/offers" || pathname.startsWith('/offer/')) && <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />}
+                </Link>
+                <Link
+                    href="/products"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={cn(
+                        "px-4 py-3 rounded-xl transition-all duration-300 border flex items-center justify-between",
+                        pathname.startsWith("/products")
+                            ? "bg-orange-500/10 border-orange-500/20 text-orange-500 font-bold shadow-sm"
+                            : "hover:bg-orange-500/5 hover:text-orange-500 border-transparent hover:border-orange-500/20"
+                    )}
+                >
+                    <span>Products</span>
+                    {pathname.startsWith("/products") && <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />}
+                </Link>
+                
+                <div className="h-px bg-primary/10 my-1 opacity-50" />
+
+                {!isRegistered ? (
+                    <button
+                        onClick={() => {
+                            setMobileMenuOpen(false);
+                            signIn();
+                        }}
+                        className="px-4 py-3 rounded-xl bg-primary/10 border border-primary/20 text-primary font-bold shadow-sm flex items-center transition-all duration-300 hover:bg-primary/20"
+                    >
+                        <LogIn className="w-4 h-4 mr-3" />
+                        Log In
+                    </button>
+                ) : (
+                    <>
+                        <Link 
+                            href="/profile" 
+                            onClick={() => setMobileMenuOpen(false)}
+                            className={cn(
+                                "px-4 py-3 rounded-xl transition-all duration-300 border flex items-center justify-between",
+                                pathname === "/profile"
+                                    ? "bg-orange-500/10 border-orange-500/20 text-orange-500 font-bold shadow-sm"
+                                    : "hover:bg-orange-500/5 hover:text-orange-500 border-transparent hover:border-orange-500/20"
+                            )}
+                        >
+                            <div className="flex items-center">
+                                <User className={cn("w-4 h-4 mr-3", pathname === "/profile" ? "text-orange-500" : "text-muted-foreground")} />
+                                Profile
+                            </div>
+                        </Link>
+
+                        <PremiumButton
+                            asChild
+                            size="sm"
+                            className="rounded-2xl px-3 sm:px-4 lg:px-6 w-full justify-center mt-2 group"
+                        >
+                            <Link
+                                href={user?.business_name ? "/shop-manager" : "/shop-registration"}
+                                onClick={() => setMobileMenuOpen(false)}
+                                className="flex items-center justify-center p-6"
+                            >
+                                {user?.business_name ? (
+                                    <>
+                                        <LayoutDashboard className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
+                                        <span className="font-bold">Manage Shop</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Plus className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
+                                        <span className="font-bold">Add your shop</span>
+                                    </>
+                                )}
+                            </Link>
+                        </PremiumButton>
+
+                        <button
+                            onClick={() => {
+                                setIsLoggingOut(true);
+                                signOut({ callbackUrl: "/" });
+                            }}
+                            disabled={isLoggingOut}
+                            className="px-4 py-3 rounded-xl hover:bg-destructive/10 text-destructive/80 hover:text-destructive transition-all duration-300 border border-transparent hover:border-destructive/20 flex items-center mt-2 w-full text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isLoggingOut ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-3 animate-spin" />
+                                    <span className="font-medium">Logging out...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <LogIn className="w-4 h-4 mr-3" />
+                                    <span className="font-medium">Log Out</span>
+                                </>
+                            )}
+                        </button>
+                    </>
+                )}
+                
+                {!isRegistered && (
+                    <PremiumButton
+                        asChild
+                        size="sm"
+                        className="rounded-2xl px-3 sm:px-4 lg:px-6 w-full justify-center mt-2 group"
+                    >
+                        <Link
+                            href="/shop-registration"
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="flex items-center justify-center p-6"
+                        >
+                            <Plus className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
+                            <span className="font-bold">Add your shop</span>
+                        </Link>
+                    </PremiumButton>
+                )}
+            </nav>
+        </div>
+    );
+
 
     return (
-        <header
-            className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled ? "glass-header py-3" : "bg-transparent py-4"
-                }`}
-        >
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <header ref={headerRef} className="fixed top-0 left-0 right-0 z-50 pointer-events-none">
+            {/* Background Blobs (fade out on scroll) */}
+            <div className={cn(
+                "absolute inset-0 overflow-hidden pointer-events-none transition-opacity duration-500",
+                scrolled ? "opacity-0" : "opacity-100"
+            )}>
                 <div className="absolute top-0 left-1/4 w-32 h-32 bg-primary/5 rounded-full blur-3xl animate-pulse" />
                 <div className="absolute top-0 right-1/4 w-24 h-24 bg-secondary/5 rounded-full blur-2xl animate-pulse delay-1000" />
                 <div className="absolute -top-10 left-1/2 w-40 h-40 bg-accent/3 rounded-full blur-3xl animate-pulse delay-500" />
             </div>
 
-            <div className="container mx-auto px-4 relative">
-                <div className="flex items-center justify-between gap-4">
-                    {/* Logo */}
-                    <Link href="/" className="flex items-center flex-shrink-0 group cursor-pointer border-0 outline-none focus:ring-0">
-                        <div className="flex items-center gap-3">
-                            <div className="relative">
-                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-orange-500/10 flex items-center justify-center transform transition-all duration-500 group-hover:scale-110 group-hover:rotate-3 group-hover:shadow-lg group-hover:shadow-primary/20">
-                                    <span className="text-orange-600 font-bold text-lg sm:text-xl">O</span>
-                                </div>
-                                <div className="absolute -inset-1 rounded-full border border-primary/30 animate-pulse" />
-                                <div className="absolute -inset-2 rounded-full border border-primary/10 animate-pulse delay-300" />
-                            </div>
-                            <span className="font-sans text-lg sm:text-xl font-bold block text-orange-500 transition-colors group-hover:text-primary">
-                                OfferKart
-                            </span>
-                        </div>
-                    </Link>
-
-                    {/* Middle: Desktop Nav or Mobile Location */}
-                    <div className="flex-1 flex justify-center">
-                        {/* Desktop Nav */}
-                        <nav className="hidden lg:flex items-center gap-6 xl:gap-8">
-                            <Link href="/" className={cn(
-                                "relative transition-all font-medium group text-sm xl:text-base",
-                                pathname === "/" ? "text-orange-500 font-bold" : "text-foreground hover:text-orange-500"
-                            )}>
-                                <span className="relative z-10">Home</span>
-                            </Link>
-                            <Link href="/offers" className={cn(
-                                "relative transition-all font-medium group text-sm xl:text-base",
-                                (pathname === "/offers" || pathname.startsWith('/offer/')) ? "text-orange-500 font-bold" : "text-foreground hover:text-orange-500"
-                            )}>
-                                <span className="relative z-10">Offers</span>
-                            </Link>
-                            <Link href="/products" className={cn(
-                                "relative transition-all font-medium group text-sm xl:text-base",
-                                pathname.startsWith("/products") ? "text-orange-500 font-bold" : "text-foreground hover:text-orange-500"
-                            )}>
-                                <span className="relative z-10">Products</span>
-                            </Link>
-                            <DropdownMenu modal={false}>
-                                <DropdownMenuTrigger asChild>
-                                    <button className="relative text-foreground hover:text-primary transition-all font-medium flex items-center gap-2 group border-0 outline-none">
-                                        <MapPin className="w-4 h-4 text-orange-500 group-hover:scale-110 transition-transform" />
-                                        <span className="relative z-10">{selectedLocation}</span>
-                                        <ChevronDown className="w-4 h-4 transition-transform group-hover:scale-110" />
-                                        <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-primary to-secondary group-hover:w-full transition-all duration-300" />
-                                    </button>
-                                </DropdownMenuTrigger>
-                                <LocationDropdownContent
-                                    align="start"
-                                    loading={loading}
-                                    pincode={pincode}
-                                    setPincode={setPincode}
-                                    dropdownLocations={dropdownLocations}
-                                    setDropdownLocations={setDropdownLocations}
-                                    selectedLocation={selectedLocation}
-                                    setSelectedLocation={setSelectedLocation}
-                                    fetchLocations={fetchLocations}
-                                    debounceTimer={debounceTimer}
-                                    setDebounceTimer={setDebounceTimer}
-                                />
-                            </DropdownMenu>
-                        </nav>
-
-                        {/* Mobile Location */}
-                        <div className="lg:hidden">
-                            <DropdownMenu modal={false}>
-                                <DropdownMenuTrigger asChild>
-                                    <button className="relative text-foreground hover:text-primary transition-all font-medium flex items-center gap-2 group border-0 outline-none focus:ring-0 focus:ring-offset-0 focus:outline-none">
-                                        <MapPin className="w-4 h-4 text-orange-500 group-hover:scale-110 transition-transform" />
-                                        <span className="relative z-10">{selectedLocation}</span>
-                                        <ChevronDown className="w-4 h-4 transition-transform group-hover:scale-110" />
-                                        <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-primary to-secondary group-hover:w-full transition-all duration-300" />
-                                    </button>
-                                </DropdownMenuTrigger>
-                                <LocationDropdownContent
-                                    align="center"
-                                    isMobile={true}
-                                    loading={loading}
-                                    pincode={pincode}
-                                    setPincode={setPincode}
-                                    dropdownLocations={dropdownLocations}
-                                    setDropdownLocations={setDropdownLocations}
-                                    selectedLocation={selectedLocation}
-                                    setSelectedLocation={setSelectedLocation}
-                                    fetchLocations={fetchLocations}
-                                    debounceTimer={debounceTimer}
-                                    setDebounceTimer={setDebounceTimer}
-                                />
-                            </DropdownMenu>
-                        </div>
-                    </div>
-
-                    {/* Right: Desktop Buttons or Mobile Toggle */}
-                    <div className="flex items-center gap-2 sm:gap-3">
-                        <div className="hidden lg:flex items-center gap-2 sm:gap-3">
-                            {!isRegistered ? (
-                                <PremiumButton
-                                    variant="outline"
-                                    size="sm"
-                                    className="rounded-2xl px-3 sm:px-4 lg:px-6 border-primary/20 hover:bg-primary/5 transition-all duration-300"
-                                    onClick={() => signIn()}
-                                >
-                                    <div className="flex items-center">
-                                        <LogIn className="w-4 h-4 mr-2" />
-                                        <span className="inline">Login</span>
+            {/* FULL HEADER (Original + Expanded Overlay) */}
+            <div
+                className={cn(
+                    "pointer-events-auto w-full transition-all duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] transform-gpu origin-top",
+                    scrolled 
+                        ? cn(
+                            "absolute top-0 left-0 right-0 glass-header py-4", 
+                            islandExpanded ? "translate-y-0 scale-100" : "-translate-y-[150%] scale-[0.95] pointer-events-none"
+                        ) 
+                        : "relative bg-transparent py-4 translate-y-0 scale-100"
+                )}
+                onMouseEnter={() => scrolled && setIslandExpanded(true)}
+                onMouseLeave={() => {
+                    if (scrolled && !islandLocationOpen) {
+                        setIslandExpanded(false);
+                    }
+                }}
+            >
+                <div className="container mx-auto px-4 relative">
+                    <div className="flex items-center justify-between gap-4">
+                        {/* Logo */}
+                        <Link href="/" className="flex items-center flex-shrink-0 group cursor-pointer border-0 outline-none focus:ring-0">
+                            <div className="flex items-center gap-3">
+                                <div className="relative">
+                                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-orange-500/10 flex items-center justify-center transform transition-all duration-500 group-hover:scale-110 group-hover:rotate-3 group-hover:shadow-lg group-hover:shadow-primary/20">
+                                        <span className="text-orange-600 font-bold text-lg sm:text-xl">O</span>
                                     </div>
-                                </PremiumButton>
-                            ) : (
-                                <PremiumButton
-                                    asChild
-                                    size="sm"
-                                    className={cn(
-                                        "rounded-2xl px-3 sm:px-4 lg:px-6 shadow-lg shadow-primary/20 transition-all duration-300",
-                                        (pathname.startsWith("/shop-manager") || pathname === "/profile") && "ring-2 ring-primary ring-offset-2 scale-105"
-                                    )}
-                                >
-                                    {user?.business_name ? (
-                                        <Link href="/shop-manager" className="flex items-center">
-                                            <LayoutDashboard className="w-4 h-4 mr-2" />
-                                            <span className="inline">Manage Shop</span>
-                                        </Link>
-                                    ) : (
-                                        <Link href="/profile" className="flex items-center">
-                                            <User className="w-4 h-4 mr-2" />
-                                            <span className="inline">
-                                                {user?.full_name || "Profile"}
-                                            </span>
-                                        </Link>
-                                    )}
-                                </PremiumButton>
-                            )}
+                                    <div className="absolute -inset-1 rounded-full border border-primary/30 animate-pulse" />
+                                    <div className="absolute -inset-2 rounded-full border border-primary/10 animate-pulse delay-300" />
+                                </div>
+                                <span className="font-sans text-lg sm:text-xl font-bold block text-orange-500 transition-colors group-hover:text-primary">
+                                    OfferKart
+                                </span>
+                            </div>
+                        </Link>
 
-                            {(!isRegistered || !user?.business_name) && (
-                                <PremiumButton
-                                    asChild
-                                    size="sm"
-                                    className={cn(
-                                        "rounded-2xl px-3 sm:px-4 lg:px-6 shadow-lg shadow-primary/20 transition-all duration-300",
-                                        pathname.startsWith("/shop-registration") && "ring-2 ring-primary ring-offset-2 scale-105"
-                                    )}
-                                >
-                                    <Link href="/shop-registration" className="flex items-center">
-                                        <PlusCircle className="w-4 h-4 mr-2" />
-                                        <span className="inline">Add your shop</span>
-                                    </Link>
-                                </PremiumButton>
-                            )}
+                        {/* Middle: Desktop Nav or Mobile Location */}
+                        <div className="flex-1 flex justify-center">
+                            {/* Desktop Nav */}
+                            <nav className="hidden lg:flex items-center gap-6 xl:gap-8">
+                                <Link href="/" className={cn(
+                                    "relative transition-all font-medium group text-sm xl:text-base",
+                                    pathname === "/" ? "text-orange-500 font-bold" : "text-foreground hover:text-orange-500"
+                                )}>
+                                    <span className="relative z-10">Home</span>
+                                </Link>
+                                <Link href="/offers" className={cn(
+                                    "relative transition-all font-medium group text-sm xl:text-base",
+                                    (pathname === "/offers" || pathname.startsWith('/offer/')) ? "text-orange-500 font-bold" : "text-foreground hover:text-orange-500"
+                                )}>
+                                    <span className="relative z-10">Offers</span>
+                                </Link>
+                                <Link href="/products" className={cn(
+                                    "relative transition-all font-medium group text-sm xl:text-base",
+                                    pathname.startsWith("/products") ? "text-orange-500 font-bold" : "text-foreground hover:text-orange-500"
+                                )}>
+                                    <span className="relative z-10">Products</span>
+                                </Link>
+                                <DropdownMenu modal={false} open={islandLocationOpen} onOpenChange={setIslandLocationOpen}>
+                                    <DropdownMenuTrigger asChild>
+                                        <button className="relative text-foreground hover:text-primary transition-all font-medium flex items-center gap-2 group border-0 outline-none">
+                                            <MapPin className="w-4 h-4 text-orange-500 group-hover:scale-110 transition-transform" />
+                                            <span className="relative z-10">{selectedLocation}</span>
+                                            <ChevronDown className="w-4 h-4 transition-transform group-hover:scale-110" />
+                                            <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-primary to-secondary group-hover:w-full transition-all duration-300" />
+                                        </button>
+                                    </DropdownMenuTrigger>
+                                    <LocationDropdownContent
+                                        align="start"
+                                        loading={loading}
+                                        pincode={pincode}
+                                        setPincode={setPincode}
+                                        dropdownLocations={dropdownLocations}
+                                        setDropdownLocations={setDropdownLocations}
+                                        selectedLocation={selectedLocation}
+                                        setSelectedLocation={setSelectedLocation}
+                                        fetchLocations={fetchLocations}
+                                        debounceTimer={debounceTimer}
+                                        setDebounceTimer={setDebounceTimer}
+                                    />
+                                </DropdownMenu>
+                            </nav>
+
+                            {/* Mobile Location */}
+                            <div className="lg:hidden">
+                                <DropdownMenu modal={false} open={islandLocationOpen} onOpenChange={setIslandLocationOpen}>
+                                    <DropdownMenuTrigger asChild>
+                                        <button className="relative text-foreground hover:text-primary transition-all font-medium flex items-center gap-2 group border-0 outline-none focus:ring-0 focus:ring-offset-0 focus:outline-none">
+                                            <MapPin className="w-4 h-4 text-orange-500 group-hover:scale-110 transition-transform" />
+                                            <span className="relative z-10">{selectedLocation}</span>
+                                            <ChevronDown className="w-4 h-4 transition-transform group-hover:scale-110" />
+                                            <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-primary to-secondary group-hover:w-full transition-all duration-300" />
+                                        </button>
+                                    </DropdownMenuTrigger>
+                                    <LocationDropdownContent
+                                        align="center"
+                                        isMobile={true}
+                                        loading={loading}
+                                        pincode={pincode}
+                                        setPincode={setPincode}
+                                        dropdownLocations={dropdownLocations}
+                                        setDropdownLocations={setDropdownLocations}
+                                        selectedLocation={selectedLocation}
+                                        setSelectedLocation={setSelectedLocation}
+                                        fetchLocations={fetchLocations}
+                                        debounceTimer={debounceTimer}
+                                        setDebounceTimer={setDebounceTimer}
+                                    />
+                                </DropdownMenu>
+                            </div>
                         </div>
 
-                        <button
-                            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                            className="lg:hidden p-2 hover:bg-secondary rounded-lg transition-colors ml-1"
-                        >
-                            {mobileMenuOpen ? <X className="w-5 h-5 text-orange-500" /> : <Menu className="w-5 h-5" />}
-                        </button>
-                    </div>
-                </div>
+                        {/* Right: Desktop Buttons or Mobile Toggle */}
+                        <div className="flex items-center gap-2 sm:gap-3">
+                            <div className="hidden lg:flex items-center gap-2 sm:gap-3">
+                                {!isRegistered ? (
+                                    <PremiumButton
+                                        variant="outline"
+                                        size="sm"
+                                        className="rounded-2xl px-3 sm:px-4 lg:px-6 border-primary/20 hover:bg-primary/5 transition-all duration-300"
+                                        onClick={() => signIn()}
+                                    >
+                                        <div className="flex items-center">
+                                            <LogIn className="w-4 h-4 mr-2" />
+                                            <span className="inline">Login</span>
+                                        </div>
+                                    </PremiumButton>
+                                ) : (
+                                    <PremiumButton
+                                        asChild
+                                        size="sm"
+                                        className={cn(
+                                            "rounded-2xl px-3 sm:px-4 lg:px-6 shadow-lg shadow-primary/20 transition-all duration-300",
+                                            (pathname.startsWith("/shop-manager") || pathname === "/profile") && "ring-2 ring-primary ring-offset-2 scale-105"
+                                        )}
+                                    >
+                                        {user?.business_name ? (
+                                            <Link href="/shop-manager" className="flex items-center">
+                                                <LayoutDashboard className="w-4 h-4 mr-2" />
+                                                <span className="inline">Manage Shop</span>
+                                            </Link>
+                                        ) : (
+                                            <Link href="/profile" className="flex items-center">
+                                                <User className="w-4 h-4 mr-2" />
+                                                <span className="inline">
+                                                    {user?.full_name || "Profile"}
+                                                </span>
+                                            </Link>
+                                        )}
+                                    </PremiumButton>
+                                )}
 
-                {!scrolled && (
+                                {(!isRegistered || !user?.business_name) && (
+                                    <PremiumButton
+                                        asChild
+                                        size="sm"
+                                        className={cn(
+                                            "rounded-2xl px-3 sm:px-4 lg:px-6 shadow-lg shadow-primary/20 transition-all duration-300",
+                                            pathname.startsWith("/shop-registration") && "ring-2 ring-primary ring-offset-2 scale-105"
+                                        )}
+                                    >
+                                        <Link href="/shop-registration" className="flex items-center">
+                                            <PlusCircle className="w-4 h-4 mr-2" />
+                                            <span className="inline">Add your shop</span>
+                                        </Link>
+                                    </PremiumButton>
+                                )}
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                                className="lg:hidden p-2 hover:bg-secondary rounded-lg transition-colors ml-1"
+                                aria-label={mobileMenuOpen ? "Close mobile menu" : "Open mobile menu"}
+                            >
+                                {mobileMenuOpen ? <X className="w-5 h-5 text-orange-500" /> : <Menu className="w-5 h-5" />}
+                            </button>
+                        </div>
+                    </div>
+
                     <div className="mt-4 flex justify-end hidden md:flex">
                         <div
                             className={cn(
-                                "relative h-11 flex items-center transition-all duration-500 ease-[cubic-bezier(0.2,0,0,1)] w-full",
+                                "relative h-11 flex items-center transition-all duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] w-full",
                                 searchOpen ? "max-w-2xl" : "max-w-[280px]"
                             )}
                         >
                             <div
                                 onClick={() => !searchOpen && setSearchOpen(true)}
                                 className={cn(
-                                    "absolute inset-0 rounded-2xl border transition-all duration-500 overflow-hidden",
+                                    "absolute inset-0 rounded-2xl border transition-all duration-[600ms] overflow-hidden",
                                     searchOpen
                                         ? "bg-white border-primary shadow-xl shadow-primary/10 cursor-default"
                                         : "bg-white/80 backdrop-blur-sm border-primary/20 shadow-md hover:border-primary/40 hover:bg-white cursor-pointer"
                                 )}
                             >
                                 <div className={cn(
-                                    "absolute inset-0 bg-primary/[0.03] opacity-0 transition-opacity duration-500",
+                                    "absolute inset-0 bg-primary/[0.03] opacity-0 transition-opacity duration-[600ms]",
                                     searchOpen && "opacity-100"
                                 )} />
                             </div>
@@ -406,7 +631,7 @@ const Header = () => {
                                     setSearchOpen(false);
                                 }}
                                 className={cn(
-                                    "relative z-10 w-full h-full pl-11 pr-11 bg-transparent border-none focus:ring-0 outline-none transition-all duration-500 text-sm font-medium",
+                                    "relative z-10 w-full h-full pl-11 pr-11 bg-transparent border-none focus:ring-0 outline-none transition-all duration-[600ms] text-sm font-medium",
                                     !searchOpen && "cursor-pointer"
                                 )}
                             />
@@ -433,160 +658,49 @@ const Header = () => {
                             </button>
                         </div>
                     </div>
-                )}
 
-                {mobileMenuOpen && (
-                    <div className="lg:hidden mt-4 p-6 glass-card rounded-2xl animate-in slide-in-from-top-5 duration-300 border border-primary/10 overflow-hidden">
-                        {/* Mobile Search Bar Integration */}
-                        <div className="relative mb-6">
-                            <div className="absolute left-3 top-1/2 -translate-y-1/2 p-1.5 bg-orange-500/10 rounded-lg">
-                                <Search className="w-4 h-4 text-orange-600" />
+                    {mobileMenu}
+                </div>
+            </div>
+
+            {/* Collapsed dynamic island pill (glass) */}
+            <div 
+                className={cn(
+                    "fixed top-4 left-1/2 -translate-x-1/2 w-[min(520px,calc(100vw-1.5rem))] z-50 transition-all duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] transform-gpu origin-top",
+                    scrolled && !islandExpanded 
+                        ? "translate-y-0 scale-100 pointer-events-auto" 
+                        : "-translate-y-32 scale-[0.90] pointer-events-none"
+                )}
+                onMouseEnter={() => scrolled && setIslandExpanded(true)}
+                onPointerDown={() => scrolled && setIslandExpanded(true)}
+            >
+                <div className={cn(
+                    "rounded-full border shadow-xl bg-background/55 backdrop-blur-xl backdrop-saturate-150 border-border/50",
+                )}>
+                    <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-2 text-foreground">
+                        <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-7 h-7 rounded-full bg-orange-500/10 flex items-center justify-center font-bold text-sm shrink-0 text-orange-600">
+                                O
                             </div>
-                            <input
-                                type="text"
-                                placeholder="Search shops, offers..."
-                                className="w-full pl-12 pr-4 py-3 bg-secondary/30 border border-primary/10 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium"
-                            />
+                            <span className="font-sans text-sm font-semibold truncate">
+                                OfferKart
+                            </span>
                         </div>
-
-                        <nav className="flex flex-col gap-0">
-                            <Link
-                                href="/"
-                                onClick={() => setMobileMenuOpen(false)}
-                                className={cn(
-                                    "px-4 py-3 rounded-xl transition-all duration-300 border flex items-center justify-between",
-                                    pathname === "/"
-                                        ? "bg-orange-500/10 border-orange-500/20 text-orange-500 font-bold shadow-sm"
-                                        : "hover:bg-orange-500/5 hover:text-orange-500 border-transparent hover:border-orange-500/20"
-                                )}
-                            >
-                                <span>Home</span>
-                                {pathname === "/" && <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />}
-                            </Link>
-                            <Link
-                                href="/offers"
-                                onClick={() => setMobileMenuOpen(false)}
-                                className={cn(
-                                    "px-4 py-3 rounded-xl transition-all duration-300 border flex items-center justify-between",
-                                    (pathname === "/offers" || pathname.startsWith('/offer/'))
-                                        ? "bg-orange-500/10 border-orange-500/20 text-orange-500 font-bold shadow-sm"
-                                        : "hover:bg-orange-500/5 hover:text-orange-500 border-transparent hover:border-orange-500/20"
-                                )}
-                            >
-                                <span>Offers</span>
-                                {(pathname === "/offers" || pathname.startsWith('/offer/')) && <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />}
-                            </Link>
-                            <Link
-                                href="/products"
-                                onClick={() => setMobileMenuOpen(false)}
-                                className={cn(
-                                    "px-4 py-3 rounded-xl transition-all duration-300 border flex items-center justify-between",
-                                    pathname.startsWith("/products")
-                                        ? "bg-orange-500/10 border-orange-500/20 text-orange-500 font-bold shadow-sm"
-                                        : "hover:bg-orange-500/5 hover:text-orange-500 border-transparent hover:border-orange-500/20"
-                                )}
-                            >
-                                <span>Products</span>
-                                {pathname.startsWith("/products") && <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />}
-                            </Link>
-                            
-                            <div className="h-px bg-primary/10 my-1 opacity-50" />
-
-                            {!isRegistered ? (
-                                <button
-                                    onClick={() => {
-                                        setMobileMenuOpen(false);
-                                        signIn();
-                                    }}
-                                    className="px-4 py-3 rounded-xl bg-primary/10 border border-primary/20 text-primary font-bold shadow-sm flex items-center transition-all duration-300 hover:bg-primary/20"
-                                >
-                                    <LogIn className="w-4 h-4 mr-3" />
-                                    Log In
-                                </button>
-                            ) : (
-                                <>
-                                    <Link 
-                                        href="/profile" 
-                                        onClick={() => setMobileMenuOpen(false)}
-                                        className={cn(
-                                            "px-4 py-3 rounded-xl transition-all duration-300 border flex items-center justify-between",
-                                            pathname === "/profile"
-                                                ? "bg-orange-500/10 border-orange-500/20 text-orange-500 font-bold shadow-sm"
-                                                : "hover:bg-orange-500/5 hover:text-orange-500 border-transparent hover:border-orange-500/20"
-                                        )}
-                                    >
-                                        <div className="flex items-center">
-                                            <User className={cn("w-4 h-4 mr-3", pathname === "/profile" ? "text-orange-500" : "text-muted-foreground")} />
-                                            Profile
-                                        </div>
-                                    </Link>
-
-                                    <PremiumButton
-                                        asChild
-                                        size="sm"
-                                        className="rounded-2xl px-3 sm:px-4 lg:px-6 w-full justify-center mt-2 group"
-                                    >
-                                        <Link
-                                            href={user?.business_name ? "/shop-manager" : "/shop-registration"}
-                                            onClick={() => setMobileMenuOpen(false)}
-                                            className="flex items-center justify-center p-6"
-                                        >
-                                            {user?.business_name ? (
-                                                <>
-                                                    <LayoutDashboard className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
-                                                    <span className="font-bold">Manage Shop</span>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Plus className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
-                                                    <span className="font-bold">Add your shop</span>
-                                                </>
-                                            )}
-                                        </Link>
-                                    </PremiumButton>
-
-                                    <button
-                                        onClick={() => {
-                                            setIsLoggingOut(true);
-                                            signOut({ callbackUrl: "/" });
-                                        }}
-                                        disabled={isLoggingOut}
-                                        className="px-4 py-3 rounded-xl hover:bg-destructive/10 text-destructive/80 hover:text-destructive transition-all duration-300 border border-transparent hover:border-destructive/20 flex items-center mt-2 w-full text-left disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        {isLoggingOut ? (
-                                            <>
-                                                <Loader2 className="w-4 h-4 mr-3 animate-spin" />
-                                                <span className="font-medium">Logging out...</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <LogIn className="w-4 h-4 mr-3" />
-                                                <span className="font-medium">Log Out</span>
-                                            </>
-                                        )}
-                                    </button>
-                                </>
-                            )}
-                            
-                            {!isRegistered && (
-                                <PremiumButton
-                                    asChild
-                                    size="sm"
-                                    className="rounded-2xl px-3 sm:px-4 lg:px-6 w-full justify-center mt-2 group"
-                                >
-                                    <Link
-                                        href="/shop-registration"
-                                        onClick={() => setMobileMenuOpen(false)}
-                                        className="flex items-center justify-center p-6"
-                                    >
-                                        <Plus className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
-                                        <span className="font-bold">Add your shop</span>
-                                    </Link>
-                                </PremiumButton>
-                            )}
-                        </nav>
+                        <div className="flex justify-center min-w-0">
+                            <div className="flex items-center gap-2 rounded-full px-3 py-1.5 bg-white/40 dark:bg-white/10 border border-white/30 dark:border-white/10 max-w-[240px]">
+                                <MapPin className="w-4 h-4 text-orange-500 shrink-0" />
+                                <span className="text-xs font-semibold truncate">
+                                    {selectedLocation}
+                                </span>
+                            </div>
+                        </div>
+                        <div className="text-right min-w-0">
+                            <span className="text-xs font-semibold opacity-80 truncate block max-w-[160px]">
+                                {islandTitle}
+                            </span>
+                        </div>
                     </div>
-                )}
+                </div>
             </div>
         </header>
     );

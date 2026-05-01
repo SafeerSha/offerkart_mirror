@@ -345,17 +345,16 @@ export default function CreateOfferForm() {
                                                 className="flex-1 text-sm outline-none bg-transparent placeholder:text-gray-400 text-gray-800"
                                                 autoFocus
                                                 onKeyDown={(e) => {
-                                                    if (e.key === 'Enter' && categorySearch.trim()) {
-                                                        e.preventDefault();
-                                                        const newSub = categorySearch.trim();
-                                                        if (!formData.subcategories.includes(newSub)) {
+                                                        if (e.key === 'Enter' && categorySearch.trim()) {
+                                                            e.preventDefault();
+                                                            const newSub = categorySearch.trim();
                                                             setFormData(p => ({
                                                                 ...p,
-                                                                subcategories: [...p.subcategories, newSub]
+                                                                subcategories: [newSub]
                                                             }));
+                                                            setCategorySearch('');
+                                                            setCategoryOpen(false);
                                                         }
-                                                        setCategorySearch('');
-                                                    }
                                                 }}
                                             />
                                         </div>
@@ -369,10 +368,9 @@ export default function CreateOfferForm() {
                                                         onClick={() => {
                                                             setFormData(p => ({
                                                                 ...p,
-                                                                subcategories: isSelected
-                                                                    ? p.subcategories.filter(s => s !== sub)
-                                                                    : [...p.subcategories, sub]
+                                                                subcategories: isSelected ? [] : [sub]
                                                             }));
+                                                            setCategoryOpen(false);
                                                         }}
                                                         className={cn(
                                                             "w-full text-left px-4 py-2.5 text-sm flex items-center justify-between hover:bg-primary/5 transition-colors cursor-pointer text-gray-700",
@@ -389,13 +387,12 @@ export default function CreateOfferForm() {
                                                     type="button"
                                                     onClick={() => {
                                                         const newSub = categorySearch.trim();
-                                                        if (!formData.subcategories.includes(newSub)) {
-                                                            setFormData(p => ({
-                                                                ...p,
-                                                                subcategories: [...p.subcategories, newSub]
-                                                            }));
-                                                        }
+                                                        setFormData(p => ({
+                                                            ...p,
+                                                            subcategories: [newSub]
+                                                        }));
                                                         setCategorySearch('');
+                                                        setCategoryOpen(false);
                                                     }}
                                                     className="w-full text-left px-4 py-2.5 text-xs flex items-center gap-2 hover:bg-primary/5 transition-colors cursor-pointer text-primary font-bold"
                                                 >
