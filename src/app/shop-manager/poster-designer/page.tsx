@@ -91,7 +91,7 @@ export default function PosterDesignerPage() {
                 <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-[500px] h-[500px] bg-primary/5 rounded-full blur-3xl pointer-events-none" />
                 <div className="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/2 w-[400px] h-[400px] bg-secondary/5 rounded-full blur-3xl pointer-events-none" />
 
-                <div className="mx-auto relative px-4 lg:px-8 py-4 md:py-8 max-w-[1600px]">
+                <div className="mx-auto relative px-2 lg:px-8 py-4 md:py-8 max-w-[1600px]">
                     <Breadcrumbs
                         items={[
                             { label: "Dashboard", href: "/shop-manager" },

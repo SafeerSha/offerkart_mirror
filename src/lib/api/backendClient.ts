@@ -56,7 +56,7 @@ export const backend = {
                 headers.set("Accept", "application/json");
             }
 
-            // 4. Handle Server-Side Authentication
+            // 4. Handle Server-Side and Client-Side Authentication
             if (IS_SERVER) {
                 // On the server, we need to manually fetch the session and attach the token
                 // We import these dynamically to avoid bundling server-only code in the client
@@ -72,7 +72,8 @@ export const backend = {
                 }
 
                 if (session) {
-                    const accessToken = (session as any)?.accessToken;
+                    // accessToken is stored on session.user (per auth.ts session callback)
+                    const accessToken = (session as any)?.user?.accessToken;
                     if (accessToken && !headers.has("Authorization")) {
                         headers.set("Authorization", `Bearer ${accessToken}`);
                     }
@@ -82,9 +83,26 @@ export const backend = {
                         headers.set("shopId", shopId);
                     }
                 }
+            } else {
+                // On the client, we retrieve the token from the NextAuth session
+                try {
+                    const { getSession } = await import("next-auth/react");
+                    const session = await getSession();
+                    if (session) {
+                        const accessToken = (session as any)?.user?.accessToken;
+                        if (accessToken && !headers.has("Authorization")) {
+                            headers.set("Authorization", `Bearer ${accessToken}`);
+                        }
+                        
+                        const shopId = (session as any)?.shopId;
+                        if (shopId && !headers.has("shopId")) {
+                            headers.set("shopId", shopId);
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error fetching client session in backend client:", error);
+                }
             }
-            // Note: On the client, we rely on http-only cookies sent to our local proxy route
-            // which handles its own session verification.
 
             // 5. Execute Fetch
             const response = await fetch(url, {

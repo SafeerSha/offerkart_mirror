@@ -114,19 +114,19 @@ export function TemplateThumbnail({ config, shopName = 'SHOP NAME' }: TemplateTh
                     left: 0,
                     right: 0,
                     height: headerHeightPct,
-                    background: backgroundToCSS(header.background),
+                    background: backgroundToCSS(header?.background),
                     overflow: 'hidden',
                 }}
             >
                 {/* Logo */}
-                {header.logo && (
+                {header?.logo && (
                     <div
                         style={{
                             position: 'absolute',
                             left: pctW(header.logo.x),
-                            top: `${(header.logo.y / header.height) * 100}%`,
+                            top: `${(header.logo.y / (header.height || 1)) * 100}%`,
                             width: pctW(header.logo.w),
-                            height: `${(header.logo.h / header.height) * 100}%`,
+                            height: `${(header.logo.h / (header.height || 1)) * 100}%`,
                             background: header.logo.background,
                             borderRadius:
                                 header.logo.shape === 'circle' ? '50%' :
@@ -141,7 +141,7 @@ export function TemplateThumbnail({ config, shopName = 'SHOP NAME' }: TemplateTh
                         <div style={{
                             width: '40%',
                             height: '40%',
-                            background: header.titleStyle.color,
+                            background: header.titleStyle?.color || '#cccccc',
                             opacity: 0.3,
                             borderRadius: '50%',
                         }} />
@@ -307,13 +307,13 @@ export function TemplateThumbnail({ config, shopName = 'SHOP NAME' }: TemplateTh
                     left: 0,
                     right: 0,
                     height: footerHeightPct,
-                    background: backgroundToCSS(footer.background),
+                    background: backgroundToCSS(footer?.background),
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent:
-                        footer.mainTextStyle.textAlign === 'center' ? 'center' : 'flex-start',
-                    paddingLeft: footer.mainTextStyle.textAlign !== 'center'
-                        ? pctW(footer.mainTextStyle.x ?? 16)
+                        footer?.mainTextStyle?.textAlign === 'center' ? 'center' : 'flex-start',
+                    paddingLeft: footer?.mainTextStyle?.textAlign !== 'center'
+                        ? pctW(footer?.mainTextStyle?.x ?? 16)
                         : undefined,
                     overflow: 'hidden',
                 }}
@@ -322,12 +322,12 @@ export function TemplateThumbnail({ config, shopName = 'SHOP NAME' }: TemplateTh
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12%', width: '70%' }}>
                     <div style={{
                         height: '10%',
-                        background: footer.mainTextStyle.color,
+                        background: footer?.mainTextStyle?.color || '#cccccc',
                         borderRadius: '2px',
                         opacity: 0.5,
                         minHeight: '1px',
                     }} />
-                    {footer.secondaryTextStyle && (
+                    {footer?.secondaryTextStyle && (
                         <div style={{
                             height: '8%',
                             background: footer.secondaryTextStyle.color,
