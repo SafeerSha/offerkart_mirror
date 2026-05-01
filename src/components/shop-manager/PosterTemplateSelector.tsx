@@ -37,7 +37,7 @@ export function PosterTemplateSelector({ onSelect, shopName }: PosterTemplateSel
                         className={cn(
                             "px-4 py-1.5 rounded-full text-sm font-semibold border transition-all duration-200",
                             activeCategory === cat.id
-                                ? "bg-primary text-white border-primary shadow-md shadow-primary/20"
+                                ? "bg-primary text-muted-foreground border-primary shadow-md shadow-primary/20"
                                 : "bg-background text-muted-foreground border-border/60 hover:border-primary/40 hover:text-foreground"
                         )}
                     >

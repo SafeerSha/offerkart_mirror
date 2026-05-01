@@ -19,6 +19,7 @@ const CANVAS_H = 1123;
 // ─────────────────────────────────────────────
 
 export function backgroundToCSS(bg: Background): string {
+    if (!bg) return 'transparent';
     if (typeof bg === 'string') return bg;
     const { direction, stops } = bg;
     const dir =
@@ -84,19 +85,21 @@ export function templateConfigToCanvasElements(
     const z = () => zCounter++;
 
     const shopName = shopData?.shopName?.toUpperCase() ?? 'YOUR SHOP NAME';
-    
+
     // Header version (minimal)
     const branchLineHeader = shopData?.branches?.join('  •  ') ?? '';
-    
+
     const hasSecondary = !!config.footer.secondaryTextStyle;
-    
+
+    const anyConfig = config as any;
+
     // Footer versions (with labels)
     const branchesLabel = shopData?.branches?.length ? `Branches: ${shopData.branches.join('  •  ')}` : '';
     const phoneLabel = shopData?.shopPhone ? `Mobile: ${shopData.shopPhone}` : '';
     const emailLabel = shopData?.shopEmail ? `Email: ${shopData.shopEmail}` : '';
-    
+
     const footerContactLine = [phoneLabel, emailLabel].filter(Boolean).join('  •  ');
-    
+
     let footerMainText: string;
     let footerSecondaryText: string | undefined;
 
@@ -116,10 +119,24 @@ export function templateConfigToCanvasElements(
         }
     }
 
+    // ── Custom decorations ──
+    if ((config as any).decorations?.symbols) {
+        for (const s of (config as any).decorations.symbols) {
+            elements.push({
+                id: `decoration-${s.type}-${s.color}`,
+                type: 'shape',
+                shapeKind: s.type === 'plus' ? 'plus' : s.type === 'circle' ? 'circle' : 'rect',
+                x: 0, y: 0, w: s.size, h: s.size,
+                fill: s.color,
+                zIndex: z(),
+            } as CanvasElement);
+        }
+    }
+
     // ──────────────────────────────────────
-    // HEADER
+    // HEADER & FOOTER
     // ──────────────────────────────────────
-    const { header } = config;
+    const { header, footer } = config;
     const headerBg = backgroundToCSS(header.background);
 
     // Header background rect
@@ -247,10 +264,212 @@ export function templateConfigToCanvasElements(
         }
     }
 
+    // Custom header elements
+    if (anyConfig.header?.title_top) {
+        const tt = anyConfig.header.title_top;
+        elements.push({
+            id: 'custom-header-title-top',
+            type: 'text',
+            text: tt.text,
+            x: 0,
+            y: header.height / 2 - 50,
+            w: CANVAS_W,
+            h: 0,
+            fontSize: tt.fontSize,
+            fontWeight: tt.fontWeight,
+            color: tt.color,
+            textAlign: tt.align || 'center',
+            zIndex: z(),
+        } as CanvasElement);
+    }
+    if (anyConfig.header?.title_bottom) {
+        const tb = anyConfig.header.title_bottom;
+        elements.push({
+            id: 'custom-header-title-bottom',
+            type: 'text',
+            text: tb.text,
+            x: 0,
+            y: header.height / 2 + 20,
+            w: CANVAS_W,
+            h: 0,
+            fontSize: tb.fontSize,
+            fontWeight: tb.fontWeight,
+            color: tb.color,
+            textAlign: tb.align || 'center',
+            zIndex: z(),
+        } as CanvasElement);
+    }
+
+    // ──────────────────────────────────────
+    // LEFT BANNER (Specialized Layout)
+    // ──────────────────────────────────────
+    if (anyConfig.left_banner) {
+        const lb = anyConfig.left_banner;
+        const padding = lb.padding || 24;
+        const sidebarWidth = 320; // Fixed sidebar width from layout
+        let currentY = header.height + padding;
+        const lbX = padding;
+        const lbW = sidebarWidth - padding * 2;
+
+        // Add banner background
+        elements.push({
+            id: 'lb-bg',
+            type: 'shape',
+            shapeKind: 'rect',
+            x: 0,
+            y: header.height,
+            w: sidebarWidth,
+            h: CANVAS_H - header.height - footer.height,
+            fill: lb.background || '#1f7a3f',
+            zIndex: z(),
+        } as CanvasElement);
+
+        (lb.elements || []).forEach((el: any, idx: number) => {
+            const id = `lb-el-${idx}`;
+            
+            if (el.type === 'logo') {
+                elements.push({
+                    id: `${id}-text`,
+                    type: 'text',
+                    text: el.text || 'SHOP',
+                    x: lbX + 24,
+                    y: currentY,
+                    w: lbW - 48,
+                    fontSize: el.fontSize || 18,
+                    fontWeight: 800,
+                    color: el.color || '#ffffff',
+                    zIndex: z(),
+                } as CanvasElement);
+                currentY += 22;
+                if (el.subtext) {
+                    elements.push({
+                        id: `${id}-subtext`,
+                        type: 'text',
+                        text: el.subtext,
+                        x: lbX + 24,
+                        y: currentY,
+                        w: lbW - 48,
+                        fontSize: 10,
+                        color: el.color || '#ffffff',
+                        zIndex: z(),
+                    } as CanvasElement);
+                    currentY += 30;
+                }
+            } else if (el.type === 'title') {
+                elements.push({
+                    id,
+                    type: 'text',
+                    text: el.text,
+                    x: lbX + 24,
+                    y: currentY,
+                    w: lbW - 48,
+                    fontSize: el.fontSize || 48,
+                    fontWeight: el.fontWeight || '800',
+                    color: el.color || '#ffd23f',
+                    zIndex: z(),
+                } as CanvasElement);
+                currentY += (el.fontSize || 48) * 0.9 + 20;
+            } else if (el.type === 'subtitle' || el.type === 'description') {
+                elements.push({
+                    id,
+                    type: 'text',
+                    text: el.text,
+                    x: lbX + 24,
+                    y: currentY,
+                    w: lbW - 48,
+                    fontSize: el.fontSize || 14,
+                    color: el.color || '#ffffff',
+                    zIndex: z(),
+                } as CanvasElement);
+                currentY += (el.fontSize || 14) + 15;
+            } else if (el.type === 'label') {
+                elements.push({
+                    id: `${id}-bg`,
+                    type: 'shape',
+                    shapeKind: 'rect',
+                    x: lbX + 24,
+                    y: currentY,
+                    w: 120,
+                    h: 30,
+                    fill: el.background || '#ffd23f',
+                    zIndex: z(),
+                } as CanvasElement);
+                elements.push({
+                    id: `${id}-text`,
+                    type: 'text',
+                    text: el.text,
+                    x: lbX + 34,
+                    y: currentY + 6,
+                    w: 100,
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: el.color || '#1f7a3f',
+                    zIndex: z(),
+                } as CanvasElement);
+                currentY += 50;
+            } else if (el.type === 'offer_box') {
+                elements.push({
+                    id: `${id}-bg`,
+                    type: 'shape',
+                    shapeKind: 'rect',
+                    x: lbX + 24,
+                    y: currentY,
+                    w: lbW - 48,
+                    h: 60,
+                    fill: el.background || '#2fae60',
+                    zIndex: z(),
+                } as CanvasElement);
+                elements.push({
+                    id: `${id}-text`,
+                    type: 'text',
+                    text: el.text,
+                    x: lbX + 39,
+                    y: currentY + 16,
+                    w: lbW - 78,
+                    fontSize: el.fontSize || 22,
+                    fontWeight: 800,
+                    color: el.color || '#ffffff',
+                    zIndex: z(),
+                } as CanvasElement);
+                currentY += 80;
+            } else if (el.type === 'product_card') {
+                elements.push({
+                    id,
+                    type: 'product-card',
+                    x: lbX + 24,
+                    y: currentY,
+                    w: lbW - 48,
+                    h: 155,
+                    cardStyle: 'retail',
+                    cardTitle: el.name || 'Product Name',
+                    cardOfferPrice: el.price || '₹00',
+                    // Don't set cardImage for template placeholders to avoid broken image loads
+                    isTemplateSlot: true,
+                    isSidebarSlot: true,
+                    borderRadius: 5,
+                    zIndex: z(),
+                } as CanvasElement);
+                currentY += 165;
+            } else if (el.type === 'contact') {
+                const contactStr = `${el.phone || ''}\n${el.website || ''}`;
+                elements.push({
+                    id,
+                    type: 'text',
+                    text: contactStr,
+                    x: lbX + 24,
+                    y: currentY,
+                    w: lbW - 48,
+                    fontSize: 12,
+                    color: '#ffffff',
+                    zIndex: z(),
+                } as CanvasElement);
+            }
+        });
+    }
+
     // ──────────────────────────────────────
     // FOOTER
     // ──────────────────────────────────────
-    const { footer } = config;
     const footerTop = CANVAS_H - footer.height;
 
     elements.push({
@@ -316,48 +535,234 @@ export function templateConfigToCanvasElements(
         }
     }
 
-    // ──────────────────────────────────────
-    // ITEM GRID — product card placeholders
-    // ──────────────────────────────────────
-    const { itemGrid } = config;
-    const gridTop = header.height + itemGrid.padding.top;
-    const gridBottom = footerTop - itemGrid.padding.bottom;
-    const gridLeft = itemGrid.padding.left;
-    const gridRight = CANVAS_W - itemGrid.padding.right;
-    const gridWidth = gridRight - gridLeft;
-    const gridHeight = gridBottom - gridTop;
-
-    const cellW = (gridWidth - (itemGrid.columns - 1) * itemGrid.gap) / itemGrid.columns;
-    const cellH = (gridHeight - (itemGrid.rows - 1) * itemGrid.gap) / itemGrid.rows;
-
-    for (let row = 0; row < itemGrid.rows; row++) {
-        for (let col = 0; col < itemGrid.columns; col++) {
-            const cellX = gridLeft + col * (cellW + itemGrid.gap);
-            const cellY = gridTop + row * (cellH + itemGrid.gap);
-            const cellId = `item-${row}-${col}`;
-
-            // Main cell background / placeholder card
+    // Custom footer elements
+    if (anyConfig.footer?.left_text) {
+        const ft = anyConfig.footer;
+        // Left text
+        elements.push({
+            id: 'custom-footer-left1',
+            type: 'text',
+            text: ft.left_text.line1,
+            x: 30,
+            y: footerTop + 10,
+            w: 0,
+            h: 0,
+            fontSize: 14,
+            color: '#000000',
+            zIndex: z(),
+        } as CanvasElement);
+        elements.push({
+            id: 'custom-footer-left2',
+            type: 'text',
+            text: ft.left_text.line2,
+            x: 30,
+            y: footerTop + 30,
+            w: 0,
+            h: 0,
+            fontSize: 12,
+            color: '#666666',
+            zIndex: z(),
+        } as CanvasElement);
+        // CTA button
+        if (ft.cta_button) {
+            const btn = ft.cta_button;
             elements.push({
-                id: `${cellId}-bg`,
-                type: 'product-card',
-                x: cellX,
-                y: cellY,
-                w: cellW,
-                h: cellH,
-                cardBg: itemGrid.cellBackground,
-                cardStyle: 'retail',
-                cardTitle: 'Product Name',
-                cardDesc: 'Description',
-                cardOfferPrice: '₹00',
-                cardOldPrice: '₹00',
-                isTemplateSlot: true,   // marks this as a persistent grid slot
+                id: 'custom-footer-cta-bg',
+                type: 'shape',
+                shapeKind: 'rect',
+                x: CANVAS_W / 2 - 100,
+                y: footerTop + 10,
+                w: 200,
+                h: 50,
+                fill: btn.background,
+                borderRadius: btn.borderRadius,
+                zIndex: z(),
+            } as CanvasElement);
+            elements.push({
+                id: 'custom-footer-cta-text',
+                type: 'text',
+                text: btn.text,
+                x: CANVAS_W / 2,
+                y: footerTop + 25,
+                w: 0,
+                h: 0,
+                fontSize: 16,
+                color: '#ffffff',
+                textAlign: 'center',
+                zIndex: z(),
+            } as CanvasElement);
+        }
+        // Contact
+        if (ft.contact) {
+            elements.push({
+                id: 'custom-footer-contact-text',
+                type: 'text',
+                text: ft.contact.text,
+                x: CANVAS_W - 200,
+                y: footerTop + 10,
+                w: 0,
+                h: 0,
+                fontSize: 14,
+                color: '#000000',
+                zIndex: z(),
+            } as CanvasElement);
+            elements.push({
+                id: 'custom-footer-contact-phone',
+                type: 'text',
+                text: ft.contact.phone,
+                x: CANVAS_W - 200,
+                y: footerTop + 30,
+                w: 0,
+                h: 0,
+                fontSize: 12,
+                color: '#666666',
                 zIndex: z(),
             } as CanvasElement);
         }
     }
 
+    // ──────────────────────────────────────
+    // ITEM GRID or CUSTOM PRODUCT SECTION
+    // ──────────────────────────────────────
+    if (anyConfig.product_section) {
+        // Custom product section
+        const ps = anyConfig.product_section;
+        const layout = ps.layout;
+        if (layout.type === 'row') {
+            const gap = layout.gap || 0;
+            const cardStyle = ps.product_card_style;
+            const totalW = ps.items.length * cardStyle.width + (ps.items.length - 1) * gap;
+            let startX = (CANVAS_W - totalW) / 2;
+            const startY = header.height + 50;
+            for (let i = 0; i < ps.items.length; i++) {
+                const item = ps.items[i];
+                const style = item.style_override || cardStyle;
+                const x = startX;
+                const y = startY;
+                // Card background
+                elements.push({
+                    id: `product-${item.id}-bg`,
+                    type: 'shape',
+                    shapeKind: 'rect',
+                    x, y, w: style.width, h: style.height,
+                    fill: style.background,
+                    borderRadius: style.borderRadius,
+                    shadow: style.shadow,
+                    zIndex: z(),
+                } as CanvasElement);
+                // Discount badge
+                if (style.discount_badge) {
+                    elements.push({
+                        id: `product-${item.id}-badge`,
+                        type: 'shape',
+                        shapeKind: style.discount_badge.shape === 'quarter-circle' ? 'circle' : 'rect',
+                        x: x + (style.discount_badge.position === 'top-right' ? style.width - 50 : 0), y: y - 20, w: 50, h: 50,
+                        fill: style.discount_badge.background,
+                        zIndex: z(),
+                    } as CanvasElement);
+                    elements.push({
+                        id: `product-${item.id}-badge-text`,
+                        type: 'text',
+                        text: item.discount,
+                        x: x + (style.discount_badge.position === 'top-right' ? style.width - 25 : 25), y: y - 5, w: 0, h: 0,
+                        fontSize: style.discount_badge.fontSize,
+                        color: style.discount_badge.color,
+                        textAlign: 'center',
+                        zIndex: z(),
+                    } as CanvasElement);
+                }
+                // Image placeholder
+                const imgY = y + style.padding;
+                elements.push({
+                    id: `product-${item.id}-image`,
+                    type: 'shape',
+                    shapeKind: 'rect',
+                    x: x + style.padding, y: imgY, w: style.image_placeholder.width, h: style.image_placeholder.height,
+                    fill: '#f0f0f0',
+                    zIndex: z(),
+                } as CanvasElement);
+                // Divider
+                if (style.divider) {
+                    const divY = imgY + style.image_placeholder.height + style.divider.marginTop;
+                    elements.push({
+                        id: `product-${item.id}-divider`,
+                        type: 'shape',
+                        shapeKind: 'rect',
+                        x: x + style.padding, y: divY, w: style.width - style.padding * 2, h: style.divider.height,
+                        fill: style.divider.color,
+                        zIndex: z(),
+                    } as CanvasElement);
+                }
+                // Product name
+                const nameY = imgY + style.image_placeholder.height + (style.divider ? style.divider.height + style.divider.marginTop : 0) + 10;
+                elements.push({
+                    id: `product-${item.id}-name`,
+                    type: 'text',
+                    text: item.name,
+                    x: x + style.padding, y: nameY, w: style.width - style.padding * 2, h: 0,
+                    fontSize: style.product_name.fontSize,
+                    fontWeight: style.product_name.fontWeight,
+                    color: item.style_override?.name_color || style.product_name.color,
+                    textAlign: style.product_name.align,
+                    zIndex: z(),
+                } as CanvasElement);
+                // Price
+                const priceY = nameY + 30;
+                elements.push({
+                    id: `product-${item.id}-price`,
+                    type: 'text',
+                    text: item.price,
+                    x: x + style.padding, y: priceY, w: style.width - style.padding * 2, h: 0,
+                    fontSize: style.price.fontSize,
+                    color: style.price.color,
+                    textAlign: style.price.align,
+                    zIndex: z(),
+                } as CanvasElement);
+                startX += (item.style_override?.width || style.width) + gap;
+            }
+        }
+    } else {
+        // Standard itemGrid
+        const { itemGrid } = config;
+        const gridTop = header.height + itemGrid.padding.top;
+        const gridBottom = footerTop - itemGrid.padding.bottom;
+        const gridLeft = itemGrid.padding.left;
+        const gridRight = CANVAS_W - itemGrid.padding.right;
+        const gridWidth = gridRight - gridLeft;
+        const gridHeight = gridBottom - gridTop;
+
+        const cellW = (gridWidth - (itemGrid.columns - 1) * itemGrid.gap) / itemGrid.columns;
+        const cellH = (gridHeight - (itemGrid.rows - 1) * itemGrid.gap) / itemGrid.rows;
+
+        for (let row = 0; row < itemGrid.rows; row++) {
+            for (let col = 0; col < itemGrid.columns; col++) {
+                const cellX = gridLeft + col * (cellW + itemGrid.gap);
+                const cellY = gridTop + row * (cellH + itemGrid.gap);
+                const cellId = `item-${row}-${col}`;
+
+                // Main cell background / placeholder card
+                elements.push({
+                    id: `${cellId}-bg`,
+                    type: 'product-card',
+                    x: cellX,
+                    y: cellY,
+                    w: cellW,
+                    h: cellH,
+                    cardBg: itemGrid.cellBackground,
+                    cardStyle: 'retail',
+                    cardTitle: 'Product Name',
+                    cardDesc: 'Description',
+                    cardOfferPrice: '₹00',
+                    cardOldPrice: '₹00',
+                    isTemplateSlot: true,   // marks this as a persistent grid slot
+                    zIndex: z(),
+                } as CanvasElement);
+            }
+        }
+    }
+
     return {
         elements,
-        canvasBg: backgroundToCSS(config.canvasBackground),
+        canvasBg: (config as any).canvas?.background ? backgroundToCSS((config as any).canvas.background) : backgroundToCSS(config.canvasBackground),
     };
 }

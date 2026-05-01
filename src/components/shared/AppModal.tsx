@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
     Dialog,
     DialogContent,
@@ -7,6 +7,14 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+    Drawer,
+    DrawerContent,
+    DrawerDescription,
+    DrawerHeader,
+    DrawerTitle,
+    DrawerTrigger,
+} from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
 
 interface AppModalProps {
@@ -19,6 +27,24 @@ interface AppModalProps {
     className?: string;
 }
 
+export const useMediaQuery = (query: string) => {
+    const [matches, setMatches] = useState(false);
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+        const media = window.matchMedia(query);
+        if (media.matches !== matches) {
+            setMatches(media.matches);
+        }
+        const listener = () => setMatches(media.matches);
+        media.addEventListener("change", listener);
+        return () => media.removeEventListener("change", listener);
+    }, [matches, query]);
+
+    return isMounted ? matches : false;
+};
+
 export const AppModal = ({
     trigger,
     title,
@@ -28,6 +54,29 @@ export const AppModal = ({
     onOpenChange,
     className,
 }: AppModalProps) => {
+    const isMobile = useMediaQuery("(max-width: 768px)");
+
+    if (isMobile) {
+        return (
+            <Drawer open={open} onOpenChange={onOpenChange}>
+                {trigger && <DrawerTrigger asChild>{trigger}</DrawerTrigger>}
+                <DrawerContent className={cn("px-4 pb-8 bg-white border-t border-gray-200 rounded-t-[32px]", className)}>
+                    <DrawerHeader className="text-left mt-2">
+                        <DrawerTitle className="font-sans font-black text-2xl uppercase tracking-wider text-orange-600">{title}</DrawerTitle>
+                        {description && (
+                            <DrawerDescription className="font-sans text-sm font-medium text-gray-500">
+                                {description}
+                            </DrawerDescription>
+                        )}
+                    </DrawerHeader>
+                    <div className="py-4 font-sans min-w-0 w-full">
+                        {children}
+                    </div>
+                </DrawerContent>
+            </Drawer>
+        );
+    }
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
