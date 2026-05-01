@@ -68,8 +68,14 @@ async function handleProxy(request: NextRequest, context: { params: Promise<{ pa
 
     if (!isPublicPath(upstreamPath)) {
         const token = await getToken({ req: request, secret: config.auth.secret });
-        const accessToken = typeof token?.accessToken === "string" ? token.accessToken : null;
+        let accessToken = typeof token?.accessToken === "string" ? token.accessToken : null;
 
+        if (!accessToken) {
+            const authHeader = request.headers.get("authorization") || request.headers.get("Authorization");
+            if (authHeader && authHeader.startsWith("Bearer ")) {
+                accessToken = authHeader.substring(7);
+            }
+        }
 
         if (!accessToken) {
             return NextResponse.json(

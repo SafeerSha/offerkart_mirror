@@ -820,6 +820,147 @@ export const POSTER_TEMPLATES: TemplateConfig[] = [
     },
 
 
+    {
+        id: 'supermarket_promotions',
+        name: 'Supermarket Promotions',
+        category: 'retail',
+        canvasBackground: '#ffffff',
+        fonts: ['Inter'],
+        header: {
+            height: 220,
+            background: '#2E7D32',
+            logo: { x: 30, y: 30, w: 140, h: 140, shape: 'rect', background: '#ffffff' },
+            titleStyle: {
+                x: 200, y: 35,
+                fontSize: 56, fontWeight: 900, color: '#ffffff',
+                fontFamily: "'Inter', sans-serif",
+            },
+            subtitleStyle: {
+                x: 200, y: 100,
+                fontSize: 32, fontWeight: 700, color: '#FFD600',
+                fontFamily: "'Inter', sans-serif",
+            },
+            taglineStyle: {
+                x: 200, y: 155,
+                fontSize: 16, fontWeight: 600, color: '#ffffff',
+                fontFamily: "'Inter', sans-serif",
+            },
+            accentBar: { height: 6, color: '#FFD600' }
+        },
+        footer: {
+            height: 80,
+            background: '#2E7D32',
+            mainTextStyle: {
+                x: 0, y: 20,
+                fontSize: 16, fontWeight: 700, color: '#FFD600',
+                textAlign: 'center',
+            },
+            secondaryTextStyle: {
+                x: 0, y: 45,
+                fontSize: 12, fontWeight: 600, color: '#ffffff',
+                textAlign: 'center',
+            },
+        },
+        itemGrid: {
+            columns: 4, rows: 3, gap: 12,
+            padding: { top: 20, right: 16, bottom: 20, left: 16 },
+            cellBackground: '#ffffff',
+            cellBorderRadius: 0,
+            cellBorderColor: '#FFD600',
+            cellShadow: '0 2px 8px rgba(46,125,50,0.08)',
+            showPriceArea: true,
+            priceAreaColor: '#2E7D32',
+        },
+    },
+
+    {
+        id: 'supermarket_super_save',
+        name: 'Supermarket Super Save',
+        category: 'retail',
+        canvasBackground: '#eaeaea',
+        fonts: ['Inter'],
+        backgroundElements: [
+            {
+                kind: 'rect',
+                x: 0,
+                y: 0,
+                w: 282,
+                h: 1123,
+                color: '#1f7a3f'
+            }
+        ],
+        header: {
+            height: 180,
+            background: '#1f7a3f',
+            logo: { x: 30, y: 30, w: 140, h: 120, shape: 'rect', background: '#ffffff' },
+            titleStyle: {
+                x: 190, y: 30,
+                fontSize: 64, fontWeight: 800, color: '#ffd23f',
+                fontFamily: "'Inter', sans-serif",
+            },
+            subtitleStyle: {
+                x: 190, y: 105,
+                fontSize: 22, fontWeight: 600, color: '#ffffff',
+                fontFamily: "'Inter', sans-serif",
+            },
+            taglineStyle: {
+                x: 190, y: 145,
+                fontSize: 14, fontWeight: 400, color: '#d8f0df',
+                fontFamily: "'Inter', sans-serif",
+            }
+        },
+        footer: {
+            height: 70,
+            background: '#1f7a3f',
+            mainTextStyle: {
+                x: 0, y: 18,
+                fontSize: 14, fontWeight: 700, color: '#ffd23f',
+                textAlign: 'center',
+            },
+            secondaryTextStyle: {
+                x: 0, y: 42,
+                fontSize: 12, fontWeight: 500, color: '#ffffff',
+                textAlign: 'center',
+            },
+        },
+        itemGrid: {
+            columns: 2, rows: 6, gap: 18,
+            padding: { top: 24, right: 24, bottom: 24, left: 340 },
+            cellBackground: '#f7f7f7',
+            cellBorderRadius: 6,
+            cellBorderColor: '#e5e7eb',
+            cellShadow: '0 4px 12px rgba(0,0,0,0.06)',
+            showPriceArea: true,
+            priceAreaColor: '#1f7a3f',
+        },
+    },
+
+
+    {
+        id: 'grocery_sale_poster',
+        name: 'Grocery Sale Poster',
+        category: 'food',
+        canvasBackground: "radial-gradient(circle,#5fd12f,#0e6b2b)",
+        fonts: ['Inter'],
+        header: {
+            height: 200,
+            background: '#ffffff',
+            titleStyle: { fontSize: 40, fontWeight: 700, color: '#000000' },
+        },
+        footer: {
+            height: 60,
+            background: '#ffffff',
+            mainTextStyle: { fontSize: 14, fontWeight: 500, color: '#000000' },
+        },
+        itemGrid: {
+            columns: 3, rows: 4, gap: 12,
+            padding: { top: 20, right: 20, bottom: 20, left: 20 },
+            cellBackground: '#ffffff',
+            cellBorderRadius: 0,
+            cellBorderColor: '#e2e8f0',
+        },
+    },
+
     // ═══════════════════════════════════════════
     // BLANK
     // ═══════════════════════════════════════════
