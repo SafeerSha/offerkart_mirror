@@ -162,6 +162,30 @@ function HotspotEditorContent() {
     const cropperImgRef = useRef<HTMLImageElement>(null);
     const cropperContainerRef = useRef<HTMLDivElement>(null);
 
+    const isDrawingRef = useRef(isDrawing);
+    useEffect(() => {
+        isDrawingRef.current = isDrawing;
+    }, [isDrawing]);
+
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        const handleTouch = (e: globalThis.TouchEvent) => {
+            if (isDrawingRef.current) {
+                e.preventDefault();
+            }
+        };
+
+        container.addEventListener('touchstart', handleTouch, { passive: false });
+        container.addEventListener('touchmove', handleTouch, { passive: false });
+
+        return () => {
+            container.removeEventListener('touchstart', handleTouch);
+            container.removeEventListener('touchmove', handleTouch);
+        };
+    }, []);
+
     // Initial Load — support both multi-poster and single-poster
     useEffect(() => {
         const loadInitialData = async () => {
@@ -687,9 +711,9 @@ function HotspotEditorContent() {
 
     return (
         <div className="min-h-screen bg-background">
-            <div className="h-16 lg:h-32" />
+            <div className="h-4 sm:h-16 lg:h-32" />
 
-            <main className="max-w-7xl mx-auto px-4 py-4 relative">
+            <main className="max-w-7xl mx-auto px-2 sm:px-4 py-2 sm:py-4 relative">
                 <Breadcrumbs
                     items={[
                         { label: "Dashboard", href: "/shop-manager" },
@@ -698,7 +722,7 @@ function HotspotEditorContent() {
                     ]}
                 />
 
-                <div className="mt-8 flex flex-col xl:flex-row gap-8">
+                <div className="mt-4 sm:mt-8 flex flex-col xl:flex-row gap-4 sm:gap-8">
                     {/* Editor Area */}
                     <div className="flex-1 space-y-6">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -815,7 +839,7 @@ function HotspotEditorContent() {
 
 
 
-                        <PremiumCard className="relative overflow-hidden bg-black/5 border-primary/20 p-2 sm:p-4">
+                        <PremiumCard className="relative overflow-hidden bg-black/5 border-primary/20 p-1 sm:p-4">
                             <div
                                 ref={containerRef}
                                 className="relative w-full cursor-crosshair select-none overflow-hidden rounded-2xl"
@@ -958,7 +982,7 @@ function HotspotEditorContent() {
                         )}
                     </div>
                     <div className="w-full xl:w-96 space-y-6">
-                        <PremiumCard className="p-6">
+                        <PremiumCard className="p-4 sm:p-6">
                             <div className="flex items-center justify-between mb-6">
                                 <div className="flex items-center gap-2">
                                     <div className="p-2 bg-primary/10 rounded-lg">
@@ -981,13 +1005,13 @@ function HotspotEditorContent() {
                                     </Text>
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-2 gap-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                                <div className="grid grid-cols-2 gap-2 sm:gap-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
                                     {posterData.markedItems.map((item, idx) => (
                                         <div
                                             key={item.id}
                                             onClick={() => handleEditItem(item)}
                                             className={cn(
-                                                "group flex gap-3 p-3 rounded-2xl border transition-all cursor-pointer",
+                                                "group flex gap-2 sm:gap-3 p-2 sm:p-3 rounded-2xl border transition-all cursor-pointer",
                                                 highlightedId === item.id
                                                     ? "bg-primary/5 border-primary"
                                                     : "bg-muted/30 border-border/50 hover:bg-muted/50"

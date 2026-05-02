@@ -152,7 +152,7 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
             console.log('Poster source changed, resetting image size');
             setImageSize({ width: 0, height: 0 });
         }
-        
+
         setShowModal(false);
         setHighlightedId(null);
     }, [poster.id, poster.posterSrc, poster.markedItems]);
@@ -234,11 +234,11 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
 
             // Robust validation of image and measurements
             if (!img || !img.complete || img.naturalWidth === 0 || !imageSize.width || !imageSize.height) {
-                console.error("Image state check failed:", { 
-                    imgExists: !!img, 
-                    complete: img?.complete, 
-                    naturalWidth: img?.naturalWidth, 
-                    measureWidth: imageSize.width 
+                console.error("Image state check failed:", {
+                    imgExists: !!img,
+                    complete: img?.complete,
+                    naturalWidth: img?.naturalWidth,
+                    measureWidth: imageSize.width
                 });
                 throw new Error('Image not fully loaded or has invalid dimensions. Please wait a moment and try again.');
             }
@@ -257,7 +257,7 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
             }
 
             ctx.drawImage(img, x * scaleX, y * scaleY, sw, sh, 0, 0, sw, sh);
-            
+
             let croppedDataUrl: string;
             let useFallbackImage = false;
             try {
@@ -495,10 +495,10 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
 
     return (
         <div className="w-full h-full bg-background flex flex-col">
-            <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-4 relative">
+            <main className="flex-1 max-w-7xl mx-auto w-full px-0 sm:px-4 py-2 sm:py-4 relative">
                 <div className="flex flex-col xl:flex-row gap-8">
-                <div className="flex-1 space-y-6">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex-1 space-y-6">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-4 sm:px-0">
                             <div>
                                 <Heading className="text-3xl font-bold text-gradient">Mark Items</Heading>
                                 <Text className="opacity-60 text-sm">Draw boxes over items on your poster.</Text>
@@ -520,10 +520,10 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
 
 
 
-                        <PremiumCard className="relative overflow-hidden bg-black/5 border-primary/20 p-2 sm:p-4">
+                        <PremiumCard padding="none" className="relative overflow-hidden bg-black/5 border-primary/20 p-0 sm:p-4">
                             <div
                                 ref={containerRef}
-                                className="relative w-full cursor-crosshair select-none overflow-hidden rounded-2xl"
+                                className="relative w-full cursor-crosshair select-none overflow-hidden rounded-2xl touch-none"
                                 onMouseDown={handlePointerDown}
                                 onMouseMove={handlePointerMove}
                                 onMouseUp={handlePointerUp}
@@ -608,7 +608,7 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                         </PremiumCard>
 
                     </div>
-                    <div className="w-full xl:w-96 space-y-6">
+                    <div className="w-full xl:w-96 space-y-6 px-4 sm:px-0">
                         <PremiumCard className="p-6">
                             <div className="flex items-center justify-between mb-6">
                                 <div className="flex items-center gap-2">
@@ -713,15 +713,15 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
 
             {/* --- Edit Side Panel --- */}
             {showModal && currentMarkedItem && (
-                <div className="fixed inset-0 z-[100] overflow-hidden">
+                <div className="fixed inset-0 z-[100] overflow-hidden md:flex md:items-center md:justify-center">
                     {/* Backdrop */}
-                    <div 
+                    <div
                         className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300"
                         onClick={() => { setShowModal(false); setHighlightedId(null); }}
                     />
-                    
-                    {/* Slide-out Panel */}
-                    <div className="fixed inset-y-0 right-0 w-full max-w-md md:max-w-xl bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-300 h-[100dvh]">
+
+                    {/* Modal Panel */}
+                    <div className="absolute inset-y-0 right-0 md:relative md:inset-auto w-full sm:max-w-md md:max-w-xl bg-white shadow-2xl flex flex-col animate-in slide-in-from-right md:slide-in-from-right-0 md:zoom-in-95 duration-300 h-[100dvh] md:h-[85vh] md:rounded-2xl overflow-hidden">
                         <form onSubmit={handleSaveForm} className="flex flex-col h-full overflow-hidden">
                             <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-white shrink-0">
                                 <div className="flex items-center gap-3">

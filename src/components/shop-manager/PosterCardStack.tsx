@@ -10,25 +10,18 @@ import {
     ArrowRight,
     ArrowLeft,
     RotateCcw,
-    Sparkles,
     Eye,
     EyeOff,
-    FileText,
-    GripVertical,
-    ChevronUp,
-    ChevronDown,
-    X,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Heading, Subheading, Text } from "@/components/shared/Typography";
+import { Heading, Text } from "@/components/shared/Typography";
 import { PremiumButton } from "@/components/shared/PremiumButton";
-import { PremiumCard } from "@/components/shared/PremiumCard";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { storage } from "@/lib/storage";
 import Image from "next/image";
 import { s3Api } from "@/lib/api/s3";
-import { processPDFFile, isPDFFile, isImageFile, cleanupPDFObjectUrls } from "@/lib/pdf-processing";
+import { processPDFFile, isPDFFile, isImageFile } from "@/lib/pdf-processing";
 import { MarkedItem } from "@/lib/types/offer";
 
 export interface PosterItem {
@@ -66,7 +59,6 @@ type Phase = "upload" | "classify" | "summary";
 
 import { HotspotEditor } from "@/components/shop-manager/HotspotEditor";
 import { PosterOrderGrid } from "@/components/shop-manager/PosterOrderGrid";
-import { createPortal } from "react-dom";
 
 export const PosterCardStack = ({
     onComplete,
