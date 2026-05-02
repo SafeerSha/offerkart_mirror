@@ -48,10 +48,11 @@ import { cn, getRelativeTime } from "@/lib/utils";
 import { ImagePreviewModal } from "@/components/shared/ImagePreviewModal";
 import { StatusToggleButton } from "@/components/shared/StatusToggleButton";
 import { storage } from "@/lib/storage";
+import { ProductModal } from "@/components/shop-manager/ProductModal";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
-import { useMyShops, useAllOffers, useAllProducts, useDeleteOffer, useToggleOfferStatus } from "@/hooks/useApi";
+import { useMyShops, useAllOffers, useAllProducts, useDeleteOffer, useToggleOfferStatus, useCreateProduct, useUpdateProduct, useDeleteProduct } from "@/hooks/useApi";
 
 function DashboardContent() {
     const { data: session } = useSession();
@@ -94,8 +95,14 @@ function DashboardContent() {
     // ================= MUTATIONS =================
     const { mutateAsync: deleteOfferMutation } = useDeleteOffer();
     const { mutateAsync: toggleStatusMutation } = useToggleOfferStatus();
+    const { mutateAsync: createProductMutation } = useCreateProduct();
+    const { mutateAsync: updateProductMutation } = useUpdateProduct();
+    const { mutateAsync: deleteProductMutation } = useDeleteProduct();
 
     // ================= LOCAL UI STATE =================
+    const [showAddProductModal, setShowAddProductModal] = useState(false);
+    const [productToEdit, setProductToEdit] = useState<any | null>(null);
+    const [productToDelete, setProductToDelete] = useState<any | null>(null);
     const [dateFrom, setDateFrom] = useState<Date>(() => {
         const now = new Date();
         const dayOfWeek = now.getDay();
@@ -114,6 +121,14 @@ function DashboardContent() {
     const user = session?.user as any;
     const [offerToDelete, setOfferToDelete] = useState<any | null>(null);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const [expandedOffers, setExpandedOffers] = useState<Record<string, boolean>>({});
+
+    const toggleOfferExpand = (id: string) => {
+        setExpandedOffers((prev) => ({
+            ...prev,
+            [id]: !prev[id]
+        }));
+    };
 
     // ================= EVENT HANDLERS =================
 
@@ -161,7 +176,7 @@ function DashboardContent() {
                 if (res.success) {
                     toast.success("Offer deleted");
                 } else {
-                    throw new Error(res.error || "Failed to delete");
+                    throw new Error("Failed to delete");
                 }
             }
         } catch (err: any) {
@@ -179,13 +194,63 @@ function DashboardContent() {
                 const res = await toggleStatusMutation({ id: String(idToUse), shopId: activeShopId });
                 if (res.success) {
                     toast.success(`Offer ${offer.status === 'active' ? 'paused' : 'resumed'}`);
-                } else {
-                    throw new Error(res.error || "Failed to toggle status");
-                }
+            } else {
+                throw new Error("Failed to toggle status");
+            }
             }
         } catch (err: any) {
             console.error("Toggle error:", err);
             toast.error(`Failed to update status: ${err.message}`);
+        }
+    };
+
+    const handleCreateProduct = async (payload: any) => {
+        try {
+            const res = await createProductMutation(payload);
+            if (res.success) {
+                toast.success("Product created successfully");
+                setShowAddProductModal(false);
+            } else {
+                throw new Error("Failed to create product");
+            }
+        } catch (err: any) {
+            console.error("Create product error:", err);
+            toast.error(`Failed to create product: ${err.message}`);
+        }
+    };
+
+    const handleUpdateProduct = async (payload: any) => {
+        try {
+            if (!productToEdit) return;
+            const res = await updateProductMutation({
+                id: productToEdit.id,
+                payload
+            });
+            if (res.success) {
+                toast.success("Product updated successfully");
+                setProductToEdit(null);
+            } else {
+                throw new Error("Failed to update product");
+            }
+        } catch (err: any) {
+            console.error("Update product error:", err);
+            toast.error(`Failed to update product: ${err.message}`);
+        }
+    };
+
+    const handleDeleteProduct = async (product: any) => {
+        try {
+            const res = await deleteProductMutation(product.id);
+            if (res.success) {
+                toast.success("Product deleted successfully");
+            } else {
+                throw new Error("Failed to delete product");
+            }
+        } catch (err: any) {
+            console.error("Delete product error:", err);
+            toast.error(`Failed to delete product: ${err.message}`);
+        } finally {
+            setProductToDelete(null);
         }
     };
 
@@ -219,15 +284,22 @@ function DashboardContent() {
                             Manage your shop, list new offers, and track your business performance all in one place.
                         </Text>
                     </div>
-                    <div className="flex flex-wrap lg:flex-nowrap items-center gap-3">
-                        <PremiumButton variant="outline" asChild className="rounded-full">
-                            <Link href="/">Go Home</Link>
+                    <div className="grid grid-cols-3 md:flex md:flex-wrap lg:flex-nowrap items-center gap-2 md:gap-3 w-full md:w-auto">
+                        <PremiumButton variant="outline" asChild className="rounded-full w-full md:w-auto justify-center px-1 sm:px-3 md:px-4 py-1.5 md:py-2.5 h-auto text-[11px] sm:text-xs md:text-sm">
+                            <Link href="/">
+                                <span className="hidden sm:inline">Go Home</span>
+                                <span className="sm:hidden">Home</span>
+                            </Link>
                         </PremiumButton>
-                        <PremiumButton asChild className="rounded-full shadow-lg shadow-primary/20">
-                            <Link href="/shop-manager/create-offer">Add New Offer</Link>
+                        <PremiumButton asChild className="rounded-full shadow-lg shadow-primary/20 w-full md:w-auto justify-center px-1 sm:px-3 md:px-4 py-1.5 md:py-2.5 h-auto text-[11px] sm:text-xs md:text-sm">
+                            <Link href="/shop-manager/create-offer">
+                                <span className="hidden sm:inline">Add New Offer</span>
+                                <span className="sm:hidden">Offer</span>
+                            </Link>
                         </PremiumButton>
-                        <PremiumButton asChild className="rounded-full shadow-lg shadow-primary/20">
-                            <Link href="/shop-manager/create-offer">Add Product</Link>
+                        <PremiumButton onClick={() => setShowAddProductModal(true)} className="rounded-full shadow-lg shadow-primary/20 w-full md:w-auto justify-center px-1 sm:px-3 md:px-4 py-1.5 md:py-2.5 h-auto text-[11px] sm:text-xs md:text-sm">
+                            <span className="hidden sm:inline">Add Product</span>
+                            <span className="sm:hidden">Product</span>
                         </PremiumButton>
                     </div>
                 </div>
@@ -505,56 +577,72 @@ function DashboardContent() {
                                                 <div className="space-y-4">
                                                     {publishedOffers.length > 0 ? (
 
-                                                        publishedOffers.map((offer, idx) => (
-                                                            <div key={offer.offerId || offer.batchId || idx} className="relative group rounded-2xl bg-white border border-gray-100 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 overflow-hidden">
-                                                                <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
-                                                                    <div className="flex items-center gap-4 min-w-0 flex-1 pl-1">
-                                                                        <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-gray-50 flex items-center justify-center shrink-0 overflow-hidden ring-4 ring-gray-50/50 group-hover:ring-primary/10 transition-all">
-                                                                            {offer.posters?.[0]?.posterSrc || offer.posterSrc ? (
-                                                                                <Image src={offer.posters?.[0]?.posterSrc || offer.posterSrc} alt="" fill unoptimized className="object-cover group-hover:scale-110 transition-transform duration-500" />
-                                                                            ) : (
-                                                                                <Tag className="w-6 h-6 text-gray-300 group-hover:text-primary transition-colors rotate-12" />
-                                                                            )}
-                                                                        </div>
-                                                                        <div className="min-w-0 flex-1">
-                                                                            <div className="flex items-center gap-2 mb-1.5">
-                                                                                <h4 className="font-bold text-base sm:text-lg text-gray-900 truncate leading-tight group-hover:text-primary transition-colors">{offer.title || "Untitled Offer"}</h4>
-                                                                                <div className={cn("px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-wider shadow-sm border shrink-0", offer.status === "active" ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-gray-50 text-gray-400 border-gray-200")}>{offer.status || "active"}</div>
-                                                                            </div>
-                                                                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[10px] sm:text-xs">
-                                                                                <div className="flex items-center gap-1.5 text-slate-400 font-medium"><Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" /><span className="truncate">{getRelativeTime(offer.createdAt || offer.validFrom) ? `Posted ${getRelativeTime(offer.createdAt || offer.validFrom)}` : "Active"}</span></div>
-                                                                                {(offer.branches || offer.branchNames || offer.branchName) && (
-                                                                                    <div className="flex items-center gap-1.5 py-1 px-2.5 rounded-lg bg-orange-50 text-orange-600 font-bold text-[10px] uppercase tracking-wide border border-orange-100">
-                                                                                        <GitBranch className="w-3 h-3" />
-                                                                                        <span className="truncate max-w-[120px]">{offer.branches ? (offer.branches.length > 1 ? `${offer.branches[0].branchName} +${offer.branches.length - 1}` : offer.branches[0].branchName) : (offer.branchNames ? offer.branchNames[0] : offer.branchName)}</span>
+                                                        publishedOffers.map((offer, idx) => {
+                                                            const id = offer.offerId || offer.batchId || idx;
+                                                            const isExpanded = expandedOffers[id] || false;
+                                                            return (
+                                                                <div key={id} className="relative group rounded-2xl bg-white border border-gray-100 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 overflow-hidden">
+                                                                    <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                                                        <div className="flex items-center justify-between w-full sm:w-auto flex-1 gap-4 min-w-0 pl-1">
+                                                                            <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+                                                                                <div className="relative w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-gray-50 flex items-center justify-center shrink-0 overflow-hidden ring-4 ring-gray-50/50 group-hover:ring-primary/10 transition-all">
+                                                                                    {offer.posters?.[0]?.posterSrc || offer.posterSrc ? (
+                                                                                        <Image src={offer.posters?.[0]?.posterSrc || offer.posterSrc} alt="" fill unoptimized className="object-cover group-hover:scale-110 transition-transform duration-500" />
+                                                                                    ) : (
+                                                                                        <Tag className="w-5 h-5 sm:w-6 sm:h-6 text-gray-300 group-hover:text-primary transition-colors rotate-12" />
+                                                                                    )}
+                                                                                </div>
+                                                                                <div className="min-w-0 flex-1">
+                                                                                    <div className="flex items-center gap-2 mb-1">
+                                                                                        <h4 className="font-bold text-sm sm:text-lg text-gray-900 truncate leading-tight group-hover:text-primary transition-colors">{offer.title || "Untitled Offer"}</h4>
+                                                                                        <div className={cn("px-2 py-0.5 rounded-full text-[8px] sm:text-[10px] font-bold uppercase tracking-wider shadow-sm border shrink-0", offer.status === "active" ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-gray-50 text-gray-400 border-gray-200")}>{offer.status || "active"}</div>
                                                                                     </div>
-                                                                                )}
+                                                                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[9px] sm:text-xs">
+                                                                                        <div className="flex items-center gap-1.5 text-slate-400 font-medium"><Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" /><span className="truncate">{getRelativeTime(offer.createdAt || offer.validFrom) ? `Posted ${getRelativeTime(offer.createdAt || offer.validFrom)}` : "Active"}</span></div>
+                                                                                        {(offer.branches || offer.branchNames || offer.branchName) && (
+                                                                                            <div className="flex items-center gap-1.5 py-0.5 px-2 rounded-lg bg-orange-50 text-orange-600 font-bold text-[9px] uppercase tracking-wide border border-orange-100">
+                                                                                                <GitBranch className="w-3 h-3" />
+                                                                                                <span className="truncate max-w-[120px]">{offer.branches ? (offer.branches.length > 1 ? `${offer.branches[0].branchName} +${offer.branches.length - 1}` : offer.branches[0].branchName) : (offer.branchNames ? offer.branchNames[0] : offer.branchName)}</span>
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </div>
                                                                             </div>
+                                                                            <button 
+                                                                                onClick={() => toggleOfferExpand(id)}
+                                                                                className="sm:hidden p-2 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors text-gray-400 hover:text-primary shrink-0"
+                                                                                aria-label="Toggle details"
+                                                                            >
+                                                                                <ChevronRight className={cn("w-4 h-4 transition-transform duration-300", isExpanded ? "rotate-90" : "rotate-0")} />
+                                                                            </button>
                                                                         </div>
-                                                                    </div>
-                                                                    <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 shrink-0 w-full sm:w-auto">
-                                                                        <div className="flex flex-col items-center sm:items-end w-full sm:w-auto">
-                                                                            <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 sm:mb-2"><Calendar className="w-3 h-3" /> Offer Validity</div>
-                                                                            <div className="flex items-center gap-3 text-xs font-semibold text-gray-600">
-                                                                                <div className="flex flex-col sm:flex-row items-center sm:gap-2"><span className="text-[9px] sm:text-[10px] text-gray-400 uppercase tracking-widest leading-none mb-1 sm:mb-0">From</span><span className="text-gray-800">{offer.validFrom ? new Date(offer.validFrom).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).toLowerCase() : 'n/a'}</span></div>
-                                                                                <ArrowRight className="w-3 h-3 text-gray-300" />
-                                                                                <div className="flex flex-col sm:flex-row items-center sm:gap-2"><span className="text-[9px] sm:text-[10px] text-gray-400 uppercase tracking-widest leading-none mb-1 sm:mb-0">To</span><span className="text-gray-800">{offer.validTo ? new Date(offer.validTo).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).toLowerCase() : 'n/a'}</span></div>
+                                                                        <div className={cn(
+                                                                            "sm:flex flex-col sm:flex-row items-center gap-4 sm:gap-8 shrink-0 w-full sm:w-auto transition-all duration-300",
+                                                                            isExpanded ? "flex mt-2 pt-3 border-t border-gray-50 sm:mt-0 sm:pt-0 sm:border-t-0" : "hidden sm:flex"
+                                                                        )}>
+                                                                            <div className="flex flex-col items-center sm:items-end w-full sm:w-auto">
+                                                                                <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 sm:mb-2"><Calendar className="w-3 h-3" /> Offer Validity</div>
+                                                                                <div className="flex items-center gap-3 text-xs font-semibold text-gray-600">
+                                                                                    <div className="flex flex-col sm:flex-row items-center sm:gap-2"><span className="text-[9px] sm:text-[10px] text-gray-400 uppercase tracking-widest leading-none mb-1 sm:mb-0">From</span><span className="text-gray-800">{offer.validFrom ? new Date(offer.validFrom).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).toLowerCase() : 'n/a'}</span></div>
+                                                                                    <ArrowRight className="w-3 h-3 text-gray-300" />
+                                                                                    <div className="flex flex-col sm:flex-row items-center sm:gap-2"><span className="text-[9px] sm:text-[10px] text-gray-400 uppercase tracking-widest leading-none mb-1 sm:mb-0">To</span><span className="text-gray-800">{offer.validTo ? new Date(offer.validTo).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).toLowerCase() : 'n/a'}</span></div>
+                                                                                </div>
                                                                             </div>
-                                                                        </div>
-                                                                        <div className="flex flex-row sm:flex-col items-center gap-3 w-full sm:w-auto justify-between sm:justify-center px-4 sm:px-0 sm:pl-8 border-l-0 sm:border-l border-gray-100">
-                                                                            <div className="flex items-center gap-2 group/toggle">
-                                                                                <span className={cn("text-[9px] font-black uppercase tracking-widest transition-colors", offer.status === 'active' ? "text-emerald-500" : "text-gray-400")}>{offer.status === 'active' ? 'Live' : 'Paused'}</span>
-                                                                                <StatusToggleButton status={offer.status || 'active'} onChange={() => handleToggleOfferStatus(offer)} className="scale-90" />
-                                                                            </div>
-                                                                            <div className="flex gap-2.5">
-                                                                                <button onClick={() => openEditModal(offer)} className="p-3 rounded-xl bg-gray-50 text-gray-400 hover:bg-primary hover:text-secondary hover:shadow-lg transition-all duration-300" title="Edit offer"><Pencil className="w-4 h-4" /></button>
-                                                                                <button onClick={() => setOfferToDelete(offer)} className="p-3 rounded-xl bg-gray-50 text-gray-400 hover:bg-rose-500 hover:text-white hover:shadow-lg transition-all duration-300" title="Delete offer"><Trash2 className="w-4 h-4" /></button>
+                                                                            <div className="flex flex-row sm:flex-col items-center gap-3 w-full sm:w-auto justify-between sm:justify-center px-2 sm:px-0 sm:pl-8 border-l-0 sm:border-l border-gray-100">
+                                                                                <div className="flex items-center gap-2 group/toggle">
+                                                                                    <span className={cn("text-[9px] font-black uppercase tracking-widest transition-colors", offer.status === 'active' ? "text-emerald-500" : "text-gray-400")}>{offer.status === 'active' ? 'Live' : 'Paused'}</span>
+                                                                                    <StatusToggleButton status={offer.status || 'active'} onChange={() => handleToggleOfferStatus(offer)} className="scale-90" />
+                                                                                </div>
+                                                                                <div className="flex gap-2.5">
+                                                                                    <button onClick={() => openEditModal(offer)} className="p-2 sm:p-3 rounded-xl bg-gray-50 text-gray-400 hover:bg-primary hover:text-secondary hover:shadow-lg transition-all duration-300" title="Edit offer"><Pencil className="w-4 h-4" /></button>
+                                                                                    <button onClick={() => setOfferToDelete(offer)} className="p-2 sm:p-3 rounded-xl bg-gray-50 text-gray-400 hover:bg-rose-500 hover:text-white hover:shadow-lg transition-all duration-300" title="Delete offer"><Trash2 className="w-4 h-4" /></button>
+                                                                                </div>
                                                                             </div>
                                                                         </div>
                                                                     </div>
                                                                 </div>
-                                                            </div>
-                                                        ))
+                                                            );
+                                                        })
                                                     ) : (
                                                         <div className="p-8 rounded-xl border border-dashed border-primary/10 opacity-60 flex flex-col items-center justify-center text-center">
                                                             <Tag className="w-12 h-12 mb-4 text-primary/30" /><p className="text-sm font-medium mb-1">No offers published yet</p><p className="text-xs opacity-60 italic">Your active offers will appear here</p>
@@ -580,26 +668,56 @@ function DashboardContent() {
                                                         </div>
                                                     ))}
                                                 </>
-                                            ) : products.length > 0 ? (
-                                                products.map((product) => (
+                                            ) : products && products.length > 0 ? (
+                                                 products.map((product) => (
                                                     <div key={product.id} className="group relative flex items-center gap-3 p-3 rounded-xl bg-gray-50/50 border border-gray-100 hover:border-primary/20 hover:bg-white hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 overflow-hidden">
-                                                        <div className="relative w-16 h-16 rounded-lg bg-white overflow-hidden shrink-0 border border-gray-100 shadow-sm">
+                                                        <Link href={`/product/${product.id}`} className="absolute inset-0 z-0" />
+                                                        <div className="relative w-16 h-16 rounded-lg bg-white overflow-hidden shrink-0 border border-gray-100 shadow-sm z-10">
                                                             {product.image && <Image src={product.image} alt={product.name} fill unoptimized className="object-cover group-hover:scale-110 transition-transform duration-500" />}
                                                             <div className="absolute top-1 left-1"><div className="px-1 py-0.5 rounded bg-white/90 backdrop-blur-sm shadow-sm border border-gray-100"><p className="text-[8px] font-black text-primary uppercase tracking-tighter">New</p></div></div>
                                                         </div>
-                                                        <div className="min-w-0 flex-1">
-                                                            <div className="text-[9px] font-bold text-orange-500 uppercase tracking-widest mb-0.5">{product.category}</div>
+                                                        <div className="min-w-0 flex-1 z-10">
+                                                            <div className="flex items-center justify-between mb-0.5">
+                                                                <div className="text-[9px] font-bold text-orange-500 uppercase tracking-widest">{product.category}</div>
+                                                                {product.status && (
+                                                                    <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider border ${
+                                                                        product.status === "active" ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-gray-50 text-gray-500 border-gray-100"
+                                                                    }`}>
+                                                                        {product.status}
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                             <h4 className="font-bold text-xs text-gray-900 truncate group-hover:text-primary transition-colors">{product.name}</h4>
                                                             <div className="flex items-center gap-2 mt-1"><span className="text-base font-black text-primary tracking-tighter leading-none">₹{product.price}</span>{product.originalPrice && <span className="text-[10px] text-gray-400 line-through font-medium">₹{product.originalPrice}</span>}</div>
+                                                            {(product.validFrom || product.validTo || (product.branchIds && product.branchIds.length > 0)) && (
+                                                                <div className="mt-1.5 flex flex-wrap gap-1 text-[8px] text-gray-500">
+                                                                    {product.validFrom && (
+                                                                        <span className="bg-gray-100/80 border border-gray-100 px-1 py-0.5 rounded">
+                                                                            From: {new Date(product.validFrom).toLocaleDateString()}
+                                                                        </span>
+                                                                    )}
+                                                                    {product.validTo && (
+                                                                        <span className="bg-gray-100/80 border border-gray-100 px-1 py-0.5 rounded">
+                                                                            To: {new Date(product.validTo).toLocaleDateString()}
+                                                                        </span>
+                                                                    )}
+                                                                    {product.branchIds && product.branchIds.length > 0 && (
+                                                                        <span className="bg-primary/5 text-primary border border-primary/10 px-1 py-0.5 rounded font-medium">
+                                                                            {product.branchIds.length} {product.branchIds.length === 1 ? "branch" : "branches"}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                        <div className="absolute top-1.5 right-1.5 flex flex-col gap-1 translate-x-12 group-hover:translate-x-0 transition-transform duration-300">
-                                                            <button className="p-1.5 rounded-lg bg-white border border-gray-100 text-gray-400 hover:text-primary hover:border-primary transition-all shadow-sm"><Pencil className="w-3 h-3" /></button>
-                                                            <button className="p-1.5 rounded-lg bg-white border border-gray-100 text-gray-400 hover:text-rose-500 hover:border-rose-200 transition-all shadow-sm"><Trash2 className="w-3 h-3" /></button>
+
+                                                        <div className="absolute top-1.5 right-1.5 flex flex-col gap-1 translate-x-12 group-hover:translate-x-0 transition-transform duration-300 z-20">
+                                                            <button onClick={() => setProductToEdit(product)} className="p-1.5 rounded-lg bg-white border border-gray-100 text-gray-400 hover:text-primary hover:border-primary transition-all shadow-sm" title="Edit product"><Pencil className="w-3 h-3" /></button>
+                                                            <button onClick={() => setProductToDelete(product)} className="p-1.5 rounded-lg bg-white border border-gray-100 text-gray-400 hover:text-rose-500 hover:border-rose-200 transition-all shadow-sm" title="Delete product"><Trash2 className="w-3 h-3" /></button>
                                                         </div>
                                                     </div>
                                                 ))
                                             ) : (
-                                                <div className="col-span-full p-12 flex flex-col items-center justify-center bg-gray-50/50 rounded-2xl border-2 border-dashed border-gray-100 text-center"><div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center mb-4"><Package className="w-8 h-8 text-primary/20" /></div><p className="text-base font-bold text-gray-900">Your Catalog is Empty</p><p className="text-sm text-gray-500 max-w-xs mt-1">Start adding products to showcase them to your customers.</p></div>
+                                                <div className="col-span-full p-12 flex flex-col items-center justify-center bg-gray-50/50 rounded-2xl border-2 border-dashed border-gray-100 text-center"><div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center mb-4"><Package className="w-8 h-8 text-primary/20" /></div><p className="text-base font-bold text-gray-900">Your Catalog is Empty</p><p className="text-sm text-gray-500 max-w-xs mt-1 mb-4">Start adding products to showcase them to your customers.</p><PremiumButton onClick={() => setShowAddProductModal(true)} className="rounded-xl shadow-lg shadow-primary/20"><Plus className="w-4 h-4 mr-2" />Add Product</PremiumButton></div>
                                             )}
                                         </div>
                                     </TabsContent>
@@ -638,6 +756,41 @@ function DashboardContent() {
                     <div className="flex gap-3 justify-end">
                         <PremiumButton variant="outline" onClick={() => setOfferToDelete(null)} className="rounded-xl">Cancel</PremiumButton>
                         <PremiumButton onClick={() => offerToDelete && handleDeleteOffer(offerToDelete)} className="rounded-xl px-6 bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20"><Trash2 className="w-4 h-4 mr-2" />Confirm Delete</PremiumButton>
+                    </div>
+                </div>
+            </AppModal>
+
+            {/* Product Add Modal */}
+            <ProductModal
+                open={showAddProductModal}
+                onOpenChange={setShowAddProductModal}
+                product={null}
+                onSubmit={handleCreateProduct}
+            />
+
+            {/* Product Edit Modal */}
+            <ProductModal
+                open={!!productToEdit}
+                onOpenChange={(open) => { if (!open) setProductToEdit(null); }}
+                product={productToEdit}
+                onSubmit={handleUpdateProduct}
+            />
+
+            {/* Product Delete Modal */}
+            <AppModal
+                open={!!productToDelete}
+                onOpenChange={(open) => { if (!open) setProductToDelete(null); }}
+                title="Delete Product"
+                description="Are you sure you want to delete this product? This will remove it from your catalog."
+            >
+                <div className="space-y-4">
+                    <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700 flex items-start gap-3">
+                        <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+                        <div><p className="font-semibold">"{productToDelete?.name || 'Untitled'}"</p><p className="mt-1 text-xs opacity-80">This will permanently delete this product from the inventory.</p></div>
+                    </div>
+                    <div className="flex gap-3 justify-end">
+                        <PremiumButton variant="outline" onClick={() => setProductToDelete(null)} className="rounded-xl">Cancel</PremiumButton>
+                        <PremiumButton onClick={() => productToDelete && handleDeleteProduct(productToDelete)} className="rounded-xl px-6 bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20"><Trash2 className="w-4 h-4 mr-2" />Confirm Delete</PremiumButton>
                     </div>
                 </div>
             </AppModal>

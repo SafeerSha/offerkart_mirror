@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getMyShops, getShops, getShopDetails, addShop, updateShop } from "@/lib/api/shop";
 import { getBranches, addBranch, updateBranch, deleteBranch, getBranchDetails } from "@/lib/api/branch";
 import { createOffer, updateOffer, deleteOffer, getAllOffers, getOfferById, getFeaturedShops, getFeaturedOffers, getPaginatedOffers, toggleOfferStatus } from "@/lib/api/offers";
-import { getAllProducts } from "@/lib/api/products";
+import { getAllProducts, createProduct, updateProduct, deleteProduct } from "@/lib/api/products";
 import { s3Api } from "@/lib/api/s3";
 
 
@@ -250,5 +250,35 @@ export function useAllProducts() {
     queryKey: queryKeys.products,
     queryFn: getAllProducts,
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useCreateProduct() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: any) => createProduct(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.products });
+    },
+  });
+}
+
+export function useUpdateProduct() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: any }) => updateProduct(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.products });
+    },
+  });
+}
+
+export function useDeleteProduct() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteProduct(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.products });
+    },
   });
 }
