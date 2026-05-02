@@ -38,7 +38,7 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
-        source: '/api/proxy/:path*',
+        source: '/api/backend/:path*',
         destination: 'https://offersnearu.vercel.app/api/:path*',
       },
     ];
