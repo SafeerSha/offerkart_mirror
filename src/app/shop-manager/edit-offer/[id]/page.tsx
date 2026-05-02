@@ -98,30 +98,30 @@ function EditOfferContent() {
             try {
                 // Fetch from API
                 const res = await getOfferById(offerId);
-                
+
                 if (res.success && res.data) {
                     const raw = res.data as any;
                     // Handle wrapped responses (e.g., { success, data: { ... } }) or direct responses
                     const offer = raw?.data ?? raw;
-                    
+
                     if (process.env.NODE_ENV === "development") {
                         console.log("Edit Offer Data:", { raw, offer });
                     }
 
                     // Ultra-resilient title extraction
                     setTitle(offer.title || offer.offerName || offer.offer_name || "");
-                    
+
                     // Ultra-resilient dates
                     const fromDate = offer.validFrom || offer.valid_from || offer.startDate || offer.start_date;
                     const toDate = offer.validTo || offer.valid_to || offer.endDate || offer.end_date;
                     setValidFrom(fromDate ? new Date(fromDate) : undefined);
                     setValidTo(toDate ? new Date(toDate) : undefined);
-                    
+
                     setIsActive(offer.status === "active" || offer.isActive || offer.is_active || false);
-                    
+
                     // Ultra-resilient branch ID extraction
                     let bIdsRaw = offer.branchIds || offer.branch_ids || offer.branches || offer.offerBranches || offer.offer_branches || offer.offer_branch_links || [];
-                    
+
                     // If we got an empty array but there are other potential sources, try them
                     if (Array.isArray(bIdsRaw) && bIdsRaw.length === 0) {
                         bIdsRaw = offer.offerBranches || offer.offer_branches || offer.branchIds || offer.branch_ids || offer.offer_branch_links || [];
@@ -130,7 +130,7 @@ function EditOfferContent() {
                     if (typeof bIdsRaw === 'string') {
                         bIdsRaw = bIdsRaw.split(',').map(s => s.trim());
                     }
-                    
+
                     const bIds = (Array.isArray(bIdsRaw) ? bIdsRaw : [bIdsRaw])
                         .map((item: any) => {
                             if (!item) return null;
@@ -142,12 +142,12 @@ function EditOfferContent() {
                         })
                         .filter(Boolean)
                         .map(String);
-                    
+
                     setSelectedBranchIds(bIds);
 
                     // Ultra-resilient poster extraction
                     let postersRaw = offer.posters || offer.poster_links || offer.offer_posters;
-                    
+
                     // If no posters array, try to construct one from single image fields
                     if (!postersRaw || (Array.isArray(postersRaw) && postersRaw.length === 0)) {
                         const singleOfferImage = offer.posterSrc || offer.poster_src || offer.image || offer.imageUrl || offer.image_url || offer.url;
@@ -168,7 +168,7 @@ function EditOfferContent() {
                         .map((p: any, i: number) => {
                             // Extract marked items from API structure (offerProducts -> areas)
                             let marked: any[] = p.markedItems || p.marked_items || [];
-                            
+
                             if (marked.length === 0 && p.offerProducts && Array.isArray(p.offerProducts)) {
                                 marked = p.offerProducts.flatMap((prod: any) => {
                                     const areas = prod.areas || prod.offerProductAreas || [];
@@ -198,7 +198,7 @@ function EditOfferContent() {
                                 markedItems: marked,
                             };
                         });
-                    
+
                     console.log("Mapped Posters:", apiPosters);
                     setPosters(apiPosters);
                 } else {
@@ -259,7 +259,7 @@ function EditOfferContent() {
     // ── Save ─────────────────────────────────────────────────────────────────
     const handleSave = async () => {
         if (!validate()) return;
-        
+
         setIsSaving(true);
         try {
             let shopId = (session as any)?.shopId ?? (session?.user as any)?.shopId;
@@ -449,121 +449,121 @@ function EditOfferContent() {
                 </div>
             )}
 
-                {/* Final Details & Save Modal */}
-                <AppModal
-                    open={showDetailsModal}
-                    onOpenChange={setShowDetailsModal}
-                    title="Update Offer"
-                    description="Review and update your campaign details."
-                >
-                    <div className="space-y-5">
-                            <PremiumInput
-                                label="Campaign Title"
-                                icon={Type}
-                                type="text"
-                                value={title}
-                                onChange={e => {
-                                    setTitle(e.target.value);
-                                    if (errors.title) setErrors(prev => ({ ...prev, title: undefined }));
+            {/* Final Details & Save Modal */}
+            <AppModal
+                open={showDetailsModal}
+                onOpenChange={setShowDetailsModal}
+                title="Update Offer"
+                description="Review and update your campaign details."
+            >
+                <div className="space-y-5">
+                    <PremiumInput
+                        label="Campaign Title"
+                        icon={Type}
+                        type="text"
+                        value={title}
+                        onChange={e => {
+                            setTitle(e.target.value);
+                            if (errors.title) setErrors(prev => ({ ...prev, title: undefined }));
+                        }}
+                        placeholder="e.g. Weekend Mega Sale 2024"
+                        error={errors.title}
+                        autoFocus
+                    />
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <PremiumDatePicker
+                            label="Valid From"
+                            date={validFrom}
+                            setDate={d => {
+                                setValidFrom(d);
+                                if (errors.dates) setErrors(prev => ({ ...prev, dates: undefined }));
+                            }}
+                            placeholder="Select start date"
+                            error={errors.dates}
+                            minDate={new Date()}
+                        />
+                        <PremiumDatePicker
+                            label="Valid To"
+                            date={validTo}
+                            setDate={d => {
+                                setValidTo(d);
+                                if (errors.dates) setErrors(prev => ({ ...prev, dates: undefined }));
+                            }}
+                            placeholder="Select end date"
+                            error={errors.dates}
+                            minDate={validFrom || new Date()}
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium flex items-center gap-2 text-foreground ml-1">
+                            <GitBranch className="w-4 h-4 text-muted-foreground" />
+                            Branches
+                        </label>
+                        {isBranchesLoading ? (
+                            <div className="h-11 rounded-xl border border-primary/10 bg-background/40 animate-pulse" />
+                        ) : (
+                            <MultiSearchableSelect
+                                options={branches.map(b => ({
+                                    label: `${b.branch_name} — ${b.city}`,
+                                    value: String(b.id)
+                                }))}
+                                selectedValues={selectedBranchIds}
+                                onChange={vals => {
+                                    setSelectedBranchIds(vals);
+                                    if (vals.length > 0 && errors.branch) setErrors(prev => ({ ...prev, branch: undefined }));
                                 }}
-                                placeholder="e.g. Weekend Mega Sale 2024"
-                                error={errors.title}
-                                autoFocus
+                                placeholder="Select branches"
                             />
+                        )}
+                        {errors.branch && <p className="text-xs font-medium text-destructive ml-1">{errors.branch}</p>}
+                    </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <PremiumDatePicker
-                                    label="Valid From"
-                                    date={validFrom}
-                                    setDate={d => {
-                                        setValidFrom(d);
-                                        if (errors.dates) setErrors(prev => ({ ...prev, dates: undefined }));
-                                    }}
-                                    placeholder="Select start date"
-                                    error={errors.dates}
-                                    minDate={new Date()}
-                                />
-                                <PremiumDatePicker
-                                    label="Valid To"
-                                    date={validTo}
-                                    setDate={d => {
-                                        setValidTo(d);
-                                        if (errors.dates) setErrors(prev => ({ ...prev, dates: undefined }));
-                                    }}
-                                    placeholder="Select end date"
-                                    error={errors.dates}
-                                    minDate={validFrom || new Date()}
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium flex items-center gap-2 text-foreground ml-1">
-                                    <GitBranch className="w-4 h-4 text-muted-foreground" />
-                                    Branches
-                                </label>
-                                {isBranchesLoading ? (
-                                    <div className="h-11 rounded-xl border border-primary/10 bg-background/40 animate-pulse" />
-                                ) : (
-                                    <MultiSearchableSelect
-                                        options={branches.map(b => ({
-                                            label: `${b.branch_name} — ${b.city}`,
-                                            value: String(b.id)
-                                        }))}
-                                        selectedValues={selectedBranchIds}
-                                        onChange={vals => {
-                                            setSelectedBranchIds(vals);
-                                            if (vals.length > 0 && errors.branch) setErrors(prev => ({ ...prev, branch: undefined }));
-                                        }}
-                                        placeholder="Select branches"
-                                    />
-                                )}
-                                {errors.branch && <p className="text-xs font-medium text-destructive ml-1">{errors.branch}</p>}
-                            </div>
-
-                            <div className="p-4 rounded-xl bg-muted/50 border border-border/50 text-sm">
-                                <div className="flex justify-between">
-                                    <span className="opacity-60">Total posters</span>
-                                    <span className="font-bold">{posters.length}</span>
-                                </div>
-                            </div>
-
-                        <div className="flex items-center justify-between pt-4 border-t border-primary/10">
-                            <div className="flex items-center gap-3">
-                                <div className="flex items-center gap-1.5 hidden sm:flex">
-                                    <div className={cn(
-                                        "w-2 h-2 rounded-full",
-                                        isActive ? "bg-[#1cc080]" : "bg-gray-400"
-                                    )} />
-                                    <span className={cn(
-                                        "text-[13px] font-bold uppercase tracking-wider",
-                                        isActive ? "text-slate-800" : "text-gray-500"
-                                    )}>
-                                        {isActive ? "Active" : "Paused"}
-                                    </span>
-                                </div>
-                                <StatusToggleButton status={isActive ? "active" : "paused"} onChange={(newStatus) => setIsActive(newStatus === "active")} />
-                            </div>
-                            <div className="flex gap-3">
-                                <PremiumButton
-                                    variant="outline"
-                                    onClick={() => setShowDetailsModal(false)}
-                                    className="rounded-xl"
-                                >
-                                    Cancel
-                                </PremiumButton>
-                                <PremiumButton
-                                    onClick={handleSave}
-                                    isLoading={isSaving}
-                                    leftIcon={Send}
-                                    className="rounded-xl"
-                                    disabled={isSaving || isLoading || isBranchesLoading}
-                                >
-                                    {isSaving ? "Updating Offer..." : (isLoading || isBranchesLoading) ? "Synchronizing... ⏳" : "Confirm & Update"}
-                                </PremiumButton>
-                            </div>
+                    <div className="p-4 rounded-xl bg-muted/50 border border-border/50 text-sm">
+                        <div className="flex justify-between">
+                            <span className="opacity-60">Total posters</span>
+                            <span className="font-bold">{posters.length}</span>
                         </div>
                     </div>
-                </AppModal>
+
+                    <div className="flex items-center justify-between pt-4 border-t border-primary/10">
+                        <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-1.5 hidden sm:flex">
+                                <div className={cn(
+                                    "w-2 h-2 rounded-full",
+                                    isActive ? "bg-[#1cc080]" : "bg-gray-400"
+                                )} />
+                                <span className={cn(
+                                    "text-[13px] font-bold uppercase tracking-wider",
+                                    isActive ? "text-slate-800" : "text-gray-500"
+                                )}>
+                                    {isActive ? "Active" : "Paused"}
+                                </span>
+                            </div>
+                            <StatusToggleButton status={isActive ? "active" : "paused"} onChange={(newStatus) => setIsActive(newStatus === "active")} />
+                        </div>
+                        <div className="flex gap-3">
+                            <PremiumButton
+                                variant="outline"
+                                onClick={() => setShowDetailsModal(false)}
+                                className="rounded-xl"
+                            >
+                                Cancel
+                            </PremiumButton>
+                            <PremiumButton
+                                onClick={handleSave}
+                                isLoading={isSaving}
+                                leftIcon={Send}
+                                className="rounded-xl"
+                                disabled={isSaving || isLoading || isBranchesLoading}
+                            >
+                                {isSaving ? "Updating Offer..." : (isLoading || isBranchesLoading) ? "Synchronizing... ⏳" : "Confirm & Update"}
+                            </PremiumButton>
+                        </div>
+                    </div>
+                </div>
+            </AppModal>
         </div>
     );
 }

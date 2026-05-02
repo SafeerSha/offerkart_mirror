@@ -52,7 +52,7 @@ import { ProductModal } from "@/components/shop-manager/ProductModal";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
-import { useMyShops, useAllOffers, useAllProducts, useDeleteOffer, useToggleOfferStatus, useCreateProduct, useUpdateProduct, useDeleteProduct } from "@/hooks/useApi";
+import { useMyShops, useBranches, useAllOffers, useAllProducts, useDeleteOffer, useToggleOfferStatus, useCreateProduct, useUpdateProduct, useDeleteProduct } from "@/hooks/useApi";
 
 function DashboardContent() {
     const { data: session } = useSession();
@@ -91,6 +91,24 @@ function DashboardContent() {
     // 3. Fetch Products
     const { data: productsData, isLoading: isLoadingProducts } = useAllProducts();
     const products = (productsData || []) as Product[];
+
+    // 4. Fetch Branches for mapping in product cards
+    const { data: branchesResponse } = useBranches(activeShopId || "");
+    const branches = useMemo(() => {
+        if (!branchesResponse?.success || !branchesResponse?.data) return [];
+        const result = branchesResponse.data as any;
+        return Array.isArray(result) ? result : (result.data || []);
+    }, [branchesResponse]);
+
+    const branchNameMap = useMemo(() => {
+        const map: Record<string, string> = {};
+        branches.forEach((b: any) => {
+            if (b.id) {
+                map[String(b.id)] = b.name || b.address || `Branch ${b.id}`;
+            }
+        });
+        return map;
+    }, [branches]);
 
     // ================= MUTATIONS =================
     const { mutateAsync: deleteOfferMutation } = useDeleteOffer();
@@ -669,48 +687,87 @@ function DashboardContent() {
                                                     ))}
                                                 </>
                                             ) : products && products.length > 0 ? (
-                                                 products.map((product) => (
+                                                products.map((product) => (
                                                     <div key={product.id} className="group relative flex items-center gap-3 p-3 rounded-xl bg-gray-50/50 border border-gray-100 hover:border-primary/20 hover:bg-white hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 overflow-hidden">
                                                         <Link href={`/product/${product.id}`} className="absolute inset-0 z-0" />
                                                         <div className="relative w-16 h-16 rounded-lg bg-white overflow-hidden shrink-0 border border-gray-100 shadow-sm z-10">
                                                             {product.image && <Image src={product.image} alt={product.name} fill unoptimized className="object-cover group-hover:scale-110 transition-transform duration-500" />}
                                                             <div className="absolute top-1 left-1"><div className="px-1 py-0.5 rounded bg-white/90 backdrop-blur-sm shadow-sm border border-gray-100"><p className="text-[8px] font-black text-primary uppercase tracking-tighter">New</p></div></div>
                                                         </div>
-                                                        <div className="min-w-0 flex-1 z-10">
+                                                        <div className="min-w-0 flex-1 z-10 flex flex-col justify-between self-stretch">
                                                             <div className="flex items-center justify-between mb-0.5">
-                                                                <div className="text-[9px] font-bold text-orange-500 uppercase tracking-widest">{product.category}</div>
+                                                                <div className="text-[9px] font-bold text-orange-500 uppercase tracking-widest leading-none">
+                                                                    {product.category}
+                                                                </div>
                                                                 {product.status && (
-                                                                    <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider border ${
+                                                                    <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider border leading-none ${
                                                                         product.status === "active" ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-gray-50 text-gray-500 border-gray-100"
                                                                     }`}>
                                                                         {product.status}
                                                                     </span>
                                                                 )}
                                                             </div>
-                                                            <h4 className="font-bold text-xs text-gray-900 truncate group-hover:text-primary transition-colors">{product.name}</h4>
-                                                            <div className="flex items-center gap-2 mt-1"><span className="text-base font-black text-primary tracking-tighter leading-none">₹{product.price}</span>{product.originalPrice && <span className="text-[10px] text-gray-400 line-through font-medium">₹{product.originalPrice}</span>}</div>
-                                                            {(product.validFrom || product.validTo || (product.branchIds && product.branchIds.length > 0)) && (
-                                                                <div className="mt-1.5 flex flex-wrap gap-1 text-[8px] text-gray-500">
-                                                                    {product.validFrom && (
-                                                                        <span className="bg-gray-100/80 border border-gray-100 px-1 py-0.5 rounded">
-                                                                            From: {new Date(product.validFrom).toLocaleDateString()}
+                                                            <div className="flex items-baseline justify-between gap-2">
+                                                                <h4 className="font-bold text-xs text-gray-900 truncate group-hover:text-primary transition-colors flex-1 min-w-0">
+                                                                    {product.name}
+                                                                </h4>
+                                                                <div className="flex items-baseline gap-1 shrink-0">
+                                                                    <span className="text-xs font-black text-primary tracking-tighter leading-none">
+                                                                        ₹{product.price}
+                                                                    </span>
+                                                                    {product.originalPrice && (
+                                                                        <span className="text-[9px] text-gray-400 line-through font-medium">
+                                                                            ₹{product.originalPrice}
                                                                         </span>
                                                                     )}
-                                                                    {product.validTo && (
-                                                                        <span className="bg-gray-100/80 border border-gray-100 px-1 py-0.5 rounded">
-                                                                            To: {new Date(product.validTo).toLocaleDateString()}
+                                                                </div>
+                                                            </div>
+                                                            {(product.validFrom || (product.branchIds && product.branchIds.length > 0)) && (
+                                                                <div className="mt-1 flex flex-wrap items-center gap-1 text-[8px] text-gray-500">
+                                                                    {product.validFrom && (
+                                                                        <span className="bg-gray-50 border border-gray-100/80 text-gray-600 px-1.5 py-0.5 rounded flex items-center gap-1 font-medium">
+                                                                            <Calendar className="w-2.5 h-2.5 text-gray-400 shrink-0" />
+                                                                            <span>
+                                                                                {new Date(product.validFrom).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}{product.validTo ? ` - ${new Date(product.validTo).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}` : " onwards"}
+                                                                            </span>
                                                                         </span>
                                                                     )}
                                                                     {product.branchIds && product.branchIds.length > 0 && (
-                                                                        <span className="bg-primary/5 text-primary border border-primary/10 px-1 py-0.5 rounded font-medium">
-                                                                            {product.branchIds.length} {product.branchIds.length === 1 ? "branch" : "branches"}
-                                                                        </span>
+                                                                        product.branchIds.length === 1 ? (
+                                                                            <span className="bg-primary/5 text-primary border border-primary/10 px-1.5 py-0.5 rounded font-medium flex items-center gap-1">
+                                                                                <GitBranch className="w-2.5 h-2.5 shrink-0" />
+                                                                                <span className="truncate max-w-[90px]">
+                                                                                    {branchNameMap[String(product.branchIds[0])] || `Branch ${product.branchIds[0]}`}
+                                                                                </span>
+                                                                            </span>
+                                                                        ) : (
+                                                                            <TooltipProvider delayDuration={100}>
+                                                                                <Tooltip>
+                                                                                    <TooltipTrigger asChild>
+                                                                                        <span className="bg-primary/5 text-primary border border-primary/10 px-1.5 py-0.5 rounded font-medium flex items-center gap-1 cursor-pointer">
+                                                                                            <GitBranch className="w-2.5 h-2.5 shrink-0" />
+                                                                                            <span>{product.branchIds.length} branches</span>
+                                                                                        </span>
+                                                                                    </TooltipTrigger>
+                                                                                    <TooltipContent side="top" className="bg-white p-2 rounded-xl shadow-xl border border-gray-100 z-[100] max-w-[200px]">
+                                                                                        <div className="space-y-1">
+                                                                                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider border-b pb-1 mb-1 border-gray-50">Active Branches</p>
+                                                                                            {product.branchIds.map((bid: any, idx: number) => (
+                                                                                                <p key={idx} className="text-[11px] font-semibold text-gray-700 truncate">
+                                                                                                    • {branchNameMap[String(bid)] || `Branch ${bid}`}
+                                                                                                </p>
+                                                                                            ))}
+                                                                                        </div>
+                                                                                    </TooltipContent>
+                                                                                </Tooltip>
+                                                                            </TooltipProvider>
+                                                                        )
                                                                     )}
                                                                 </div>
                                                             )}
                                                         </div>
 
-                                                        <div className="absolute top-1.5 right-1.5 flex flex-col gap-1 translate-x-12 group-hover:translate-x-0 transition-transform duration-300 z-20">
+                                                        <div className="flex flex-col gap-1 shrink-0 z-20 ml-auto">
                                                             <button onClick={() => setProductToEdit(product)} className="p-1.5 rounded-lg bg-white border border-gray-100 text-gray-400 hover:text-primary hover:border-primary transition-all shadow-sm" title="Edit product"><Pencil className="w-3 h-3" /></button>
                                                             <button onClick={() => setProductToDelete(product)} className="p-1.5 rounded-lg bg-white border border-gray-100 text-gray-400 hover:text-rose-500 hover:border-rose-200 transition-all shadow-sm" title="Delete product"><Trash2 className="w-3 h-3" /></button>
                                                         </div>

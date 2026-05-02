@@ -291,7 +291,7 @@ function CreateOfferContent() {
                         s3Url = await poster.uploadPromise;
                     } else {
                         if (!poster.file) {
-                             throw new Error("Missing poster file or S3 url for upload.");
+                            throw new Error("Missing poster file or S3 url for upload.");
                         }
                         const res = await s3Api.uploadImage(poster.file).catch(() => null);
                         const payload = (res?.data as any)?.data || res?.data;
