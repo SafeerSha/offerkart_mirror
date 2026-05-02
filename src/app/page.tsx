@@ -2,8 +2,10 @@ import FeaturedCarousel from "@/components/home/FeaturedCarousel";
 import FeaturedOffers from "@/components/home/FeaturedOffers";
 import FilterPanel from "@/components/home/FilterPanel";
 import OfferGrid from "@/components/home/OfferGrid";
+import FeaturedProducts from "@/components/home/FeaturedProducts";
 import ShopRegistrationSection from "@/components/home/ShopRegistrationSection";
 import { getFeaturedShops, getFeaturedOffers, getPaginatedOffers } from "@/lib/api/offers";
+import { getAllProducts } from "@/lib/api/products";
 import { Store, Ticket, MapPin, Award } from "lucide-react";
 import { Heading, Subheading, Text } from "@/components/shared/Typography";
 import { cn } from "@/lib/utils";
@@ -12,15 +14,17 @@ import { cn } from "@/lib/utils";
 export const revalidate = 300;
 
 export default async function HomePage() {
-  const [featuredShopsRes, featuredOffersRes, allOffersRes] = await Promise.all([
+  const [featuredShopsRes, featuredOffersRes, allOffersRes, allProducts] = await Promise.all([
     getFeaturedShops(),
     getFeaturedOffers(),
     getPaginatedOffers(1, 8),
+    getAllProducts(),
   ]);
 
   const featuredShops = (featuredShopsRes as any).success ? ((featuredShopsRes as any).data || []) : [];
   const featuredOffers = (featuredOffersRes as any).success ? ((featuredOffersRes as any).data || []) : [];
   const allOffers = allOffersRes.success ? allOffersRes.data : [];
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -48,6 +52,9 @@ export default async function HomePage() {
           />
         </div>
       </section>
+
+      {/* Featured Products */}
+      <FeaturedProducts products={allProducts || []} />
 
       {/* Shop Registration Section */}
       <ShopRegistrationSection />

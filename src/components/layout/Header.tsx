@@ -160,7 +160,9 @@ const Header = () => {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [searchOpen, setSearchOpen] = useState(false);
     const [selectedLocation, setSelectedLocation] = useState("Location");
-    const [islandLocationOpen, setIslandLocationOpen] = useState(false);
+    const [desktopLocationOpen, setDesktopLocationOpen] = useState(false);
+    const [mobileLocationOpen, setMobileLocationOpen] = useState(false);
+    const islandLocationOpen = desktopLocationOpen || mobileLocationOpen;
     const [islandExpanded, setIslandExpanded] = useState(false);
     const [pincode, setPincode] = useState("");
     const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(null);
@@ -182,7 +184,8 @@ const Header = () => {
             const nextScrolled = window.scrollY > 20;
             setScrolled(nextScrolled);
             if (!nextScrolled) {
-                setIslandLocationOpen(false);
+                setDesktopLocationOpen(false);
+                setMobileLocationOpen(false);
                 setIslandExpanded(false);
             }
         };
@@ -202,6 +205,7 @@ const Header = () => {
             const target = e.target as Node | null;
             if (!target) return;
             if (headerRef.current && headerRef.current.contains(target)) return;
+            if (target instanceof Element && target.closest('[data-radix-dropdown-menu-content]')) return;
             if (islandLocationOpen) return;
             setIslandExpanded(false);
         };
@@ -473,9 +477,16 @@ const Header = () => {
                                 )}>
                                     <span className="relative z-10">Products</span>
                                 </Link>
-                                <DropdownMenu modal={false} open={islandLocationOpen} onOpenChange={setIslandLocationOpen}>
+                                 <DropdownMenu modal={false} open={desktopLocationOpen} onOpenChange={(open) => setDesktopLocationOpen(open)}>
                                     <DropdownMenuTrigger asChild>
-                                        <button className="relative text-foreground hover:text-primary transition-all font-medium flex items-center gap-2 group border-0 outline-none">
+                                        <button 
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                setDesktopLocationOpen(!desktopLocationOpen);
+                                            }}
+                                            className="relative text-foreground hover:text-primary transition-all font-medium flex items-center gap-2 group border-0 outline-none select-none"
+                                        >
                                             <MapPin className="w-4 h-4 text-orange-500 group-hover:scale-110 transition-transform" />
                                             <span className="relative z-10">{selectedLocation}</span>
                                             <ChevronDown className="w-4 h-4 transition-transform group-hover:scale-110" />
@@ -500,9 +511,16 @@ const Header = () => {
 
                             {/* Mobile Location */}
                             <div className="lg:hidden">
-                                <DropdownMenu modal={false} open={islandLocationOpen} onOpenChange={setIslandLocationOpen}>
+                                <DropdownMenu modal={false} open={mobileLocationOpen} onOpenChange={(open) => setMobileLocationOpen(open)}>
                                     <DropdownMenuTrigger asChild>
-                                        <button className="relative text-foreground hover:text-primary transition-all font-medium flex items-center gap-2 group border-0 outline-none focus:ring-0 focus:ring-offset-0 focus:outline-none">
+                                        <button 
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                setMobileLocationOpen(!mobileLocationOpen);
+                                            }}
+                                            className="relative text-foreground hover:text-primary transition-all font-medium flex items-center gap-2 group border-0 outline-none focus:ring-0 focus:ring-offset-0 focus:outline-none select-none"
+                                        >
                                             <MapPin className="w-4 h-4 text-orange-500 group-hover:scale-110 transition-transform" />
                                             <span className="relative z-10">{selectedLocation}</span>
                                             <ChevronDown className="w-4 h-4 transition-transform group-hover:scale-110" />
@@ -686,7 +704,19 @@ const Header = () => {
                                 OfferKart
                             </span>
                         </div>
-                        <div className="flex justify-center min-w-0">
+                        <div 
+                            className="flex justify-center min-w-0 cursor-pointer"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setIslandExpanded(true);
+                                if (window.innerWidth >= 1024) {
+                                    setDesktopLocationOpen(true);
+                                } else {
+                                    setMobileLocationOpen(true);
+                                }
+                            }}
+                        >
                             <div className="flex items-center gap-2 rounded-full px-3 py-1.5 bg-white/40 dark:bg-white/10 border border-white/30 dark:border-white/10 max-w-[240px]">
                                 <MapPin className="w-4 h-4 text-orange-500 shrink-0" />
                                 <span className="text-xs font-semibold truncate">

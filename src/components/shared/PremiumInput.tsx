@@ -26,7 +26,7 @@ export const PremiumInput = React.forwardRef<HTMLInputElement, PremiumInputProps
                     <Input
                         ref={ref}
                         className={cn(
-                            "bg-background/40 border-primary/10 focus:border-primary/50 focus:ring-primary/20 transition-all rounded-xl",
+                            "bg-background/40 border-primary/10 focus:border-primary/50 focus:ring-primary/20 transition-all rounded-xl focus-visible:ring-1 focus-visible:ring-offset-0 focus-visible:ring-primary/40 focus-visible:border-primary/50",
                             Icon && "pl-10",
                             error && "border-destructive focus:ring-destructive/20",
                             className
