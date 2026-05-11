@@ -26,9 +26,10 @@ import { toast } from "sonner";
 import { FileUpload } from "@/components/shared/FileUpload";
 import Image from "next/image";
 
-import { CATEGORY_HIERARCHY, MAIN_CATEGORIES, MainCategory } from "@/lib/categories";
+import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
 import { Check, ChevronDown, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSubcategories } from "@/hooks/useApi";
 
 interface Box {
     x: number;
@@ -38,6 +39,7 @@ interface Box {
 }
 
 export default function CreateOfferForm() {
+    const { mainCategories, categoryHierarchy, getCategoryId, isLoading } = useCategoryHierarchy();
     const router = useRouter();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
@@ -51,6 +53,13 @@ export default function CreateOfferForm() {
         offerPrice: "",
         imageFile: null as File | null,
     });
+    
+    const activeCategoryId = formData.mainCategory ? getCategoryId(formData.mainCategory) : null;
+    const { data: subcategoriesRes, isLoading: isLoadingSubcategories } = useSubcategories(activeCategoryId);
+    const dynamicSubcategories = subcategoriesRes?.success && subcategoriesRes.data 
+        ? subcategoriesRes.data 
+        : [];
+
     const [categoryOpen, setCategoryOpen] = useState(false);
     const [categorySearch, setCategorySearch] = useState('');
     const [mainCategoryOpen, setMainCategoryOpen] = useState(false);
@@ -289,7 +298,7 @@ export default function CreateOfferForm() {
                                             />
                                         </div>
                                         <div className="max-h-48 overflow-y-auto">
-                                            {MAIN_CATEGORIES.filter(cat => cat.toLowerCase().includes(mainCategorySearch.toLowerCase())).map(cat => (
+                                            {mainCategories.filter(cat => cat.toLowerCase().includes(mainCategorySearch.toLowerCase())).map(cat => (
                                                 <button
                                                     key={cat}
                                                     type="button"
@@ -359,11 +368,14 @@ export default function CreateOfferForm() {
                                             />
                                         </div>
                                         <div className="max-h-48 overflow-y-auto">
-                                            {CATEGORY_HIERARCHY[formData.mainCategory as MainCategory].filter(s => s.toLowerCase().includes(categorySearch.toLowerCase())).map(sub => {
+                                            {isLoadingSubcategories ? (
+                                                <div className="px-4 py-3 text-sm text-gray-500 text-center">Loading subcategories...</div>
+                                            ) : dynamicSubcategories.filter((s: any) => s.name.toLowerCase().includes(categorySearch.toLowerCase())).map((subObj: any) => {
+                                                const sub = subObj.name;
                                                 const isSelected = formData.subcategories.includes(sub);
                                                 return (
                                                     <button
-                                                        key={sub}
+                                                        key={subObj.id}
                                                         type="button"
                                                         onClick={() => {
                                                             setFormData(p => ({
@@ -382,7 +394,7 @@ export default function CreateOfferForm() {
                                                     </button>
                                                 );
                                             })}
-                                            {categorySearch.trim() && !CATEGORY_HIERARCHY[formData.mainCategory as MainCategory].some(s => s.toLowerCase() === categorySearch.toLowerCase()) && (
+                                            {categorySearch.trim() && !dynamicSubcategories.some((s: any) => s.name.toLowerCase() === categorySearch.toLowerCase()) && (
                                                 <button
                                                     type="button"
                                                     onClick={() => {

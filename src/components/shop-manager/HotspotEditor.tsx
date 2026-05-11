@@ -10,7 +10,8 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 
-import { CATEGORY_HIERARCHY, MAIN_CATEGORIES, MainCategory } from "@/lib/categories";
+import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
+import { useSubcategories } from "@/hooks/useApi";
 import { createWorker, Worker } from 'tesseract.js';
 import { Heading, Subheading, Text } from "@/components/shared/Typography";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
@@ -85,6 +86,25 @@ interface Position { x: number; y: number; }
 interface Rect { x: number; y: number; width: number; height: number; }
 
 export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) {
+    const { categoryHierarchy, mainCategories, getCategoryId } = useCategoryHierarchy();
+
+    const [formData, setFormData] = useState({
+        name: '',
+        mainCategory: '',
+        subcategories: [] as string[],
+        subcategoryId: null as number | null,
+        description: '',
+        productImage: '',
+        oldPrice: '',
+        offerPrice: ''
+    });
+
+    const activeCategoryId = formData.mainCategory ? getCategoryId(formData.mainCategory) : null;
+    const { data: subcategoriesRes, isLoading: isLoadingSubcategories } = useSubcategories(activeCategoryId);
+    const dynamicSubcategories = subcategoriesRes?.success && subcategoriesRes.data 
+        ? subcategoriesRes.data 
+        : [];
+
     const [posterData, setPosterData] = useState<PosterData>({
         posterSrc: poster.posterSrc,
         markedItems: poster.markedItems || [],
@@ -98,16 +118,6 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
     const [currentMarkedItem, setCurrentMarkedItem] = useState<MarkedItemType | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [highlightedId, setHighlightedId] = useState<string | null>(null);
-
-    const [formData, setFormData] = useState({
-        name: '',
-        mainCategory: '' as string,
-        subcategories: [] as string[],
-        description: '',
-        productImage: '',
-        oldPrice: '',
-        offerPrice: ''
-    });
 
     const [showCropper, setShowCropper] = useState(false);
     const [cropperImage, setCropperImage] = useState('');
@@ -357,13 +367,14 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
     const handleEditItem = (item: MarkedItemType) => {
         setCurrentMarkedItem(item);
         setFormData({
-            name: item.name === 'Processing...' ? '' : item.name,
+            name: item.name,
             mainCategory: item.mainCategory || '',
             subcategories: item.subcategories || [],
+            subcategoryId: item.subcategoryId || null,
             description: item.description,
             productImage: item.productImage,
-            oldPrice: item.oldPrice ? String(item.oldPrice) : '',
-            offerPrice: item.offerPrice ? String(item.offerPrice) : ''
+            oldPrice: item.oldPrice ? item.oldPrice.toString() : '',
+            offerPrice: item.offerPrice ? item.offerPrice.toString() : ''
         });
         setShowModal(true);
         setHighlightedId(item.id);
@@ -404,10 +415,12 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
             name: formData.name,
             mainCategory: formData.mainCategory,
             subcategories: formData.subcategories,
+            subcategoryId: formData.subcategoryId || undefined,
             description: formData.description,
             productImage: formData.productImage,
-            oldPrice: parseFloat(formData.oldPrice) || 0,
-            offerPrice: parseFloat(formData.offerPrice) || 0
+            oldPrice: Number(formData.oldPrice),
+            offerPrice: Number(formData.offerPrice),
+            currency: posterData.currency
         };
 
         setPosterData(prev => ({
@@ -810,12 +823,12 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                                                     />
                                                 </div>
                                                 <div className="max-h-48 overflow-y-auto">
-                                                    {MAIN_CATEGORIES.filter(cat => cat.toLowerCase().includes(mainCategorySearch.toLowerCase())).map(cat => (
+                                                    {(mainCategories || []).filter(cat => cat.toLowerCase().includes(mainCategorySearch.toLowerCase())).map(cat => (
                                                         <button
                                                             key={cat}
                                                             type="button"
                                                             onClick={() => {
-                                                                setFormData(p => ({ ...p, mainCategory: cat, subcategories: [] }));
+                                                                setFormData(p => ({ ...p, mainCategory: cat, subcategories: [], subcategoryId: null }));
                                                                 setMainCategoryOpen(false);
                                                             }}
                                                             className={cn(
@@ -867,16 +880,22 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                                                             />
                                                         </div>
                                                         <div className="max-h-48 overflow-y-auto">
-                                                            {CATEGORY_HIERARCHY[formData.mainCategory as MainCategory].filter(s => s.toLowerCase().includes(categorySearch.toLowerCase())).map(sub => {
+                                                            {isLoadingSubcategories ? (
+                                                                <div className="px-4 py-3 text-sm text-gray-500 text-center">Loading subcategories...</div>
+                                                            ) : dynamicSubcategories.filter((s: any) => s.name.toLowerCase().includes(categorySearch.toLowerCase())).map((subObj: any) => {
+                                                                const sub = subObj.name;
                                                                 const isSelected = formData.subcategories.includes(sub);
                                                                 return (
                                                                     <button
-                                                                        key={sub}
+                                                                        key={subObj.id}
                                                                         type="button"
                                                                         onClick={() => {
+                                                                            const nextSelected = isSelected ? [] : [sub];
+                                                                            const nextId = isSelected ? null : subObj.id;
                                                                             setFormData(p => ({
                                                                                 ...p,
-                                                                                subcategories: isSelected ? [] : [sub]
+                                                                                subcategories: nextSelected,
+                                                                                subcategoryId: nextId
                                                                             }));
                                                                             setCategoryOpen(false); // Close dropdown after selection
                                                                         }}

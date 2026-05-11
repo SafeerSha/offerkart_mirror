@@ -10,7 +10,8 @@ import {
     Image as ImageIcon
 } from "lucide-react";
 
-import { CATEGORY_HIERARCHY, MAIN_CATEGORIES, MainCategory } from "@/lib/categories";
+import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
+import { useSubcategories } from "@/hooks/useApi";
 import Image from "next/image";
 import { createWorker, Worker } from 'tesseract.js';
 import { Heading, Subheading, Text } from "@/components/shared/Typography";
@@ -100,6 +101,7 @@ interface Rect { x: number; y: number; width: number; height: number; }
 
 function HotspotEditorContent() {
     const router = useRouter();
+    const { mainCategories, categoryHierarchy, getCategoryId } = useCategoryHierarchy();
     const searchParams = useSearchParams();
     const fromPreview = searchParams.get('from') === 'preview';
     const isEditFlow = searchParams.get('returnTo') === 'edit-offer';
@@ -130,11 +132,18 @@ function HotspotEditorContent() {
         name: '',
         mainCategory: '' as string,
         subcategories: [] as string[],
+        subcategoryId: null as number | null,
         description: '',
         productImage: '',
         oldPrice: '',
         offerPrice: ''
     });
+
+    const activeCategoryId = formData.mainCategory ? getCategoryId(formData.mainCategory) : null;
+    const { data: subcategoriesRes, isLoading: isLoadingSubcategories } = useSubcategories(activeCategoryId);
+    const dynamicSubcategories = subcategoriesRes?.success && subcategoriesRes.data 
+        ? subcategoriesRes.data 
+        : [];
 
     // Navigation Step State
     const [popoverOpen, setPopoverOpen] = useState(false);
@@ -445,6 +454,7 @@ function HotspotEditorContent() {
             name: item.name === 'Processing...' ? '' : item.name,
             mainCategory: item.mainCategory || '',
             subcategories: item.subcategories || [],
+            subcategoryId: item.subcategoryId || null,
             description: item.description,
             productImage: item.productImage,
             oldPrice: item.oldPrice ? String(item.oldPrice) : '',
@@ -466,12 +476,14 @@ function HotspotEditorContent() {
     const handleSaveForm = (e: FormEvent) => {
         e.preventDefault();
         if (!currentMarkedItem) return;
+        const finalSubcategoryId = formData.subcategoryId || undefined;
 
         const updatedItem: MarkedItemType = {
             ...currentMarkedItem,
             name: formData.name,
             mainCategory: formData.mainCategory,
             subcategories: formData.subcategories,
+            subcategoryId: finalSubcategoryId,
             description: formData.description,
             productImage: formData.productImage,
             oldPrice: parseFloat(formData.oldPrice) || 0,
@@ -1030,19 +1042,19 @@ function HotspotEditorContent() {
                                                     <span className="text-xs line-through opacity-40">{item.currency} {item.oldPrice}</span>
                                                     <span className="text-sm font-bold text-green-500">{item.currency} {item.offerPrice}</span>
                                                 </div>
-                                                {formData.mainCategory && (
+                                                {item.mainCategory && (
                                                     <div className="flex flex-wrap gap-1 mt-1.5 auto-rows-min">
                                                         <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-black whitespace-nowrap uppercase">
-                                                            {formData.mainCategory}
+                                                            {item.mainCategory}
                                                         </span>
-                                                        {formData.subcategories && formData.subcategories.slice(0, 1).map(cat => (
+                                                        {item.subcategories && item.subcategories.slice(0, 1).map(cat => (
                                                             <span key={cat} className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/5 text-primary border border-primary/10 font-bold whitespace-nowrap">
                                                                 {cat}
                                                             </span>
                                                         ))}
-                                                        {formData.subcategories && formData.subcategories.length > 1 && (
+                                                        {item.subcategories && item.subcategories.length > 1 && (
                                                             <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border font-bold">
-                                                                +{formData.subcategories.length - 1}
+                                                                +{item.subcategories.length - 1}
                                                             </span>
                                                         )}
                                                     </div>
@@ -1183,7 +1195,7 @@ function HotspotEditorContent() {
                                                     />
                                                 </div>
                                                 <div className="max-h-48 overflow-y-auto">
-                                                    {MAIN_CATEGORIES.filter(cat => cat.toLowerCase().includes(mainCategorySearch.toLowerCase())).map(cat => (
+                                                    {mainCategories.filter(cat => cat.toLowerCase().includes(mainCategorySearch.toLowerCase())).map(cat => (
                                                         <button
                                                             key={cat}
                                                             type="button"
@@ -1240,16 +1252,20 @@ function HotspotEditorContent() {
                                                             />
                                                         </div>
                                                         <div className="max-h-48 overflow-y-auto">
-                                                            {CATEGORY_HIERARCHY[formData.mainCategory as MainCategory].filter(s => s.toLowerCase().includes(categorySearch.toLowerCase())).map(sub => {
+                                                            {isLoadingSubcategories ? (
+                                                                <div className="px-4 py-3 text-sm text-gray-500 text-center">Loading subcategories...</div>
+                                                            ) : dynamicSubcategories.filter((s: any) => s.name.toLowerCase().includes(categorySearch.toLowerCase())).map((subObj: any) => {
+                                                                const sub = subObj.name;
                                                                 const isSelected = formData.subcategories.includes(sub);
                                                                 return (
                                                                     <button
-                                                                        key={sub}
+                                                                        key={subObj.id}
                                                                         type="button"
                                                                         onClick={() => {
                                                                             setFormData(p => ({
                                                                                 ...p,
-                                                                                subcategories: isSelected ? [] : [sub]
+                                                                                subcategories: isSelected ? [] : [sub],
+                                                                                subcategoryId: isSelected ? null : subObj.id
                                                                             }));
                                                                             setCategoryOpen(false); // Close dropdown after selection
                                                                         }}

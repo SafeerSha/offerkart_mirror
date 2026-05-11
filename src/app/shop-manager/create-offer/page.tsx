@@ -1,43 +1,38 @@
 "use client";
 
+// Core React imports
 import { useState, useEffect, Suspense } from "react";
+
+// Next.js
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { toast } from "sonner";
+import Image from "next/image";
+
+// UI Components (barrel import)
 import {
-    ArrowRight,
-    X,
-    Clock,
-    FileEdit,
-    Trash2,
-    LayoutGrid,
-    Send,
-    Type,
-    GitBranch,
-} from "lucide-react";
-import { Heading, Subheading, Text } from "@/components/shared/Typography";
-import Breadcrumbs from "@/components/shared/Breadcrumbs";
-import { PremiumCard } from "@/components/shared/PremiumCard";
-import { PremiumButton } from "@/components/shared/PremiumButton";
-import { PremiumInput } from "@/components/shared/PremiumInput";
-import { PremiumDatePicker } from "@/components/shared/PremiumDatePicker";
-import { AppModal } from "@/components/shared/AppModal";
+    Heading, Subheading, Text, Breadcrumbs, PremiumCard,
+    PremiumButton, PremiumInput, PremiumDatePicker,
+    AppModal, MultiSearchableSelect, StatusToggleButton
+} from "@/components/shared";
+
+// Types
+import { Branch, PosterItem } from "@/lib/types";
+import type { PosterPreviewState } from "@/components/shop-manager/PosterCardStack";
+
+// Icons
+import { ArrowRight, X, Clock, FileEdit, Trash2, LayoutGrid, Send, Type, GitBranch } from "@/lib/icons";
+
+// Local components
+import { PosterCardStack } from "@/components/shop-manager/PosterCardStack";
+import { PosterPreviewPanel } from "@/components/shop-manager/PosterPreviewPanel";
+
+// Utilities
 import { cn, formatDateLocal } from "@/lib/utils";
 import { storage } from "@/lib/storage";
-import { getBranches } from "@/lib/api/branch";
-import { getMyShops } from "@/lib/api/shop";
-import { s3Api } from "@/lib/api/s3";
-import { createOffer, updateOffer } from "@/lib/api/offers";
-import Image from "next/image";
-import { Branch } from "@/lib/types/branch";
-import { MultiSearchableSelect } from "@/components/shared/MultiSearchableSelect";
-import {
-    PosterCardStack,
-    PosterItem,
-} from "@/components/shop-manager/PosterCardStack";
-import type { PosterPreviewState } from "@/components/shop-manager/PosterCardStack";
-import { PosterPreviewPanel } from "@/components/shop-manager/PosterPreviewPanel";
-import { StatusToggleButton } from "@/components/shared/StatusToggleButton";
+import { toast } from "sonner";
+
+// API functions (barrel import)
+import { getBranches, getMyShops, s3Api, createOffer, updateOffer } from "@/lib/api";
 
 interface Draft {
     id: string;

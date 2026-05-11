@@ -23,6 +23,15 @@ export const ENDPOINTS = {
     },
     USER_OFFER: {
         BASE: `user/offer`,
+    },
+    CATEGORY: {
+        BASE: `business/category`,
+        SUBCATEGORIES: (id: string | number) => `business/category/${id}/subcategories`,
+    },
+    OFFER_PRODUCT: {
+        BASE: `business/offerproduct`,
+        DETAILS: (id: string) => `business/offerproduct/${id}`,
+        INACTIVATE: (id: string) => `business/offerproduct/inactivate/${id}`,
     }
 };
 
