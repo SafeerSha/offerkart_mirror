@@ -14,10 +14,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { CATEGORY_HIERARCHY, MAIN_CATEGORIES } from "@/lib/categories";
-
-const categories = ["All", ...MAIN_CATEGORIES];
-const subcategories = CATEGORY_HIERARCHY;
+import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
+import { useSubcategories } from "@/hooks/useApi";
 
 const sortOptions = [
   { value: "latest", label: "Latest" },
@@ -51,6 +49,9 @@ const FilterPanel = ({
   variant = "inline",
   className
 }: FilterPanelProps) => {
+  const { mainCategories, categoryHierarchy, getCategoryId } = useCategoryHierarchy();
+  const categories = ["All", ...mainCategories];
+
   // Internal state as fallback for uncontrolled usage
   const [_internalCategory, _setInternalCategory] = useState("All");
   const [_internalSubcategory, _setInternalSubcategory] = useState<string[]>([]);
@@ -61,6 +62,12 @@ const FilterPanel = ({
   const category = propsCategory ?? _internalCategory;
   const subcategory = propsSubcategory ?? _internalSubcategory;
   const sort = propsSort ?? propsSort ?? _internalSort;
+
+  const activeCategoryId = category !== "All" ? getCategoryId(category) : null;
+  const { data: subcategoriesRes, isLoading: isLoadingSubcategories } = useSubcategories(activeCategoryId);
+  const dynamicSubcategories = subcategoriesRes?.success && subcategoriesRes.data 
+        ? subcategoriesRes.data 
+        : [];
 
   const handleCategoryChange = (val: string) => {
     if (onCategoryChange) {
@@ -170,7 +177,7 @@ const FilterPanel = ({
                 </button>
 
                 {/* Nested Subcategories */}
-                {category === cat && cat !== "All" && subcategories[cat as keyof typeof subcategories] && (
+                {category === cat && cat !== "All" && dynamicSubcategories.length > 0 && (
                   <div className="flex flex-col gap-1 pl-4 pb-2 animate-in slide-in-from-top-2 fade-in duration-300">
                     <button
                       onClick={() => handleSubcategoryChange("All")}
@@ -183,23 +190,27 @@ const FilterPanel = ({
                     >
                       • All {cat}
                     </button>
-                    {subcategories[cat as keyof typeof subcategories].map((sub) => (
-                      <button
-                        key={sub}
-                        onClick={() => handleSubcategoryChange(sub)}
-                        className={cn(
-                          "px-3 py-1.5 rounded-lg text-[13px] text-left transition-all flex items-center justify-between group",
-                          subcategory.includes(sub)
-                            ? "text-orange-600 font-semibold"
-                            : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-                        )}
-                      >
-                        <span>• {sub}</span>
-                        {subcategory.includes(sub) && (
-                          <div className="w-1 h-1 rounded-full bg-orange-500" />
-                        )}
-                      </button>
-                    ))}
+                    {isLoadingSubcategories ? (
+                        <div className="px-3 py-1 text-[13px] text-gray-400">Loading...</div>
+                    ) : (
+                        dynamicSubcategories.map((sub: any) => (
+                          <button
+                            key={sub.id}
+                            onClick={() => handleSubcategoryChange(sub.name)}
+                            className={cn(
+                              "px-3 py-1.5 rounded-lg text-[13px] text-left transition-all flex items-center justify-between group",
+                              subcategory.includes(sub.name)
+                                ? "text-orange-600 font-semibold"
+                                : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                            )}
+                          >
+                            <span>• {sub.name}</span>
+                            {subcategory.includes(sub.name) && (
+                              <div className="w-1 h-1 rounded-full bg-orange-500" />
+                            )}
+                          </button>
+                        ))
+                    )}
                   </div>
                 )}
               </div>

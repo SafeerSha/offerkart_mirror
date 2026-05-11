@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { AppModal } from "@/components/shared/AppModal";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { PremiumInput } from "@/components/shared/PremiumInput";
@@ -538,13 +538,29 @@ export default function PosterDesigner({
 }) {
     /* ---------- STATE ---------- */
     const [elements, setElements] = useState<CanvasElement[]>(initialElements);
+    const elementsRef = useRef<CanvasElement[]>(initialElements);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [canvasBg, setCanvasBg] = useState(initialBg);
     const [nextZ, setNextZ] = useState(() => {
         const maxZ = initialElements.reduce((max, el) => Math.max(max, el.zIndex || 0), 0);
         return maxZ + 1;
     });
+
+    // Memoized max z-index for performance
+    const maxZIndex = useMemo(() => Math.max(...elements.map(e => e.zIndex || 0), 0), [elements]);
+
+    // Memoized selected element
+    const selectedEl = useMemo(() => elements.find(e => e.id === selectedId) || null, [elements, selectedId]);
+
+    // Update elements ref
+    useEffect(() => {
+        elementsRef.current = elements;
+    }, [elements]);
+
     const canvasRef = useRef<HTMLDivElement>(null);
+    const dragRef = useRef<{ elId: string; startMouseX: number; startMouseY: number; startElX: number; startElY: number } | null>(null);
+    const resizeRef = useRef<{ elId: string; handle: string; startMouseX: number; startMouseY: number; startX: number; startY: number; startW: number; startH: number } | null>(null);
+    const imageInputRef = useRef<HTMLInputElement>(null);
     const [showGrid, setShowGrid] = useState(false);
     const [gridCols, setGridCols] = useState(() => templateConfig?.itemGrid?.columns ?? 3);
     const [gridRows, setGridRows] = useState(() => templateConfig?.itemGrid?.rows ?? 4);
@@ -603,6 +619,14 @@ export default function PosterDesigner({
     const { data: productsData } = useAllProducts();
     const products = (productsData || []) as any[];
     const [showProductModal, setShowProductModal] = useState(false);
+    const [showCardModal, setShowCardModal] = useState(false);
+    const [showAddPlaceholderMenu, setShowAddPlaceholderMenu] = useState(false);
+    const [showResetConfirm, setShowResetConfirm] = useState(false);
+    const [cardFilePreview, setCardFilePreview] = useState<string | null>(null);
+    const [cardForm, setCardForm] = useState({ title: "", desc: "", offerPrice: "", oldPrice: "", image: "" });
+    const [targetPlaceholderId, setTargetPlaceholderId] = useState<string | null>(null);
+    const [placeholderPopupId, setPlaceholderPopupId] = useState<string | null>(null);
+    const [dragOverPlaceholderId, setDragOverPlaceholderId] = useState<string | null>(null);
     const [guides, setGuides] = useState<{ x?: number; y?: number; type: "x" | "y" }[]>([]);
 
     const SHADOW_PRESETS = [
@@ -632,9 +656,6 @@ export default function PosterDesigner({
                 console.error("Failed to load posters", e);
             }
         }
-
-        // Initial history snapshot
-        saveHistory([], "#ffffff");
     }, []);
 
     // Save history snapshot
@@ -646,25 +667,10 @@ export default function PosterDesigner({
         setHistoryIndex(prev => Math.min(prev + 1, 29));
     }, [historyIndex]);
 
-    const undo = () => {
-        if (historyIndex > 0) {
-            const prev = history[historyIndex - 1];
-            setElements(prev.elements);
-            setCanvasBg(prev.bg);
-            setHistoryIndex(historyIndex - 1);
-            setSelectedId(null);
-        }
-    };
-
-    const redo = () => {
-        if (historyIndex < history.length - 1) {
-            const next = history[historyIndex + 1];
-            setElements(next.elements);
-            setCanvasBg(next.bg);
-            setHistoryIndex(historyIndex + 1);
-            setSelectedId(null);
-        }
-    };
+    // Initial history snapshot
+    useEffect(() => {
+        saveHistory([], "#ffffff");
+    }, [saveHistory]);
 
     // Auto-save history after major changes (throttled)
     const historyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -675,74 +681,45 @@ export default function PosterDesigner({
         }, 800);
     }, [elements, canvasBg, saveHistory]);
 
-    // Save to localStorage when updated
-    useEffect(() => {
-        localStorage.setItem("offerKart_posters", JSON.stringify(savedPosters));
-    }, [savedPosters]);
+    const undo = () => {
+        if (historyIndex > 0) {
+            setHistoryIndex(historyIndex - 1);
+            const prev = history[historyIndex - 1];
+            setElements(prev.elements);
+            setCanvasBg(prev.bg);
+        }
+    };
 
-    // Modal state
-    const [showCardModal, setShowCardModal] = useState(false);
-    const [cardForm, setCardForm] = useState({ image: "", title: "", desc: "", offerPrice: "", oldPrice: "" });
-    const [cardFilePreview, setCardFilePreview] = useState<string | null>(null);
-    const [showResetConfirm, setShowResetConfirm] = useState(false);
-    const imageInputRef = useRef<HTMLInputElement>(null);
+    const redo = () => {
+        if (historyIndex < history.length - 1) {
+            setHistoryIndex(historyIndex + 1);
+            const next = history[historyIndex + 1];
+            setElements(next.elements);
+            setCanvasBg(next.bg);
+        }
+    };
 
-    // Placeholder slot popup — tracks which slot was clicked
-    const [placeholderPopupId, setPlaceholderPopupId] = useState<string | null>(null);
-    const [targetPlaceholderId, setTargetPlaceholderId] = useState<string | null>(null);
-    // Add-placeholder mode chooser popup (grid snap vs free float)
-    const [showAddPlaceholderMenu, setShowAddPlaceholderMenu] = useState(false);
-
-    // Drag-to-slot: which placeholder is currently hovered by a dragged product-card
-    const [dragOverPlaceholderId, setDragOverPlaceholderId] = useState<string | null>(null);
-
-    // Keep a ref so drag callbacks always see fresh elements (avoid stale closure)
-    const elementsRef = useRef<CanvasElement[]>(elements);
-    useEffect(() => { elementsRef.current = elements; }, [elements]);
-
-    // Drag state
-    const dragRef = useRef<{
-        elId: string;
-        startMouseX: number;
-        startMouseY: number;
-        startElX: number;
-        startElY: number;
-    } | null>(null);
-
-    // Resize state
-    const resizeRef = useRef<{
-        elId: string;
-        handle: HandlePos;
-        startMouseX: number;
-        startMouseY: number;
-        startX: number;
-        startY: number;
-        startW: number;
-        startH: number;
-    } | null>(null);
-
-    const resetCanvas = () => setShowResetConfirm(true);
     const handleResetConfirm = () => {
         setElements([]);
         setCanvasBg("#ffffff");
-        recordChange();
+        setSelectedId(null);
+        setHistory([{ elements: [], bg: "#ffffff" }]);
+        setHistoryIndex(0);
         setShowResetConfirm(false);
-        // toast.success("Canvas cleared"); // Ensuring toast is handled if available
     };
 
-    /* ---------- HELPERS ---------- */
-    const genId = () => crypto.randomUUID();
-    const randOffset = (base: number, range: number) => base + Math.floor(Math.random() * range * 2 - range);
+    // Helper to get next z-index
+    const bumpZ = useCallback(() => maxZIndex + 1, [maxZIndex]);
 
-    const bumpZ = useCallback(() => {
-        setNextZ((z) => z + 1);
-        return nextZ + 1;
-    }, [nextZ]);
+    // Helper to generate unique IDs
+    const genId = useCallback(() => crypto.randomUUID(), []);
 
-    const selectedEl = elements.find((e) => e.id === selectedId) || null;
+    // Helper to generate random offset
+    const randOffset = useCallback((base: number, variance: number) => base + (Math.random() - 0.5) * variance, []);
 
+    // Helper to update element by ID
     const updateEl = useCallback((id: string, patch: Partial<CanvasElement>) => {
-        setElements((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+        setElements(prev => prev.map(e => e.id === id ? { ...e, ...patch } : e));
     }, []);
 
     /* ---------- ADD ELEMENTS ---------- */
@@ -2165,7 +2142,7 @@ export default function PosterDesigner({
                                             badgeText: e.badgeText,
                                         }));
 
-                                    const maxZ = Math.max(...elements.map(e => e.zIndex), 0);
+                                    const maxZ = maxZIndex;
                                     let zCounter = maxZ + 1;
                                     const newSlots: CanvasElement[] = [];
                                     for (let row = 0; row < newRows; row++) {
@@ -2257,7 +2234,7 @@ export default function PosterDesigner({
                                         return;
                                     }
 
-                                    const maxZ = Math.max(...elements.map(e => e.zIndex), 0);
+                                    const maxZ = maxZIndex;
                                     const newPlaceholder: CanvasElement = {
                                         id: `item-${missingRow}-${missingCol}-bg-${Date.now()}`,
                                         type: 'product-card',
@@ -2283,7 +2260,7 @@ export default function PosterDesigner({
                                 };
 
                                 const addFreeFloatingPlaceholder = () => {
-                                    const maxZ = Math.max(...elements.map(e => e.zIndex), 0);
+                                    const maxZ = maxZIndex;
                                     const newPlaceholder: CanvasElement = {
                                         id: `free-placeholder-${Date.now()}`,
                                         type: 'product-card',
@@ -2580,7 +2557,7 @@ export default function PosterDesigner({
                                         <div className="grid grid-cols-2 gap-2">
                                             <button
                                                 onClick={() => {
-                                                    const maxZ = Math.max(...elements.map(e => e.zIndex), 0);
+                                                    const maxZ = maxZIndex;
                                                     updateEl(selectedId, { zIndex: maxZ + 1 });
                                                     recordChange();
                                                 }}

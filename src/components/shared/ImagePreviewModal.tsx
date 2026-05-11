@@ -29,12 +29,12 @@ export function ImagePreviewModal({ src, alt, isOpen, onClose, markedItems }: Im
                             <span className="sr-only">Close</span>
                         </DialogPrimitive.Close>
 
-                        <div className="relative inline-block max-w-full max-h-[80vh] rounded-2xl shadow-2xl overflow-hidden ring-1 ring-white/10">
+                        <div className="relative w-full h-[60vh] md:h-[80vh] flex items-center justify-center bg-black/20 backdrop-blur-md rounded-2xl shadow-2xl overflow-hidden ring-1 ring-white/10">
                             <MarkedPoster
                                 src={src}
                                 alt={alt}
                                 markedItems={markedItems}
-                                className="max-h-[80vh] w-auto h-auto"
+                                className="w-full h-full"
                                 showNames={false}
                             />
                         </div>

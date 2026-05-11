@@ -1,58 +1,56 @@
 "use client";
 
+// Core React imports
 import { useState, useEffect, useRef, Suspense, useMemo } from "react";
-import { Heading, Text, SectionTitle } from "@/components/shared/Typography";
-import { toast } from "sonner";
-import { PremiumCard } from "@/components/shared/PremiumCard";
-import { PremiumButton } from "@/components/shared/PremiumButton";
-import { AppModal } from "@/components/shared/AppModal";
-import { Product } from "@/lib/types/product";
+
+// UI Components (barrel import)
 import {
-    AlertTriangle,
-    ArrowUpRight,
-    BarChart3,
-    ChevronRight,
-    Clock,
-    Eye,
-    Filter,
-    Info,
-    LayoutDashboard,
-    LogOut,
-    MapPin,
-    MoreVertical,
-    Package,
-    Plus,
-    Power,
-    Search,
-    Settings,
-    Store,
-    Tag,
-    Ticket,
-    Loader2,
-    Trash2,
-    Calendar,
-    MousePointer2,
-    Pencil,
-    ArrowRight,
-    GitBranch,
-    Paintbrush,
-} from "lucide-react";
+    Heading, Text, SectionTitle, PremiumCard, PremiumButton,
+    AppModal, PremiumDatePicker, ImagePreviewModal, StatusToggleButton
+} from "@/components/shared";
+
+// Types
+import { Product } from "@/lib/types";
+
+// Icons (selective import - only what's needed)
+import {
+    AlertTriangle, ArrowUpRight, BarChart3, ChevronRight, Clock,
+    Eye, Filter, Info, LayoutDashboard, LogOut, MapPin,
+    MoreVertical, Package, Plus, Power, Search, Settings,
+    Store, Tag, Ticket, Loader2, Trash2, Calendar,
+    MousePointer2, Pencil, ArrowRight, GitBranch, Paintbrush, ShoppingBag
+} from "@/lib/icons";
+
+// UI Libraries
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PremiumDatePicker } from "@/components/shared/PremiumDatePicker";
-import Link from "next/link";
-import { useSession, signOut } from "next-auth/react";
-import Image from "next/image";
-import { useSearchParams, useRouter } from "next/navigation";
-import Breadcrumbs from "@/components/shared/Breadcrumbs";
-import { cn, getRelativeTime } from "@/lib/utils";
-import { ImagePreviewModal } from "@/components/shared/ImagePreviewModal";
-import { StatusToggleButton } from "@/components/shared/StatusToggleButton";
-import { storage } from "@/lib/storage";
-import { ProductModal } from "@/components/shop-manager/ProductModal";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
-import { useMyShops, useBranches, useAllOffers, useAllProducts, useDeleteOffer, useToggleOfferStatus, useCreateProduct, useUpdateProduct, useDeleteProduct } from "@/hooks/useApi";
+
+// Next.js
+import Link from "next/link";
+import Image from "next/image";
+import { useSession, signOut } from "next-auth/react";
+import { useSearchParams, useRouter } from "next/navigation";
+
+// Shared utilities
+import { cn, getRelativeTime } from "@/lib/utils";
+import { storage } from "@/lib/storage";
+import { toast } from "sonner";
+
+// Local components
+import Breadcrumbs from "@/components/shared/Breadcrumbs";
+import { ProductModal } from "@/components/shop-manager/ProductModal";
+
+// Hooks (barrel import)
+import {
+    useMyShops, useBranches, useAllOffers, useAllProducts,
+    useDeleteOffer, useToggleOfferStatus, useCreateProduct,
+    useUpdateProduct, useDeleteProduct, useToggleOfferProductStatus,
+    useIsMobile
+} from "@/hooks";
+
+// API functions
+import { getOfferProductById } from "@/lib/api";
 
 function DashboardContent() {
     const { data: session } = useSession();
@@ -89,7 +87,7 @@ function DashboardContent() {
     }, [offersResponse]);
 
     // 3. Fetch Products
-    const { data: productsData, isLoading: isLoadingProducts } = useAllProducts();
+    const { data: productsData, isLoading: isLoadingProducts } = useAllProducts(activeShopId || undefined);
     const products = (productsData || []) as Product[];
 
     // 4. Fetch Branches for mapping in product cards
@@ -116,6 +114,7 @@ function DashboardContent() {
     const { mutateAsync: createProductMutation } = useCreateProduct();
     const { mutateAsync: updateProductMutation } = useUpdateProduct();
     const { mutateAsync: deleteProductMutation } = useDeleteProduct();
+    const { mutateAsync: toggleProductStatusMutation } = useToggleOfferProductStatus();
 
     // ================= LOCAL UI STATE =================
     const [showAddProductModal, setShowAddProductModal] = useState(false);
@@ -212,9 +211,9 @@ function DashboardContent() {
                 const res = await toggleStatusMutation({ id: String(idToUse), shopId: activeShopId });
                 if (res.success) {
                     toast.success(`Offer ${offer.status === 'active' ? 'paused' : 'resumed'}`);
-            } else {
-                throw new Error("Failed to toggle status");
-            }
+                } else {
+                    throw new Error("Failed to toggle status");
+                }
             }
         } catch (err: any) {
             console.error("Toggle error:", err);
@@ -224,7 +223,7 @@ function DashboardContent() {
 
     const handleCreateProduct = async (payload: any) => {
         try {
-            const res = await createProductMutation(payload);
+            const res = await createProductMutation({ payload, shopId: activeShopId || undefined });
             if (res.success) {
                 toast.success("Product created successfully");
                 setShowAddProductModal(false);
@@ -237,12 +236,49 @@ function DashboardContent() {
         }
     };
 
+    const handleEditProduct = async (product: any) => {
+        try {
+            const res = await getOfferProductById(String(product.id));
+            if (res.success && res.data) {
+                // Unwrap one level if backend wraps in { data: {...} }
+                const full: any = res.data?.data ?? res.data;
+
+                // Backend returns offerBranches: [{ branchId, branch: {...} }]
+                const branchIds = full.offerBranches?.map((ob: any) => String(ob.branchId)) ?? [];
+
+                setProductToEdit({
+                    id: full.id,
+                    name: full.displayName || full.name || "",
+                    category: full.categoryId || full.category?.id || null,
+                    subcategoryId: full.subcategoryId ?? null,
+                    price: full.offerPrice ?? full.price ?? "",
+                    originalPrice: full.originalPrice ?? "",
+                    image: full.imageUrl || full.image || null,
+                    description: full.displayDescription || full.description || "",
+                    validFrom: full.validFrom ?? full.validFromDate ?? null,
+                    validTo: full.validTo ?? full.validToDate ?? null,
+                    branchIds,
+                    status: full.isActive !== undefined
+                        ? (full.isActive ? "active" : "inactive")
+                        : (full.isHighlighted ? "active" : "inactive"),
+                    isHighlighted: full.isHighlighted,
+                });
+            } else {
+                setProductToEdit(product);
+            }
+        } catch (err) {
+            console.error("Failed to fetch product for edit:", err);
+            setProductToEdit(product);
+        }
+    };
+
     const handleUpdateProduct = async (payload: any) => {
         try {
             if (!productToEdit) return;
             const res = await updateProductMutation({
                 id: productToEdit.id,
-                payload
+                payload,
+                shopId: activeShopId || undefined
             });
             if (res.success) {
                 toast.success("Product updated successfully");
@@ -258,7 +294,7 @@ function DashboardContent() {
 
     const handleDeleteProduct = async (product: any) => {
         try {
-            const res = await deleteProductMutation(product.id);
+            const res = await deleteProductMutation({ id: product.id, shopId: activeShopId || undefined });
             if (res.success) {
                 toast.success("Product deleted successfully");
             } else {
@@ -269,6 +305,20 @@ function DashboardContent() {
             toast.error(`Failed to delete product: ${err.message}`);
         } finally {
             setProductToDelete(null);
+        }
+    };
+
+    const handleToggleProductStatus = async (product: any) => {
+        try {
+            const res = await toggleProductStatusMutation({ id: product.id, shopId: activeShopId || undefined });
+            if (res.success) {
+                toast.success(`Product ${product.status === 'active' ? 'paused' : 'activated'} successfully`);
+            } else {
+                throw new Error("Failed to toggle product status");
+            }
+        } catch (err: any) {
+            console.error("Toggle product status error:", err);
+            toast.error(`Failed to update product status: ${err.message}`);
         }
     };
 
@@ -363,6 +413,36 @@ function DashboardContent() {
                                     </PremiumCard>
                                 )}
                             </div>
+                            <div className="w-[85vw] sm:w-[240px] flex-none shrink-0 snap-center">
+                                {isLoadingProducts ? (
+                                    <Skeleton className="h-24 w-full rounded-2xl" />
+                                ) : (
+                                    <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 transition-all duration-300 rounded-2xl">
+                                        <div className="p-3.5 flex items-center gap-3">
+                                            <div className="p-2 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform flex-shrink-0">
+                                                <ShoppingBag className="w-5 h-5" />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center justify-between gap-2 mb-0.5">
+                                                    <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate">Products</h3>
+                                                    <div className="flex items-center gap-1 text-[9px] text-emerald-500 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded-lg whitespace-nowrap">
+                                                        <Calendar className="w-2.5 h-2.5" />
+                                                        Active
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-baseline gap-2">
+                                                    <div className="text-xl font-black text-gray-900 tracking-tight">
+                                                        {products.filter((p: any) => p.status === 'active').length}
+                                                    </div>
+                                                    <span className="text-[10px] text-gray-400 font-medium truncate">
+                                                        / {products.filter((p: any) => p.status !== 'active').length} paused
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </PremiumCard>
+                                )}
+                            </div>
                             <div className="w-[85vw] sm:w-[220px] flex-none shrink-0 snap-center">
                                 <StatCard icon={BarChart3} label="Total Views" value="1.2k" trend="+15%" isLoading={isLoadingOffers} />
                             </div>
@@ -376,7 +456,7 @@ function DashboardContent() {
 
                     </div>
 
-                    <div className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="hidden md:grid grid-cols-2 xl:grid-cols-5 gap-4">
                         {isLoadingOffers ? (
                             <Skeleton className="h-24 w-full rounded-2xl" />
                         ) : (
@@ -399,6 +479,34 @@ function DashboardContent() {
                                             </div>
                                             <span className="text-[11px] text-gray-400 font-medium truncate mt-1">
                                                 / {publishedOffers.filter((o: any) => o.status !== 'active').length} paused
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </PremiumCard>
+                        )}
+                        {isLoadingProducts ? (
+                            <Skeleton className="h-24 w-full rounded-2xl" />
+                        ) : (
+                            <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 transition-all duration-300 rounded-2xl">
+                                <div className="p-4 flex items-center gap-3">
+                                    <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform flex-shrink-0">
+                                        <ShoppingBag className="w-5 h-5 transition-transform" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center justify-between gap-2 mb-0.5">
+                                            <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate">Products</h3>
+                                            <div className="flex items-center gap-1 text-[10px] text-emerald-500 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-lg whitespace-nowrap">
+                                                <Calendar className="w-3 h-3" />
+                                                Live
+                                            </div>
+                                        </div>
+                                        <div className="flex items-baseline gap-2">
+                                            <div className="text-2xl font-black text-gray-900 tracking-tighter">
+                                                {products.filter((p: any) => p.status === 'active').length}
+                                            </div>
+                                            <span className="text-[11px] text-gray-400 font-medium truncate mt-1">
+                                                / {products.filter((p: any) => p.status !== 'active').length} paused
                                             </span>
                                         </div>
                                     </div>
@@ -626,7 +734,7 @@ function DashboardContent() {
                                                                                     </div>
                                                                                 </div>
                                                                             </div>
-                                                                            <button 
+                                                                            <button
                                                                                 onClick={() => toggleOfferExpand(id)}
                                                                                 className="sm:hidden p-2 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors text-gray-400 hover:text-primary shrink-0"
                                                                                 aria-label="Toggle details"
@@ -652,8 +760,8 @@ function DashboardContent() {
                                                                                     <StatusToggleButton status={offer.status || 'active'} onChange={() => handleToggleOfferStatus(offer)} className="scale-90" />
                                                                                 </div>
                                                                                 <div className="flex gap-2.5">
-                                                                                    <button onClick={() => openEditModal(offer)} className="p-2 sm:p-3 rounded-xl bg-gray-50 text-gray-400 hover:bg-primary hover:text-secondary hover:shadow-lg transition-all duration-300" title="Edit offer"><Pencil className="w-4 h-4" /></button>
-                                                                                    <button onClick={() => setOfferToDelete(offer)} className="p-2 sm:p-3 rounded-xl bg-gray-50 text-gray-400 hover:bg-rose-500 hover:text-white hover:shadow-lg transition-all duration-300" title="Delete offer"><Trash2 className="w-4 h-4" /></button>
+                                                                                    <button onClick={() => openEditModal(offer)} className="flex items-center justify-center p-2 sm:p-3 rounded-xl bg-gray-50 text-gray-400 hover:bg-primary hover:text-secondary hover:shadow-lg transition-all duration-300" title="Edit offer"><Pencil className="w-4 h-4" /></button>
+                                                                                    <button onClick={() => setOfferToDelete(offer)} className="flex items-center justify-center p-2 sm:p-3 rounded-xl bg-gray-50 text-gray-400 hover:bg-rose-500 hover:text-white hover:shadow-lg transition-all duration-300" title="Delete offer"><Trash2 className="w-4 h-4" /></button>
                                                                                 </div>
                                                                             </div>
                                                                         </div>
@@ -690,40 +798,46 @@ function DashboardContent() {
                                                 products.map((product) => (
                                                     <div key={product.id} className="group relative flex items-center gap-3 p-3 rounded-xl bg-gray-50/50 border border-gray-100 hover:border-primary/20 hover:bg-white hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 overflow-hidden">
                                                         <Link href={`/product/${product.id}`} className="absolute inset-0 z-0" />
-                                                        <div className="relative w-16 h-16 rounded-lg bg-white overflow-hidden shrink-0 border border-gray-100 shadow-sm z-10">
-                                                            {product.image && <Image src={product.image} alt={product.name} fill unoptimized className="object-cover group-hover:scale-110 transition-transform duration-500" />}
+                                                        <div 
+                                                            className={`group/img relative w-16 h-16 rounded-lg bg-white overflow-hidden shrink-0 border border-gray-100 shadow-sm z-10 transition-all duration-300 ${product.image ? 'cursor-pointer active:scale-95' : ''}`}
+                                                            onClick={(e) => {
+                                                                if (product.image) {
+                                                                    e.preventDefault();
+                                                                    e.stopPropagation();
+                                                                    setPreviewLogo({ src: product.image, name: product.name });
+                                                                }
+                                                            }}
+                                                            title={product.image ? "View large image" : undefined}
+                                                        >
+                                                            {product.image && (
+                                                                <>
+                                                                    <Image src={product.image} alt={product.name} fill unoptimized className="object-cover group-hover:scale-110 transition-transform duration-500" />
+                                                                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-[1px]">
+                                                                        <div className="bg-white/90 p-1.5 rounded-full shadow-lg scale-75 group-hover/img:scale-100 transition-transform duration-300">
+                                                                            <Eye className="w-4 h-4 text-primary" />
+                                                                        </div>
+                                                                    </div>
+                                                                </>
+                                                            )}
                                                             <div className="absolute top-1 left-1"><div className="px-1 py-0.5 rounded bg-white/90 backdrop-blur-sm shadow-sm border border-gray-100"><p className="text-[8px] font-black text-primary uppercase tracking-tighter">New</p></div></div>
                                                         </div>
-                                                        <div className="min-w-0 flex-1 z-10 flex flex-col justify-between self-stretch">
-                                                            <div className="flex items-center justify-between mb-0.5">
+                                                        
+                                                        <div className="min-w-0 flex-1 z-10 flex flex-col justify-center self-stretch py-0.5">
+                                                            <div className="flex items-center gap-1.5 mb-0.5">
                                                                 <div className="text-[9px] font-bold text-orange-500 uppercase tracking-widest leading-none">
                                                                     {product.category}
                                                                 </div>
                                                                 {product.status && (
-                                                                    <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider border leading-none ${
-                                                                        product.status === "active" ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-gray-50 text-gray-500 border-gray-100"
-                                                                    }`}>
+                                                                    <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider border leading-none ${product.status === "active" ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-gray-50 text-gray-500 border-gray-100"}`}>
                                                                         {product.status}
                                                                     </span>
                                                                 )}
                                                             </div>
-                                                            <div className="flex items-baseline justify-between gap-2">
-                                                                <h4 className="font-bold text-xs text-gray-900 truncate group-hover:text-primary transition-colors flex-1 min-w-0">
-                                                                    {product.name}
-                                                                </h4>
-                                                                <div className="flex items-baseline gap-1 shrink-0">
-                                                                    <span className="text-xs font-black text-primary tracking-tighter leading-none">
-                                                                        ₹{product.price}
-                                                                    </span>
-                                                                    {product.originalPrice && (
-                                                                        <span className="text-[9px] text-gray-400 line-through font-medium">
-                                                                            ₹{product.originalPrice}
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                            </div>
+                                                            <h4 className="font-bold text-xs text-gray-900 truncate group-hover:text-primary transition-colors leading-tight mb-1">
+                                                                {product.name}
+                                                            </h4>
                                                             {(product.validFrom || (product.branchIds && product.branchIds.length > 0)) && (
-                                                                <div className="mt-1 flex flex-wrap items-center gap-1 text-[8px] text-gray-500">
+                                                                <div className="flex flex-wrap items-center gap-1 text-[8px] text-gray-500">
                                                                     {product.validFrom && (
                                                                         <span className="bg-gray-50 border border-gray-100/80 text-gray-600 px-1.5 py-0.5 rounded flex items-center gap-1 font-medium">
                                                                             <Calendar className="w-2.5 h-2.5 text-gray-400 shrink-0" />
@@ -767,14 +881,34 @@ function DashboardContent() {
                                                             )}
                                                         </div>
 
-                                                        <div className="flex flex-col gap-1 shrink-0 z-20 ml-auto">
-                                                            <button onClick={() => setProductToEdit(product)} className="p-1.5 rounded-lg bg-white border border-gray-100 text-gray-400 hover:text-primary hover:border-primary transition-all shadow-sm" title="Edit product"><Pencil className="w-3 h-3" /></button>
-                                                            <button onClick={() => setProductToDelete(product)} className="p-1.5 rounded-lg bg-white border border-gray-100 text-gray-400 hover:text-rose-500 hover:border-rose-200 transition-all shadow-sm" title="Delete product"><Trash2 className="w-3 h-3" /></button>
+                                                        <div className="relative z-20 flex flex-col items-end justify-between self-stretch shrink-0 py-0.5">
+                                                            <div className="scale-75 origin-right -mr-1">
+                                                                <StatusToggleButton
+                                                                    status={product.status || 'active'}
+                                                                    onChange={() => handleToggleProductStatus(product)}
+                                                                />
+                                                            </div>
+                                                            
+                                                            <div className="flex items-baseline gap-1 my-1">
+                                                                <span className="text-xs font-black text-primary tracking-tighter leading-none">
+                                                                    ₹{product.price}
+                                                                </span>
+                                                                {product.originalPrice && (
+                                                                    <span className="text-[9px] text-gray-400 line-through font-medium">
+                                                                        ₹{product.originalPrice}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            
+                                                            <div className="flex flex-row gap-1 items-center">
+                                                                <button onClick={() => handleEditProduct(product)} className="flex items-center justify-center p-1.5 rounded-lg bg-white border border-gray-100 text-gray-500 hover:text-primary hover:border-primary hover:bg-primary/5 transition-all shadow-sm" title="Edit product"><Pencil className="w-3 h-3" /></button>
+                                                                <button onClick={() => setProductToDelete(product)} className="flex items-center justify-center p-1.5 rounded-lg bg-white border border-gray-100 text-gray-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all shadow-sm" title="Delete product"><Trash2 className="w-3 h-3" /></button>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 ))
                                             ) : (
-                                                <div className="col-span-full p-12 flex flex-col items-center justify-center bg-gray-50/50 rounded-2xl border-2 border-dashed border-gray-100 text-center"><div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center mb-4"><Package className="w-8 h-8 text-primary/20" /></div><p className="text-base font-bold text-gray-900">Your Catalog is Empty</p><p className="text-sm text-gray-500 max-w-xs mt-1 mb-4">Start adding products to showcase them to your customers.</p><PremiumButton onClick={() => setShowAddProductModal(true)} className="rounded-xl shadow-lg shadow-primary/20"><Plus className="w-4 h-4 mr-2" />Add Product</PremiumButton></div>
+                                                <div className="col-span-full p-6 flex flex-col items-center justify-center bg-gray-50/50 rounded-2xl border-2 border-dashed border-gray-100 text-center"><div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center mb-4"><Package className="w-8 h-8 text-primary/20" /></div><p className="text-base font-bold text-gray-900">Your Catalog is Empty</p><p className="text-sm text-gray-500 max-w-xs mt-1 mb-4">Start adding products to showcase them to your customers.</p><PremiumButton onClick={() => setShowAddProductModal(true)} className="rounded-xl shadow-lg shadow-primary/20"><Plus className="w-4 h-4 mr-2" />Add Product</PremiumButton></div>
                                             )}
                                         </div>
                                     </TabsContent>
@@ -823,6 +957,7 @@ function DashboardContent() {
                 onOpenChange={setShowAddProductModal}
                 product={null}
                 onSubmit={handleCreateProduct}
+                availableBranches={branches}
             />
 
             {/* Product Edit Modal */}
@@ -831,6 +966,7 @@ function DashboardContent() {
                 onOpenChange={(open) => { if (!open) setProductToEdit(null); }}
                 product={productToEdit}
                 onSubmit={handleUpdateProduct}
+                availableBranches={branches}
             />
 
             {/* Product Delete Modal */}

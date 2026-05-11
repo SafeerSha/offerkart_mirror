@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect } from "react";
 import { AppModal } from "@/components/shared/AppModal";
 import { PremiumInput } from "@/components/shared/PremiumInput";
@@ -8,14 +10,20 @@ import { useSession } from "next-auth/react";
 import { getBranches } from "@/lib/api/branch";
 import { getMyShops } from "@/lib/api/shop";
 import { PremiumDatePicker } from "@/components/shared/PremiumDatePicker";
+import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { MultiSearchableSelect } from "@/components/shared/MultiSearchableSelect";
 import { StatusToggleButton } from "@/components/shared/StatusToggleButton";
+import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
+import { s3Api } from "@/lib/api/s3";
+import { toast } from "@/hooks/use-toast";
+import { useSubcategories } from "@/hooks/useApi";
 
 interface ProductModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     product: any | null; // Null when creating new
     onSubmit: (payload: any) => Promise<void>;
+    availableBranches?: any[];
 }
 
 export const ProductModal = ({
@@ -23,6 +31,7 @@ export const ProductModal = ({
     onOpenChange,
     product,
     onSubmit,
+    availableBranches = []
 }: ProductModalProps) => {
     const [name, setName] = useState("");
     const [category, setCategory] = useState("");
@@ -38,42 +47,38 @@ export const ProductModal = ({
     const [validTo, setValidTo] = useState<Date | undefined>(undefined);
     const [selectedBranchIds, setSelectedBranchIds] = useState<string[]>([]);
     const [status, setStatus] = useState<string>("active");
-    const [branches, setBranches] = useState<any[]>([]);
+    const [branches, setBranches] = useState<any[]>(availableBranches);
     const [isBranchesLoading, setIsBranchesLoading] = useState(false);
+
+    // File handling
+    const [rawFile, setRawFile] = useState<File | null>(null);
+    // Tracks subcategory ID from backend until subcategories list loads
+    const [pendingSubcategoryId, setPendingSubcategoryId] = useState<number | null>(null);
+
+    const { mainCategories, categoryHierarchy, getCategoryId, resolveHierarchyById, isLoading: isCategoriesLoading } = useCategoryHierarchy();
+
+    const activeCategoryId = category ? getCategoryId(category) : null;
+    const { data: subcategoriesRes, isLoading: isLoadingSubcategories } = useSubcategories(activeCategoryId);
+    const dynamicSubcategories = subcategoriesRes?.success && subcategoriesRes.data
+        ? subcategoriesRes.data
+        : [];
 
     const { data: session } = useSession();
     const isEditMode = !!product && !!product.id;
 
-    const mainCategories = [
-        "Groceries",
-        "Fashion & Apparel",
-        "Electronics",
-        "Footwear",
-        "Books & Stationery",
-        "Home & Kitchen",
-        "Beauty & Personal Care",
-        "Health & Wellness",
-        "Sports & Fitness",
-        "Toys & Games",
-        "Others",
-    ];
-
-    const subCategoriesMap: { [key: string]: string[] } = {
-        "Groceries": ["Vegetables & Fruits", "Snacks & Beverages", "Staples & Grains", "Dairy & Eggs", "Household & Cleaning"],
-        "Fashion & Apparel": ["Men's Wear", "Women's Wear", "Kids & Infants", "Ethnic Wear", "Accessories"],
-        "Electronics": ["Mobile Phones", "Computers & Laptops", "Home Audio & Video", "Smart Devices", "Gaming Accessories"],
-        "Footwear": ["Men's Shoes", "Women's Shoes", "Kids' Shoes", "Sports Footwear", "Sandals & Slippers"],
-        "Books & Stationery": ["Academic & Textbooks", "Fiction & Novels", "Notebooks & Diaries", "Art & Craft Supplies", "Office Supplies"],
-        "Home & Kitchen": ["Cookware & Kitchenware", "Home Décor", "Furnishing & Bedding", "Appliances", "Tools & Hardware"],
-        "Beauty & Personal Care": ["Skincare", "Haircare", "Fragrances", "Make Up", "Oral & Personal Hygiene"],
-        "Health & Wellness": ["Fitness Supplements", "First Aid & Medicine", "Ayurveda & Organic", "Healthcare Devices", "Personal Wellness"],
-        "Sports & Fitness": ["Fitness Equipment", "Outdoor Sports", "Indoor Games", "Sports Wear", "Gym Accessories"],
-        "Toys & Games": ["Board Games", "Action Figures", "Puzzles & Building Blocks", "Remote Controlled Toys", "Educational Toys"],
-        "Others": ["General Merchandise", "Seasonal Specials", "Gifting Items"]
-    };
+    // Update internal branches if prop updates
+    useEffect(() => {
+        if (availableBranches && availableBranches.length > 0) {
+            setBranches(availableBranches);
+        }
+    }, [availableBranches]);
 
     useEffect(() => {
         if (!open) return;
+        // Skip fetch if already provided by prop
+        if (availableBranches && availableBranches.length > 0) {
+            return;
+        }
         const fetchBranches = async () => {
             setIsBranchesLoading(true);
             try {
@@ -104,26 +109,62 @@ export const ProductModal = ({
         };
 
         fetchBranches();
-    }, [open, session]);
+    }, [open, session, availableBranches]);
 
     useEffect(() => {
         if (open) {
-            if (isEditMode) {
-                setName(product.name || "");
-                setCategory(product.category || "");
-                setSubcategory(product.subcategory || "");
-                setPrice(product.price ? String(product.price) : "");
-                setOriginalPrice(product.originalPrice ? String(product.originalPrice) : "");
-                setImage(product.image || null);
-                setDescription(product.description || "");
+            if (isEditMode && product) {
+                setName(product.name || product.displayName || "");
+
+                // product.category may be a string name ("Electronics") from the list mapping,
+                // or a numeric categoryId from the detail API. Handle both.
+                const categoryRaw = product.category;
+                if (typeof categoryRaw === "string" && isNaN(Number(categoryRaw))) {
+                    // It's already a display name (e.g. "Electronics")
+                    setCategory(categoryRaw);
+                } else {
+                    // It's a numeric ID — resolve to display name
+                    const categoryId = product.categoryId || categoryRaw;
+                    const { main } = resolveHierarchyById(categoryId);
+                    setCategory(main || "");
+                }
+
+                // Subcategory: store pending ID to match once subcategory list loads
+                const rawSubId = product.subcategoryId ?? null;
+                if (rawSubId) {
+                    setPendingSubcategoryId(Number(rawSubId));
+                    setSubcategory("");
+                } else {
+                    setSubcategory("");
+                    setPendingSubcategoryId(null);
+                }
+
+                const currentPrice = product.price ?? product.offerPrice;
+                const currentOriginalPrice = product.originalPrice ?? product.price ?? product.offerPrice;
+
+                setPrice(currentPrice ? String(currentPrice) : "");
+                setOriginalPrice(currentOriginalPrice ? String(currentOriginalPrice) : "");
+                setImage(product.image || product.imageUrl || null);
+                setDescription(product.description || product.displayDescription || "");
                 setValidFrom(product.validFrom ? new Date(product.validFrom) : undefined);
                 setValidTo(product.validTo ? new Date(product.validTo) : undefined);
                 setSelectedBranchIds(product.branchIds ? product.branchIds.map(String) : []);
-                setStatus(product.status || "active");
+
+                // Map isActive/isHighlighted/status → internal string state
+                if (product.status !== undefined) {
+                    setStatus(product.status);
+                } else if (product.isActive !== undefined) {
+                    setStatus(product.isActive ? "active" : "inactive");
+                } else if (product.isHighlighted !== undefined) {
+                    setStatus(product.isHighlighted ? "active" : "inactive");
+                } else {
+                    setStatus("active");
+                }
             } else {
                 setName("");
                 setCategory("");
                 setSubcategory("");
+                setPendingSubcategoryId(null);
                 setPrice("");
                 setOriginalPrice("");
                 setImage(null);
@@ -134,11 +175,24 @@ export const ProductModal = ({
                 setStatus("active");
             }
         }
-    }, [open, isEditMode, product]);
+    }, [open, isEditMode, product, isCategoriesLoading, resolveHierarchyById]);
+
+    // When subcategories list finally loads, match the pending subcategoryId to a name
+    useEffect(() => {
+        if (!pendingSubcategoryId || isLoadingSubcategories) return;
+        const matched = dynamicSubcategories.find(
+            (sub: any) => sub.id === pendingSubcategoryId
+        );
+        if (matched) {
+            setSubcategory(matched.name || (matched as any).displayName || "");
+            setPendingSubcategoryId(null);
+        }
+    }, [dynamicSubcategories, isLoadingSubcategories, pendingSubcategoryId]);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
+            setRawFile(file); // Keep raw file for uploading
             const reader = new FileReader();
             reader.onloadend = () => {
                 setImage(reader.result as string);
@@ -149,26 +203,58 @@ export const ProductModal = ({
 
     const handleFormSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!name || !category || !price) {
+
+        // Lookup the final numeric categoryId
+        const finalCategoryId = getCategoryId(category, subcategory);
+
+        if (!name || !finalCategoryId || !price) {
+            toast({
+                title: "Missing Fields",
+                description: "Please select a name, category and price.",
+                variant: "destructive"
+            });
             return;
         }
 
         setIsSubmitting(true);
         try {
-            const payload = {
-                name,
-                category,
-                subcategory,
-                price: parseFloat(price),
-                originalPrice: originalPrice ? parseFloat(originalPrice) : undefined,
-                image,
-                description,
-                validFrom: validFrom ? validFrom.toISOString() : undefined,
-                validTo: validTo ? validTo.toISOString() : undefined,
-                branchIds: selectedBranchIds,
-                status,
+            let uploadedImageUrl = image; // Fallback if existing
+
+            // 1. Handle new image upload to S3
+            if (rawFile) {
+                const uploadRes = await s3Api.uploadImage(rawFile);
+                if (uploadRes.success && uploadRes.data?.url) {
+                    uploadedImageUrl = uploadRes.data.url;
+                } else {
+                    toast({
+                        title: "Upload Failed",
+                        description: "Image could not be uploaded. Creating product without image.",
+                        variant: "destructive"
+                    });
+                }
+            }
+
+            // 2. Map and format payload for backend specs
+            const backendPayload = {
+                displayName: name,
+                displayDescription: description || "",
+                imageUrl: typeof uploadedImageUrl === 'string' ? uploadedImageUrl : "",
+                categoryId: Number(finalCategoryId),
+                originalPrice: originalPrice ? Number(originalPrice) : Number(price),
+                offerPrice: Number(price),
+                currencyId: 1, // Hardcoded standard
+                branchIds: selectedBranchIds.map(id => Number(id)),
+                isHighlighted: status === "active", // Map highlights conditionally 
             };
-            await onSubmit(payload);
+
+            await onSubmit(backendPayload);
+        } catch (err: any) {
+            console.error("Submission failed", err);
+            toast({
+                title: "Error",
+                description: err.message || "Failed to submit product.",
+                variant: "destructive"
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -185,14 +271,14 @@ export const ProductModal = ({
             onOpenChange={onOpenChange}
             title={isEditMode ? "Edit Product" : "Add New Product"}
             description={isEditMode ? "Modify your product information." : "Create a new product listing for your shop catalog."}
-            className="sm:max-w-xl max-h-[90vh] overflow-hidden p-4"
+            className="sm:max-w-xl max-h-[90vh] overflow-hidden px-4 pb-1"
         >
             <form onSubmit={handleFormSubmit} className="flex flex-col h-full font-sans">
                 {/* Scrollable body with exact overflow control and gradient fade cues */}
                 <div className="relative flex-1 min-h-0">
-                    <div className="overflow-y-auto max-h-[55vh] px-1 pt-1 pr-2 pb-6 space-y-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                    <div className="overflow-y-auto max-h-[55vh] px-1 pt-1 pr-2 pb-4 space-y-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                         {/* Top row: Name & Square Image picker */}
-                        <div className="flex gap-4 items-start">
+                        <div className="flex gap-2 items-start">
 
                             <div className="shrink-0 flex flex-col items-center">
                                 <label className="text-sm font-semibold text-gray-700 leading-tight block w-full text-center">Image</label>
@@ -211,7 +297,11 @@ export const ProductModal = ({
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    onClick={(e) => { e.stopPropagation(); setImage(null); }}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setImage(null);
+                                                        setRawFile(null);
+                                                    }}
                                                     className="p-1 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-500 transition-all hover:scale-105"
                                                     title="Remove image"
                                                 >
@@ -254,45 +344,30 @@ export const ProductModal = ({
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1.5">
                                 <label className="text-sm font-semibold text-gray-700 ml-1">Main Category *</label>
-                                <div className="relative group">
-                                    <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground transition-colors group-focus-within:text-primary pointer-events-none" />
-                                    <select
-                                        className="w-full pl-10 pr-4 py-2 bg-background/40 border border-primary/10 focus:border-primary/50 focus:ring-1 focus:ring-primary/20 focus:outline-none transition-all rounded-xl text-sm h-10 appearance-none bg-white/50 backdrop-blur-sm"
-                                        value={category}
-                                        onChange={(e) => {
-                                            setCategory(e.target.value);
-                                            setSubcategory("");
-                                        }}
-                                        required
-                                    >
-                                        <option value="">Select Category</option>
-                                        {mainCategories.map((cat) => (
-                                            <option key={cat} value={cat}>
-                                                {cat}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
+                                <SearchableSelect
+                                    options={mainCategories}
+                                    value={category}
+                                    onChange={(val) => {
+                                        setCategory(val);
+                                        setSubcategory("");
+                                    }}
+                                    placeholder="Select Category"
+                                    isLoading={isCategoriesLoading}
+                                    allowCustom={false}
+                                />
                             </div>
 
                             <div className="space-y-1.5">
                                 <label className="text-sm font-semibold text-gray-700 ml-1">Sub Category</label>
-                                <div className="relative group">
-                                    <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground transition-colors group-focus-within:text-primary pointer-events-none" />
-                                    <select
-                                        className="w-full pl-10 pr-4 py-2 bg-background/40 border border-primary/10 focus:border-primary/50 focus:ring-1 focus:ring-primary/20 focus:outline-none transition-all rounded-xl text-sm h-10 appearance-none bg-white/50 backdrop-blur-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                        value={subcategory}
-                                        onChange={(e) => setSubcategory(e.target.value)}
-                                        disabled={!category || !subCategoriesMap[category]}
-                                    >
-                                        <option value="">Select Subcategory</option>
-                                        {category && subCategoriesMap[category]?.map((sub) => (
-                                            <option key={sub} value={sub}>
-                                                {sub}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
+                                <SearchableSelect
+                                    options={dynamicSubcategories.map((sub: any) => sub.name)}
+                                    value={subcategory}
+                                    onChange={(val) => setSubcategory(val)}
+                                    placeholder={isLoadingSubcategories ? "Loading..." : "Select Subcategory"}
+                                    disabled={!category || isLoadingSubcategories}
+                                    isLoading={isLoadingSubcategories}
+                                    allowCustom={false}
+                                />
                             </div>
                         </div>
 

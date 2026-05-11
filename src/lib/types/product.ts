@@ -18,3 +18,15 @@ export interface Product {
     branchIds?: string[];
     status?: string;
 }
+
+export interface OfferProductPayload {
+    displayName: string;
+    displayDescription: string;
+    imageUrl: string;
+    categoryId: number;
+    originalPrice: number;
+    offerPrice: number;
+    currencyId: number;
+    branchIds: number[];
+    isHighlighted: boolean;
+}

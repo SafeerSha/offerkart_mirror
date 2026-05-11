@@ -3,7 +3,9 @@ import { getMyShops, getShops, getShopDetails, addShop, updateShop } from "@/lib
 import { getBranches, addBranch, updateBranch, deleteBranch, getBranchDetails } from "@/lib/api/branch";
 import { createOffer, updateOffer, deleteOffer, getAllOffers, getOfferById, getFeaturedShops, getFeaturedOffers, getPaginatedOffers, toggleOfferStatus } from "@/lib/api/offers";
 import { getAllProducts, createProduct, updateProduct, deleteProduct } from "@/lib/api/products";
+import { getOfferProductById, toggleOfferProductStatus } from "@/lib/api/offerproduct";
 import { s3Api } from "@/lib/api/s3";
+import { getCategories, getSubCategories } from "@/lib/api/categories";
 
 
 // Query Keys
@@ -27,6 +29,12 @@ export const queryKeys = {
 
   // Product keys
   products: ["products"] as const,
+  allProducts: (shopId?: string) => ["allProducts", shopId] as const,
+  productDetails: (id: string) => ["productDetails", id] as const,
+
+  // Category keys
+  categories: ["categories"] as const,
+  subcategories: (categoryId: string | number) => ["subcategories", categoryId] as const,
 };
 
 
@@ -245,10 +253,19 @@ export function useDeleteImage() {
 
 // ============ PRODUCT HOOKS ============
 
-export function useAllProducts() {
+export function useAllProducts(shopId?: string) {
   return useQuery({
-    queryKey: queryKeys.products,
-    queryFn: getAllProducts,
+    queryKey: queryKeys.allProducts(shopId),
+    queryFn: () => getAllProducts(shopId),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useProductDetails(id: string) {
+  return useQuery({
+    queryKey: queryKeys.productDetails(id),
+    queryFn: () => getOfferProductById(id),
+    enabled: !!id,
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -256,9 +273,10 @@ export function useAllProducts() {
 export function useCreateProduct() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: any) => createProduct(payload),
-    onSuccess: () => {
+    mutationFn: ({ payload, shopId }: { payload: any; shopId?: string }) => createProduct(payload, shopId),
+    onSuccess: (_, { shopId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.products });
+      queryClient.invalidateQueries({ queryKey: queryKeys.allProducts(shopId) });
     },
   });
 }
@@ -266,9 +284,11 @@ export function useCreateProduct() {
 export function useUpdateProduct() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: any }) => updateProduct(id, payload),
-    onSuccess: () => {
+    mutationFn: ({ id, payload, shopId }: { id: string; payload: any; shopId?: string }) => updateProduct(id, payload, shopId),
+    onSuccess: (_, { id, shopId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.products });
+      queryClient.invalidateQueries({ queryKey: queryKeys.allProducts(shopId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.productDetails(id) });
     },
   });
 }
@@ -276,9 +296,40 @@ export function useUpdateProduct() {
 export function useDeleteProduct() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => deleteProduct(id),
-    onSuccess: () => {
+    mutationFn: ({ id, shopId }: { id: string; shopId?: string }) => deleteProduct(id),
+    onSuccess: (_, { shopId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.products });
+      queryClient.invalidateQueries({ queryKey: queryKeys.allProducts(shopId) });
     },
   });
-}
+}
+
+export function useToggleOfferProductStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, shopId }: { id: string; shopId?: string }) => toggleOfferProductStatus(id),
+    onSuccess: (_, { shopId }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.products });
+      queryClient.invalidateQueries({ queryKey: queryKeys.allProducts(shopId) });
+    },
+  });
+}
+
+// ============ CATEGORY HOOKS ============
+
+export function useCategories() {
+  return useQuery({
+    queryKey: queryKeys.categories,
+    queryFn: getCategories,
+    staleTime: 30 * 60 * 1000, // 30 minutes, categories rarely change
+  });
+}
+
+export function useSubcategories(categoryId: string | number | null) {
+  return useQuery({
+    queryKey: categoryId ? queryKeys.subcategories(categoryId) : ["subcategories", "none"],
+    queryFn: () => getSubCategories(categoryId!),
+    enabled: !!categoryId,
+    staleTime: 30 * 60 * 1000,
+  });
+}

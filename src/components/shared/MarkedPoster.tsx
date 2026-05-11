@@ -47,6 +47,7 @@ export function MarkedPoster({
                 className="relative bg-card shadow-sm overflow-hidden"
                 style={{ 
                     height: '100%', 
+                    width: aspectRatio ? 'auto' : '100%',
                     aspectRatio: aspectRatio ? `${aspectRatio}` : 'auto',
                     maxHeight: '100%',
                     maxWidth: '100%'
