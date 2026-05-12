@@ -29,7 +29,10 @@ export async function getAllProducts(shopId?: string) {
                 // Use nested category name if available, else fallback to categoryId string
                 category: item.category?.name || String(item.categoryId),
                 categoryId: item.categoryId,
-                subcategoryId: item.subcategoryId ?? null,
+                // Support both legacy object structures and new api structure {id, parentId, level}
+                parentCategoryId: item.category?.parentId ?? item.category?.categoryId ?? null,
+                subcategoryId: (item.category?.level === 2 ? item.category?.id : item.subcategoryId) ?? null,
+                categoryObject: item.category,
                 description: item.displayDescription || "",
                 specifications: [
                     { label: "Category", value: item.category?.name || String(item.categoryId) },
@@ -101,7 +104,11 @@ export async function getProductById(id: string) {
                 price: data.offerPrice,
                 originalPrice: data.originalPrice,
                 image: data.imageUrl,
-                category: String(data.categoryId),
+                category: data.category?.name || String(data.categoryId),
+                categoryId: data.categoryId,
+                parentCategoryId: data.category?.parentId ?? data.category?.categoryId ?? null,
+                subcategoryId: (data.category?.level === 2 ? data.category?.id : data.subcategoryId) ?? null,
+                categoryObject: data.category,
                 description: data.displayDescription || "Premium quality guaranteed product.",
                 specifications: [
                     { label: "Category", value: String(data.categoryId) },

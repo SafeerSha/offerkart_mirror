@@ -15,6 +15,7 @@ import { MultiSearchableSelect } from "@/components/shared/MultiSearchableSelect
 import { StatusToggleButton } from "@/components/shared/StatusToggleButton";
 import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
 import { s3Api } from "@/lib/api/s3";
+import { ensureS3Url } from "@/lib/imageUtils";
 import { toast } from "@/hooks/use-toast";
 import { useSubcategories } from "@/hooks/useApi";
 
@@ -116,24 +117,57 @@ export const ProductModal = ({
             if (isEditMode && product) {
                 setName(product.name || product.displayName || "");
 
-                // product.category may be a string name ("Electronics") from the list mapping,
-                // or a numeric categoryId from the detail API. Handle both.
-                const categoryRaw = product.category;
-                if (typeof categoryRaw === "string" && isNaN(Number(categoryRaw))) {
-                    // It's already a display name (e.g. "Electronics")
-                    setCategory(categoryRaw);
+                // Check for raw API category object to populate hierarchy
+                const apiCat = product.categoryObject || (typeof product.category === 'object' ? product.category : null);
+                
+                // Base from explicitly mapped props (which handles legacy and fallback)
+                let catId = product.categoryId;
+                let parentId = product.parentCategoryId;
+
+                // Override/Enhance with precision derived from explicit API structure if present
+                if (apiCat && apiCat.id) {
+                    if (apiCat.level === 2) {
+                         // Subcategory: the object represents the child, parentId represents the main
+                         catId = apiCat.id;
+                         parentId = apiCat.parentId || parentId;
+                    } else if (apiCat.level === 1) {
+                         // Main Category: the object represents the main, parentId usually null
+                         catId = apiCat.id;
+                         parentId = apiCat.id; 
+                    }
+                }
+                
+                // 1. Resolve Main Category
+                // If we have an explicit parent ID, use it. Otherwise use categoryId.
+                const mainResolveId = parentId || catId;
+                const resolved = resolveHierarchyById(mainResolveId);
+                
+                if (resolved.main) {
+                    setCategory(resolved.main);
                 } else {
-                    // It's a numeric ID — resolve to display name
-                    const categoryId = product.categoryId || categoryRaw;
-                    const { main } = resolveHierarchyById(categoryId);
-                    setCategory(main || "");
+                    // Fallback for mock strings
+                    const categoryRaw = product.category;
+                    if (typeof categoryRaw === "string" && isNaN(Number(categoryRaw)) && !parentId) {
+                        setCategory(categoryRaw);
+                    } else {
+                        setCategory("");
+                    }
                 }
 
-                // Subcategory: store pending ID to match once subcategory list loads
-                const rawSubId = product.subcategoryId ?? null;
-                if (rawSubId) {
-                    setPendingSubcategoryId(Number(rawSubId));
+                // 2. Resolve Subcategory ID
+                // Prefer explicit subcategoryId, fallback to overloaded categoryId if a parent exists
+                let derivedSubId = product.subcategoryId;
+                if (!derivedSubId && parentId && catId && parentId !== catId) {
+                    derivedSubId = catId;
+                }
+
+                if (derivedSubId) {
+                    setPendingSubcategoryId(Number(derivedSubId));
                     setSubcategory("");
+                } else if (resolved.sub) {
+                    // If the first lookup actually mapped to a subcategory directly
+                    setSubcategory(resolved.sub);
+                    setPendingSubcategoryId(null);
                 } else {
                     setSubcategory("");
                     setPendingSubcategoryId(null);
@@ -205,12 +239,35 @@ export const ProductModal = ({
         e.preventDefault();
 
         // Lookup the final numeric categoryId
-        const finalCategoryId = getCategoryId(category, subcategory);
+        let finalCategoryId = getCategoryId(category); // Fallback to main parent ID
+        
+        // Priority: If we have a chosen subcategory, look up its ID from the dynamic list
+        if (subcategory && dynamicSubcategories.length > 0) {
+            const matched = dynamicSubcategories.find((sub: any) => 
+                (sub.name || sub.displayName || sub.category_name) === subcategory
+            );
+            if (matched) {
+                finalCategoryId = matched.id;
+            }
+        } else if (!subcategory) {
+             // Explicitly force lookup to check if getCategoryId(category, subcategory) had cached it (unlikely but safe)
+             finalCategoryId = getCategoryId(category, subcategory);
+        }
 
-        if (!name || !finalCategoryId || !price) {
+        const missingFields = [];
+        if (!image) missingFields.push("Image");
+        if (!name) missingFields.push("Product Name");
+        if (!category) missingFields.push("Main Category");
+        if (!subcategory) missingFields.push("Sub Category");
+        if (!price) missingFields.push("Price");
+        if (!validFrom) missingFields.push("Start Date");
+        if (!validTo) missingFields.push("End Date");
+        if (selectedBranchIds.length === 0) missingFields.push("Applicable Branches");
+
+        if (missingFields.length > 0) {
             toast({
-                title: "Missing Fields",
-                description: "Please select a name, category and price.",
+                title: "Required Fields Missing",
+                description: `Please complete the following fields: ${missingFields.join(", ")}.`,
                 variant: "destructive"
             });
             return;
@@ -232,6 +289,10 @@ export const ProductModal = ({
                         variant: "destructive"
                     });
                 }
+            } else if (typeof uploadedImageUrl === 'string' && uploadedImageUrl.startsWith('data:')) {
+                // Fallback for legacy base64 loaded from store or dynamic items
+                const cleanUrl = await ensureS3Url(uploadedImageUrl);
+                uploadedImageUrl = cleanUrl || "";
             }
 
             // 2. Map and format payload for backend specs
@@ -245,6 +306,8 @@ export const ProductModal = ({
                 currencyId: 1, // Hardcoded standard
                 branchIds: selectedBranchIds.map(id => Number(id)),
                 isHighlighted: status === "active", // Map highlights conditionally 
+                validFrom: validFrom?.toISOString(),
+                validTo: validTo?.toISOString(),
             };
 
             await onSubmit(backendPayload);
@@ -281,7 +344,7 @@ export const ProductModal = ({
                         <div className="flex gap-2 items-start">
 
                             <div className="shrink-0 flex flex-col items-center">
-                                <label className="text-sm font-semibold text-gray-700 leading-tight block w-full text-center">Image</label>
+                                <label className="text-sm font-semibold text-gray-700 leading-tight block w-full text-center">Image *</label>
                                 <div className="relative w-[52px] h-[52px] bg-gray-50/50 border border-solid border-primary/20 rounded-xl overflow-hidden flex items-center justify-center group hover:border-primary/40 transition-all cursor-pointer">
                                     {image ? (
                                         <>
@@ -358,7 +421,7 @@ export const ProductModal = ({
                             </div>
 
                             <div className="space-y-1.5">
-                                <label className="text-sm font-semibold text-gray-700 ml-1">Sub Category</label>
+                                <label className="text-sm font-semibold text-gray-700 ml-1">Sub Category *</label>
                                 <SearchableSelect
                                     options={dynamicSubcategories.map((sub: any) => sub.name)}
                                     value={subcategory}
@@ -396,13 +459,13 @@ export const ProductModal = ({
 
                         <div className="grid grid-cols-2 gap-4">
                             <PremiumDatePicker
-                                label="Start Date"
+                                label="Start Date *"
                                 date={validFrom}
                                 setDate={setValidFrom}
                                 placeholder="Valid from"
                             />
                             <PremiumDatePicker
-                                label="End Date"
+                                label="End Date *"
                                 date={validTo}
                                 setDate={setValidTo}
                                 placeholder="Valid to"
@@ -410,7 +473,7 @@ export const ProductModal = ({
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-sm font-semibold text-gray-700 ml-1">Applicable Branches</label>
+                            <label className="text-sm font-semibold text-gray-700 ml-1">Applicable Branches *</label>
                             <MultiSearchableSelect
                                 options={branchOptions}
                                 selectedValues={selectedBranchIds}

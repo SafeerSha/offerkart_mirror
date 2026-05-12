@@ -34,7 +34,10 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
     const [selectedImage, setSelectedImage] = useState(0);
     const [isFavorite, setIsFavorite] = useState(false);
 
-    const productImages = product.images || [product.image];
+    const productImages = [
+        ...(Array.isArray(product.images) ? product.images : []),
+        ...(product.image ? [product.image] : [])
+    ].filter(Boolean);
 
     return (
         <div className="min-h-screen bg-gray-50/50 pb-20">
@@ -82,13 +85,24 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                     {/* Left: Images */}
                     <div className="lg:col-span-6 space-y-4">
                         <PremiumCard className="overflow-hidden border-none shadow-xl shadow-gray-100/50 bg-white rounded-[2rem] aspect-square relative">
-                            <Image
-                                src={productImages[selectedImage]}
-                                alt={product.name}
-                                fill
-                                unoptimized
-                                className="object-cover group-hover:scale-105 transition-transform duration-500"
-                            />
+                            {productImages.length > 0 ? (
+                                <Image
+                                    src={productImages[selectedImage]}
+                                    alt={product.name}
+                                    fill
+                                    unoptimized
+                                    className="object-cover group-hover:scale-105 transition-transform duration-500"
+                                />
+                            ) : (
+                                <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+                                    <div className="flex flex-col items-center gap-3">
+                                        <div className="w-24 h-24 rounded-full bg-white flex items-center justify-center shadow-sm border border-gray-100">
+                                            <ShoppingBag className="w-10 h-10 text-gray-300" />
+                                        </div>
+                                        <span className="text-xs font-medium text-gray-400">No image available</span>
+                                    </div>
+                                </div>
+                            )}
                             {product.discount && (
                                 <div className="absolute top-6 left-6">
                                     <span className="px-3.5 py-1.5 bg-orange-500 text-white font-black text-xs uppercase tracking-wide rounded-full shadow-lg shadow-orange-500/30 flex items-center gap-1.5 animate-in fade-in zoom-in duration-300">
@@ -139,11 +153,11 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                                 <div className="space-y-1">
                                     <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">Premium Offer Price</span>
                                     <div className="flex items-end gap-3">
-                                        <span className="text-3xl md:text-4xl font-black text-orange-600 tracking-tight">
+                                        <span className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight">
                                             ₹{product.price}
                                         </span>
                                         {product.originalPrice && (
-                                            <span className="text-base text-gray-400 line-through font-bold pb-1">
+                                            <span className="text-base text-red-500 line-through font-bold pb-1">
                                                 ₹{product.originalPrice}
                                             </span>
                                         )}

@@ -222,7 +222,34 @@ export function useToggleOfferStatus() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, shopId }: { id: string; shopId: string }) => toggleOfferStatus(id, shopId),
-    onSuccess: (_, { shopId }) => {
+    onMutate: async ({ id, shopId }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: queryKeys.allOffers(shopId) });
+
+      // Snapshot the previous value
+      const previousOffers = queryClient.getQueryData(queryKeys.allOffers(shopId));
+
+      // Optimistically update the cache
+      queryClient.setQueryData(queryKeys.allOffers(shopId), (old: any) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((offer: any) => {
+          const currentId = String(offer.offerId || offer.id || offer.batchId);
+          return currentId === String(id) 
+            ? { ...offer, status: offer.status === 'active' ? 'inactive' : 'active' } 
+            : offer;
+        });
+      });
+
+      return { previousOffers };
+    },
+    onError: (err, { shopId }, context: any) => {
+      // If failed, roll back
+      if (context?.previousOffers) {
+        queryClient.setQueryData(queryKeys.allOffers(shopId), context.previousOffers);
+      }
+    },
+    onSettled: (_, __, { shopId }) => {
+      // Always re-sync with server
       queryClient.invalidateQueries({ queryKey: queryKeys.offers });
       queryClient.invalidateQueries({ queryKey: queryKeys.allOffers(shopId) });
     },
@@ -308,7 +335,33 @@ export function useToggleOfferProductStatus() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, shopId }: { id: string; shopId?: string }) => toggleOfferProductStatus(id),
-    onSuccess: (_, { shopId }) => {
+    onMutate: async ({ id, shopId }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: queryKeys.allProducts(shopId) });
+
+      // Snapshot the previous value
+      const previousProducts = queryClient.getQueryData(queryKeys.allProducts(shopId));
+
+      // Optimistically update the cache
+      queryClient.setQueryData(queryKeys.allProducts(shopId), (old: any) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((product: any) => 
+          String(product.id) === String(id) 
+            ? { ...product, status: product.status === 'active' ? 'inactive' : 'active' } 
+            : product
+        );
+      });
+
+      return { previousProducts };
+    },
+    onError: (err, { shopId }, context: any) => {
+      // If failed, roll back to previous state
+      if (context?.previousProducts) {
+        queryClient.setQueryData(queryKeys.allProducts(shopId), context.previousProducts);
+      }
+    },
+    onSettled: (_, __, { shopId }) => {
+      // Always sync with server after mutation completes
       queryClient.invalidateQueries({ queryKey: queryKeys.products });
       queryClient.invalidateQueries({ queryKey: queryKeys.allProducts(shopId) });
     },
