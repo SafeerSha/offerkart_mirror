@@ -17,6 +17,12 @@ export interface Product {
     validTo?: string;
     branchIds?: string[];
     status?: string;
+    parentCategoryId?: number | null;
+    categoryId?: number | string;
+    subcategoryId?: number | string | null;
+    isHighlighted?: boolean;
+    isActive?: boolean;
+    categoryObject?: any;
 }
 
 export interface OfferProductPayload {
@@ -29,4 +35,6 @@ export interface OfferProductPayload {
     currencyId: number;
     branchIds: number[];
     isHighlighted: boolean;
+    validFrom?: string;
+    validTo?: string;
 }

@@ -26,9 +26,10 @@ import { ArrowRight, X, Clock, FileEdit, Trash2, LayoutGrid, Send, Type, GitBran
 import { PosterCardStack } from "@/components/shop-manager/PosterCardStack";
 import { PosterPreviewPanel } from "@/components/shop-manager/PosterPreviewPanel";
 
-// Utilities
-import { cn, formatDateLocal } from "@/lib/utils";
+// Utils and API
 import { storage } from "@/lib/storage";
+import { ensureS3Url } from "@/lib/imageUtils";
+import { formatDateLocal } from "@/lib/utils";
 import { toast } from "sonner";
 
 // API functions (barrel import)
@@ -297,11 +298,21 @@ function CreateOfferContent() {
                         s3Url = uploadedUrl;
                     }
 
+                    const processedMarkedItems = await Promise.all(
+                        (poster.markedItems || []).map(async (item: any) => {
+                            if (item.productImage && typeof item.productImage === 'string' && item.productImage.startsWith("data:")) {
+                                const cleanUrl = await ensureS3Url(item.productImage);
+                                return { ...item, productImage: cleanUrl || "" };
+                            }
+                            return item;
+                        })
+                    );
+
                     return {
                         id: poster.id,
                         posterSrc: s3Url,
                         type: poster.type,
-                        markedItems: poster.markedItems || [],
+                        markedItems: processedMarkedItems,
                     };
                 })
             );

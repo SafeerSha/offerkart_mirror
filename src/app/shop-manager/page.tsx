@@ -236,41 +236,28 @@ function DashboardContent() {
         }
     };
 
-    const handleEditProduct = async (product: any) => {
-        try {
-            const res = await getOfferProductById(String(product.id));
-            if (res.success && res.data) {
-                // Unwrap one level if backend wraps in { data: {...} }
-                const full: any = res.data?.data ?? res.data;
-
-                // Backend returns offerBranches: [{ branchId, branch: {...} }]
-                const branchIds = full.offerBranches?.map((ob: any) => String(ob.branchId)) ?? [];
-
-                setProductToEdit({
-                    id: full.id,
-                    name: full.displayName || full.name || "",
-                    category: full.categoryId || full.category?.id || null,
-                    subcategoryId: full.subcategoryId ?? null,
-                    price: full.offerPrice ?? full.price ?? "",
-                    originalPrice: full.originalPrice ?? "",
-                    image: full.imageUrl || full.image || null,
-                    description: full.displayDescription || full.description || "",
-                    validFrom: full.validFrom ?? full.validFromDate ?? null,
-                    validTo: full.validTo ?? full.validToDate ?? null,
-                    branchIds,
-                    status: full.isActive !== undefined
-                        ? (full.isActive ? "active" : "inactive")
-                        : (full.isHighlighted ? "active" : "inactive"),
-                    isHighlighted: full.isHighlighted,
-                });
-            } else {
-                setProductToEdit(product);
-            }
-        } catch (err) {
-            console.error("Failed to fetch product for edit:", err);
-            setProductToEdit(product);
-        }
+    const handleEditProduct = (product: any) => {
+        // Use the already-fetched product data from useAllProducts — no extra API call needed
+        setProductToEdit({
+            id: product.id,
+            name: product.name || product.displayName || "",
+            categoryId: product.categoryId || null,
+            parentCategoryId: product.parentCategoryId ?? null,
+            subcategoryId: product.subcategoryId ?? null,
+            categoryObject: product.categoryObject ?? null,
+            category: product.category || null,
+            price: product.price ?? product.offerPrice ?? "",
+            originalPrice: product.originalPrice ?? "",
+            image: product.image || product.imageUrl || null,
+            description: product.description || product.displayDescription || "",
+            validFrom: product.validFrom ?? null,
+            validTo: product.validTo ?? null,
+            branchIds: product.branchIds || [],
+            status: product.status || (product.isActive ? "active" : "inactive"),
+            isHighlighted: product.isHighlighted,
+        });
     };
+
 
     const handleUpdateProduct = async (payload: any) => {
         try {
@@ -797,7 +784,7 @@ function DashboardContent() {
                                             ) : products && products.length > 0 ? (
                                                 products.map((product) => (
                                                     <div key={product.id} className="group relative flex items-center gap-3 p-3 rounded-xl bg-gray-50/50 border border-gray-100 hover:border-primary/20 hover:bg-white hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 overflow-hidden">
-                                                        <Link href={`/product/${product.id}`} className="absolute inset-0 z-0" />
+
                                                         <div 
                                                             className={`group/img relative w-16 h-16 rounded-lg bg-white overflow-hidden shrink-0 border border-gray-100 shadow-sm z-10 transition-all duration-300 ${product.image ? 'cursor-pointer active:scale-95' : ''}`}
                                                             onClick={(e) => {
@@ -809,7 +796,7 @@ function DashboardContent() {
                                                             }}
                                                             title={product.image ? "View large image" : undefined}
                                                         >
-                                                            {product.image && (
+                                                            {product.image ? (
                                                                 <>
                                                                     <Image src={product.image} alt={product.name} fill unoptimized className="object-cover group-hover:scale-110 transition-transform duration-500" />
                                                                     <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-[1px]">
@@ -818,6 +805,10 @@ function DashboardContent() {
                                                                         </div>
                                                                     </div>
                                                                 </>
+                                                            ) : (
+                                                                <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+                                                                    <ShoppingBag className="w-6 h-6 text-gray-300" />
+                                                                </div>
                                                             )}
                                                             <div className="absolute top-1 left-1"><div className="px-1 py-0.5 rounded bg-white/90 backdrop-blur-sm shadow-sm border border-gray-100"><p className="text-[8px] font-black text-primary uppercase tracking-tighter">New</p></div></div>
                                                         </div>
@@ -832,6 +823,12 @@ function DashboardContent() {
                                                                         {product.status}
                                                                     </span>
                                                                 )}
+                                                                <div className="scale-75 origin-left -my-1">
+                                                                    <StatusToggleButton
+                                                                        status={product.status || 'active'}
+                                                                        onChange={() => handleToggleProductStatus(product)}
+                                                                    />
+                                                                </div>
                                                             </div>
                                                             <h4 className="font-bold text-xs text-gray-900 truncate group-hover:text-primary transition-colors leading-tight mb-1">
                                                                 {product.name}
@@ -882,19 +879,14 @@ function DashboardContent() {
                                                         </div>
 
                                                         <div className="relative z-20 flex flex-col items-end justify-between self-stretch shrink-0 py-0.5">
-                                                            <div className="scale-75 origin-right -mr-1">
-                                                                <StatusToggleButton
-                                                                    status={product.status || 'active'}
-                                                                    onChange={() => handleToggleProductStatus(product)}
-                                                                />
-                                                            </div>
+
                                                             
                                                             <div className="flex items-baseline gap-1 my-1">
-                                                                <span className="text-xs font-black text-primary tracking-tighter leading-none">
+                                                                <span className="text-xs font-black text-gray-900 tracking-tighter leading-none">
                                                                     ₹{product.price}
                                                                 </span>
                                                                 {product.originalPrice && (
-                                                                    <span className="text-[9px] text-gray-400 line-through font-medium">
+                                                                    <span className="text-[9px] text-red-500 line-through font-medium">
                                                                         ₹{product.originalPrice}
                                                                     </span>
                                                                 )}

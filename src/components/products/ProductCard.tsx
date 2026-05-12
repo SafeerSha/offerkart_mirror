@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image, { StaticImageData } from "next/image";
 import { useRouter } from "next/navigation";
-import { ShoppingCart, Star, Heart, Tag, IndianRupee } from "lucide-react";
+import { ShoppingCart, Star, Heart, Tag, IndianRupee, ShoppingBag } from "lucide-react";
 import { PremiumCard } from "@/components/shared/PremiumCard";
 import { cn } from "@/lib/utils";
 
@@ -13,7 +13,7 @@ interface ProductCardProps {
     shopName: string;
     price: number;
     originalPrice?: number;
-    image: string | StaticImageData;
+    image?: string | StaticImageData | null;
     category: string;
     rating?: number;
     reviews?: number;
@@ -47,16 +47,22 @@ const ProductCard = ({
         >
             {/* Image Container */}
             <div className="relative aspect-square overflow-hidden bg-gray-100">
-                <Image
-                    src={image}
-                    alt={name}
-                    fill
-                    unoptimized
-                    className={cn(
-                        "object-cover transition-transform duration-1000 ease-out",
-                        isHovered ? "scale-110" : "scale-100"
-                    )}
-                />
+                {image ? (
+                    <Image
+                        src={image}
+                        alt={name}
+                        fill
+                        unoptimized
+                        className={cn(
+                            "object-cover transition-transform duration-1000 ease-out",
+                            isHovered ? "scale-110" : "scale-100"
+                        )}
+                    />
+                ) : (
+                    <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+                        <ShoppingBag className="w-12 h-12 text-gray-300" />
+                    </div>
+                )}
 
                 {/* Overlays */}
                 <div className={cn(
@@ -132,11 +138,11 @@ const ProductCard = ({
                 <div className="flex items-end justify-between mt-4">
                     <div className="flex flex-col">
                         {originalPrice && (
-                            <span className="text-xs text-gray-400 line-through font-medium">
+                            <span className="text-xs text-red-500 line-through font-medium">
                                 ₹{originalPrice}
                             </span>
                         )}
-                        <span className="text-xl font-black text-orange-600">
+                        <span className="text-xl font-black text-gray-900">
                             ₹{price}
                         </span>
                     </div>
