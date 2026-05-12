@@ -28,6 +28,7 @@ import { PosterPreviewPanel } from "@/components/shop-manager/PosterPreviewPanel
 
 // Utils and API
 import { storage } from "@/lib/storage";
+import { cn } from "@/lib/utils";
 import { ensureS3Url } from "@/lib/imageUtils";
 import { formatDateLocal } from "@/lib/utils";
 import { toast } from "sonner";
