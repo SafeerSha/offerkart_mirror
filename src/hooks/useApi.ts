@@ -261,7 +261,7 @@ export function useToggleOfferStatus() {
 export function useUploadImage() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: s3Api.uploadImage,
+    mutationFn: ({ file, folder }: { file: File; folder?: string }) => s3Api.uploadImage(file, folder),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["images"] });
     },

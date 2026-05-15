@@ -42,10 +42,6 @@ async function readRequestBody(request: NextRequest) {
 
     const contentType = request.headers.get("content-type") || "";
 
-    if (contentType.includes("multipart/form-data")) {
-        return await request.formData();
-    }
-
     if (
         contentType.includes("application/json") ||
         contentType.includes("application/x-www-form-urlencoded") ||

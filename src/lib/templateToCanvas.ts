@@ -78,7 +78,8 @@ export interface ShopData {
 
 export function templateConfigToCanvasElements(
     config: TemplateConfig,
-    shopData?: ShopData
+    shopData?: ShopData,
+    options?: { excludeHeader?: boolean }
 ): { elements: CanvasElement[]; canvasBg: string } {
     const elements: CanvasElement[] = [];
     let zCounter = 1;
@@ -138,8 +139,11 @@ export function templateConfigToCanvasElements(
     // ──────────────────────────────────────
     const { header, footer } = config;
     const headerBg = backgroundToCSS(header.background);
+    const excludeHeader = options?.excludeHeader ?? false;
+    const effectiveHeaderHeight = excludeHeader ? 0 : header.height;
 
-    // Header background rect
+    if (!excludeHeader) {
+        // Header background rect
     elements.push({
         id: 'header-bg',
         type: 'shape',
@@ -299,6 +303,7 @@ export function templateConfigToCanvasElements(
             zIndex: z(),
         } as CanvasElement);
     }
+    }
 
     // ──────────────────────────────────────
     // LEFT BANNER (Specialized Layout)
@@ -307,7 +312,7 @@ export function templateConfigToCanvasElements(
         const lb = anyConfig.left_banner;
         const padding = lb.padding || 24;
         const sidebarWidth = 320; // Fixed sidebar width from layout
-        let currentY = header.height + padding;
+        let currentY = effectiveHeaderHeight + padding;
         const lbX = padding;
         const lbW = sidebarWidth - padding * 2;
 
@@ -317,9 +322,9 @@ export function templateConfigToCanvasElements(
             type: 'shape',
             shapeKind: 'rect',
             x: 0,
-            y: header.height,
+            y: effectiveHeaderHeight,
             w: sidebarWidth,
-            h: CANVAS_H - header.height - footer.height,
+            h: CANVAS_H - effectiveHeaderHeight - footer.height,
             fill: lb.background || '#1f7a3f',
             zIndex: z(),
         } as CanvasElement);
@@ -633,7 +638,7 @@ export function templateConfigToCanvasElements(
             const cardStyle = ps.product_card_style;
             const totalW = ps.items.length * cardStyle.width + (ps.items.length - 1) * gap;
             let startX = (CANVAS_W - totalW) / 2;
-            const startY = header.height + 50;
+            const startY = effectiveHeaderHeight + 50;
             for (let i = 0; i < ps.items.length; i++) {
                 const item = ps.items[i];
                 const style = item.style_override || cardStyle;
@@ -724,7 +729,7 @@ export function templateConfigToCanvasElements(
     } else {
         // Standard itemGrid
         const { itemGrid } = config;
-        const gridTop = header.height + itemGrid.padding.top;
+        const gridTop = effectiveHeaderHeight + itemGrid.padding.top;
         const gridBottom = footerTop - itemGrid.padding.bottom;
         const gridLeft = itemGrid.padding.left;
         const gridRight = CANVAS_W - itemGrid.padding.right;
