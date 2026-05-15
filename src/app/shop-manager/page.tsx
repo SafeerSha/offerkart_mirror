@@ -348,7 +348,7 @@ function DashboardContent() {
                         </PremiumButton>
                         <PremiumButton asChild className="rounded-full shadow-lg shadow-primary/20 w-full md:w-auto justify-center px-1 sm:px-3 md:px-4 py-1.5 md:py-2.5 h-auto text-[11px] sm:text-xs md:text-sm">
                             <Link href="/shop-manager/create-offer">
-                                <span className="hidden sm:inline">Add New Offer</span>
+                                <span className="hidden sm:inline">Add Offer</span>
                                 <span className="sm:hidden">Offer</span>
                             </Link>
                         </PremiumButton>
@@ -536,76 +536,104 @@ function DashboardContent() {
                             </PremiumCard>
                         )}
 
-                        {!isLoadingShops && shops.length > 0 && (
-
-                            <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:shadow-2xl hover:shadow-primary/5 transition-all duration-500">
-                                <div className="h-16 bg-orange-500/[0.08] relative">
-                                    <div className="absolute top-3 right-3 z-20 scale-90 origin-top-right">
-                                        <StatusToggleButton
-                                            status={isShopActive ? 'active' : 'paused'}
-                                            onChange={(s) => setIsShopActive(s === 'active')}
-                                        />
+                        {!isLoadingShops && (
+                            shops.length > 0 ? (
+                                <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:shadow-2xl hover:shadow-primary/5 transition-all duration-500">
+                                    <div className="h-16 bg-orange-500/[0.08] relative">
+                                        <div className="absolute top-3 right-3 z-20 scale-90 origin-top-right">
+                                            <StatusToggleButton
+                                                status={isShopActive ? 'active' : 'paused'}
+                                                onChange={(s) => setIsShopActive(s === 'active')}
+                                            />
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="px-5 pb-5 -mt-8 relative z-10">
-                                    <div className="flex flex-col items-center text-center">
-                                        <div
-                                            className="w-16 h-16 rounded-2xl bg-white p-1 shadow-xl shadow-black/5 ring-4 ring-white relative group/logo cursor-pointer"
-                                            onClick={() => shops[0].logo_url && setPreviewLogo({ src: shops[0].logo_url, name: shops[0].shop_name })}
-                                        >
-                                            <div className="w-full h-full rounded-xl bg-primary/5 flex items-center justify-center overflow-hidden relative">
-                                                <Store className="w-6 h-6 text-primary/20 absolute" />
-                                                {shops[0].logo_url && (
-                                                    <Image
-                                                        src={shops[0].logo_url}
-                                                        alt={shops[0].shop_name}
-                                                        fill
-                                                        unoptimized
-                                                        className="object-cover group-hover/logo:scale-110 transition-transform duration-500 relative z-10"
-                                                    />
-                                                )}
-                                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/logo:opacity-100 transition-opacity z-20">
-                                                    <Eye className="w-5 h-5 text-white" />
+                                    <div className="px-5 pb-5 -mt-8 relative z-10">
+                                        <div className="flex flex-col items-center text-center">
+                                            <div
+                                                className="w-16 h-16 rounded-2xl bg-white p-1 shadow-xl shadow-black/5 ring-4 ring-white relative group/logo cursor-pointer"
+                                                onClick={() => shops[0].logo_url && setPreviewLogo({ src: shops[0].logo_url, name: shops[0].shop_name })}
+                                            >
+                                                <div className="w-full h-full rounded-xl bg-primary/5 flex items-center justify-center overflow-hidden relative">
+                                                    <Store className="w-6 h-6 text-primary/20 absolute" />
+                                                    {shops[0].logo_url && (
+                                                        <Image
+                                                            src={shops[0].logo_url}
+                                                            alt={shops[0].shop_name}
+                                                            fill
+                                                            unoptimized
+                                                            className="object-cover group-hover/logo:scale-110 transition-transform duration-500 relative z-10"
+                                                        />
+                                                    )}
+                                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/logo:opacity-100 transition-opacity z-20">
+                                                        <Eye className="w-5 h-5 text-white" />
+                                                    </div>
                                                 </div>
                                             </div>
+                                            <div className="mt-3 w-full">
+                                                <div className="flex items-center justify-center gap-2 mb-0.5">
+                                                    <h3 className="text-lg font-black text-gray-900 tracking-tight">{shops[0].shop_name}</h3>
+                                                    <div className={cn("w-1.5 h-1.5 rounded-full", isShopActive ? "bg-green-500 animate-pulse" : "bg-gray-300")} />
+                                                </div>
+                                                <div className="flex items-center justify-center gap-1 text-[12px] text-gray-500 font-medium">
+                                                    <MapPin className="w-3 h-3 text-primary/60" />
+                                                    {shops[0].city}
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4 w-full mt-4 py-2.5 border-y border-primary/5">
+                                                <div className="text-center">
+                                                    <div className="text-xs font-bold text-gray-900">{publishedOffers.length}</div>
+                                                    <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Offers</div>
+                                                </div>
+                                                <div className="text-center">
+                                                    <div className="text-xs font-bold text-gray-900">{products.length}</div>
+                                                    <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Products</div>
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2 w-full mt-4">
+                                                <Link href={`/shop-manager/${shops[0].id}/branches`} className="w-full">
+                                                    <PremiumButton variant="outline" size="sm" className="w-full rounded-xl py-3.5 border-primary/10 hover:border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary gap-1.5">
+                                                        <GitBranch className="w-3 h-3" />
+                                                        <span className="text-[10px] font-bold uppercase tracking-wider">Branches</span>
+                                                    </PremiumButton>
+                                                </Link>
+                                                <Link href={`/shop-manager/add-shop?id=${shops[0].id}`} className="w-full">
+                                                    <PremiumButton variant="outline" size="sm" className="w-full rounded-xl py-3.5 border-primary/10 hover:border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary gap-1.5">
+                                                        <Settings className="w-3 h-3" />
+                                                        <span className="text-[10px] font-bold uppercase tracking-wider">Manage</span>
+                                                    </PremiumButton>
+                                                </Link>
+                                            </div>
                                         </div>
-                                        <div className="mt-3 w-full">
-                                            <div className="flex items-center justify-center gap-2 mb-0.5">
-                                                <h3 className="text-lg font-black text-gray-900 tracking-tight">{shops[0].shop_name}</h3>
-                                                <div className={cn("w-1.5 h-1.5 rounded-full", isShopActive ? "bg-green-500 animate-pulse" : "bg-gray-300")} />
+                                    </div>
+                                </PremiumCard>
+                            ) : (
+                                <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:shadow-2xl hover:shadow-primary/5 transition-all duration-500">
+                                    <div className="h-16 bg-orange-500/[0.08] relative flex items-center justify-center border-b border-primary/5">
+                                        <div className="absolute inset-0 bg-gradient-to-r from-orange-500/10 via-transparent to-orange-500/10 group-hover:opacity-100 transition-opacity" />
+                                    </div>
+                                    <div className="px-5 pb-6 -mt-8 relative z-10">
+                                        <div className="flex flex-col items-center text-center">
+                                            <div className="w-16 h-16 rounded-2xl bg-white p-1 shadow-xl shadow-black/5 ring-4 ring-white relative flex items-center justify-center">
+                                                <div className="w-full h-full rounded-xl bg-primary/5 flex items-center justify-center overflow-hidden relative">
+                                                    <Store className="w-6 h-6 text-primary/30" />
+                                                </div>
                                             </div>
-                                            <div className="flex items-center justify-center gap-1 text-[12px] text-gray-500 font-medium">
-                                                <MapPin className="w-3 h-3 text-primary/60" />
-                                                {shops[0].city}
+                                            <div className="mt-4 w-full">
+                                                <h3 className="text-lg font-black text-gray-900 tracking-tight">No Shop Yet</h3>
+                                                <p className="text-xs text-gray-500 mt-1.5 mb-5 leading-relaxed">
+                                                    Ready to start selling? Create your virtual shop profile to showcase your business.
+                                                </p>
                                             </div>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-4 w-full mt-4 py-2.5 border-y border-primary/5">
-                                            <div className="text-center">
-                                                <div className="text-xs font-bold text-gray-900">{publishedOffers.length}</div>
-                                                <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Offers</div>
-                                            </div>
-                                            <div className="text-center">
-                                                <div className="text-xs font-bold text-gray-900">{products.length}</div>
-                                                <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Products</div>
-                                            </div>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-2 w-full mt-4">
-                                            <Link href={`/shop-manager/${shops[0].id}/branches`} className="w-full">
-                                                <PremiumButton variant="outline" size="sm" className="w-full rounded-xl py-3.5 border-primary/10 hover:border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary gap-1.5">
-                                                    <GitBranch className="w-3 h-3" />
-                                                    <span className="text-[10px] font-bold uppercase tracking-wider">Branches</span>
-                                                </PremiumButton>
-                                            </Link>
-                                            <Link href={`/shop-manager/add-shop?id=${shops[0].id}`} className="w-full">
-                                                <PremiumButton variant="outline" size="sm" className="w-full rounded-xl py-3.5 border-primary/10 hover:border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary gap-1.5">
-                                                    <Settings className="w-3 h-3" />
-                                                    <span className="text-[10px] font-bold uppercase tracking-wider">Manage</span>
+                                            <Link href="/shop-manager/add-shop" className="w-full">
+                                                <PremiumButton className="w-full rounded-xl py-3.5 shadow-lg shadow-primary/20 flex items-center justify-center gap-2 border-none hover:scale-[1.02] transition-all duration-300">
+                                                    <Plus className="w-4 h-4" />
+                                                    <span className="text-xs font-bold uppercase tracking-wider">Create Your Shop</span>
                                                 </PremiumButton>
                                             </Link>
                                         </div>
                                     </div>
-                                </div>
-                            </PremiumCard>
+                                </PremiumCard>
+                            )
                         )}
                         <PremiumCard variant="glass" padding="none" className="overflow-hidden shadow-lg shadow-black/5">
                             <div className="p-5">
@@ -682,7 +710,7 @@ function DashboardContent() {
                                                                 <div className="w-10 h-10 rounded-xl bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center transition-colors">
                                                                     <Plus className="w-5 h-5 text-primary" />
                                                                 </div>
-                                                                <div className="text-left"><h4 className="font-bold text-gray-900 group-hover:text-primary transition-colors">Add New Offer</h4></div>
+                                                                <div className="text-left"><h4 className="font-bold text-gray-900 group-hover:text-primary transition-colors">Add Offer</h4></div>
                                                             </div>
                                                         </div>
                                                     </Link>
@@ -783,9 +811,9 @@ function DashboardContent() {
                                                 </>
                                             ) : products && products.length > 0 ? (
                                                 products.map((product) => (
-                                                    <div key={product.id} className="group relative flex items-center gap-3 p-3 rounded-xl bg-gray-50/50 border border-gray-100 hover:border-primary/20 hover:bg-white hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 overflow-hidden">
+                                                    <div key={product.id} className="group relative flex items-start gap-3 p-3 rounded-xl bg-gray-50/50 border border-gray-100 hover:border-primary/20 hover:bg-white hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 overflow-hidden">
 
-                                                        <div 
+                                                        <div
                                                             className={`group/img relative w-16 h-16 rounded-lg bg-white overflow-hidden shrink-0 border border-gray-100 shadow-sm z-10 transition-all duration-300 ${product.image ? 'cursor-pointer active:scale-95' : ''}`}
                                                             onClick={(e) => {
                                                                 if (product.image) {
@@ -812,29 +840,20 @@ function DashboardContent() {
                                                             )}
                                                             <div className="absolute top-1 left-1"><div className="px-1 py-0.5 rounded bg-white/90 backdrop-blur-sm shadow-sm border border-gray-100"><p className="text-[8px] font-black text-primary uppercase tracking-tighter">New</p></div></div>
                                                         </div>
-                                                        
+
                                                         <div className="min-w-0 flex-1 z-10 flex flex-col justify-center self-stretch py-0.5">
-                                                            <div className="flex items-center gap-1.5 mb-0.5">
-                                                                <div className="text-[9px] font-bold text-orange-500 uppercase tracking-widest leading-none">
-                                                                    {product.category}
-                                                                </div>
-                                                                {product.status && (
-                                                                    <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider border leading-none ${product.status === "active" ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-gray-50 text-gray-500 border-gray-100"}`}>
-                                                                        {product.status}
-                                                                    </span>
-                                                                )}
-                                                                <div className="scale-75 origin-left -my-1">
-                                                                    <StatusToggleButton
-                                                                        status={product.status || 'active'}
-                                                                        onChange={() => handleToggleProductStatus(product)}
-                                                                    />
-                                                                </div>
-                                                            </div>
-                                                            <h4 className="font-bold text-xs text-gray-900 truncate group-hover:text-primary transition-colors leading-tight mb-1">
+                                                            <h4 className="font-bold text-xs text-gray-900 truncate group-hover:text-primary transition-colors leading-tight">
                                                                 {product.name}
                                                             </h4>
+
+                                                            <div className="flex items-center gap-1.5 mt-0.5 min-w-0 pr-2">
+                                                                <div className="text-[9px] font-bold text-orange-500 uppercase tracking-widest leading-none truncate">
+                                                                    {product.category}
+                                                                </div>
+                                                            </div>
+
                                                             {(product.validFrom || (product.branchIds && product.branchIds.length > 0)) && (
-                                                                <div className="flex flex-wrap items-center gap-1 text-[8px] text-gray-500">
+                                                                <div className="flex flex-wrap items-center gap-1 text-[8px] text-gray-500 mt-1">
                                                                     {product.validFrom && (
                                                                         <span className="bg-gray-50 border border-gray-100/80 text-gray-600 px-1.5 py-0.5 rounded flex items-center gap-1 font-medium">
                                                                             <Calendar className="w-2.5 h-2.5 text-gray-400 shrink-0" />
@@ -879,8 +898,15 @@ function DashboardContent() {
                                                         </div>
 
                                                         <div className="relative z-20 flex flex-col items-end justify-between self-stretch shrink-0 py-0.5">
+                                                            <div className="flex items-center gap-1">
+                                                                <div className="scale-75 origin-right">
+                                                                    <StatusToggleButton
+                                                                        status={product.status || 'active'}
+                                                                        onChange={() => handleToggleProductStatus(product)}
+                                                                    />
+                                                                </div>
+                                                            </div>
 
-                                                            
                                                             <div className="flex items-baseline gap-1 my-1">
                                                                 <span className="text-xs font-black text-gray-900 tracking-tighter leading-none">
                                                                     ₹{product.price}
@@ -891,7 +917,7 @@ function DashboardContent() {
                                                                     </span>
                                                                 )}
                                                             </div>
-                                                            
+
                                                             <div className="flex flex-row gap-1 items-center">
                                                                 <button onClick={() => handleEditProduct(product)} className="flex items-center justify-center p-1.5 rounded-lg bg-white border border-gray-100 text-gray-500 hover:text-primary hover:border-primary hover:bg-primary/5 transition-all shadow-sm" title="Edit product"><Pencil className="w-3 h-3" /></button>
                                                                 <button onClick={() => setProductToDelete(product)} className="flex items-center justify-center p-1.5 rounded-lg bg-white border border-gray-100 text-gray-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all shadow-sm" title="Delete product"><Trash2 className="w-3 h-3" /></button>

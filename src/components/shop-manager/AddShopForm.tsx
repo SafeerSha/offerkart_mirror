@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -80,6 +81,7 @@ type FormValues = z.infer<typeof formSchema>;
 
 export default function AddShopForm() {
     const router = useRouter();
+    const queryClient = useQueryClient();
     const { data: session, update: updateSession } = useSession();
     const searchParams = useSearchParams();
     const shopId = searchParams.get('id');
@@ -253,6 +255,13 @@ export default function AddShopForm() {
 
             if (response.success || (response as any).status === "success" || (response as any).status === 200) {
                 toast.success(isEditMode ? "Shop updated successfully!" : "Shop added successfully!");
+
+                // Invalidate React Query cache instantly so the dashboard and details are not stale
+                queryClient.invalidateQueries({ queryKey: ["myShops"] });
+                queryClient.invalidateQueries({ queryKey: ["shops"] });
+                if (isEditMode && shopId) {
+                    queryClient.invalidateQueries({ queryKey: ["shopDetails", shopId] });
+                }
 
                 // Inject the newly created shop ID into the session so the
                 // create-offer page can fetch branches without a page reload

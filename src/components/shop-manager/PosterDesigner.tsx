@@ -55,12 +55,17 @@ import {
     ShoppingBag,
     Package,
     AlertTriangle,
-    GripVertical
+    GripVertical,
+    CheckCircle2,
+    IndianRupee,
+    X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PREMIUM_GRADIENTS, ASPECT_RATIOS, GOOGLE_FONTS, ABSTRACT_MODELS } from "@/lib/designPresets";
 import { generateTaglines, suggestPalette } from "@/lib/ai/posterAI";
-import { useAllProducts } from "@/hooks/useApi";
+import { useAllProducts, useCreateProduct } from "@/hooks/useApi";
+import { useSession } from "next-auth/react";
+import { ProductModal } from "@/components/shop-manager/ProductModal";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -108,6 +113,8 @@ export interface CanvasElement {
     cardBg?: string;
     cardStyle?: "classic" | "badge" | "modern" | "glass" | "split" | "gradient" | "retail";
     badgeText?: string;
+    // If this card was imported from catalog, track the product id to prevent duplicates
+    sourceProductId?: string;
     isLayoutUnlocked?: boolean;
     subLayout?: Record<string, { x: number; y: number; w?: number; h?: number }>;
     internalElements?: CanvasElement[];
@@ -529,16 +536,22 @@ export default function PosterDesigner({
     initialElements = [],
     initialBg = "#ffffff",
     templateConfig,
-    onBack
+    onBack,
+    onSnapshotChange
 }: {
     initialElements?: CanvasElement[],
     initialBg?: string,
     templateConfig?: TemplateConfig,
-    onBack?: () => void
+    onBack?: () => void,
+    onSnapshotChange?: (snapshot: { elements: CanvasElement[]; canvasBg: string }) => void
 }) {
+    const { data: session } = useSession();
+    const { mutateAsync: createProductMutation, isPending: isCreatingProduct } = useCreateProduct();
+
     /* ---------- STATE ---------- */
     const [elements, setElements] = useState<CanvasElement[]>(initialElements);
     const elementsRef = useRef<CanvasElement[]>(initialElements);
+    const onSnapshotChangeRef = useRef(onSnapshotChange);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [canvasBg, setCanvasBg] = useState(initialBg);
     const [nextZ, setNextZ] = useState(() => {
@@ -556,6 +569,14 @@ export default function PosterDesigner({
     useEffect(() => {
         elementsRef.current = elements;
     }, [elements]);
+
+    useEffect(() => {
+        onSnapshotChangeRef.current = onSnapshotChange;
+    }, [onSnapshotChange]);
+
+    useEffect(() => {
+        onSnapshotChangeRef.current?.({ elements, canvasBg });
+    }, [elements, canvasBg]);
 
     const canvasRef = useRef<HTMLDivElement>(null);
     const dragRef = useRef<{ elId: string; startMouseX: number; startMouseY: number; startElX: number; startElY: number } | null>(null);
@@ -618,6 +639,30 @@ export default function PosterDesigner({
     // Product Binding
     const { data: productsData } = useAllProducts();
     const products = (productsData || []) as any[];
+    const normalizeProductText = (value: unknown) => String(value ?? "").trim().toLowerCase();
+    const normalizeProductPrice = (value: unknown) => String(value ?? "").replace(/[^\d.]/g, "");
+    const getProductSignature = (name: unknown, price: unknown) =>
+        `${normalizeProductText(name)}|${normalizeProductPrice(price)}`;
+
+    const usedCatalogProducts = useMemo(() => {
+        const ids = new Set<string>();
+        const signatures = new Set<string>();
+        for (const el of elements) {
+            const isEmptyProductSlot = !el.cardImage &&
+                (el.isTemplateSlot || el.isFreeFloating || el.cardTitle === "Product Name" || el.cardTitle === "Product" || el.cardTitle?.includes("Slot"));
+            if (el.type !== "product-card" || isEmptyProductSlot) {
+                continue;
+            }
+            if (el.sourceProductId) {
+                ids.add(String(el.sourceProductId));
+            }
+            const signature = getProductSignature(el.cardTitle, el.cardOfferPrice);
+            if (signature !== "|") {
+                signatures.add(signature);
+            }
+        }
+        return { ids, signatures };
+    }, [elements]);
     const [showProductModal, setShowProductModal] = useState(false);
     const [showCardModal, setShowCardModal] = useState(false);
     const [showAddPlaceholderMenu, setShowAddPlaceholderMenu] = useState(false);
@@ -815,9 +860,55 @@ export default function PosterDesigner({
         el.type === "product-card" && !el.cardImage &&
         (el.isTemplateSlot || el.isFreeFloating || el.cardTitle === "Product Name" || el.cardTitle === "Product" || el.cardTitle?.includes("Slot"));
 
+    const openProductImport = (placeholderId?: string) => {
+        setTargetPlaceholderId(placeholderId ?? null);
+        setPlaceholderPopupId(null);
+        setShowProductModal(true);
+    };
+
+    const openCustomProduct = (placeholderId?: string) => {
+        setTargetPlaceholderId(placeholderId ?? null);
+        setPlaceholderPopupId(null);
+        setShowCardModal(true);
+    };
+
+    const handleCustomProductSubmit = async (payload: any) => {
+        const elementsCount = elements.filter(e => e.type === "product-card").length;
+        if (elementsCount >= 10) {
+            toast.error("You can only add up to 10 products per poster.");
+            throw new Error("You can only add up to 10 products per poster.");
+        }
+
+        try {
+            let shopId = (session as any)?.shopId || (session?.user as any)?.shopId;
+            const res = await createProductMutation({ payload, shopId });
+            
+            if (res.success) {
+                toast.success("Product created successfully!");
+                
+                addProductCard(targetPlaceholderId ?? undefined, {
+                    image: payload.imageUrl,
+                    title: payload.displayName,
+                    desc: payload.displayDescription || "",
+                    offerPrice: payload.offerPrice?.toString() || "",
+                    oldPrice: payload.originalPrice?.toString() || "",
+                    sourceProductId: res.data?.id?.toString() || ""
+                });
+                
+                setShowCardModal(false);
+            } else {
+                toast.error(res.message || "Failed to create product");
+                throw new Error(res.message || "Failed to create product");
+            }
+        } catch (error: any) {
+            console.error("Create product error", error);
+            throw error;
+        }
+    };
+
     const addProductCard = (
         replaceId?: string,
-        directData?: { image: string; title: string; desc: string; offerPrice: string; oldPrice: string }
+        directData?: { image: string; title: string; desc: string; offerPrice: string; oldPrice: string; sourceProductId?: string }
     ) => {
         const z = bumpZ();
         const targetEl = replaceId ? elements.find(e => e.id === replaceId) : null;
@@ -844,6 +935,7 @@ export default function PosterDesigner({
             cardStyle: targetEl?.cardStyle ?? "retail",
             badgeText: "-50%",
             isTemplateSlot: targetEl?.isTemplateSlot ?? false,
+            sourceProductId: directData?.sourceProductId,
         };
         if (replaceId) {
             setElements(prev => prev.map(e => e.id === replaceId ? el : e));
@@ -1936,15 +2028,14 @@ export default function PosterDesigner({
                                                         <div
                                                             className="absolute z-[9999] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-52 bg-white rounded-2xl shadow-2xl border border-gray-100 p-3 space-y-2 animate-in fade-in zoom-in-95 duration-200"
                                                             onClick={e => e.stopPropagation()}
+                                                            onPointerDown={e => e.stopPropagation()}
                                                         >
                                                             <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-center pb-1">Choose Item Type</p>
                                                             <button
                                                                 className="w-full flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/20 hover:border-orange-500/40 transition-all group"
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
-                                                                    setTargetPlaceholderId(el.id);
-                                                                    setPlaceholderPopupId(null);
-                                                                    setShowProductModal(true);
+                                                                    openProductImport(el.id);
                                                                 }}
                                                             >
                                                                 <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center shrink-0">
@@ -1959,11 +2050,7 @@ export default function PosterDesigner({
                                                                 className="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-orange-500/20 hover:bg-gray-50 transition-all group"
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
-                                                                    setTargetPlaceholderId(el.id);
-                                                                    setCardForm({ image: '', title: '', desc: '', offerPrice: '', oldPrice: '' });
-                                                                    setCardFilePreview(null);
-                                                                    setPlaceholderPopupId(null);
-                                                                    setShowCardModal(true);
+                                                                    openCustomProduct(el.id);
                                                                 }}
                                                             >
                                                                 <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
@@ -2066,7 +2153,7 @@ export default function PosterDesigner({
                             <section>
                                 <div className="space-y-3">
                                     <button
-                                        onClick={() => setShowProductModal(true)}
+                                        onClick={() => openProductImport()}
                                         className="w-full flex items-center gap-4 p-3.5 rounded-2xl bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/20 hover:border-orange-500/40 hover:bg-orange-500/5 transition-all group"
                                     >
                                         <div className="w-10 h-10 rounded-xl bg-orange-500 shadow-lg shadow-orange-500/20 flex items-center justify-center shrink-0">
@@ -2080,11 +2167,7 @@ export default function PosterDesigner({
                                     </button>
 
                                     <button
-                                        onClick={() => {
-                                            setCardForm({ image: "", title: "", desc: "", offerPrice: "", oldPrice: "" });
-                                            setCardFilePreview(null);
-                                            setShowCardModal(true);
-                                        }}
+                                        onClick={() => openCustomProduct()}
                                         className="w-full flex items-center gap-4 p-3.5 rounded-2xl bg-white border border-gray-100 hover:border-orange-500/20 hover:bg-gray-50 transition-all group"
                                     >
                                         <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100 group-hover:bg-white transition-colors shrink-0 shadow-sm">
@@ -2806,16 +2889,28 @@ export default function PosterDesigner({
             <AppModal open={showProductModal} onOpenChange={setShowProductModal} title="Catalog Sync" description="Select a product to generate a designer card instantly.">
                 <div className="space-y-4 py-4">
                     <div className="max-h-[400px] overflow-y-auto pr-2 custom-scrollbar space-y-2">
-                        {products.map((p) => (
+                        {products.map((p) => {
+                            const isAlreadyAdded =
+                                usedCatalogProducts.ids.has(String(p.id)) ||
+                                usedCatalogProducts.signatures.has(getProductSignature(p.name, p.price));
+
+                            return (
                             <div
                                 key={p.id}
-                                className="flex items-center gap-4 p-4 rounded-2xl border border-gray-50 bg-gray-50/20 hover:border-orange-500/30 hover:bg-orange-50/50 cursor-pointer transition-all active:scale-95 group"
+                                className={cn(
+                                    "flex items-center gap-4 p-4 rounded-2xl border border-gray-50 bg-gray-50/20 transition-all group",
+                                    isAlreadyAdded
+                                        ? "opacity-55 cursor-not-allowed bg-gray-100/70"
+                                        : "hover:border-orange-500/30 hover:bg-orange-50/50 cursor-pointer active:scale-95"
+                                )}
                                 onClick={() => {
+                                    if (isAlreadyAdded) return;
                                     // Pass data directly — avoid async setState timing bug
                                     addProductCard(targetPlaceholderId ?? undefined, {
                                         image: p.image || '',
                                         title: p.name,
                                         desc: p.description || '',
+                                        sourceProductId: String(p.id),
                                         offerPrice: `₹${p.price}`,
                                         oldPrice: p.originalPrice ? `₹${p.originalPrice}` : '',
                                     });
@@ -2828,97 +2923,56 @@ export default function PosterDesigner({
                                     {p.image && <img src={p.image} alt="" className="w-full h-full object-cover" />}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-black text-gray-900 truncate uppercase tracking-tighter group-hover:text-orange-500 transition-colors">{p.name}</p>
-                                    <p className="text-[10px] font-bold text-emerald-600">₹{p.price}</p>
+                                    <p className="text-xs font-black text-gray-900 truncate uppercase tracking-tighter group-hover:text-orange-500 transition-colors">
+                                        {p.name}
+                                    </p>
+                                    <div className="flex items-center gap-2 mt-0.5 min-w-0">
+                                        {p.category && (
+                                            <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest truncate">
+                                                {p.category}
+                                            </span>
+                                        )}
+                                        {p.status && (
+                                            <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider border leading-none shrink-0 ${p.status === "active" ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-gray-50 text-gray-500 border-gray-100"}`}>
+                                                {p.status}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="flex items-baseline gap-2 mt-1">
+                                        <span className="text-[10px] font-black text-emerald-600">₹{p.price}</span>
+                                        {p.originalPrice && (
+                                            <span className="text-[9px] font-bold text-red-500 line-through">₹{p.originalPrice}</span>
+                                        )}
+                                        {p.validFrom && (
+                                            <span className="text-[9px] font-bold text-gray-400 truncate">
+                                                {new Date(p.validFrom).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}
+                                                {p.validTo ? ` - ${new Date(p.validTo).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}` : ""}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="p-2 rounded-xl bg-white/50 text-orange-500 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"><ArrowUpRight className="w-4 h-4" /></div>
+                                {isAlreadyAdded ? (
+                                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-xl bg-white/70 text-emerald-600 text-[9px] font-black uppercase tracking-widest shadow-sm">
+                                        <CheckCircle2 className="w-3 h-3" />
+                                        Added
+                                    </div>
+                                ) : (
+                                    <div className="p-2 rounded-xl bg-white/50 text-orange-500 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"><ArrowUpRight className="w-4 h-4" /></div>
+                                )}
                             </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             </AppModal>
 
             {/* CUSTOM PRODUCT MODAL */}
-            <AppModal open={showCardModal} onOpenChange={setShowCardModal} title="Custom Product" description="Manually create a premium product card for your poster.">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-6">
-                    {/* Left: Image Upload & Preview */}
-                    <div className="space-y-4">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Product Photo</label>
-                        <div className="relative aspect-square rounded-3xl bg-gray-50 border-2 border-dashed border-gray-200 flex flex-col items-center justify-center overflow-hidden group hover:border-orange-500/50 transition-all">
-                            {cardFilePreview ? (
-                                <img src={cardFilePreview} alt="Preview" className="w-full h-full object-cover" />
-                            ) : (
-                                <>
-                                    <ImageIcon className="w-10 h-10 text-gray-300 mb-3 group-hover:scale-110 transition-transform" />
-                                    <p className="text-[10px] font-bold text-gray-400 uppercase italic">Drop or click to upload</p>
-                                </>
-                            )}
-                            <input
-                                type="file"
-                                className="absolute inset-0 opacity-0 cursor-pointer"
-                                accept="image/*"
-                                onChange={handleCardFileChange}
-                            />
-                            {cardFilePreview && (
-                                <button
-                                    onClick={() => { setCardFilePreview(null); setCardForm(f => ({ ...f, image: "" })); }}
-                                    className="absolute top-4 right-4 p-2 rounded-xl bg-white/80 backdrop-blur-md text-red-500 shadow-xl opacity-0 group-hover:opacity-100 transition-all hover:bg-white"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Right: Form Details */}
-                    <div className="space-y-6">
-                        <div className="space-y-4">
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Product Name</label>
-                                <PremiumInput
-                                    value={cardForm.title}
-                                    onChange={(e) => setCardForm(f => ({ ...f, title: e.target.value }))}
-                                    placeholder="e.g. Premium Leather Watch"
-                                />
-                            </div>
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Description</label>
-                                <textarea
-                                    className="w-full px-4 py-3 rounded-2xl border bg-gray-50/50 text-sm font-medium focus:ring-4 focus:ring-orange-500/10 focus:border-orange-500/50 transition-all outline-none resize-none min-h-[80px]"
-                                    value={cardForm.desc}
-                                    onChange={(e) => setCardForm(f => ({ ...f, desc: e.target.value }))}
-                                    placeholder="Briefly describe the offer..."
-                                />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Sale Price</label>
-                                    <PremiumInput
-                                        value={cardForm.offerPrice}
-                                        onChange={(e) => setCardForm(f => ({ ...f, offerPrice: e.target.value }))}
-                                        placeholder="₹999"
-                                    />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">MRP Price</label>
-                                    <PremiumInput
-                                        value={cardForm.oldPrice}
-                                        onChange={(e) => setCardForm(f => ({ ...f, oldPrice: e.target.value }))}
-                                        placeholder="₹1499"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        <PremiumButton
-                            onClick={() => addProductCard(targetPlaceholderId ?? undefined)}
-                            className="w-full py-6 rounded-2xl bg-gradient-to-r from-orange-500 to-red-600 shadow-xl shadow-orange-500/20 active:scale-95 transition-all text-sm font-black uppercase tracking-widest"
-                        >
-                            Create Product Card
-                        </PremiumButton>
-                    </div>
-                </div>
-            </AppModal>
+            <ProductModal 
+                open={showCardModal} 
+                onOpenChange={setShowCardModal} 
+                product={null}
+                onSubmit={handleCustomProductSubmit} 
+            />
 
         </div>
     );

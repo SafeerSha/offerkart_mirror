@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { AppModal } from "@/components/shared/AppModal";
 import { PremiumInput } from "@/components/shared/PremiumInput";
 import { PremiumButton } from "@/components/shared/PremiumButton";
@@ -53,6 +53,7 @@ export const ProductModal = ({
 
     // File handling
     const [rawFile, setRawFile] = useState<File | null>(null);
+    const [isUploadingImage, setIsUploadingImage] = useState(false);
     // Tracks subcategory ID from backend until subcategories list loads
     const [pendingSubcategoryId, setPendingSubcategoryId] = useState<number | null>(null);
 
@@ -65,7 +66,19 @@ export const ProductModal = ({
         : [];
 
     const { data: session } = useSession();
+    // Extract a stable primitive from session to avoid infinite re-render loops
+    const sessionShopId = session?.shopId ?? (session?.user as any)?.shopId ?? null;
     const isEditMode = !!product && !!product.id;
+
+    // Ref to prevent duplicate branch fetches within the same modal open
+    const hasFetchedBranches = useRef(false);
+
+    // Reset the fetch guard when modal closes
+    useEffect(() => {
+        if (!open) {
+            hasFetchedBranches.current = false;
+        }
+    }, [open]);
 
     // Update internal branches if prop updates
     useEffect(() => {
@@ -80,10 +93,14 @@ export const ProductModal = ({
         if (availableBranches && availableBranches.length > 0) {
             return;
         }
+        // Only fetch once per modal open
+        if (hasFetchedBranches.current) return;
+        hasFetchedBranches.current = true;
+
         const fetchBranches = async () => {
             setIsBranchesLoading(true);
             try {
-                let shopId = session?.shopId ?? (session?.user as any)?.shopId;
+                let shopId = sessionShopId;
                 if (!shopId) {
                     const shopRes = await getMyShops();
                     if (shopRes.success && shopRes.data) {
@@ -110,106 +127,103 @@ export const ProductModal = ({
         };
 
         fetchBranches();
-    }, [open, session, availableBranches]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open, sessionShopId]);
 
+    // Form initialization — only when modal opens or product changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
-        if (open) {
-            if (isEditMode && product) {
-                setName(product.name || product.displayName || "");
+        if (!open) return;
 
-                // Check for raw API category object to populate hierarchy
-                const apiCat = product.categoryObject || (typeof product.category === 'object' ? product.category : null);
-                
-                // Base from explicitly mapped props (which handles legacy and fallback)
-                let catId = product.categoryId;
-                let parentId = product.parentCategoryId;
+        if (isEditMode && product) {
+            setName(product.name || product.displayName || "");
 
-                // Override/Enhance with precision derived from explicit API structure if present
-                if (apiCat && apiCat.id) {
-                    if (apiCat.level === 2) {
-                         // Subcategory: the object represents the child, parentId represents the main
-                         catId = apiCat.id;
-                         parentId = apiCat.parentId || parentId;
-                    } else if (apiCat.level === 1) {
-                         // Main Category: the object represents the main, parentId usually null
-                         catId = apiCat.id;
-                         parentId = apiCat.id; 
-                    }
-                }
-                
-                // 1. Resolve Main Category
-                // If we have an explicit parent ID, use it. Otherwise use categoryId.
-                const mainResolveId = parentId || catId;
-                const resolved = resolveHierarchyById(mainResolveId);
-                
-                if (resolved.main) {
-                    setCategory(resolved.main);
-                } else {
-                    // Fallback for mock strings
-                    const categoryRaw = product.category;
-                    if (typeof categoryRaw === "string" && isNaN(Number(categoryRaw)) && !parentId) {
-                        setCategory(categoryRaw);
-                    } else {
-                        setCategory("");
-                    }
-                }
+            const currentPrice = product.price ?? product.offerPrice;
+            const currentOriginalPrice = product.originalPrice ?? product.price ?? product.offerPrice;
 
-                // 2. Resolve Subcategory ID
-                // Prefer explicit subcategoryId, fallback to overloaded categoryId if a parent exists
-                let derivedSubId = product.subcategoryId;
-                if (!derivedSubId && parentId && catId && parentId !== catId) {
-                    derivedSubId = catId;
-                }
+            setPrice(currentPrice ? String(currentPrice) : "");
+            setOriginalPrice(currentOriginalPrice ? String(currentOriginalPrice) : "");
+            setImage(product.image || product.imageUrl || null);
+            setDescription(product.description || product.displayDescription || "");
+            setValidFrom(product.validFrom ? new Date(product.validFrom) : undefined);
+            setValidTo(product.validTo ? new Date(product.validTo) : undefined);
+            setSelectedBranchIds(product.branchIds ? product.branchIds.map(String) : []);
 
-                if (derivedSubId) {
-                    setPendingSubcategoryId(Number(derivedSubId));
-                    setSubcategory("");
-                } else if (resolved.sub) {
-                    // If the first lookup actually mapped to a subcategory directly
-                    setSubcategory(resolved.sub);
-                    setPendingSubcategoryId(null);
-                } else {
-                    setSubcategory("");
-                    setPendingSubcategoryId(null);
-                }
-
-                const currentPrice = product.price ?? product.offerPrice;
-                const currentOriginalPrice = product.originalPrice ?? product.price ?? product.offerPrice;
-
-                setPrice(currentPrice ? String(currentPrice) : "");
-                setOriginalPrice(currentOriginalPrice ? String(currentOriginalPrice) : "");
-                setImage(product.image || product.imageUrl || null);
-                setDescription(product.description || product.displayDescription || "");
-                setValidFrom(product.validFrom ? new Date(product.validFrom) : undefined);
-                setValidTo(product.validTo ? new Date(product.validTo) : undefined);
-                setSelectedBranchIds(product.branchIds ? product.branchIds.map(String) : []);
-
-                // Map isActive/isHighlighted/status → internal string state
-                if (product.status !== undefined) {
-                    setStatus(product.status);
-                } else if (product.isActive !== undefined) {
-                    setStatus(product.isActive ? "active" : "inactive");
-                } else if (product.isHighlighted !== undefined) {
-                    setStatus(product.isHighlighted ? "active" : "inactive");
-                } else {
-                    setStatus("active");
-                }
+            // Map isActive/isHighlighted/status → internal string state
+            if (product.status !== undefined) {
+                setStatus(product.status);
+            } else if (product.isActive !== undefined) {
+                setStatus(product.isActive ? "active" : "inactive");
+            } else if (product.isHighlighted !== undefined) {
+                setStatus(product.isHighlighted ? "active" : "inactive");
             } else {
-                setName("");
-                setCategory("");
-                setSubcategory("");
-                setPendingSubcategoryId(null);
-                setPrice("");
-                setOriginalPrice("");
-                setImage(null);
-                setDescription("");
-                setValidFrom(undefined);
-                setValidTo(undefined);
-                setSelectedBranchIds([]);
                 setStatus("active");
             }
+        } else {
+            setName("");
+            setCategory("");
+            setSubcategory("");
+            setPendingSubcategoryId(null);
+            setPrice("");
+            setOriginalPrice("");
+            setImage(null);
+            setDescription("");
+            setValidFrom(undefined);
+            setValidTo(undefined);
+            setSelectedBranchIds([]);
+            setStatus("active");
         }
-    }, [open, isEditMode, product, isCategoriesLoading, resolveHierarchyById]);
+    }, [open, isEditMode, product]);
+
+    // Category resolution — runs separately so loading state changes don't reset form fields
+    useEffect(() => {
+        if (!open || !isEditMode || !product || isCategoriesLoading) return;
+
+        const apiCat = product.categoryObject || (typeof product.category === 'object' ? product.category : null);
+        let catId = product.categoryId;
+        let parentId = product.parentCategoryId;
+
+        if (apiCat && apiCat.id) {
+            if (apiCat.level === 2) {
+                catId = apiCat.id;
+                parentId = apiCat.parentId || parentId;
+            } else if (apiCat.level === 1) {
+                catId = apiCat.id;
+                parentId = apiCat.id;
+            }
+        }
+
+        const mainResolveId = parentId || catId;
+        const resolved = resolveHierarchyById(mainResolveId);
+
+        if (resolved.main) {
+            setCategory(resolved.main);
+        } else {
+            const categoryRaw = product.category;
+            if (typeof categoryRaw === "string" && isNaN(Number(categoryRaw)) && !parentId) {
+                setCategory(categoryRaw);
+            } else {
+                setCategory("");
+            }
+        }
+
+        let derivedSubId = product.subcategoryId;
+        if (!derivedSubId && parentId && catId && parentId !== catId) {
+            derivedSubId = catId;
+        }
+
+        if (derivedSubId) {
+            setPendingSubcategoryId(Number(derivedSubId));
+            setSubcategory("");
+        } else if (resolved.sub) {
+            setSubcategory(resolved.sub);
+            setPendingSubcategoryId(null);
+        } else {
+            setSubcategory("");
+            setPendingSubcategoryId(null);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open, isEditMode, product, isCategoriesLoading]);
 
     // When subcategories list finally loads, match the pending subcategoryId to a name
     useEffect(() => {
@@ -223,15 +237,35 @@ export const ProductModal = ({
         }
     }, [dynamicSubcategories, isLoadingSubcategories, pendingSubcategoryId]);
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            setRawFile(file); // Keep raw file for uploading
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setImage(reader.result as string);
-            };
-            reader.readAsDataURL(file);
+            setIsUploadingImage(true);
+            try {
+                // Instantly upload to S3 in productsImage folder
+                const response = await s3Api.uploadImage(file, "productsImage");
+                debugger;
+                if (response.success && response.data?.url) {
+                    setImage(response.data.url);
+                } else {
+                    toast({
+                        title: "Upload Failed",
+                        description: response.message || "Could not upload the product image. Please try again.",
+                        variant: "destructive"
+                    });
+                }
+            } catch (error) {
+                console.error("Image upload failed:", error);
+                toast({
+                    title: "Upload Error",
+                    description: "An unexpected error occurred during upload.",
+                    variant: "destructive"
+                });
+            } finally {
+                setIsUploadingImage(false);
+                // Clear the input field value so the same file can be selected again if needed
+                e.target.value = "";
+            }
         }
     };
 
@@ -240,18 +274,18 @@ export const ProductModal = ({
 
         // Lookup the final numeric categoryId
         let finalCategoryId = getCategoryId(category); // Fallback to main parent ID
-        
+
         // Priority: If we have a chosen subcategory, look up its ID from the dynamic list
         if (subcategory && dynamicSubcategories.length > 0) {
-            const matched = dynamicSubcategories.find((sub: any) => 
+            const matched = dynamicSubcategories.find((sub: any) =>
                 (sub.name || sub.displayName || sub.category_name) === subcategory
             );
             if (matched) {
                 finalCategoryId = matched.id;
             }
         } else if (!subcategory) {
-             // Explicitly force lookup to check if getCategoryId(category, subcategory) had cached it (unlikely but safe)
-             finalCategoryId = getCategoryId(category, subcategory);
+            // Explicitly force lookup to check if getCategoryId(category, subcategory) had cached it (unlikely but safe)
+            finalCategoryId = getCategoryId(category, subcategory);
         }
 
         const missingFields = [];
@@ -275,22 +309,10 @@ export const ProductModal = ({
 
         setIsSubmitting(true);
         try {
-            let uploadedImageUrl = image; // Fallback if existing
+            let uploadedImageUrl = image;
 
-            // 1. Handle new image upload to S3
-            if (rawFile) {
-                const uploadRes = await s3Api.uploadImage(rawFile);
-                if (uploadRes.success && uploadRes.data?.url) {
-                    uploadedImageUrl = uploadRes.data.url;
-                } else {
-                    toast({
-                        title: "Upload Failed",
-                        description: "Image could not be uploaded. Creating product without image.",
-                        variant: "destructive"
-                    });
-                }
-            } else if (typeof uploadedImageUrl === 'string' && uploadedImageUrl.startsWith('data:')) {
-                // Fallback for legacy base64 loaded from store or dynamic items
+            if (typeof uploadedImageUrl === 'string' && uploadedImageUrl.startsWith('data:')) {
+                // Fallback for legacy base64 if somehow introduced
                 const cleanUrl = await ensureS3Url(uploadedImageUrl);
                 uploadedImageUrl = cleanUrl || "";
             }
@@ -305,7 +327,7 @@ export const ProductModal = ({
                 offerPrice: Number(price),
                 currencyId: 1, // Hardcoded standard
                 branchIds: selectedBranchIds.map(id => Number(id)),
-                isHighlighted: status === "active", // Map highlights conditionally 
+                isActive: status === "active", // Map status conditionally 
                 validFrom: validFrom?.toISOString(),
                 validTo: validTo?.toISOString(),
             };
@@ -346,7 +368,12 @@ export const ProductModal = ({
                             <div className="shrink-0 flex flex-col items-center">
                                 <label className="text-sm font-semibold text-gray-700 leading-tight block w-full text-center">Image *</label>
                                 <div className="relative w-[52px] h-[52px] bg-gray-50/50 border border-solid border-primary/20 rounded-xl overflow-hidden flex items-center justify-center group hover:border-primary/40 transition-all cursor-pointer">
-                                    {image ? (
+                                    {isUploadingImage ? (
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 backdrop-blur-[1px]">
+                                            <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                                            <span className="text-[8px] font-bold mt-1 text-primary">Uploading</span>
+                                        </div>
+                                    ) : image ? (
                                         <>
                                             <Image src={image} alt="Product preview" fill unoptimized className="object-cover" />
                                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
@@ -527,6 +554,7 @@ export const ProductModal = ({
                             type="submit"
                             className="rounded-xl px-5 h-9 text-xs min-w-[110px]"
                             isLoading={isSubmitting}
+                            disabled={isUploadingImage}
                         >
                             {isEditMode ? "Save Changes" : "Create Product"}
                         </PremiumButton>
