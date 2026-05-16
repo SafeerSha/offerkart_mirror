@@ -248,6 +248,7 @@ export default function PosterDesignerPage() {
                                     </div>
                                     <PosterDesigner
                                         key={activePage.id}
+                                        shopId={activeShopId || undefined}
                                         initialElements={activePage.elements}
                                         initialBg={activePage.canvasBg}
                                         templateConfig={activePage.template}

@@ -127,8 +127,31 @@ export const ProductModal = ({
         };
 
         fetchBranches();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, sessionShopId]);
+
+    // Fix for mobile keyboard "stuck" UI bug where the window remains scrolled after keyboard dismiss
+    useEffect(() => {
+        if (!open) return;
+
+        const handleBlur = () => {
+            // Small timeout to check if we're actually leaving all inputs
+            setTimeout(() => {
+                const activeEl = document.activeElement;
+                const isInput = activeEl?.tagName === "INPUT" || activeEl?.tagName === "TEXTAREA" || activeEl?.tagName === "SELECT";
+                if (!isInput) {
+                    window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+                }
+            }, 100);
+        };
+
+        // We use a capture-phase listener on the form to catch all blurs
+        const form = document.querySelector('form');
+        if (form) {
+            form.addEventListener('focusout', handleBlur);
+            return () => form.removeEventListener('focusout', handleBlur);
+        }
+    }, [open]);
 
     // Form initialization — only when modal opens or product changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -222,7 +245,7 @@ export const ProductModal = ({
             setSubcategory("");
             setPendingSubcategoryId(null);
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, isEditMode, product, isCategoriesLoading]);
 
     // When subcategories list finally loads, match the pending subcategoryId to a name
@@ -356,12 +379,12 @@ export const ProductModal = ({
             onOpenChange={onOpenChange}
             title={isEditMode ? "Edit Product" : "Add New Product"}
             description={isEditMode ? "Modify your product information." : "Create a new product listing for your shop catalog."}
-            className="sm:max-w-xl max-h-[90vh] overflow-hidden px-4 pb-1"
+            className="sm:max-w-xl max-h-[90dvh] overflow-hidden px-4 pb-1 rounded-[32px] sm:rounded-3xl"
         >
             <form onSubmit={handleFormSubmit} className="flex flex-col h-full font-sans">
                 {/* Scrollable body with exact overflow control and gradient fade cues */}
                 <div className="relative flex-1 min-h-0">
-                    <div className="overflow-y-auto max-h-[55vh] px-1 pt-1 pr-2 pb-4 space-y-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                    <div className="overflow-y-auto max-h-[50dvh] px-1 pt-1 pr-2 pb-4 space-y-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                         {/* Top row: Name & Square Image picker */}
                         <div className="flex gap-2 items-start">
 
@@ -528,7 +551,6 @@ export const ProductModal = ({
                 {/* Fixed Footer with the status toggle button at the left end */}
                 <div className="flex items-center justify-between pt-3 mt-3 border-t border-primary/5 bg-white shrink-0">
                     <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold text-gray-600">Status:</span>
                         <div className="flex items-center h-8 bg-white/50 backdrop-blur-sm rounded-xl">
                             <StatusToggleButton
                                 status={status === "active" ? "active" : "paused"}

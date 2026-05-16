@@ -9,8 +9,11 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export async function getAllProducts(shopId?: string) {
     try {
         // Try to fetch from backend API first
+        console.log(`[API] Fetching products for shopId: ${shopId || 'all'}`);
         const backendRes = await getAllOfferProducts(shopId);
+        
         if (backendRes.success && backendRes.data) {
+            console.log(`[API] Successfully fetched products. Count: ${Array.isArray(backendRes.data) ? backendRes.data.length : (backendRes.data as any).Count || 'unknown'}`);
             // Backend returns { value: [...], Count: N } envelope
             const rawData = backendRes.data;
             const items: any[] = Array.isArray(rawData)
@@ -52,10 +55,16 @@ export async function getAllProducts(shopId?: string) {
                 validTo: item.validTo ?? null,
             }));
             return backendProducts;
+        } else if (!backendRes.success) {
+            console.warn(`[API] Backend products fetch failed for shopId: ${shopId}. Error: ${backendRes.error}`);
+        } else {
+            console.warn(`[API] Backend products fetch returned no data for shopId: ${shopId}`);
         }
     } catch (error) {
-        console.error("Error fetching backend products:", error);
+        console.error(`[API] Critical error fetching products for shopId: ${shopId}:`, error);
     }
+
+    console.log("[API] Falling back to mock data (ALL_PRODUCTS)");
 
     // Fallback to local storage + mock data
     await delay(100);
