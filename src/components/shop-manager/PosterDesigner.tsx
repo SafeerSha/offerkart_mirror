@@ -536,12 +536,14 @@ export default function PosterDesigner({
     initialElements = [],
     initialBg = "#ffffff",
     templateConfig,
+    shopId,
     onBack,
     onSnapshotChange
 }: {
     initialElements?: CanvasElement[],
     initialBg?: string,
     templateConfig?: TemplateConfig,
+    shopId?: string,
     onBack?: () => void,
     onSnapshotChange?: (snapshot: { elements: CanvasElement[]; canvasBg: string }) => void
 }) {
@@ -637,7 +639,9 @@ export default function PosterDesigner({
     const [aiTaglines, setAiTaglines] = useState<string[]>([]);
 
     // Product Binding
-    const { data: productsData } = useAllProducts();
+    const sessionShopId = session?.shopId ?? (session?.user as any)?.shopId ?? null;
+    const effectiveShopId = shopId || sessionShopId;
+    const { data: productsData } = useAllProducts(effectiveShopId);
     const products = (productsData || []) as any[];
     const normalizeProductText = (value: unknown) => String(value ?? "").trim().toLowerCase();
     const normalizeProductPrice = (value: unknown) => String(value ?? "").replace(/[^\d.]/g, "");
@@ -882,10 +886,10 @@ export default function PosterDesigner({
         try {
             let shopId = (session as any)?.shopId || (session?.user as any)?.shopId;
             const res = await createProductMutation({ payload, shopId });
-            
+
             if (res.success) {
                 toast.success("Product created successfully!");
-                
+
                 addProductCard(targetPlaceholderId ?? undefined, {
                     image: payload.imageUrl,
                     title: payload.displayName,
@@ -894,7 +898,7 @@ export default function PosterDesigner({
                     oldPrice: payload.originalPrice?.toString() || "",
                     sourceProductId: res.data?.id?.toString() || ""
                 });
-                
+
                 setShowCardModal(false);
             } else {
                 toast.error(res.message || "Failed to create product");
@@ -2161,7 +2165,7 @@ export default function PosterDesigner({
                                         </div>
                                         <div className="text-left flex-1">
                                             <p className="font-black text-[11px] text-gray-800 uppercase tracking-wide">Import Product</p>
-                                            <p className="text-[8px] text-gray-400 font-medium tracking-tight">Sync from your digital inventory</p>
+                                            <p className="text-[8px] text-gray-400 font-medium tracking-tight">Import Products</p>
                                         </div>
                                         <ChevronRight className="w-3.5 h-3.5 text-orange-200 group-hover:text-orange-500 transition-colors" />
                                     </button>
@@ -2886,7 +2890,7 @@ export default function PosterDesigner({
             </div>
 
 
-            <AppModal open={showProductModal} onOpenChange={setShowProductModal} title="Catalog Sync" description="Select a product to generate a designer card instantly.">
+            <AppModal open={showProductModal} onOpenChange={setShowProductModal} title="Import Products" description="Select a product to generate a designer card instantly.">
                 <div className="space-y-4 py-4">
                     <div className="max-h-[400px] overflow-y-auto pr-2 custom-scrollbar space-y-2">
                         {products.map((p) => {
@@ -2895,71 +2899,71 @@ export default function PosterDesigner({
                                 usedCatalogProducts.signatures.has(getProductSignature(p.name, p.price));
 
                             return (
-                            <div
-                                key={p.id}
-                                className={cn(
-                                    "flex items-center gap-4 p-4 rounded-2xl border border-gray-50 bg-gray-50/20 transition-all group",
-                                    isAlreadyAdded
-                                        ? "opacity-55 cursor-not-allowed bg-gray-100/70"
-                                        : "hover:border-orange-500/30 hover:bg-orange-50/50 cursor-pointer active:scale-95"
-                                )}
-                                onClick={() => {
-                                    if (isAlreadyAdded) return;
-                                    // Pass data directly — avoid async setState timing bug
-                                    addProductCard(targetPlaceholderId ?? undefined, {
-                                        image: p.image || '',
-                                        title: p.name,
-                                        desc: p.description || '',
-                                        sourceProductId: String(p.id),
-                                        offerPrice: `₹${p.price}`,
-                                        oldPrice: p.originalPrice ? `₹${p.originalPrice}` : '',
-                                    });
-                                    setShowProductModal(false);
-                                    recordChange();
-                                    toast.success('Product imported!');
-                                }}
-                            >
-                                <div className="w-12 h-12 rounded-xl bg-white border border-gray-100 overflow-hidden shadow-sm shrink-0">
-                                    {p.image && <img src={p.image} alt="" className="w-full h-full object-cover" />}
+                                <div
+                                    key={p.id}
+                                    className={cn(
+                                        "flex items-center gap-4 p-4 rounded-2xl border border-gray-50 bg-gray-50/20 transition-all group",
+                                        isAlreadyAdded
+                                            ? "opacity-55 cursor-not-allowed bg-gray-100/70"
+                                            : "hover:border-orange-500/30 hover:bg-orange-50/50 cursor-pointer active:scale-95"
+                                    )}
+                                    onClick={() => {
+                                        if (isAlreadyAdded) return;
+                                        // Pass data directly — avoid async setState timing bug
+                                        addProductCard(targetPlaceholderId ?? undefined, {
+                                            image: p.image || '',
+                                            title: p.name,
+                                            desc: p.description || '',
+                                            sourceProductId: String(p.id),
+                                            offerPrice: `₹${p.price}`,
+                                            oldPrice: p.originalPrice ? `₹${p.originalPrice}` : '',
+                                        });
+                                        setShowProductModal(false);
+                                        recordChange();
+                                        toast.success('Product imported!');
+                                    }}
+                                >
+                                    <div className="w-12 h-12 rounded-xl bg-white border border-gray-100 overflow-hidden shadow-sm shrink-0">
+                                        {p.image && <img src={p.image} alt="" className="w-full h-full object-cover" />}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-black text-gray-900 truncate uppercase tracking-tighter group-hover:text-orange-500 transition-colors">
+                                            {p.name}
+                                        </p>
+                                        <div className="flex items-center gap-2 mt-0.5 min-w-0">
+                                            {p.category && (
+                                                <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest truncate">
+                                                    {p.category}
+                                                </span>
+                                            )}
+                                            {p.status && (
+                                                <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider border leading-none shrink-0 ${p.status === "active" ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-gray-50 text-gray-500 border-gray-100"}`}>
+                                                    {p.status}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="flex items-baseline gap-2 mt-1">
+                                            <span className="text-[10px] font-black text-emerald-600">₹{p.price}</span>
+                                            {p.originalPrice && (
+                                                <span className="text-[9px] font-bold text-red-500 line-through">₹{p.originalPrice}</span>
+                                            )}
+                                            {p.validFrom && (
+                                                <span className="text-[9px] font-bold text-gray-400 truncate">
+                                                    {new Date(p.validFrom).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}
+                                                    {p.validTo ? ` - ${new Date(p.validTo).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}` : ""}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    {isAlreadyAdded ? (
+                                        <div className="flex items-center gap-1.5 px-2 py-1 rounded-xl bg-white/70 text-emerald-600 text-[9px] font-black uppercase tracking-widest shadow-sm">
+                                            <CheckCircle2 className="w-3 h-3" />
+                                            Added
+                                        </div>
+                                    ) : (
+                                        <div className="p-2 rounded-xl bg-white/50 text-orange-500 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"><ArrowUpRight className="w-4 h-4" /></div>
+                                    )}
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-black text-gray-900 truncate uppercase tracking-tighter group-hover:text-orange-500 transition-colors">
-                                        {p.name}
-                                    </p>
-                                    <div className="flex items-center gap-2 mt-0.5 min-w-0">
-                                        {p.category && (
-                                            <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest truncate">
-                                                {p.category}
-                                            </span>
-                                        )}
-                                        {p.status && (
-                                            <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-black uppercase tracking-wider border leading-none shrink-0 ${p.status === "active" ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-gray-50 text-gray-500 border-gray-100"}`}>
-                                                {p.status}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="flex items-baseline gap-2 mt-1">
-                                        <span className="text-[10px] font-black text-emerald-600">₹{p.price}</span>
-                                        {p.originalPrice && (
-                                            <span className="text-[9px] font-bold text-red-500 line-through">₹{p.originalPrice}</span>
-                                        )}
-                                        {p.validFrom && (
-                                            <span className="text-[9px] font-bold text-gray-400 truncate">
-                                                {new Date(p.validFrom).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}
-                                                {p.validTo ? ` - ${new Date(p.validTo).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}` : ""}
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                                {isAlreadyAdded ? (
-                                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-xl bg-white/70 text-emerald-600 text-[9px] font-black uppercase tracking-widest shadow-sm">
-                                        <CheckCircle2 className="w-3 h-3" />
-                                        Added
-                                    </div>
-                                ) : (
-                                    <div className="p-2 rounded-xl bg-white/50 text-orange-500 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"><ArrowUpRight className="w-4 h-4" /></div>
-                                )}
-                            </div>
                             );
                         })}
                     </div>
@@ -2967,11 +2971,11 @@ export default function PosterDesigner({
             </AppModal>
 
             {/* CUSTOM PRODUCT MODAL */}
-            <ProductModal 
-                open={showCardModal} 
-                onOpenChange={setShowCardModal} 
+            <ProductModal
+                open={showCardModal}
+                onOpenChange={setShowCardModal}
                 product={null}
-                onSubmit={handleCustomProductSubmit} 
+                onSubmit={handleCustomProductSubmit}
             />
 
         </div>
