@@ -6,14 +6,22 @@ import { useSession } from "next-auth/react";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import PosterDesigner from "@/components/shop-manager/PosterDesigner";
 import { CanvasElement } from "@/components/shop-manager/PosterDesigner";
+import type { DesignerPosterData } from "@/components/shop-manager/PosterDesigner";
 import { PosterTemplateSelector } from "@/components/shop-manager/PosterTemplateSelector";
 import { TemplateConfig } from "@/lib/posterTemplates";
 import { templateConfigToCanvasElements, ShopData } from "@/lib/templateToCanvas";
-import { useMyShops, useBranches } from "@/hooks/useApi";
-import { cn } from "@/lib/utils";
+import { useMyShops, useBranches, useCreateOffer } from "@/hooks/useApi";
+import { cn, formatDateLocal } from "@/lib/utils";
 import { AppModal } from "@/components/shared/AppModal";
 import { PremiumButton } from "@/components/shared/PremiumButton";
-import { FileText, Plus, X, AlertTriangle } from "lucide-react";
+import { PremiumInput } from "@/components/shared/PremiumInput";
+import { PremiumDatePicker } from "@/components/shared/PremiumDatePicker";
+import { MultiSearchableSelect } from "@/components/shared/MultiSearchableSelect";
+import { StatusToggleButton } from "@/components/shared/StatusToggleButton";
+import { FileText, Plus, X, AlertTriangle, Type, GitBranch, Send } from "lucide-react";
+import { s3Api } from "@/lib/api";
+import { toast } from "sonner";
+import type { MarkedItem } from "@/lib/types/offer";
 
 type PosterPageDraft = {
     id: string;
@@ -32,6 +40,18 @@ export default function PosterDesignerPage() {
 
     const router = useRouter();
     const [forceLeave, setForceLeave] = useState(false);
+
+    // ── Publish Modal State ──────────────────────────────────────────────
+    const [showPublishModal, setShowPublishModal] = useState(false);
+    const [offerTitle, setOfferTitle] = useState("");
+    const [validFrom, setValidFrom] = useState<Date | undefined>(undefined);
+    const [validTo, setValidTo] = useState<Date | undefined>(undefined);
+    const [selectedBranchIds, setSelectedBranchIds] = useState<string[]>([]);
+    const [isActive, setIsActive] = useState(true);
+    const [isPublishing, setIsPublishing] = useState(false);
+    const [publishErrors, setPublishErrors] = useState<{ title?: string; validFrom?: string; validTo?: string; branch?: string }>({});
+    const [capturedPosters, setCapturedPosters] = useState<{ pageId: string; posterFile: File; markedItems: MarkedItem[] }[]>([]);
+    const { mutateAsync: createOfferMutation } = useCreateOffer();
 
     // Fetch shop data
     const { data: shopsResponse } = useMyShops();
@@ -244,6 +264,87 @@ export default function PosterDesignerPage() {
         );
     }, []);
 
+    // ── Finish / Publish Handlers ────────────────────────────────────────
+    const handleDesignerFinish = useCallback((pageId: string, data: DesignerPosterData) => {
+        // Store the captured poster data for this page
+        setCapturedPosters(prev => {
+            const filtered = prev.filter(p => p.pageId !== pageId);
+            return [...filtered, { pageId, posterFile: data.posterFile, markedItems: data.markedItems }];
+        });
+        // Open the publish modal
+        setShowPublishModal(true);
+    }, []);
+
+    const handlePublishSubmit = async () => {
+        const errors: { title?: string; validFrom?: string; validTo?: string; branch?: string } = {};
+        if (!offerTitle.trim()) errors.title = "Campaign title is required";
+        if (!validFrom) errors.validFrom = "Start date is required";
+        if (!validTo) errors.validTo = "End date is required";
+        if (validFrom && validTo && validTo < validFrom) errors.validTo = "End date must be after start date";
+        if (selectedBranchIds.length === 0) errors.branch = "Please select at least one branch";
+
+        setPublishErrors(errors);
+        if (Object.keys(errors).length > 0) return;
+
+        setIsPublishing(true);
+        const toastId = toast.loading("Publishing campaign...");
+
+        try {
+            // Upload all captured poster images to S3
+            const posterData = await Promise.all(
+                capturedPosters.map(async (cp, index) => {
+                    const res = await s3Api.uploadImage(cp.posterFile, "offers");
+                    const payload = (res?.data as any)?.data || res?.data;
+                    const uploadedUrl = payload?.url || payload?.fileUrl || payload?.imageUrl || (res?.data as any)?.imageUrl || (typeof payload === 'string' ? payload : null);
+                    if (!res?.success || !uploadedUrl) {
+                        throw new Error(`Failed to upload poster ${index + 1}`);
+                    }
+                    return {
+                        id: crypto.randomUUID(),
+                        posterSrc: uploadedUrl,
+                        type: "marked_poster" as const,
+                        order: index + 1,
+                        markedItems: cp.markedItems,
+                    };
+                })
+            );
+
+            const selectedBranches = branches.filter((b: any) => selectedBranchIds.includes(String(b.id)));
+
+            const offerPayload = {
+                title: offerTitle,
+                validFrom: validFrom ? formatDateLocal(validFrom) : "",
+                validTo: validTo ? formatDateLocal(validTo) : "",
+                branchIds: selectedBranches.map((b: any) => b.id),
+                branchNames: selectedBranches.map((b: any) => b.branch_name),
+                branchCity: selectedBranches[0]?.city,
+                createdAt: new Date().toISOString(),
+                status: isActive ? 'active' : 'paused',
+                isActive: isActive,
+                posters: posterData,
+            };
+
+            const res = await createOfferMutation({ payload: offerPayload, shopId: activeShopId || "" });
+            if (res.success) {
+                toast.success("Offer published successfully!", { id: toastId });
+                setShowPublishModal(false);
+                setOfferTitle("");
+                setValidFrom(undefined);
+                setValidTo(undefined);
+                setSelectedBranchIds([]);
+                setCapturedPosters([]);
+                router.push("/shop-manager");
+            } else {
+                toast.error((res as any).message || "Failed to publish campaign", { id: toastId });
+            }
+        } catch (err: any) {
+            console.error("Publish error", err);
+            toast.error("Failed to publish: " + (err.message || err), { id: toastId });
+        } finally {
+            setIsPublishing(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-background">
             <div className="h-20 lg:h-32" />
@@ -258,8 +359,14 @@ export default function PosterDesignerPage() {
                         items={[
                             { label: "Dashboard", href: "/shop-manager" },
                             {
-                                label: "Poster Designer",
-                                href: !activePage ? "/shop-manager/poster-designer" : undefined,
+                                label: "Templates",
+                                href: "/shop-manager/poster-designer",
+                                onClick: (e) => {
+                                    if (activePage) {
+                                        e.preventDefault();
+                                        handleBackToTemplates();
+                                    }
+                                }
                             },
                             ...(activePage ? [{ label: activePage.template.name }] : []),
                         ]}
@@ -344,6 +451,7 @@ export default function PosterDesignerPage() {
                                         templateConfig={activePage.template}
                                         onBack={handleBackToTemplates}
                                         onSnapshotChange={(snapshot) => handleSnapshotChange(activePage.id, snapshot)}
+                                        onFinish={(data) => handleDesignerFinish(activePage.id, data)}
                                         allPagesElements={posterPages.map(p => p.elements)}
                                     />
                                 </div>
@@ -357,6 +465,144 @@ export default function PosterDesignerPage() {
                     </div>
                 </div>
             </main>
+
+            {/* Publish Offer Modal */}
+            <AppModal
+                open={showPublishModal}
+                onOpenChange={setShowPublishModal}
+                title="Publish Offer"
+                description="Give your campaign a name before publishing."
+            >
+                <div className="space-y-5">
+                    <PremiumInput
+                        label="Campaign Title"
+                        icon={Type}
+                        type="text"
+                        value={offerTitle}
+                        onChange={(e) => {
+                            setOfferTitle(e.target.value);
+                            if (publishErrors.title) setPublishErrors((p) => ({ ...p, title: undefined }));
+                        }}
+                        placeholder="e.g. Weekend Mega Sale 2026"
+                        error={publishErrors.title}
+                        autoFocus
+                    />
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <PremiumDatePicker
+                            label="Valid From"
+                            date={validFrom}
+                            setDate={(d) => {
+                                setValidFrom(d);
+                                if (publishErrors.validFrom) setPublishErrors((p) => ({ ...p, validFrom: undefined }));
+                            }}
+                            placeholder="Select start date"
+                            error={publishErrors.validFrom}
+                            minDate={new Date()}
+                        />
+                        <PremiumDatePicker
+                            label="Valid To"
+                            date={validTo}
+                            setDate={(d) => {
+                                setValidTo(d);
+                                if (publishErrors.validTo) setPublishErrors((p) => ({ ...p, validTo: undefined }));
+                            }}
+                            placeholder="Select end date"
+                            error={publishErrors.validTo}
+                            minDate={validFrom || new Date()}
+                        />
+                    </div>
+
+                    {/* Branch Selector */}
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium flex items-center gap-2 text-foreground ml-1">
+                            <GitBranch className="w-4 h-4 text-muted-foreground" />
+                            Branches
+                        </label>
+                        {branches.length === 0 ? (
+                            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-2 text-sm text-amber-700">
+                                    <GitBranch className="w-4 h-4 shrink-0" />
+                                    <span>No branches yet. Create one to link with this offer.</span>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (activeShopId) {
+                                            window.open(`/shop-manager/${activeShopId}/add-branch?returnTo=/shop-manager/poster-designer`, "_blank");
+                                        } else {
+                                            toast.error("You need to create a shop first before adding branches");
+                                        }
+                                    }}
+                                    className="shrink-0 text-xs font-semibold text-white bg-amber-500 hover:bg-amber-600 transition-colors px-3 py-1.5 rounded-lg cursor-pointer"
+                                >
+                                    + Add Branch
+                                </button>
+                            </div>
+                        ) : (
+                            <MultiSearchableSelect
+                                options={branches.map((b: any) => ({ label: `${b.branch_name || b.name} — ${b.city}`, value: String(b.id) }))}
+                                selectedValues={selectedBranchIds}
+                                onChange={(vals) => {
+                                    setSelectedBranchIds(vals);
+                                    if (vals.length > 0 && publishErrors.branch) {
+                                        setPublishErrors((p) => ({ ...p, branch: undefined }));
+                                    }
+                                }}
+                                placeholder="Select branches"
+                            />
+                        )}
+                        {publishErrors.branch && (
+                            <p className="text-xs font-medium text-destructive ml-1 animate-in fade-in slide-in-from-top-1">
+                                {publishErrors.branch}
+                            </p>
+                        )}
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-muted/50 border border-border/50 text-sm">
+                        <div className="flex justify-between">
+                            <span className="opacity-60">Total posters</span>
+                            <span className="font-bold">{capturedPosters.length}</span>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-4 border-t border-primary/10">
+                        <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-1.5 hidden sm:flex">
+                                <div className={cn(
+                                    "w-2 h-2 rounded-full",
+                                    isActive ? "bg-[#1cc080]" : "bg-gray-400"
+                                )} />
+                                <span className={cn(
+                                    "text-[13px] font-bold uppercase tracking-wider",
+                                    isActive ? "text-slate-800" : "text-gray-500"
+                                )}>
+                                    {isActive ? "Active" : "Paused"}
+                                </span>
+                            </div>
+                            <StatusToggleButton status={isActive ? "active" : "paused"} onChange={(newStatus) => setIsActive(newStatus === "active")} />
+                        </div>
+                        <div className="flex gap-3">
+                            <PremiumButton
+                                variant="outline"
+                                onClick={() => setShowPublishModal(false)}
+                                className="rounded-xl"
+                            >
+                                Cancel
+                            </PremiumButton>
+                            <PremiumButton
+                                onClick={handlePublishSubmit}
+                                isLoading={isPublishing}
+                                leftIcon={Send}
+                                className="rounded-xl"
+                                disabled={isPublishing}
+                            >
+                                {isPublishing ? "Publishing..." : "Confirm & Publish"}
+                            </PremiumButton>
+                        </div>
+                    </div>
+                </div>
+            </AppModal>
 
             {/* Unsaved changes warning modal */}
             <AppModal

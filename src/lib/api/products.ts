@@ -7,9 +7,26 @@ import { updateOfferProduct, getOfferProductById, getAllOfferProducts, deleteOff
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export async function getAllProducts(shopId?: string) {
+    if (!shopId || shopId === "all" || shopId === "undefined" || shopId === "null" || shopId === "") {
+        console.log(`[API] Skipping backend products fetch (no valid shopId provided: ${shopId || 'all'}). Using local/mock products.`);
+        await delay(50);
+        let customProducts: any[] = [];
+        if (typeof window !== "undefined") {
+            const stored = localStorage.getItem("customProducts");
+            if (stored) {
+                try {
+                    customProducts = JSON.parse(stored);
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+        }
+        return [...customProducts, ...ALL_PRODUCTS];
+    }
+
     try {
         // Try to fetch from backend API first
-        console.log(`[API] Fetching products for shopId: ${shopId || 'all'}`);
+        console.log(`[API] Fetching products for shopId: ${shopId}`);
         const backendRes = await getAllOfferProducts(shopId);
         
         if (backendRes.success && backendRes.data) {

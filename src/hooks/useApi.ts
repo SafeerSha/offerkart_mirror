@@ -284,6 +284,7 @@ export function useAllProducts(shopId?: string) {
   return useQuery({
     queryKey: queryKeys.allProducts(shopId),
     queryFn: () => getAllProducts(shopId),
+    enabled: !!shopId && shopId !== "all" && shopId !== "undefined" && shopId !== "null",
     staleTime: 5 * 60 * 1000,
   });
 }

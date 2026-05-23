@@ -110,7 +110,7 @@ export default {
             },
             fontFamily: {
                 sans: [
-                    'Rubik',
+                    'var(--font-sans)',
                     'ui-sans-serif',
                     'system-ui',
                     '-apple-system',
@@ -121,8 +121,15 @@ export default {
                     'Noto Sans',
                     'sans-serif'
                 ],
+                inter: ['var(--font-inter)', 'sans-serif'],
+                playfair: ['var(--font-playfair)', 'serif'],
+                staatliches: ['var(--font-staatliches)', 'cursive'],
+                montserrat: ['var(--font-montserrat)', 'sans-serif'],
+                outfit: ['var(--font-outfit)', 'sans-serif'],
+                quicksand: ['var(--font-quicksand)', 'sans-serif'],
+                bebasNeue: ['var(--font-bebas-neue)', 'cursive'],
                 serif: [
-                    'Rubik',
+                    'var(--font-sans)',
                     'ui-serif',
                     'Georgia',
                     'Cambria',

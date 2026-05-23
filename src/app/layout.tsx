@@ -1,13 +1,70 @@
 import type { Metadata } from "next";
-import { Rubik } from "next/font/google";
+import { 
+  Rubik, 
+  Inter, 
+  Playfair_Display, 
+  Staatliches, 
+  Montserrat, 
+  Outfit, 
+  Quicksand, 
+  Bebas_Neue 
+} from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
-
 import { ConditionalHeader } from "@/components/layout/ConditionalHeader";
 
 const rubik = Rubik({
   subsets: ["latin"],
   variable: "--font-sans",
+  display: "swap",
+});
+
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["300", "400", "600", "700", "900"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+const playfair = Playfair_Display({
+  subsets: ["latin"],
+  weight: ["400", "600", "700", "900"],
+  variable: "--font-playfair",
+  display: "swap",
+});
+
+const staatliches = Staatliches({
+  subsets: ["latin"],
+  weight: ["400"],
+  variable: "--font-staatliches",
+  display: "swap",
+});
+
+const montserrat = Montserrat({
+  subsets: ["latin"],
+  weight: ["300", "400", "600", "700", "900"],
+  variable: "--font-montserrat",
+  display: "swap",
+});
+
+const outfit = Outfit({
+  subsets: ["latin"],
+  weight: ["300", "400", "600", "700", "900"],
+  variable: "--font-outfit",
+  display: "swap",
+});
+
+const quicksand = Quicksand({
+  subsets: ["latin"],
+  weight: ["300", "400", "600", "700"],
+  variable: "--font-quicksand",
+  display: "swap",
+});
+
+const bebasNeue = Bebas_Neue({
+  subsets: ["latin"],
+  weight: ["400"],
+  variable: "--font-bebas-neue",
   display: "swap",
 });
 
@@ -31,7 +88,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${rubik.variable} antialiased`} suppressHydrationWarning>
+      <body className={`${rubik.variable} ${inter.variable} ${playfair.variable} ${staatliches.variable} ${montserrat.variable} ${outfit.variable} ${quicksand.variable} ${bebasNeue.variable} antialiased`} suppressHydrationWarning>
         <Providers>
           <ConditionalHeader />
           {children}

@@ -58,16 +58,21 @@ import {
     GripVertical,
     CheckCircle2,
     IndianRupee,
-    X
+    X,
+    Send
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PREMIUM_GRADIENTS, ASPECT_RATIOS, GOOGLE_FONTS, ABSTRACT_MODELS } from "@/lib/designPresets";
 import { generateTaglines, suggestPalette } from "@/lib/ai/posterAI";
 import { useAllProducts, useCreateProduct } from "@/hooks/useApi";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { ProductModal } from "@/components/shop-manager/ProductModal";
+import { s3Api } from "@/lib/api";
+import type { MarkedItem } from "@/lib/types/offer";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { capturePosterAsImage } from "@/lib/capturePoster";
 
 export type ElType = "text" | "shape" | "product-card" | "image";
 export type ShapeKind = "rect" | "circle" | "triangle" | "star" | "blob" | "badge" | "burst" | "ribbon" | "pill" | "wave";
@@ -342,7 +347,20 @@ function ProductCardContent({ el, onUpdate }: { el: CanvasElement; onUpdate: (id
             >
                 {el.cardImage ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={el.cardImage} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <img 
+                        src={el.cardImage} 
+                        crossOrigin="anonymous" 
+                        alt="" 
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                        onError={(e) => {
+                            const img = e.currentTarget;
+                            if (img.getAttribute("crossorigin")) {
+                                console.warn("CORS load failed for product card image:", img.src, ", retrying without crossOrigin...");
+                                img.removeAttribute("crossorigin");
+                                img.src = img.src;
+                            }
+                        }}
+                    />
                 ) : (
                     <ImageIcon className="w-8 h-8 text-gray-300" />
                 )}
@@ -527,10 +545,32 @@ const handlePositionClasses: Record<HandlePos, string> = {
 };
 
 /* ================================================================
+   FONT NORMALIZATION HELPER
+   ================================================================ */
+
+export const getSafeFontFamily = (fontFamilyStr?: string) => {
+    if (!fontFamilyStr) return undefined;
+    const lower = fontFamilyStr.toLowerCase();
+    if (lower.includes("inter")) return "var(--font-inter), sans-serif";
+    if (lower.includes("playfair")) return "var(--font-playfair), serif";
+    if (lower.includes("staatliches")) return "var(--font-staatliches), cursive";
+    if (lower.includes("montserrat")) return "var(--font-montserrat), sans-serif";
+    if (lower.includes("outfit")) return "var(--font-outfit), sans-serif";
+    if (lower.includes("quicksand")) return "var(--font-quicksand), sans-serif";
+    if (lower.includes("bebas")) return "var(--font-bebas-neue), cursive";
+    return fontFamilyStr;
+};
+
+/* ================================================================
    MAIN COMPONENT
    ================================================================ */
 
 import { TemplateConfig } from '@/lib/posterTemplates';
+
+export interface DesignerPosterData {
+    posterFile: File;
+    markedItems: MarkedItem[];
+}
 
 export default function PosterDesigner({
     initialElements = [],
@@ -539,6 +579,7 @@ export default function PosterDesigner({
     shopId,
     onBack,
     onSnapshotChange,
+    onFinish,
     allPagesElements
 }: {
     initialElements?: CanvasElement[],
@@ -547,10 +588,18 @@ export default function PosterDesigner({
     shopId?: string,
     onBack?: () => void,
     onSnapshotChange?: (snapshot: { elements: CanvasElement[]; canvasBg: string }) => void,
+    onFinish?: (data: DesignerPosterData) => void,
     allPagesElements?: CanvasElement[][]
 }) {
     const { data: session } = useSession();
     const { mutateAsync: createProductMutation, isPending: isCreatingProduct } = useCreateProduct();
+    const router = useRouter();
+
+    const sessionShopId = session?.shopId ?? (session?.user as any)?.shopId ?? null;
+    const effectiveShopId = shopId || sessionShopId;
+
+    // Finish/publishing in-progress state (just for UI loading indicator)
+    const [isPublishing, setIsPublishing] = useState(false);
 
     /* ---------- STATE ---------- */
     const [elements, setElements] = useState<CanvasElement[]>(initialElements);
@@ -596,6 +645,7 @@ export default function PosterDesigner({
     const [showRightSidebarMobile, setShowRightSidebarMobile] = useState(false);
     const [showLeftInspectorMobile, setShowLeftInspectorMobile] = useState(false);
     const [draggedLayerIndex, setDraggedLayerIndex] = useState<number | null>(null);
+    const [isMobile, setIsMobile] = useState(false);
 
     useEffect(() => {
         if (templateConfig?.itemGrid) {
@@ -632,6 +682,14 @@ export default function PosterDesigner({
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
+    // Mobile detection for popups
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 768);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
     // History (Undo/Redo)
     const [history, setHistory] = useState<{ elements: CanvasElement[]; bg: string }[]>([]);
     const [historyIndex, setHistoryIndex] = useState(-1);
@@ -641,8 +699,6 @@ export default function PosterDesigner({
     const [aiTaglines, setAiTaglines] = useState<string[]>([]);
 
     // Product Binding
-    const sessionShopId = session?.shopId ?? (session?.user as any)?.shopId ?? null;
-    const effectiveShopId = shopId || sessionShopId;
     const { data: productsData } = useAllProducts(effectiveShopId);
     const products = (productsData || []) as any[];
     const normalizeProductText = (value: unknown) => String(value ?? "").trim().toLowerCase();
@@ -653,7 +709,8 @@ export default function PosterDesigner({
     const usedCatalogProducts = useMemo(() => {
         const ids = new Set<string>();
         const signatures = new Set<string>();
-        const elementsSource = allPagesElements ? allPagesElements.flat() : elements;
+        // Ensure we combine both allPagesElements (for other posters) and current elements (for immediate updates)
+        const elementsSource = allPagesElements ? [...allPagesElements.flat(), ...elements] : elements;
         for (const el of elementsSource) {
             const isEmptyProductSlot = !el.cardImage &&
                 (el.isTemplateSlot || el.isFreeFloating || el.cardTitle === "Product Name" || el.cardTitle === "Product" || el.cardTitle?.includes("Slot"));
@@ -692,13 +749,6 @@ export default function PosterDesigner({
 
     // Load from localStorage on mount
     useEffect(() => {
-        // Load fonts
-        const fontLinks = GOOGLE_FONTS.map(f => f.name.replace(/\s+/g, '+') + ":wght@300;400;600;700;900").join('&family=');
-        const link = document.createElement("link");
-        link.rel = "stylesheet";
-        link.href = `https://fonts.googleapis.com/css2?family=${fontLinks}&display=swap`;
-        document.head.appendChild(link);
-
         const stored = localStorage.getItem("offerKart_posters");
         if (stored) {
             try {
@@ -1526,8 +1576,9 @@ export default function PosterDesigner({
         const onBlur = () => {
             node.contentEditable = "false";
             node.style.cursor = "grab";
-            updateEl(elId, { text: node.textContent || "" });
+            updateEl(elId, { text: node.innerText || node.textContent || "" });
             node.removeEventListener("blur", onBlur);
+            recordChange();
         };
         node.addEventListener("blur", onBlur);
     };
@@ -1542,50 +1593,103 @@ export default function PosterDesigner({
         // Give React a frame to re-render without selection/grid
         await new Promise((r) => setTimeout(r, 60));
 
-        const { default: html2canvas } = await import("html2canvas");
         if (!canvasRef.current) {
             if (wasGridVisible) setShowGrid(true);
             return;
         }
 
-        const canvas = await html2canvas(canvasRef.current, {
-            useCORS: true,
-            scale: 2,
-            backgroundColor: null,
-            onclone: (clonedDoc) => {
-                const allElements = clonedDoc.getElementsByTagName("*");
-                for (let i = 0; i < allElements.length; i++) {
-                    const el = allElements[i] as HTMLElement;
+        try {
+            const dataUrl = await capturePosterAsImage(canvasRef.current);
 
-                    // We check computed styles because Tailwind classes won't show in el.style
-                    // But we must use the window of the CLONED document or the global window carefully.
-                    // clonedDoc.defaultView is the window for the clone.
-                    const win = clonedDoc.defaultView || window;
-                    const style = win.getComputedStyle(el);
+            const a = document.createElement("a");
+            a.download = "poster.png";
+            a.href = dataUrl;
+            a.click();
+        } catch (err: any) {
+            console.error("Export PNG error", err);
+            toast.error("Failed to export PNG: " + (err.message || err));
+        } finally {
+            // Restore grid if it was visible
+            if (wasGridVisible) setShowGrid(true);
+        }
+    };
 
-                    const props: (keyof CSSStyleDeclaration)[] = ["backgroundColor", "color", "borderColor", "fill", "stroke" as any];
-                    props.forEach(prop => {
-                        const val = style[prop] as string;
-                        if (val && (val.includes("lab(") || val.includes("oklch("))) {
-                            // Fallback: If it's a background, make it transparent or a default.
-                            // If it's text, make it black/inherit.
-                            if (prop === "backgroundColor") el.style.backgroundColor = "transparent";
-                            else if (prop === "color") el.style.color = "inherit";
-                            else if (prop === "fill") el.style.fill = "currentColor";
-                            else (el.style as any)[prop] = "";
-                        }
-                    });
-                }
+    /* ---------- FINISH & PUBLISH ---------- */
+    const handleFinishClick = async () => {
+        if (!onFinish) {
+            toast.error("Finish handler not configured");
+            return;
+        }
+
+        setIsPublishing(true);
+        const toastId = toast.loading("Preparing poster...");
+
+        const wasGridVisible = showGrid;
+        try {
+            // Deselect and hide grid before capture
+            setSelectedId(null);
+            setShowGrid(false);
+
+            // Give React a frame to re-render without selection/grid
+            await new Promise((r) => setTimeout(r, 60));
+
+            if (!canvasRef.current) {
+                if (wasGridVisible) setShowGrid(true);
+                setIsPublishing(false);
+                toast.error("Canvas element not found", { id: toastId });
+                return;
             }
-        });
 
-        const a = document.createElement("a");
-        a.download = "poster.png";
-        a.href = canvas.toDataURL("image/png");
-        a.click();
+            const dataUrl = await capturePosterAsImage(canvasRef.current);
 
-        // Restore grid if it was visible
-        if (wasGridVisible) setShowGrid(true);
+            // Restore grid if it was visible
+            if (wasGridVisible) setShowGrid(true);
+
+            // Convert base64 dataUrl to File using native synchronous base64 binary decoder (zero CSP/fetch issues)
+            const arr = dataUrl.split(',');
+            const mimeMatch = arr[0].match(/:(.*?);/);
+            const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+            const bstr = atob(arr[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            while (n--) {
+                u8arr[n] = bstr.charCodeAt(n);
+            }
+            const blob = new Blob([u8arr], { type: mime });
+            const posterFile = new File([blob], "designed-poster.png", { type: "image/png" });
+
+            // Map product cards on canvas to MarkedItems with PERCENTAGE coordinates (0-1)
+            const cw = canvasSize.w;
+            const ch = canvasSize.h;
+            const markedItems: MarkedItem[] = elements
+                .filter(el => el.type === "product-card" && el.cardImage)
+                .map(el => {
+                    const oldPrice = parseFloat(String(el.cardOldPrice || "0").replace(/[^\d.]/g, "")) || 0;
+                    const offerPrice = parseFloat(String(el.cardOfferPrice || "0").replace(/[^\d.]/g, "")) || 0;
+                    return {
+                        id: el.id,
+                        x: el.x / cw,
+                        y: el.y / ch,
+                        width: (el.w || 220) / cw,
+                        height: (el.h || 280) / ch,
+                        name: el.cardTitle || "Product",
+                        description: el.cardDesc || "",
+                        productImage: el.cardImage || "",
+                        currency: "₹",
+                        oldPrice,
+                        offerPrice,
+                    };
+                });
+
+            toast.success("Poster captured!", { id: toastId });
+            onFinish({ posterFile, markedItems });
+        } catch (err: any) {
+            console.error("Capture error", err);
+            toast.error("Failed to capture poster: " + (err.message || err), { id: toastId });
+            if (wasGridVisible) setShowGrid(true);
+        } finally {
+            setIsPublishing(false);
+        }
     };
 
     /* ---------- DESELECT ---------- */
@@ -1602,7 +1706,7 @@ export default function PosterDesigner({
     return (
         <div className="flex flex-col lg:flex-row h-[calc(100vh-100px)] w-full overflow-hidden rounded-2xl bg-white border border-gray-200 shadow-2xl font-inter relative">
             {/* TOOLBAR (Top) */}
-            <div className="absolute top-1 left-1/2 -translate-x-1/2 flex items-center gap-1 lg:gap-2 px-2 py-1.5 sm:px-3 sm:py-2 lg:px-6 lg:py-2.5 rounded-xl sm:rounded-2xl bg-white/80 backdrop-blur-xl border border-gray-100 shadow-xl sm:shadow-2xl z-50 transition-all hover:bg-white w-[95%] sm:w-[90%] md:w-auto max-w-full overflow-x-auto no-scrollbar justify-between sm:justify-start md:justify-center">
+            <div className="absolute top-1 left-1/2 -translate-x-1/2 flex items-center gap-1 lg:gap-2 px-2 py-1.5 sm:px-3 sm:py-2 lg:px-6 lg:py-2.5 rounded-xl sm:rounded-2xl bg-white/80 backdrop-blur-xl border border-gray-100 shadow-xl sm:shadow-2xl z-[3000] transition-all hover:bg-white w-[95%] sm:w-[90%] md:w-auto max-w-full overflow-x-auto no-scrollbar justify-between sm:justify-start md:justify-center">
                 {onBack && (
                     <>
                         <button
@@ -1676,9 +1780,16 @@ export default function PosterDesigner({
 
                 <div className="w-px h-4 sm:h-5 bg-gray-200 mx-0.5 sm:mx-1 shrink-0" />
 
-                <button onClick={exportPNG} title="Export PNG" className="flex items-center justify-center gap-1 sm:gap-2 px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl bg-orange-600 text-white font-black text-[9px] sm:text-[10px] uppercase tracking-widest shadow-lg shadow-orange-500/20 hover:bg-orange-700 active:scale-95 transition-all shrink-0">
+                {/* <button onClick={exportPNG} title="Export PNG" className="flex items-center justify-center gap-1 sm:gap-2 px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl bg-orange-600 text-white font-black text-[9px] sm:text-[10px] uppercase tracking-widest shadow-lg shadow-orange-500/20 hover:bg-orange-700 active:scale-95 transition-all shrink-0">
                     <Download className="w-3.5 h-3.5 sm:w-3.5 sm:h-3.5" />
                     <span className="hidden sm:inline">Export PNG</span>
+                </button> */}
+
+                <div className="w-px h-4 sm:h-5 bg-gray-200 mx-0.5 sm:mx-1 shrink-0" />
+
+                <button onClick={handleFinishClick} title="Finish Offer" className="flex items-center justify-center gap-1 sm:gap-2 px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl bg-emerald-600 text-white font-black text-[9px] sm:text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 active:scale-95 transition-all shrink-0">
+                    <Send className="w-3.5 h-3.5 sm:w-3.5 sm:h-3.5" />
+                    <span>Finish</span>
                 </button>
             </div>
 
@@ -1686,7 +1797,7 @@ export default function PosterDesigner({
                 {/* LEFT INSPECTOR */}
                 <div
                     className={cn(
-                        "w-full lg:w-[320px] bg-white lg:border-r border-t lg:border-t-0 border-gray-100 flex flex-col h-[50vh] lg:h-full z-[60] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] lg:shadow-[20px_0_40px_rgba(0,0,0,0.02)] transition-transform duration-300 ease-in-out rounded-t-3xl lg:rounded-none absolute bottom-0 left-0 lg:relative lg:bottom-auto lg:left-auto",
+                        "w-full lg:w-[320px] bg-white lg:border-r border-t lg:border-t-0 border-gray-100 flex flex-col h-[50vh] lg:h-full z-[2000] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] lg:shadow-[20px_0_40px_rgba(0,0,0,0.02)] transition-transform duration-300 ease-in-out rounded-t-3xl lg:rounded-none absolute bottom-0 left-0 lg:relative lg:bottom-auto lg:left-auto",
                         selectedId
                             ? (showLeftInspectorMobile ? "translate-y-0 lg:translate-y-0 lg:translate-x-0" : "translate-y-full lg:translate-y-0 lg:translate-x-0")
                             : "translate-y-full lg:translate-y-0 lg:-translate-x-full lg:absolute pointer-events-none"
@@ -1696,7 +1807,7 @@ export default function PosterDesigner({
                     {selectedId && !showProductModal && !showCardModal && (
                         <button
                             onClick={() => setShowLeftInspectorMobile(!showLeftInspectorMobile)}
-                            className="lg:hidden absolute top-0 left-1/2 -translate-x-1/2 -translate-y-[calc(100%-1px)] z-[61] px-6 py-1.5 bg-white rounded-t-2xl shadow-[0_-5px_15px_rgba(0,0,0,0.1)] text-orange-500 border border-b-0 border-gray-100 flex items-center justify-center"
+                            className="lg:hidden absolute top-0 left-1/2 -translate-x-1/2 -translate-y-[calc(100%-1px)] z-[2001] px-6 py-1.5 bg-white rounded-t-2xl shadow-[0_-5px_15px_rgba(0,0,0,0.1)] text-orange-500 border border-b-0 border-gray-100 flex items-center justify-center"
                         >
                             {showLeftInspectorMobile ? <ChevronDown className="w-5 h-5" /> : <ChevronUp className="w-5 h-5" />}
                         </button>
@@ -1856,7 +1967,7 @@ export default function PosterDesigner({
                 </div>
                 {/* CANVAS WORKSPACE */}
                 <div
-                    className="flex-1 overflow-auto custom-scrollbar flex items-start justify-center py-8 px-20 bg-[#f8f9fb]"
+                    className="flex-1 overflow-auto custom-scrollbar flex items-start justify-center pt-20 pb-8 px-1 sm:pt-24 sm:pb-12 sm:px-2 md:pt-24 md:pb-12 md:px-8 lg:pt-28 lg:pb-16 lg:px-20 bg-[#f8f9fb]"
                     onPointerDown={handleCanvasClick}
                 >
                     <div
@@ -1864,7 +1975,7 @@ export default function PosterDesigner({
                             transform: `scale(${zoom})`,
                             transformOrigin: "center center",
                             transition: "transform 0.1s ease-out",
-                            padding: "60px",
+                            padding: isMobile ? "8px" : "60px",
                         }}
                         onPointerDown={handleCanvasClick}
                     >
@@ -1970,7 +2081,7 @@ export default function PosterDesigner({
                                                     fontSize: el.fontSize,
                                                     fontWeight: el.fontWeight,
                                                     color: el.color,
-                                                    fontFamily: el.fontFamily || "inherit",
+                                                    fontFamily: getSafeFontFamily(el.fontFamily) || "inherit",
                                                     letterSpacing: el.letterSpacing ? `${el.letterSpacing}px` : "normal",
                                                     lineHeight: el.lineHeight || 1.2,
                                                     textAlign: el.textAlign || "left",
@@ -2031,13 +2142,14 @@ export default function PosterDesigner({
                                                         dragOverPlaceholderId === el.id ? "opacity-0" : (el.isFreeFloating ? "text-indigo-400" : "text-gray-400")
                                                     )}>Add Product</span>
 
-                                                    {/* Slot Choice Popup */}
-                                                    {placeholderPopupId === el.id && (
-                                                        <div
-                                                            className="absolute z-[9999] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-52 bg-white rounded-2xl shadow-2xl border border-gray-100 p-3 space-y-2 animate-in fade-in zoom-in-95 duration-200"
-                                                            onClick={e => e.stopPropagation()}
-                                                            onPointerDown={e => e.stopPropagation()}
-                                                        >
+                                                     {/* Slot Choice Popup - Desktop only */}
+                                                     {placeholderPopupId === el.id && !isMobile && (
+                                                         <div
+                                                             className="absolute z-[9999] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-52 bg-white rounded-2xl shadow-2xl border border-gray-100 p-3 space-y-2 animate-in fade-in zoom-in-95 duration-200"
+                                                             onClick={e => e.stopPropagation()}
+                                                             onPointerDown={e => e.stopPropagation()}
+                                                         >
+
                                                             <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-center pb-1">Choose Item Type</p>
                                                             <button
                                                                 className="w-full flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/20 hover:border-orange-500/40 transition-all group"
@@ -2096,9 +2208,18 @@ export default function PosterDesigner({
                                             <div className="w-full h-full overflow-hidden flex items-center justify-center">
                                                 <img
                                                     src={el.imageSrc}
+                                                    crossOrigin="anonymous"
                                                     alt="Uploaded"
                                                     className="w-full h-full object-contain pointer-events-none"
                                                     style={{ opacity: el.opacity ?? 1 }}
+                                                    onError={(e) => {
+                                                        const img = e.currentTarget;
+                                                        if (img.getAttribute("crossorigin")) {
+                                                            console.warn("CORS load failed for uploaded image:", img.src, ", retrying without crossOrigin...");
+                                                            img.removeAttribute("crossorigin");
+                                                            img.src = img.src;
+                                                        }
+                                                    }}
                                                 />
                                             </div>
                                         )}
@@ -2135,13 +2256,13 @@ export default function PosterDesigner({
 
             {/* SIDEBAR */}
             <div className={cn(
-                "w-[85%] sm:w-[360px] lg:w-[360px] bg-white lg:border-l border-t lg:border-t-0 border-gray-100 flex flex-col h-full absolute right-0 top-0 lg:relative z-[65] shadow-[-20px_0_40px_rgba(0,0,0,0.05)] rounded-l-3xl lg:rounded-none transition-transform duration-300 ease-in-out",
+                "w-[85%] sm:w-[360px] lg:w-[360px] bg-white lg:border-l border-t lg:border-t-0 border-gray-100 flex flex-col h-full absolute right-0 top-0 lg:relative z-[2010] shadow-[-20px_0_40px_rgba(0,0,0,0.05)] rounded-l-3xl lg:rounded-none transition-transform duration-300 ease-in-out",
                 showRightSidebarMobile ? "translate-x-0" : "translate-x-full lg:translate-x-0"
             )}>
                 {/* RIGHT SIDEBAR TOGGLE (Attached to left edge) */}
                 <button
                     onClick={() => setShowRightSidebarMobile(!showRightSidebarMobile)}
-                    className="lg:hidden absolute top-1/2 -translate-y-1/2 -translate-x-full left-[1px] z-[66] p-2 bg-white rounded-l-xl shadow-[-10px_0_15px_rgba(0,0,0,0.05)] text-orange-500 border border-r-0 border-gray-100 flex items-center justify-center"
+                    className="lg:hidden absolute top-1/2 -translate-y-1/2 -translate-x-full left-[1px] z-[2011] p-2 bg-white rounded-l-xl shadow-[-10px_0_15px_rgba(0,0,0,0.05)] text-orange-500 border border-r-0 border-gray-100 flex items-center justify-center"
                 >
                     {showRightSidebarMobile ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
                 </button>
@@ -2397,7 +2518,7 @@ export default function PosterDesigner({
 
                                             {/* Placement mode popup */}
                                             {showAddPlaceholderMenu && (
-                                                <div className="absolute z-50 top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-2xl shadow-2xl shadow-gray-200/60 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                                <div className="absolute z-[4000] top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-2xl shadow-2xl shadow-gray-200/60 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                                                     <div className="p-2 space-y-1">
                                                         <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest px-3 pt-2 pb-1">Choose Placement Mode</p>
 
@@ -2897,12 +3018,21 @@ export default function PosterDesigner({
             <AppModal open={showProductModal} onOpenChange={setShowProductModal} title="Import Products" description="Select a product to generate a designer card instantly.">
                 <div className="space-y-4 py-4">
                     <div className="max-h-[400px] overflow-y-auto pr-2 custom-scrollbar space-y-2">
-                        {products.map((p) => {
-                            const isAlreadyAdded =
-                                usedCatalogProducts.ids.has(String(p.id)) ||
-                                usedCatalogProducts.signatures.has(getProductSignature(p.name, p.price));
+                        {products.filter(p => {
+                            return !(usedCatalogProducts.ids.has(String(p.id)) ||
+                                     usedCatalogProducts.signatures.has(getProductSignature(p.name, p.price)));
+                        }).length === 0 ? (
+                            <div className="text-center py-8 text-sm text-gray-500">
+                                No available products to import. All your products are already on the poster(s).
+                            </div>
+                        ) : (
+                            products.filter(p => {
+                                return !(usedCatalogProducts.ids.has(String(p.id)) ||
+                                         usedCatalogProducts.signatures.has(getProductSignature(p.name, p.price)));
+                            }).map((p) => {
+                                const isAlreadyAdded = false; // Always false since we filtered them out
 
-                            return (
+                                return (
                                 <div
                                     key={p.id}
                                     className={cn(
@@ -2976,7 +3106,7 @@ export default function PosterDesigner({
                                     )}
                                 </div>
                             );
-                        })}
+                        }))}
                     </div>
                 </div>
             </AppModal>
@@ -2988,6 +3118,75 @@ export default function PosterDesigner({
                 product={null}
                 onSubmit={handleCustomProductSubmit}
             />
+
+            {/* Mobile Placeholder Choice - Bottom Sheet */}
+            {placeholderPopupId && isMobile && (
+                <div
+                    className="fixed inset-0 z-[99999] bg-black/50 flex items-end"
+                    onClick={() => setPlaceholderPopupId(null)}
+                >
+                    <div
+                        className="w-full bg-white rounded-t-3xl shadow-2xl p-4 pb-8 animate-in slide-in-from-bottom duration-200"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
+                        
+                        <p className="text-center text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Choose Item Type</p>
+                        
+                        <div className="space-y-2">
+                            <button
+                                className="w-full flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/20 active:bg-orange-500/20 transition-all"
+                                onClick={() => {
+                                    openProductImport(placeholderPopupId);
+                                    setPlaceholderPopupId(null);
+                                }}
+                            >
+                                <div className="w-9 h-9 rounded-xl bg-orange-500 flex items-center justify-center shrink-0">
+                                    <ShoppingBag className="w-4 h-4 text-white" />
+                                </div>
+                                <div className="text-left">
+                                    <p className="font-black text-sm text-gray-800">Import Product</p>
+                                    <p className="text-[11px] text-gray-400">From your inventory</p>
+                                </div>
+                            </button>
+
+                            <button
+                                className="w-full flex items-center gap-3 p-4 rounded-2xl border border-gray-200 active:bg-gray-50 transition-all"
+                                onClick={() => {
+                                    openCustomProduct(placeholderPopupId);
+                                    setPlaceholderPopupId(null);
+                                }}
+                            >
+                                <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
+                                    <Plus className="w-4 h-4 text-gray-500" />
+                                </div>
+                                <div className="text-left">
+                                    <p className="font-bold text-sm text-gray-900">Custom Product</p>
+                                    <p className="text-[11px] text-gray-400">Enter details manually</p>
+                                </div>
+                            </button>
+                        </div>
+
+                        <div className="flex gap-3 mt-6">
+                            <button
+                                onClick={() => {
+                                    deleteSelected(placeholderPopupId);
+                                    setPlaceholderPopupId(null);
+                                }}
+                                className="flex-1 py-3 text-sm text-red-500 font-bold active:bg-red-50 rounded-2xl"
+                            >
+                                Delete Slot
+                            </button>
+                            <button
+                                onClick={() => setPlaceholderPopupId(null)}
+                                className="flex-1 py-3 text-sm text-gray-500 font-bold active:bg-gray-50 rounded-2xl"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
         </div>
     );

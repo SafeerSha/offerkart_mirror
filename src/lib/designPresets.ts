@@ -25,13 +25,13 @@ export const ASPECT_RATIOS = [
 ];
 
 export const GOOGLE_FONTS = [
-    { name: "Inter", value: "'Inter', sans-serif" },
-    { name: "Playfair Display", value: "'Playfair Display', serif" },
-    { name: "Staatliches", value: "'Staatliches', cursive" },
-    { name: "Montserrat", value: "'Montserrat', sans-serif" },
-    { name: "Outfit", value: "'Outfit', sans-serif" },
-    { name: "Quicksand", value: "'Quicksand', sans-serif" },
-    { name: "Bebas Neue", value: "'Bebas Neue', cursive" },
+    { name: "Inter", value: "var(--font-inter), sans-serif" },
+    { name: "Playfair Display", value: "var(--font-playfair), serif" },
+    { name: "Staatliches", value: "var(--font-staatliches), cursive" },
+    { name: "Montserrat", value: "var(--font-montserrat), sans-serif" },
+    { name: "Outfit", value: "var(--font-outfit), sans-serif" },
+    { name: "Quicksand", value: "var(--font-quicksand), sans-serif" },
+    { name: "Bebas Neue", value: "var(--font-bebas-neue), cursive" },
 ];
 
 export const CATEGORY_COLORS = {
