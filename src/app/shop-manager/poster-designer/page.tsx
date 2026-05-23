@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, Suspense, useMemo, useCallback } from "react";
+import { useState, Suspense, useMemo, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import PosterDesigner from "@/components/shop-manager/PosterDesigner";
@@ -10,13 +11,17 @@ import { TemplateConfig } from "@/lib/posterTemplates";
 import { templateConfigToCanvasElements, ShopData } from "@/lib/templateToCanvas";
 import { useMyShops, useBranches } from "@/hooks/useApi";
 import { cn } from "@/lib/utils";
-import { FileText, Plus, X } from "lucide-react";
+import { AppModal } from "@/components/shared/AppModal";
+import { PremiumButton } from "@/components/shared/PremiumButton";
+import { FileText, Plus, X, AlertTriangle } from "lucide-react";
 
 type PosterPageDraft = {
     id: string;
     template: TemplateConfig;
     elements: CanvasElement[];
     canvasBg: string;
+    initialElements: CanvasElement[];
+    initialCanvasBg: string;
 };
 
 export default function PosterDesignerPage() {
@@ -24,6 +29,9 @@ export default function PosterDesignerPage() {
     const [posterPages, setPosterPages] = useState<PosterPageDraft[]>([]);
     const [activePageId, setActivePageId] = useState<string | null>(null);
     const [isChoosingTemplate, setIsChoosingTemplate] = useState(true);
+
+    const router = useRouter();
+    const [forceLeave, setForceLeave] = useState(false);
 
     // Fetch shop data
     const { data: shopsResponse } = useMyShops();
@@ -80,6 +88,77 @@ export default function PosterDesignerPage() {
         [posterPages, activePageId]
     );
 
+    // Unsaved changes guard (must be before handlers that reference them)
+    const [showLeaveWarning, setShowLeaveWarning] = useState(false);
+    const [pendingLeaveAction, setPendingLeaveAction] = useState<(() => void) | null>(null);
+
+    const isPageDirty = useCallback((page: PosterPageDraft) => {
+        if (!page.initialElements) return false;
+        try {
+            return (
+                JSON.stringify(page.elements) !== JSON.stringify(page.initialElements) ||
+                page.canvasBg !== page.initialCanvasBg
+            );
+        } catch {
+            return false;
+        }
+    }, []);
+
+    const confirmLeave = () => {
+        if (pendingLeaveAction) {
+            pendingLeaveAction();
+        }
+        setShowLeaveWarning(false);
+        setPendingLeaveAction(null);
+        // forceLeave is intentionally left true only for the navigation path
+    };
+
+    const cancelLeave = () => {
+        setShowLeaveWarning(false);
+        setPendingLeaveAction(null);
+        setForceLeave(false);
+    };
+
+    // Stable boolean — only flips when dirty status actually changes (not on every keystroke)
+    const isDesignerDirty = useMemo(() => {
+        if (isChoosingTemplate) return false;
+        return posterPages.some(isPageDirty);
+    }, [posterPages, isChoosingTemplate, isPageDirty]);
+
+    // Browser back / close warning (tab close or refresh) — only when actually dirty in designer
+    useEffect(() => {
+        if (!isDesignerDirty) return;
+
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            e.preventDefault();
+            e.returnValue = "You have unsaved changes in the poster designer. Leave anyway?";
+        };
+        window.addEventListener("beforeunload", handleBeforeUnload);
+        return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+    }, [isDesignerDirty]);
+
+    // Intercept real browser back button + mobile swipe-back gesture
+    useEffect(() => {
+        if (!isDesignerDirty || forceLeave) return;
+
+        const onPopState = () => {
+            // Stay on the page
+            history.pushState(null, "", window.location.pathname + window.location.search);
+
+            setPendingLeaveAction(() => () => {
+                setForceLeave(true);
+                setTimeout(() => router.back(), 10);
+            });
+            setShowLeaveWarning(true);
+        };
+
+        // Ensure we have a history entry to intercept
+        history.pushState(null, "", window.location.pathname + window.location.search);
+
+        window.addEventListener("popstate", onPopState);
+        return () => window.removeEventListener("popstate", onPopState);
+    }, [isDesignerDirty, forceLeave, router]);
+
     const handleSelectTemplate = (template: TemplateConfig) => {
         const { elements, canvasBg } = templateConfigToCanvasElements(
             template,
@@ -91,6 +170,8 @@ export default function PosterDesignerPage() {
             template,
             elements,
             canvasBg,
+            initialElements: JSON.parse(JSON.stringify(elements)),
+            initialCanvasBg: canvasBg,
         };
 
         setPosterPages((prev) => [...prev, newPage]);
@@ -99,6 +180,13 @@ export default function PosterDesignerPage() {
     };
 
     const handleBackToTemplates = () => {
+        if (activePage && isPageDirty(activePage)) {
+            setPendingLeaveAction(() => () => {
+                setIsChoosingTemplate(true);
+            });
+            setShowLeaveWarning(true);
+            return;
+        }
         setIsChoosingTemplate(true);
     };
 
@@ -138,6 +226,8 @@ export default function PosterDesignerPage() {
             template: activePage.template,
             elements,
             canvasBg,
+            initialElements: JSON.parse(JSON.stringify(elements)),
+            initialCanvasBg: canvasBg,
         };
 
         setPosterPages((prev) => [...prev, newPage]);
@@ -254,6 +344,7 @@ export default function PosterDesignerPage() {
                                         templateConfig={activePage.template}
                                         onBack={handleBackToTemplates}
                                         onSnapshotChange={(snapshot) => handleSnapshotChange(activePage.id, snapshot)}
+                                        allPagesElements={posterPages.map(p => p.elements)}
                                     />
                                 </div>
                             </Suspense>
@@ -266,6 +357,39 @@ export default function PosterDesignerPage() {
                     </div>
                 </div>
             </main>
+
+            {/* Unsaved changes warning modal */}
+            <AppModal
+                open={showLeaveWarning}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        cancelLeave();
+                    }
+                }}
+                title="Unsaved Changes"
+                description="You will lose the changes you made if you leave the designer now."
+            >
+                <div className="space-y-4">
+                    <div className="p-4 rounded-xl bg-orange-50 border border-orange-200 text-sm text-orange-700 flex items-start gap-3">
+                        <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+                        <div>
+                            <p className="font-semibold">Changes will be lost</p>
+                            <p className="mt-1 text-xs opacity-80">Your current poster edits have not been exported or saved yet.</p>
+                        </div>
+                    </div>
+                    <div className="flex gap-3 justify-end">
+                        <PremiumButton variant="outline" onClick={cancelLeave} className="rounded-xl">
+                            Stay here
+                        </PremiumButton>
+                        <PremiumButton
+                            onClick={confirmLeave}
+                            className="rounded-xl px-6 bg-orange-500 hover:bg-orange-600 text-white shadow-lg shadow-orange-500/20"
+                        >
+                            Leave anyway
+                        </PremiumButton>
+                    </div>
+                </div>
+            </AppModal>
         </div>
     );
 }

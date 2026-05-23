@@ -29,26 +29,30 @@ export function PosterTemplateSelector({ onSelect, shopName }: PosterTemplateSel
             </div>
 
             {/* ── Category tabs ── */}
-            <div className="flex flex-wrap gap-2">
-                {TEMPLATE_CATEGORIES.map((cat) => (
-                    <button
-                        key={cat.id}
-                        onClick={() => setActiveCategory(cat.id)}
-                        className={cn(
-                            "px-4 py-1.5 rounded-full text-sm font-semibold border transition-all duration-200",
-                            activeCategory === cat.id
-                                ? "bg-primary text-muted-foreground border-primary shadow-md shadow-primary/20"
-                                : "bg-background text-muted-foreground border-border/60 hover:border-primary/40 hover:text-foreground"
-                        )}
-                    >
-                        {cat.label}
-                        {cat.id !== "all" && (
-                            <span className="ml-1.5 opacity-50 text-[11px]">
-                                ({getTemplatesByCategory(cat.id).length})
-                            </span>
-                        )}
-                    </button>
-                ))}
+            <div className="relative -mx-4 px-4 sm:mx-0 sm:px-0">
+                <div className="flex overflow-x-auto gap-2 pb-1 scrollbar-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    {TEMPLATE_CATEGORIES.map((cat) => (
+                        <button
+                            key={cat.id}
+                            onClick={() => setActiveCategory(cat.id)}
+                            className={cn(
+                                "shrink-0 px-4 py-1.5 rounded-full text-sm font-semibold border transition-all duration-200",
+                                activeCategory === cat.id
+                                    ? "bg-primary text-muted-foreground border-primary shadow-md shadow-primary/20"
+                                    : "bg-background text-muted-foreground border-border/60 hover:border-primary/40 hover:text-foreground"
+                            )}
+                        >
+                            {cat.label}
+                            {cat.id !== "all" && (
+                                <span className="ml-1.5 opacity-50 text-[11px]">
+                                    ({getTemplatesByCategory(cat.id).length})
+                                </span>
+                            )}
+                        </button>
+                    ))}
+                </div>
+                {/* Right fade indicator to show more content */}
+                <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-background via-background/70 to-transparent pointer-events-none sm:hidden" />
             </div>
 
             {/* ── Template grid ── */}

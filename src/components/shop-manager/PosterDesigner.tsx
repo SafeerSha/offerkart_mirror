@@ -538,14 +538,16 @@ export default function PosterDesigner({
     templateConfig,
     shopId,
     onBack,
-    onSnapshotChange
+    onSnapshotChange,
+    allPagesElements
 }: {
     initialElements?: CanvasElement[],
     initialBg?: string,
     templateConfig?: TemplateConfig,
     shopId?: string,
     onBack?: () => void,
-    onSnapshotChange?: (snapshot: { elements: CanvasElement[]; canvasBg: string }) => void
+    onSnapshotChange?: (snapshot: { elements: CanvasElement[]; canvasBg: string }) => void,
+    allPagesElements?: CanvasElement[][]
 }) {
     const { data: session } = useSession();
     const { mutateAsync: createProductMutation, isPending: isCreatingProduct } = useCreateProduct();
@@ -651,7 +653,8 @@ export default function PosterDesigner({
     const usedCatalogProducts = useMemo(() => {
         const ids = new Set<string>();
         const signatures = new Set<string>();
-        for (const el of elements) {
+        const elementsSource = allPagesElements ? allPagesElements.flat() : elements;
+        for (const el of elementsSource) {
             const isEmptyProductSlot = !el.cardImage &&
                 (el.isTemplateSlot || el.isFreeFloating || el.cardTitle === "Product Name" || el.cardTitle === "Product" || el.cardTitle?.includes("Slot"));
             if (el.type !== "product-card" || isEmptyProductSlot) {
@@ -666,7 +669,7 @@ export default function PosterDesigner({
             }
         }
         return { ids, signatures };
-    }, [elements]);
+    }, [elements, allPagesElements]);
     const [showProductModal, setShowProductModal] = useState(false);
     const [showCardModal, setShowCardModal] = useState(false);
     const [showAddPlaceholderMenu, setShowAddPlaceholderMenu] = useState(false);
@@ -877,15 +880,16 @@ export default function PosterDesigner({
     };
 
     const handleCustomProductSubmit = async (payload: any) => {
-        const elementsCount = elements.filter(e => e.type === "product-card").length;
-        if (elementsCount >= 10) {
-            toast.error("You can only add up to 10 products per poster.");
-            throw new Error("You can only add up to 10 products per poster.");
+        if (!targetPlaceholderId) {
+            const elementsCount = elements.filter(e => e.type === "product-card").length;
+            if (elementsCount >= 10) {
+                toast.error("You can only add up to 10 products per poster.");
+                throw new Error("You can only add up to 10 products per poster.");
+            }
         }
 
         try {
-            let shopId = (session as any)?.shopId || (session?.user as any)?.shopId;
-            const res = await createProductMutation({ payload, shopId });
+            const res = await createProductMutation({ payload, shopId: effectiveShopId || undefined });
 
             if (res.success) {
                 toast.success("Product created successfully!");
@@ -2909,6 +2913,13 @@ export default function PosterDesigner({
                                     )}
                                     onClick={() => {
                                         if (isAlreadyAdded) return;
+                                        if (!targetPlaceholderId) {
+                                            const elementsCount = elements.filter(e => e.type === "product-card").length;
+                                            if (elementsCount >= 10) {
+                                                toast.error("You can only add up to 10 products per poster.");
+                                                return;
+                                            }
+                                        }
                                         // Pass data directly — avoid async setState timing bug
                                         addProductCard(targetPlaceholderId ?? undefined, {
                                             image: p.image || '',
