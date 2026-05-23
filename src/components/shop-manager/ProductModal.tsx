@@ -513,12 +513,14 @@ export const ProductModal = ({
                                 date={validFrom}
                                 setDate={setValidFrom}
                                 placeholder="Valid from"
+                                minDate={new Date()}
                             />
                             <PremiumDatePicker
                                 label="End Date *"
                                 date={validTo}
                                 setDate={setValidTo}
                                 placeholder="Valid to"
+                                minDate={validFrom || new Date()}
                             />
                         </div>
 
