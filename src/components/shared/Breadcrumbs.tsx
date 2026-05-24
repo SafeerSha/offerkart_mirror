@@ -9,6 +9,7 @@ export interface BreadcrumbItem {
     label: string;
     href?: string;
     icon?: React.ElementType;
+    onClick?: (e: React.MouseEvent<HTMLAnchorElement | HTMLSpanElement>) => void;
 }
 
 interface BreadcrumbsProps {
@@ -47,9 +48,11 @@ const Breadcrumbs = ({ items, className }: BreadcrumbsProps) => {
                             <li className="flex items-center min-w-0">
                                 {isLast || !item.href ? (
                                     <span
+                                        onClick={item.onClick}
                                         className={cn(
                                             "text-[10px] sm:text-xs font-bold py-1",
-                                            isLast ? "text-orange-500" : "text-gray-900"
+                                            isLast ? "text-orange-500" : "text-gray-900",
+                                            item.onClick && "cursor-pointer hover:text-orange-500"
                                         )}
                                         aria-current={isLast ? "page" : undefined}
                                     >
@@ -59,6 +62,7 @@ const Breadcrumbs = ({ items, className }: BreadcrumbsProps) => {
                                 ) : (
                                     <Link
                                         href={item.href}
+                                        onClick={item.onClick}
                                         className="flex items-center text-[10px] sm:text-xs font-bold text-gray-900 hover:text-orange-500 transition-colors py-1"
                                     >
                                         {Icon && <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" />}

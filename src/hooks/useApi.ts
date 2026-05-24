@@ -187,9 +187,9 @@ export function useCreateOffer() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ payload, shopId }: { payload: any; shopId: string }) => createOffer(payload, shopId),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.offers });
-      queryClient.invalidateQueries({ queryKey: queryKeys.allOffers() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.allOffers(variables?.shopId) });
     },
   });
 }
@@ -284,6 +284,7 @@ export function useAllProducts(shopId?: string) {
   return useQuery({
     queryKey: queryKeys.allProducts(shopId),
     queryFn: () => getAllProducts(shopId),
+    enabled: !!shopId && shopId !== "all" && shopId !== "undefined" && shopId !== "null",
     staleTime: 5 * 60 * 1000,
   });
 }
