@@ -782,10 +782,10 @@ export const PosterDesigner = forwardRef<PosterDesignerRef, {
 
     // Auto-save history after major changes (throttled)
     const historyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const recordChange = useCallback(() => {
+    const recordChange = useCallback((newElements?: CanvasElement[], newBg?: string) => {
         if (historyTimeoutRef.current) clearTimeout(historyTimeoutRef.current);
         historyTimeoutRef.current = setTimeout(() => {
-            saveHistory(elements, canvasBg);
+            saveHistory(newElements || elements, newBg || canvasBg);
         }, 800);
     }, [elements, canvasBg, saveHistory]);
 
@@ -950,7 +950,7 @@ export const PosterDesigner = forwardRef<PosterDesignerRef, {
             if (res.success) {
                 toast.success("Product created successfully!");
 
-                addProductCard(targetPlaceholderId ?? undefined, {
+                const newElements = addProductCard(targetPlaceholderId ?? undefined, {
                     image: payload.imageUrl,
                     title: payload.displayName,
                     desc: payload.displayDescription || "",
@@ -960,6 +960,7 @@ export const PosterDesigner = forwardRef<PosterDesignerRef, {
                 });
 
                 setShowCardModal(false);
+                recordChange(newElements);
             } else {
                 toast.error(res.message || "Failed to create product");
                 throw new Error(res.message || "Failed to create product");
@@ -1001,17 +1002,20 @@ export const PosterDesigner = forwardRef<PosterDesignerRef, {
             isTemplateSlot: targetEl?.isTemplateSlot ?? false,
             sourceProductId: directData?.sourceProductId,
         };
+        let newElements: CanvasElement[];
         if (replaceId) {
-            setElements(prev => prev.map(e => e.id === replaceId ? el : e));
+            newElements = elements.map(e => e.id === replaceId ? el : e);
         } else {
-            setElements(prev => [...prev, el]);
+            newElements = [...elements, el];
         }
+        setElements(newElements);
         setSelectedId(el.id);
         setShowCardModal(false);
         setCardForm({ image: "", title: "", desc: "", offerPrice: "", oldPrice: "" });
         setCardFilePreview(null);
         setTargetPlaceholderId(null);
         setPlaceholderPopupId(null);
+        return newElements;
     };
 
     const savePoster = () => {
@@ -3056,19 +3060,14 @@ export const PosterDesigner = forwardRef<PosterDesignerRef, {
             <AppModal open={showProductModal} onOpenChange={setShowProductModal} title="Import Products" description="Select a product to generate a designer card instantly.">
                 <div className="space-y-4 py-4">
                     <div className="max-h-[400px] overflow-y-auto pr-2 custom-scrollbar space-y-2">
-                        {products.filter(p => {
-                            return !(usedCatalogProducts.ids.has(String(p.id)) ||
-                                     usedCatalogProducts.signatures.has(getProductSignature(p.name, p.price)));
-                        }).length === 0 ? (
+                        {products.length === 0 ? (
                             <div className="text-center py-8 text-sm text-gray-500">
-                                No available products to import. All your products are already on the poster(s).
+                                No available products to import.
                             </div>
                         ) : (
-                            products.filter(p => {
-                                return !(usedCatalogProducts.ids.has(String(p.id)) ||
-                                         usedCatalogProducts.signatures.has(getProductSignature(p.name, p.price)));
-                            }).map((p) => {
-                                const isAlreadyAdded = false; // Always false since we filtered them out
+                            products.map((p) => {
+                                const isAlreadyAdded = usedCatalogProducts.ids.has(String(p.id)) ||
+                                                       usedCatalogProducts.signatures.has(getProductSignature(p.name, p.price));
 
                                 return (
                                 <div
@@ -3082,14 +3081,18 @@ export const PosterDesigner = forwardRef<PosterDesignerRef, {
                                     onClick={() => {
                                         if (isAlreadyAdded) return;
                                         if (!targetPlaceholderId) {
-                                            const elementsCount = elements.filter(e => e.type === "product-card").length;
+                                            const elementsCount = elements.filter(e => {
+                                                const isEmptyProductSlot = !e.cardImage &&
+                                                    (e.isTemplateSlot || e.isFreeFloating || e.cardTitle === "Product Name" || e.cardTitle === "Product" || e.cardTitle?.includes("Slot"));
+                                                return e.type === "product-card" && !isEmptyProductSlot;
+                                            }).length;
                                             if (elementsCount >= 10) {
                                                 toast.error("You can only add up to 10 products per poster.");
                                                 return;
                                             }
                                         }
                                         // Pass data directly — avoid async setState timing bug
-                                        addProductCard(targetPlaceholderId ?? undefined, {
+                                        const newElements = addProductCard(targetPlaceholderId ?? undefined, {
                                             image: p.image || '',
                                             title: p.name,
                                             desc: p.description || '',
@@ -3098,7 +3101,7 @@ export const PosterDesigner = forwardRef<PosterDesignerRef, {
                                             oldPrice: p.originalPrice ? `₹${p.originalPrice}` : '',
                                         });
                                         setShowProductModal(false);
-                                        recordChange();
+                                        recordChange(newElements);
                                         toast.success('Product imported!');
                                     }}
                                 >
