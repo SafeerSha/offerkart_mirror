@@ -715,7 +715,7 @@ function DashboardContent() {
                                                         </div>
                                                     </Link>
                                                 )}
-                                                <div className="space-y-4">
+                                                <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                                                     {publishedOffers.length > 0 ? (
 
                                                         publishedOffers.map((offer, idx) => {
@@ -795,7 +795,7 @@ function DashboardContent() {
                                     </TabsContent>
 
                                     <TabsContent value="products" className="mt-0 space-y-3 focus-visible:ring-0">
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar p-1">
                                             {isLoadingProducts ? (
                                                 <>
                                                     {[1, 2, 3, 4].map((i) => (
