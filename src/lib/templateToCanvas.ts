@@ -172,15 +172,39 @@ export function templateConfigToCanvasElements(
             // If a real logo URL is provided
             ...(shopData?.logoUrl ? { imageSrc: shopData.logoUrl } : {}),
         } as CanvasElement);
+
+        // Special case: Mega Savers logo text inside the white box
+        if (config.id === 'mega-savers') {
+            const shopLabel = (shopData?.shopName || 'TALAL MARKET').toUpperCase();
+            elements.push({
+                id: 'mega-savers-logo-text',
+                type: 'text',
+                text: shopLabel,
+                x: logo.x + 8,
+                y: logo.y + 14,
+                w: logo.w - 16,
+                h: logo.h - 20,
+                fontSize: 13,
+                fontWeight: 800,
+                color: '#278b2f',
+                fontFamily: "'Inter', sans-serif",
+                textAlign: 'center',
+                zIndex: z(),
+            } as CanvasElement);
+        }
     }
 
     // Header title (shop name)
     if (header.titleStyle) {
         const ts = header.titleStyle;
+        const titleText =
+            config.id === 'blank' ? 'YOUR SHOP NAME' :
+            config.id === 'mega-savers' ? 'MEGA SAVERS' :
+            shopName;
         elements.push({
             id: 'header-title',
             type: 'text',
-            text: config.id === 'blank' ? 'YOUR SHOP NAME' : shopName,
+            text: titleText,
             x: ts.x ?? 30,
             y: ts.y ?? 30,
             w: 0,
@@ -204,6 +228,7 @@ export function templateConfigToCanvasElements(
             config.id === 'hypermarket-red' ? 'MEGA SAVINGS' :
             config.id === 'elegant-fashion' ? 'EXCLUSIVE COLLECTION' :
             config.id === 'luxury-black' ? 'PREMIUM SELECTION' :
+            config.id === 'mega-savers' ? 'HUGE DISCOUNTS' :
             'SPECIAL OFFERS';
         elements.push({
             id: 'header-subtitle',

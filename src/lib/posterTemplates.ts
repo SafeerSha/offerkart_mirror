@@ -961,6 +961,84 @@ export const POSTER_TEMPLATES: TemplateConfig[] = [
         },
     },
 
+    {
+        id: 'mega-savers',
+        name: 'Mega Savers',
+        category: 'retail',
+        canvasBackground: '#efefef',
+        fonts: ['Bebas Neue', 'Inter'],
+        header: {
+            height: 260,
+            background: 'linear-gradient(to bottom, #d6006e, #e50078, #d50057)',
+            logo: {
+                x: 594,
+                y: 22,
+                w: 170,
+                h: 58,
+                shape: 'rounded-rect',
+                background: '#ffffff',
+            },
+            titleStyle: {
+                x: 40,
+                y: 32,
+                fontSize: 52,
+                fontWeight: 900,
+                color: '#ffe700',
+                fontFamily: "'Bebas Neue', cursive",
+                shadow: '0 3px 0 #000, 0 5px 8px rgba(0,0,0,0.4)',
+            },
+            subtitleStyle: {
+                x: 40,
+                y: 95,
+                fontSize: 16,
+                fontWeight: 700,
+                color: '#fff3b0',
+                fontFamily: "'Inter', sans-serif",
+                letterSpacing: 2,
+            },
+            taglineStyle: {
+                x: 40,
+                y: 125,
+                fontSize: 13,
+                fontWeight: 600,
+                color: '#ffe4f0',
+                fontFamily: "'Inter', sans-serif",
+            },
+            decorative: [
+                // Large yellow curve sweep (approximated with big circle)
+                { kind: 'circle', x: -260, y: 95, w: 580, h: 580, color: '#ffe400', opacity: 0.92 },
+                // White curve layer
+                { kind: 'circle', x: -310, y: 115, w: 520, h: 520, color: '#efefef', opacity: 1 },
+            ],
+        },
+        footer: {
+            height: 65,
+            background: '#d50057',
+            mainTextStyle: {
+                x: 0,
+                y: 20,
+                fontSize: 15,
+                fontWeight: 700,
+                color: '#ffe700',
+                fontFamily: "'Inter', sans-serif",
+                textAlign: 'center',
+                letterSpacing: 1,
+            },
+        },
+        itemGrid: {
+            columns: 3,
+            rows: 3,
+            gap: 14,
+            padding: { top: 16, right: 18, bottom: 16, left: 18 },
+            cellBackground: '#ffffff',
+            cellBorderRadius: 6,
+            cellBorderColor: '#e5e5e5',
+            cellShadow: '0 3px 10px rgba(0,0,0,0.07)',
+            showPriceArea: true,
+            priceAreaColor: '#ff003c',
+        },
+    },
+
     // ═══════════════════════════════════════════
     // BLANK
     // ═══════════════════════════════════════════

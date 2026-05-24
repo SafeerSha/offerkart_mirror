@@ -137,14 +137,26 @@ export function TemplateThumbnail({ config, shopName = 'SHOP NAME' }: TemplateTh
                             justifyContent: 'center',
                         }}
                     >
-                        {/* Tiny logo icon hint */}
-                        <div style={{
-                            width: '40%',
-                            height: '40%',
-                            background: header.titleStyle?.color || '#cccccc',
-                            opacity: 0.3,
-                            borderRadius: '50%',
-                        }} />
+                        {config.id === 'mega-savers' ? (
+                            <div style={{
+                                fontSize: '38%',
+                                fontWeight: 800,
+                                color: '#278b2f',
+                                letterSpacing: '0.5px',
+                                whiteSpace: 'nowrap',
+                            }}>
+                                TALAL MARKET
+                            </div>
+                        ) : (
+                            /* Tiny logo icon hint */
+                            <div style={{
+                                width: '40%',
+                                height: '40%',
+                                background: header.titleStyle?.color || '#cccccc',
+                                opacity: 0.3,
+                                borderRadius: '50%',
+                            }} />
+                        )}
                     </div>
                 )}
 
@@ -195,7 +207,12 @@ export function TemplateThumbnail({ config, shopName = 'SHOP NAME' }: TemplateTh
                             whiteSpace: 'nowrap',
                         }}
                     >
-                        SPECIAL OFFERS
+                        {config.id === 'one-day-prices' ? 'OFFERS' :
+                         config.id === 'hypermarket-red' ? 'MEGA SAVINGS' :
+                         config.id === 'elegant-fashion' ? 'EXCLUSIVE COLLECTION' :
+                         config.id === 'luxury-black' ? 'PREMIUM SELECTION' :
+                         config.id === 'mega-savers' ? 'HUGE DISCOUNTS' :
+                         'SPECIAL OFFERS'}
                     </div>
                 )}
 
