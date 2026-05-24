@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, Suspense, useMemo, useCallback, useEffect } from "react";
+import { useState, Suspense, useMemo, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
-import PosterDesigner from "@/components/shop-manager/PosterDesigner";
+import PosterDesigner, { PosterDesignerRef, DesignerPosterData } from "@/components/shop-manager/PosterDesigner";
 import { CanvasElement } from "@/components/shop-manager/PosterDesigner";
-import type { DesignerPosterData } from "@/components/shop-manager/PosterDesigner";
 import { PosterTemplateSelector } from "@/components/shop-manager/PosterTemplateSelector";
 import { TemplateConfig } from "@/lib/posterTemplates";
 import { templateConfigToCanvasElements, ShopData } from "@/lib/templateToCanvas";
@@ -53,6 +52,7 @@ export default function PosterDesignerPage() {
     const [publishErrors, setPublishErrors] = useState<{ title?: string; validFrom?: string; validTo?: string; branch?: string }>({});
     const [capturedPosters, setCapturedPosters] = useState<{ pageId: string; posterFile: File; markedItems: MarkedItem[] }[]>([]);
     const { mutateAsync: createOfferMutation } = useCreateOffer();
+    const designerRefs = useRef<Record<string, PosterDesignerRef | null>>({});
 
     // Fetch shop data
     const { data: shopsResponse } = useMyShops();
@@ -266,15 +266,31 @@ export default function PosterDesignerPage() {
     }, []);
 
     // ── Finish / Publish Handlers ────────────────────────────────────────
-    const handleDesignerFinish = useCallback((pageId: string, data: DesignerPosterData) => {
-        // Store the captured poster data for this page
-        setCapturedPosters(prev => {
-            const filtered = prev.filter(p => p.pageId !== pageId);
-            return [...filtered, { pageId, posterFile: data.posterFile, markedItems: data.markedItems }];
-        });
-        // Open the publish modal
-        setShowPublishModal(true);
-    }, []);
+    const handleFinishAll = useCallback(async () => {
+        const toastId = toast.loading(`Preparing ${posterPages.length > 1 ? posterPages.length + ' posters' : 'poster'}...`);
+        const results = [];
+        try {
+            for (const page of posterPages) {
+                const ref = designerRefs.current[page.id];
+                if (ref) {
+                    const data = await ref.captureAsImage();
+                    if (data) {
+                        results.push({ pageId: page.id, posterFile: data.posterFile, markedItems: data.markedItems });
+                    }
+                }
+            }
+            if (results.length > 0) {
+                setCapturedPosters(results);
+                toast.success("Design completed!", { id: toastId });
+                setShowPublishModal(true);
+            } else {
+                toast.error("Failed to capture posters", { id: toastId });
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to capture posters", { id: toastId });
+        }
+    }, [posterPages]);
 
     const handlePublishSubmit = async () => {
         const errors: { title?: string; validFrom?: string; validTo?: string; branch?: string } = {};
@@ -459,17 +475,29 @@ export default function PosterDesignerPage() {
                                             Add Poster {posterPages.length >= 11 && "(Max)"}
                                         </button>
                                     </div>
-                                    <PosterDesigner
-                                        key={activePage.id}
-                                        shopId={activeShopId || undefined}
-                                        initialElements={activePage.elements}
-                                        initialBg={activePage.canvasBg}
-                                        templateConfig={activePage.template}
-                                        onBack={handleBackToTemplates}
-                                        onSnapshotChange={(snapshot) => handleSnapshotChange(activePage.id, snapshot)}
-                                        onFinish={(data) => handleDesignerFinish(activePage.id, data)}
-                                        allPagesElements={posterPages.map(p => p.elements)}
-                                    />
+                                    <div className="relative h-[calc(100vh-140px)] w-full">
+                                        {posterPages.map(page => (
+                                            <div 
+                                                key={page.id}
+                                                className={cn(
+                                                    "absolute inset-0 h-full w-full",
+                                                    page.id === activePageId ? "z-10 opacity-100" : "z-0 opacity-0 pointer-events-none top-[-9999px] left-[-9999px]"
+                                                )}
+                                            >
+                                                <PosterDesigner
+                                                    ref={(el) => { designerRefs.current[page.id] = el; }}
+                                                    shopId={activeShopId || undefined}
+                                                    initialElements={page.initialElements}
+                                                    initialBg={page.initialCanvasBg}
+                                                    templateConfig={page.template}
+                                                    onBack={handleBackToTemplates}
+                                                    onSnapshotChange={(snapshot) => handleSnapshotChange(page.id, snapshot)}
+                                                    onInitiateFinish={handleFinishAll}
+                                                    allPagesElements={posterPages.map(p => p.elements)}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             </Suspense>
                         ) : (

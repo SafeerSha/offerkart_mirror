@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import React, { useState, useRef, useCallback, useEffect, useMemo, forwardRef, useImperativeHandle } from "react";
 import { AppModal } from "@/components/shared/AppModal";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { PremiumInput } from "@/components/shared/PremiumInput";
@@ -572,16 +572,11 @@ export interface DesignerPosterData {
     markedItems: MarkedItem[];
 }
 
-export default function PosterDesigner({
-    initialElements = [],
-    initialBg = "#ffffff",
-    templateConfig,
-    shopId,
-    onBack,
-    onSnapshotChange,
-    onFinish,
-    allPagesElements
-}: {
+export interface PosterDesignerRef {
+    captureAsImage: () => Promise<DesignerPosterData | null>;
+}
+
+export const PosterDesigner = forwardRef<PosterDesignerRef, {
     initialElements?: CanvasElement[],
     initialBg?: string,
     templateConfig?: TemplateConfig,
@@ -589,8 +584,19 @@ export default function PosterDesigner({
     onBack?: () => void,
     onSnapshotChange?: (snapshot: { elements: CanvasElement[]; canvasBg: string }) => void,
     onFinish?: (data: DesignerPosterData) => void,
+    onInitiateFinish?: () => void,
     allPagesElements?: CanvasElement[][]
-}) {
+}>(({
+    initialElements = [],
+    initialBg = "#ffffff",
+    templateConfig,
+    shopId,
+    onBack,
+    onSnapshotChange,
+    onFinish,
+    onInitiateFinish,
+    allPagesElements
+}, ref) => {
     const { data: session } = useSession();
     const { mutateAsync: createProductMutation, isPending: isCreatingProduct } = useCreateProduct();
     const router = useRouter();
@@ -1615,15 +1621,8 @@ export default function PosterDesigner({
     };
 
     /* ---------- FINISH & PUBLISH ---------- */
-    const handleFinishClick = async () => {
-        if (!onFinish) {
-            toast.error("Finish handler not configured");
-            return;
-        }
-
+    const captureAsImage = async (): Promise<DesignerPosterData | null> => {
         setIsPublishing(true);
-        const toastId = toast.loading("Preparing poster...");
-
         const wasGridVisible = showGrid;
         try {
             // Deselect and hide grid before capture
@@ -1636,8 +1635,7 @@ export default function PosterDesigner({
             if (!canvasRef.current) {
                 if (wasGridVisible) setShowGrid(true);
                 setIsPublishing(false);
-                toast.error("Canvas element not found", { id: toastId });
-                return;
+                return null;
             }
 
             const dataUrl = await capturePosterAsImage(canvasRef.current);
@@ -1701,14 +1699,34 @@ export default function PosterDesigner({
                     };
                 });
 
-            toast.success("Poster captured!", { id: toastId });
-            onFinish({ posterFile, markedItems });
-        } catch (err: any) {
-            console.error("Capture error", err);
-            toast.error("Failed to capture poster: " + (err.message || err), { id: toastId });
-            if (wasGridVisible) setShowGrid(true);
-        } finally {
             setIsPublishing(false);
+            return { posterFile, markedItems };
+        } catch (error) {
+            console.error("[Capture Error]", error);
+            if (wasGridVisible) setShowGrid(true);
+            setIsPublishing(false);
+            return null;
+        }
+    };
+
+    useImperativeHandle(ref, () => ({
+        captureAsImage
+    }));
+
+    const handleFinishClick = async () => {
+        if (onInitiateFinish) {
+            onInitiateFinish();
+        } else if (onFinish) {
+            const toastId = toast.loading("Preparing poster...");
+            const data = await captureAsImage();
+            if (data) {
+                toast.success("Design completed!", { id: toastId });
+                onFinish(data);
+            } else {
+                toast.error("Failed to capture poster", { id: toastId });
+            }
+        } else {
+            toast.error("Finish handler not configured");
         }
     };
 
@@ -3210,4 +3228,6 @@ export default function PosterDesigner({
 
         </div>
     );
-}
+});
+
+export default PosterDesigner;
