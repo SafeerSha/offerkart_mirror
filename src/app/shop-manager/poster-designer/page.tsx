@@ -22,6 +22,7 @@ import { FileText, Plus, X, AlertTriangle, Type, GitBranch, Send } from "lucide-
 import { s3Api } from "@/lib/api";
 import { toast } from "sonner";
 import type { MarkedItem } from "@/lib/types/offer";
+import { storage } from "@/lib/storage";
 
 type PosterPageDraft = {
     id: string;
@@ -311,7 +312,9 @@ export default function PosterDesignerPage() {
 
             const selectedBranches = branches.filter((b: any) => selectedBranchIds.includes(String(b.id)));
 
+            const batchId = crypto.randomUUID();
             const offerPayload = {
+                batchId: batchId,
                 title: offerTitle,
                 validFrom: validFrom ? formatDateLocal(validFrom) : "",
                 validTo: validTo ? formatDateLocal(validTo) : "",
@@ -326,6 +329,19 @@ export default function PosterDesignerPage() {
 
             const res = await createOfferMutation({ payload: offerPayload, shopId: activeShopId || "" });
             if (res.success) {
+                // Sync with local storage markedPosters for dashboard list / offline cache consistency
+                try {
+                    const existing = await storage.getItem<any[]>("markedPosters");
+                    const allPosters = existing || [];
+                    allPosters.push({
+                        ...offerPayload,
+                        posters: offerPayload.posters.map((p, idx) => ({ ...p, order: idx + 1 })),
+                    });
+                    await storage.setItem("markedPosters", allPosters);
+                } catch (storageErr) {
+                    console.warn("Storage sync failed:", storageErr);
+                }
+
                 toast.success("Offer published successfully!", { id: toastId });
                 setShowPublishModal(false);
                 setOfferTitle("");

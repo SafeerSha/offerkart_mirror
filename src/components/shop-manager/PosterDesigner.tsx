@@ -1666,6 +1666,23 @@ export default function PosterDesigner({
                 .map(el => {
                     const oldPrice = parseFloat(String(el.cardOldPrice || "0").replace(/[^\d.]/g, "")) || 0;
                     const offerPrice = parseFloat(String(el.cardOfferPrice || "0").replace(/[^\d.]/g, "")) || 0;
+                    
+                    // Cross-reference with active product catalog to enrich categories and description
+                    const catalogProd = products.find(p => String(p.id) === String(el.sourceProductId));
+                    
+                    const mainCategory = catalogProd?.category || "General";
+                    
+                    let subcategories: string[] = ["General"];
+                    if (catalogProd?.subcategory) {
+                        if (Array.isArray(catalogProd.subcategory)) {
+                            subcategories = catalogProd.subcategory;
+                        } else {
+                            subcategories = [catalogProd.subcategory];
+                        }
+                    } else if (catalogProd?.category) {
+                        subcategories = [catalogProd.category];
+                    }
+                    
                     return {
                         id: el.id,
                         x: el.x / cw,
@@ -1673,11 +1690,14 @@ export default function PosterDesigner({
                         width: (el.w || 220) / cw,
                         height: (el.h || 280) / ch,
                         name: el.cardTitle || "Product",
-                        description: el.cardDesc || "",
+                        description: catalogProd?.description || el.cardDesc || "",
                         productImage: el.cardImage || "",
                         currency: "₹",
                         oldPrice,
                         offerPrice,
+                        mainCategory,
+                        subcategories,
+                        subcategoryId: catalogProd?.subcategoryId ? Number(catalogProd.subcategoryId) : undefined,
                     };
                 });
 

@@ -69,7 +69,7 @@ export function PremiumDatePicker({
         </PopoverTrigger>
 
         <PopoverContent
-          className="w-auto p-0 border-0 shadow-2xl rounded-2xl overflow-hidden z-[100]"
+          className="w-auto p-0 border-0 shadow-2xl rounded-2xl overflow-hidden"
           align="start"
           style={{ backgroundColor: "#ffffff" }}
         >

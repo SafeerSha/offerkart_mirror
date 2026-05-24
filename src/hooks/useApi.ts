@@ -187,9 +187,9 @@ export function useCreateOffer() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ payload, shopId }: { payload: any; shopId: string }) => createOffer(payload, shopId),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.offers });
-      queryClient.invalidateQueries({ queryKey: queryKeys.allOffers() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.allOffers(variables?.shopId) });
     },
   });
 }
