@@ -1628,16 +1628,37 @@ export const PosterDesigner = forwardRef<PosterDesignerRef, {
     const captureAsImage = async (): Promise<DesignerPosterData | null> => {
         setIsPublishing(true);
         const wasGridVisible = showGrid;
+        // Track which placeholder IDs we hide so we can restore them after capture
+        const hiddenPlaceholderIds: string[] = [];
         try {
             // Deselect and hide grid before capture
             setSelectedId(null);
             setShowGrid(false);
 
-            // Give React a frame to re-render without selection/grid
+            // Hide unfilled placeholder product-card slots before capture
+            // so they render as blank space instead of showing "Add Product" / "+" UI
+            setElements(prev => {
+                const next = prev.map(el => {
+                    if (isPlaceholderCard(el)) {
+                        hiddenPlaceholderIds.push(el.id);
+                        return { ...el, isVisible: false };
+                    }
+                    return el;
+                });
+                return next;
+            });
+
+            // Give React a frame to re-render without selection/grid/placeholders
             await new Promise((r) => setTimeout(r, 60));
 
             if (!canvasRef.current) {
                 if (wasGridVisible) setShowGrid(true);
+                // Restore hidden placeholders
+                if (hiddenPlaceholderIds.length > 0) {
+                    setElements(prev => prev.map(el =>
+                        hiddenPlaceholderIds.includes(el.id) ? { ...el, isVisible: undefined } : el
+                    ));
+                }
                 setIsPublishing(false);
                 return null;
             }
@@ -1703,11 +1724,23 @@ export const PosterDesigner = forwardRef<PosterDesignerRef, {
                     };
                 });
 
+            // Restore hidden placeholder cards back to visible in the designer
+            if (hiddenPlaceholderIds.length > 0) {
+                setElements(prev => prev.map(el =>
+                    hiddenPlaceholderIds.includes(el.id) ? { ...el, isVisible: undefined } : el
+                ));
+            }
             setIsPublishing(false);
             return { posterFile, markedItems };
         } catch (error) {
             console.error("[Capture Error]", error);
             if (wasGridVisible) setShowGrid(true);
+            // Restore hidden placeholders on error
+            if (hiddenPlaceholderIds.length > 0) {
+                setElements(prev => prev.map(el =>
+                    hiddenPlaceholderIds.includes(el.id) ? { ...el, isVisible: undefined } : el
+                ));
+            }
             setIsPublishing(false);
             return null;
         }
