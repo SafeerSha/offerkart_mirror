@@ -52,6 +52,109 @@ import {
 // API functions
 import { getOfferProductById } from "@/lib/api";
 
+interface SwipeableCardProps {
+    children: React.ReactNode;
+    onEdit: () => void;
+    onDelete: () => void;
+    editTitle?: string;
+    deleteTitle?: string;
+}
+
+function SwipeableCard({ children, onEdit, onDelete, editTitle = "Edit", deleteTitle = "Delete" }: SwipeableCardProps) {
+    const [startX, setStartX] = useState<number | null>(null);
+    const [currentX, setCurrentX] = useState<number | null>(null);
+    const [isSwiped, setIsSwiped] = useState(false);
+    const cardRef = useRef<HTMLDivElement>(null);
+
+    const handleTouchStart = (e: React.TouchEvent) => {
+        setStartX(e.touches[0].clientX);
+        setCurrentX(e.touches[0].clientX);
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (startX === null) return;
+        setCurrentX(e.touches[0].clientX);
+    };
+
+    const handleTouchEnd = () => {
+        if (startX === null || currentX === null) return;
+        const diff = startX - currentX;
+        
+        // If swiped left more than 50px, reveal actions
+        if (diff > 50) {
+            setIsSwiped(true);
+        }
+        // If swiped right more than 30px, hide actions
+        else if (diff < -30) {
+            setIsSwiped(false);
+        }
+        
+        setStartX(null);
+        setCurrentX(null);
+    };
+
+    // Auto-close actions if user taps on the card content when swiped
+    const handleContentClick = (e: React.MouseEvent) => {
+        if (isSwiped) {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsSwiped(false);
+        }
+    };
+
+    return (
+        <div 
+            ref={cardRef}
+            className="relative overflow-hidden rounded-xl w-full"
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+        >
+            {/* Slideable Card Content */}
+            <div 
+                onClick={handleContentClick}
+                className={cn(
+                    "transition-transform duration-300 ease-out select-none w-full relative z-10",
+                    isSwiped ? "-translate-x-[110px]" : "translate-x-0"
+                )}
+            >
+                {children}
+            </div>
+
+            {/* Hidden Action Panel behind the card (revealed on swipe left) */}
+            <div 
+                className={cn(
+                    "absolute right-0 top-0 bottom-0 flex items-center gap-2 px-3 bg-gradient-to-l from-orange-500/10 to-transparent border-l border-primary/10 rounded-r-xl transition-all duration-300 z-0",
+                    isSwiped ? "opacity-100 translate-x-0" : "opacity-0 translate-x-4"
+                )}
+            >
+                <button 
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setIsSwiped(false);
+                        onEdit();
+                    }}
+                    className="flex items-center justify-center p-2.5 rounded-xl bg-white border border-primary/10 text-primary hover:bg-primary hover:text-white shadow-lg active:scale-95 transition-all pointer-events-auto"
+                    title={editTitle}
+                >
+                    <Pencil className="w-4 h-4" />
+                </button>
+                <button 
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setIsSwiped(false);
+                        onDelete();
+                    }}
+                    className="flex items-center justify-center p-2.5 rounded-xl bg-white border border-rose-100 text-rose-600 hover:bg-rose-500 hover:text-white shadow-lg active:scale-95 transition-all pointer-events-auto"
+                    title={deleteTitle}
+                >
+                    <Trash2 className="w-4 h-4" />
+                </button>
+            </div>
+        </div>
+    );
+}
+
 function DashboardContent() {
     const { data: session } = useSession();
     const searchParams = useSearchParams();
@@ -662,7 +765,9 @@ function DashboardContent() {
                                                 <Package className="w-4 h-4" /> Products
                                             </TabsTrigger>
                                         </TabsList>
-                                        <Link href="#" className="text-sm font-medium text-primary hover:underline px-1">View All</Link>
+                                        <div className="flex flex-col items-end">
+                                            <span className="text-[9px] text-gray-400 font-bold block sm:hidden mt-0.5">← Swipe left on items to manage</span>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -715,77 +820,115 @@ function DashboardContent() {
                                                         </div>
                                                     </Link>
                                                 )}
-                                                <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar p-1">
                                                     {publishedOffers.length > 0 ? (
-
                                                         publishedOffers.map((offer, idx) => {
                                                             const id = offer.offerId || offer.batchId || idx;
-                                                            const isExpanded = expandedOffers[id] || false;
+                                                            const offerImage = offer.posters?.[0]?.posterSrc || offer.posterSrc;
                                                             return (
-                                                                <div key={id} className="relative group rounded-2xl bg-white border border-gray-100 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 overflow-hidden">
-                                                                    <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                                                        <div className="flex items-center justify-between w-full sm:w-auto flex-1 gap-4 min-w-0 pl-1">
-                                                                            <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-                                                                                <div className="relative w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-gray-50 flex items-center justify-center shrink-0 overflow-hidden ring-4 ring-gray-50/50 group-hover:ring-primary/10 transition-all">
-                                                                                    {offer.posters?.[0]?.posterSrc || offer.posterSrc ? (
-                                                                                        <Image src={offer.posters?.[0]?.posterSrc || offer.posterSrc} alt="" fill unoptimized className="object-cover group-hover:scale-110 transition-transform duration-500" />
-                                                                                    ) : (
-                                                                                        <Tag className="w-5 h-5 sm:w-6 sm:h-6 text-gray-300 group-hover:text-primary transition-colors rotate-12" />
+                                                                <SwipeableCard
+                                                                    key={id}
+                                                                    onEdit={() => openEditModal(offer)}
+                                                                    onDelete={() => setOfferToDelete(offer)}
+                                                                    editTitle="Edit offer"
+                                                                    deleteTitle="Delete offer"
+                                                                >
+                                                                    <div className="group relative flex items-start gap-3 p-3 rounded-xl bg-gray-50/50 border border-gray-100 hover:border-primary/20 hover:bg-white hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 overflow-hidden">
+                                                                        <div
+                                                                            className={`group/img relative w-16 h-16 rounded-lg bg-white overflow-hidden shrink-0 border border-gray-100 shadow-sm z-10 transition-all duration-300 ${offerImage ? 'cursor-pointer active:scale-95' : ''}`}
+                                                                            onClick={(e) => {
+                                                                                if (offerImage) {
+                                                                                    e.preventDefault();
+                                                                                    e.stopPropagation();
+                                                                                    setPreviewLogo({ src: offerImage, name: offer.title || "Offer Preview" });
+                                                                                }
+                                                                            }}
+                                                                            title={offerImage ? "View large poster" : undefined}
+                                                                        >
+                                                                            {offerImage ? (
+                                                                                <>
+                                                                                    <Image src={offerImage} alt={offer.title || "Offer"} fill unoptimized className="object-cover group-hover:scale-110 transition-transform duration-500" />
+                                                                                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-[1px]">
+                                                                                        <div className="bg-white/90 p-1.5 rounded-full shadow-lg scale-75 group-hover/img:scale-100 transition-transform duration-300">
+                                                                                            <Eye className="w-4 h-4 text-primary" />
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </>
+                                                                            ) : (
+                                                                                <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+                                                                                    <Tag className="w-6 h-6 text-gray-300 group-hover:text-primary transition-colors rotate-12" />
+                                                                                </div>
+                                                                            )}
+                                                                            <div className="absolute top-1 left-1">
+                                                                                <div className="px-1 py-0.5 rounded bg-white/90 backdrop-blur-sm shadow-sm border border-gray-100">
+                                                                                    <p className="text-[8px] font-black text-primary uppercase tracking-tighter">New</p>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <div className="min-w-0 flex-1 z-10 flex flex-col justify-center self-stretch py-0.5">
+                                                                            <h4 className="font-bold text-xs text-gray-900 truncate group-hover:text-primary transition-colors leading-tight">
+                                                                                {offer.title || "Untitled Offer"}
+                                                                            </h4>
+
+                                                                            <div className="flex items-center gap-1.5 mt-0.5 min-w-0 pr-2">
+                                                                                <div className="text-[9px] font-bold text-orange-500 uppercase tracking-widest leading-none truncate">
+                                                                                    Offer
+                                                                                </div>
+                                                                            </div>
+
+                                                                            {(offer.validFrom || offer.validTo || (offer.branches && offer.branches.length > 0) || offer.branchNames || offer.branchName) && (
+                                                                                <div className="flex flex-wrap items-center gap-1 text-[8px] text-gray-500 mt-1">
+                                                                                    {(offer.validFrom || offer.validTo) && (
+                                                                                        <span className="bg-gray-50 border border-gray-100/80 text-gray-600 px-1.5 py-0.5 rounded flex items-center gap-1 font-medium">
+                                                                                            <Calendar className="w-2.5 h-2.5 text-gray-400 shrink-0" />
+                                                                                            <span>
+                                                                                                {offer.validFrom ? new Date(offer.validFrom).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' }) : "n/a"}{offer.validTo ? ` - ${new Date(offer.validTo).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}` : ""}
+                                                                                            </span>
+                                                                                        </span>
+                                                                                    )}
+                                                                                    {((offer.branches && offer.branches.length > 0) || offer.branchNames || offer.branchName) && (
+                                                                                        <span className="bg-primary/5 text-primary border border-primary/10 px-1.5 py-0.5 rounded font-medium flex items-center gap-1">
+                                                                                            <GitBranch className="w-2.5 h-2.5 shrink-0" />
+                                                                                            <span className="truncate max-w-[90px]">
+                                                                                                {offer.branches ? (
+                                                                                                    offer.branches.length > 1 ? `${offer.branches[0].branchName} +${offer.branches.length - 1}` : offer.branches[0].branchName
+                                                                                                ) : (
+                                                                                                    offer.branchNames ? offer.branchNames[0] : offer.branchName
+                                                                                                )}
+                                                                                            </span>
+                                                                                        </span>
                                                                                     )}
                                                                                 </div>
-                                                                                <div className="min-w-0 flex-1">
-                                                                                    <div className="flex items-center gap-2 mb-1">
-                                                                                        <h4 className="font-bold text-sm sm:text-lg text-gray-900 truncate leading-tight group-hover:text-primary transition-colors">{offer.title || "Untitled Offer"}</h4>
-                                                                                        <div className={cn("px-2 py-0.5 rounded-full text-[8px] sm:text-[10px] font-bold uppercase tracking-wider shadow-sm border shrink-0", offer.status === "active" ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-gray-50 text-gray-400 border-gray-200")}>{offer.status || "active"}</div>
-                                                                                    </div>
-                                                                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[9px] sm:text-xs">
-                                                                                        <div className="flex items-center gap-1.5 text-slate-400 font-medium"><Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" /><span className="truncate">{getRelativeTime(offer.createdAt || offer.validFrom) ? `Posted ${getRelativeTime(offer.createdAt || offer.validFrom)}` : "Active"}</span></div>
-                                                                                        {(offer.branches || offer.branchNames || offer.branchName) && (
-                                                                                            <div className="flex items-center gap-1.5 py-0.5 px-2 rounded-lg bg-orange-50 text-orange-600 font-bold text-[9px] uppercase tracking-wide border border-orange-100">
-                                                                                                <GitBranch className="w-3 h-3" />
-                                                                                                <span className="truncate max-w-[120px]">{offer.branches ? (offer.branches.length > 1 ? `${offer.branches[0].branchName} +${offer.branches.length - 1}` : offer.branches[0].branchName) : (offer.branchNames ? offer.branchNames[0] : offer.branchName)}</span>
-                                                                                            </div>
-                                                                                        )}
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div>
-                                                                            <button
-                                                                                onClick={() => toggleOfferExpand(id)}
-                                                                                className="sm:hidden p-2 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors text-gray-400 hover:text-primary shrink-0"
-                                                                                aria-label="Toggle details"
-                                                                            >
-                                                                                <ChevronRight className={cn("w-4 h-4 transition-transform duration-300", isExpanded ? "rotate-90" : "rotate-0")} />
-                                                                            </button>
+                                                                            )}
                                                                         </div>
-                                                                        <div className={cn(
-                                                                            "sm:flex flex-col sm:flex-row items-center gap-4 sm:gap-8 shrink-0 w-full sm:w-auto transition-all duration-300",
-                                                                            isExpanded ? "flex mt-2 pt-3 border-t border-gray-50 sm:mt-0 sm:pt-0 sm:border-t-0" : "hidden sm:flex"
-                                                                        )}>
-                                                                            <div className="flex flex-col items-center sm:items-end w-full sm:w-auto">
-                                                                                <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 sm:mb-2"><Calendar className="w-3 h-3" /> Offer Validity</div>
-                                                                                <div className="flex items-center gap-3 text-xs font-semibold text-gray-600">
-                                                                                    <div className="flex flex-col sm:flex-row items-center sm:gap-2"><span className="text-[9px] sm:text-[10px] text-gray-400 uppercase tracking-widest leading-none mb-1 sm:mb-0">From</span><span className="text-gray-800">{offer.validFrom ? new Date(offer.validFrom).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).toLowerCase() : 'n/a'}</span></div>
-                                                                                    <ArrowRight className="w-3 h-3 text-gray-300" />
-                                                                                    <div className="flex flex-col sm:flex-row items-center sm:gap-2"><span className="text-[9px] sm:text-[10px] text-gray-400 uppercase tracking-widest leading-none mb-1 sm:mb-0">To</span><span className="text-gray-800">{offer.validTo ? new Date(offer.validTo).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).toLowerCase() : 'n/a'}</span></div>
+
+                                                                        <div className="relative z-20 flex flex-col items-end justify-between self-stretch shrink-0 py-0.5">
+                                                                            <div className="flex items-center gap-1">
+                                                                                <div className="scale-75 origin-right">
+                                                                                    <StatusToggleButton
+                                                                                        status={offer.status || 'active'}
+                                                                                        onChange={() => handleToggleOfferStatus(offer)}
+                                                                                    />
                                                                                 </div>
                                                                             </div>
-                                                                            <div className="flex flex-row sm:flex-col items-center gap-3 w-full sm:w-auto justify-between sm:justify-center px-2 sm:px-0 sm:pl-8 border-l-0 sm:border-l border-gray-100">
-                                                                                <div className="flex items-center gap-2 group/toggle">
-                                                                                    <span className={cn("text-[9px] font-black uppercase tracking-widest transition-colors", offer.status === 'active' ? "text-emerald-500" : "text-gray-400")}>{offer.status === 'active' ? 'Live' : 'Paused'}</span>
-                                                                                    <StatusToggleButton status={offer.status || 'active'} onChange={() => handleToggleOfferStatus(offer)} className="scale-90" />
-                                                                                </div>
-                                                                                <div className="flex gap-2.5">
-                                                                                    <button onClick={() => openEditModal(offer)} className="flex items-center justify-center p-2 sm:p-3 rounded-xl bg-gray-50 text-gray-400 hover:bg-primary hover:text-secondary hover:shadow-lg transition-all duration-300" title="Edit offer"><Pencil className="w-4 h-4" /></button>
-                                                                                    <button onClick={() => setOfferToDelete(offer)} className="flex items-center justify-center p-2 sm:p-3 rounded-xl bg-gray-50 text-gray-400 hover:bg-rose-500 hover:text-white hover:shadow-lg transition-all duration-300" title="Delete offer"><Trash2 className="w-4 h-4" /></button>
-                                                                                </div>
+
+                                                                            <div className="flex items-baseline gap-1 my-1 text-[8px] font-semibold text-slate-400">
+                                                                                <Clock className="w-2.5 h-2.5 shrink-0" />
+                                                                                <span>{getRelativeTime(offer.createdAt || offer.validFrom) ? getRelativeTime(offer.createdAt || offer.validFrom) : "Active"}</span>
+                                                                            </div>
+
+                                                                            <div className="hidden sm:flex flex-row gap-1 items-center">
+                                                                                <button onClick={() => openEditModal(offer)} className="flex items-center justify-center p-1.5 rounded-lg bg-white border border-gray-100 text-gray-500 hover:text-primary hover:border-primary hover:bg-primary/5 transition-all shadow-sm" title="Edit offer"><Pencil className="w-3 h-3" /></button>
+                                                                                <button onClick={() => setOfferToDelete(offer)} className="flex items-center justify-center p-1.5 rounded-lg bg-white border border-gray-100 text-gray-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all shadow-sm" title="Delete offer"><Trash2 className="w-3 h-3" /></button>
                                                                             </div>
                                                                         </div>
                                                                     </div>
-                                                                </div>
+                                                                </SwipeableCard>
                                                             );
                                                         })
                                                     ) : (
-                                                        <div className="p-8 rounded-xl border border-dashed border-primary/10 opacity-60 flex flex-col items-center justify-center text-center">
+                                                        <div className="col-span-full p-8 rounded-xl border border-dashed border-primary/10 opacity-60 flex flex-col items-center justify-center text-center">
                                                             <Tag className="w-12 h-12 mb-4 text-primary/30" /><p className="text-sm font-medium mb-1">No offers published yet</p><p className="text-xs opacity-60 italic">Your active offers will appear here</p>
                                                         </div>
                                                     )}
@@ -811,119 +954,127 @@ function DashboardContent() {
                                                 </>
                                             ) : products && products.length > 0 ? (
                                                 products.map((product) => (
-                                                    <div key={product.id} className="group relative flex items-start gap-3 p-3 rounded-xl bg-gray-50/50 border border-gray-100 hover:border-primary/20 hover:bg-white hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 overflow-hidden">
+                                                    <SwipeableCard
+                                                        key={product.id}
+                                                        onEdit={() => handleEditProduct(product)}
+                                                        onDelete={() => setProductToDelete(product)}
+                                                        editTitle="Edit product"
+                                                        deleteTitle="Delete product"
+                                                    >
+                                                        <div className="group relative flex items-start gap-3 p-3 rounded-xl bg-gray-50/50 border border-gray-100 hover:border-primary/20 hover:bg-white hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 overflow-hidden">
 
-                                                        <div
-                                                            className={`group/img relative w-16 h-16 rounded-lg bg-white overflow-hidden shrink-0 border border-gray-100 shadow-sm z-10 transition-all duration-300 ${product.image ? 'cursor-pointer active:scale-95' : ''}`}
-                                                            onClick={(e) => {
-                                                                if (product.image) {
-                                                                    e.preventDefault();
-                                                                    e.stopPropagation();
-                                                                    setPreviewLogo({ src: product.image, name: product.name });
-                                                                }
-                                                            }}
-                                                            title={product.image ? "View large image" : undefined}
-                                                        >
-                                                            {product.image ? (
-                                                                <>
-                                                                    <Image src={product.image} alt={product.name} fill unoptimized className="object-cover group-hover:scale-110 transition-transform duration-500" />
-                                                                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-[1px]">
-                                                                        <div className="bg-white/90 p-1.5 rounded-full shadow-lg scale-75 group-hover/img:scale-100 transition-transform duration-300">
-                                                                            <Eye className="w-4 h-4 text-primary" />
+                                                            <div
+                                                                className={`group/img relative w-16 h-16 rounded-lg bg-white overflow-hidden shrink-0 border border-gray-100 shadow-sm z-10 transition-all duration-300 ${product.image ? 'cursor-pointer active:scale-95' : ''}`}
+                                                                onClick={(e) => {
+                                                                    if (product.image) {
+                                                                        e.preventDefault();
+                                                                        e.stopPropagation();
+                                                                        setPreviewLogo({ src: product.image, name: product.name });
+                                                                    }
+                                                                }}
+                                                                title={product.image ? "View large image" : undefined}
+                                                            >
+                                                                {product.image ? (
+                                                                    <>
+                                                                        <Image src={product.image} alt={product.name} fill unoptimized className="object-cover group-hover:scale-110 transition-transform duration-500" />
+                                                                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-[1px]">
+                                                                            <div className="bg-white/90 p-1.5 rounded-full shadow-lg scale-75 group-hover/img:scale-100 transition-transform duration-300">
+                                                                                <Eye className="w-4 h-4 text-primary" />
+                                                                            </div>
                                                                         </div>
+                                                                    </>
+                                                                ) : (
+                                                                    <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+                                                                        <ShoppingBag className="w-6 h-6 text-gray-300" />
                                                                     </div>
-                                                                </>
-                                                            ) : (
-                                                                <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
-                                                                    <ShoppingBag className="w-6 h-6 text-gray-300" />
-                                                                </div>
-                                                            )}
-                                                            <div className="absolute top-1 left-1"><div className="px-1 py-0.5 rounded bg-white/90 backdrop-blur-sm shadow-sm border border-gray-100"><p className="text-[8px] font-black text-primary uppercase tracking-tighter">New</p></div></div>
-                                                        </div>
-
-                                                        <div className="min-w-0 flex-1 z-10 flex flex-col justify-center self-stretch py-0.5">
-                                                            <h4 className="font-bold text-xs text-gray-900 truncate group-hover:text-primary transition-colors leading-tight">
-                                                                {product.name}
-                                                            </h4>
-
-                                                            <div className="flex items-center gap-1.5 mt-0.5 min-w-0 pr-2">
-                                                                <div className="text-[9px] font-bold text-orange-500 uppercase tracking-widest leading-none truncate">
-                                                                    {product.category}
-                                                                </div>
+                                                                )}
+                                                                <div className="absolute top-1 left-1"><div className="px-1 py-0.5 rounded bg-white/90 backdrop-blur-sm shadow-sm border border-gray-100"><p className="text-[8px] font-black text-primary uppercase tracking-tighter">New</p></div></div>
                                                             </div>
 
-                                                            {(product.validFrom || (product.branchIds && product.branchIds.length > 0)) && (
-                                                                <div className="flex flex-wrap items-center gap-1 text-[8px] text-gray-500 mt-1">
-                                                                    {product.validFrom && (
-                                                                        <span className="bg-gray-50 border border-gray-100/80 text-gray-600 px-1.5 py-0.5 rounded flex items-center gap-1 font-medium">
-                                                                            <Calendar className="w-2.5 h-2.5 text-gray-400 shrink-0" />
-                                                                            <span>
-                                                                                {new Date(product.validFrom).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}{product.validTo ? ` - ${new Date(product.validTo).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}` : " onwards"}
-                                                                            </span>
-                                                                        </span>
-                                                                    )}
-                                                                    {product.branchIds && product.branchIds.length > 0 && (
-                                                                        product.branchIds.length === 1 ? (
-                                                                            <span className="bg-primary/5 text-primary border border-primary/10 px-1.5 py-0.5 rounded font-medium flex items-center gap-1">
-                                                                                <GitBranch className="w-2.5 h-2.5 shrink-0" />
-                                                                                <span className="truncate max-w-[90px]">
-                                                                                    {branchNameMap[String(product.branchIds[0])] || `Branch ${product.branchIds[0]}`}
+                                                            <div className="min-w-0 flex-1 z-10 flex flex-col justify-center self-stretch py-0.5">
+                                                                <h4 className="font-bold text-xs text-gray-900 truncate group-hover:text-primary transition-colors leading-tight">
+                                                                    {product.name}
+                                                                </h4>
+
+                                                                <div className="flex items-center gap-1.5 mt-0.5 min-w-0 pr-2">
+                                                                    <div className="text-[9px] font-bold text-orange-500 uppercase tracking-widest leading-none truncate">
+                                                                        {product.category}
+                                                                    </div>
+                                                                </div>
+
+                                                                {(product.validFrom || (product.branchIds && product.branchIds.length > 0)) && (
+                                                                    <div className="flex flex-wrap items-center gap-1 text-[8px] text-gray-500 mt-1">
+                                                                        {product.validFrom && (
+                                                                            <span className="bg-gray-50 border border-gray-100/80 text-gray-600 px-1.5 py-0.5 rounded flex items-center gap-1 font-medium">
+                                                                                <Calendar className="w-2.5 h-2.5 text-gray-400 shrink-0" />
+                                                                                <span>
+                                                                                    {new Date(product.validFrom).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}{product.validTo ? ` - ${new Date(product.validTo).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}` : " onwards"}
                                                                                 </span>
                                                                             </span>
-                                                                        ) : (
-                                                                            <TooltipProvider delayDuration={100}>
-                                                                                <Tooltip>
-                                                                                    <TooltipTrigger asChild>
-                                                                                        <span className="bg-primary/5 text-primary border border-primary/10 px-1.5 py-0.5 rounded font-medium flex items-center gap-1 cursor-pointer">
-                                                                                            <GitBranch className="w-2.5 h-2.5 shrink-0" />
-                                                                                            <span>{product.branchIds.length} branches</span>
-                                                                                        </span>
-                                                                                    </TooltipTrigger>
-                                                                                    <TooltipContent side="top" className="bg-white p-2 rounded-xl shadow-xl border border-gray-100 z-[100] max-w-[200px]">
-                                                                                        <div className="space-y-1">
-                                                                                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider border-b pb-1 mb-1 border-gray-50">Active Branches</p>
-                                                                                            {product.branchIds.map((bid: any, idx: number) => (
-                                                                                                <p key={idx} className="text-[11px] font-semibold text-gray-700 truncate">
-                                                                                                    • {branchNameMap[String(bid)] || `Branch ${bid}`}
-                                                                                                </p>
-                                                                                            ))}
-                                                                                        </div>
-                                                                                    </TooltipContent>
-                                                                                </Tooltip>
-                                                                            </TooltipProvider>
-                                                                        )
-                                                                    )}
-                                                                </div>
-                                                            )}
-                                                        </div>
-
-                                                        <div className="relative z-20 flex flex-col items-end justify-between self-stretch shrink-0 py-0.5">
-                                                            <div className="flex items-center gap-1">
-                                                                <div className="scale-75 origin-right">
-                                                                    <StatusToggleButton
-                                                                        status={product.status || 'active'}
-                                                                        onChange={() => handleToggleProductStatus(product)}
-                                                                    />
-                                                                </div>
-                                                            </div>
-
-                                                            <div className="flex items-baseline gap-1 my-1">
-                                                                <span className="text-xs font-black text-gray-900 tracking-tighter leading-none">
-                                                                    ₹{product.price}
-                                                                </span>
-                                                                {product.originalPrice && (
-                                                                    <span className="text-[9px] text-red-500 line-through font-medium">
-                                                                        ₹{product.originalPrice}
-                                                                    </span>
+                                                                        )}
+                                                                        {product.branchIds && product.branchIds.length > 0 && (
+                                                                            product.branchIds.length === 1 ? (
+                                                                                <span className="bg-primary/5 text-primary border border-primary/10 px-1.5 py-0.5 rounded font-medium flex items-center gap-1">
+                                                                                    <GitBranch className="w-2.5 h-2.5 shrink-0" />
+                                                                                    <span className="truncate max-w-[90px]">
+                                                                                        {branchNameMap[String(product.branchIds[0])] || `Branch ${product.branchIds[0]}`}
+                                                                                    </span>
+                                                                                </span>
+                                                                            ) : (
+                                                                                <TooltipProvider delayDuration={100}>
+                                                                                    <Tooltip>
+                                                                                        <TooltipTrigger asChild>
+                                                                                            <span className="bg-primary/5 text-primary border border-primary/10 px-1.5 py-0.5 rounded font-medium flex items-center gap-1 cursor-pointer">
+                                                                                                <GitBranch className="w-2.5 h-2.5 shrink-0" />
+                                                                                                <span>{product.branchIds.length} branches</span>
+                                                                                            </span>
+                                                                                        </TooltipTrigger>
+                                                                                        <TooltipContent side="top" className="bg-white p-2 rounded-xl shadow-xl border border-gray-100 z-[100] max-w-[200px]">
+                                                                                            <div className="space-y-1">
+                                                                                                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider border-b pb-1 mb-1 border-gray-50">Active Branches</p>
+                                                                                                {product.branchIds.map((bid: any, idx: number) => (
+                                                                                                    <p key={idx} className="text-[11px] font-semibold text-gray-700 truncate">
+                                                                                                        • {branchNameMap[String(bid)] || `Branch ${bid}`}
+                                                                                                    </p>
+                                                                                                ))}
+                                                                                            </div>
+                                                                                        </TooltipContent>
+                                                                                    </Tooltip>
+                                                                                </TooltipProvider>
+                                                                            )
+                                                                        )}
+                                                                    </div>
                                                                 )}
                                                             </div>
 
-                                                            <div className="flex flex-row gap-1 items-center">
-                                                                <button onClick={() => handleEditProduct(product)} className="flex items-center justify-center p-1.5 rounded-lg bg-white border border-gray-100 text-gray-500 hover:text-primary hover:border-primary hover:bg-primary/5 transition-all shadow-sm" title="Edit product"><Pencil className="w-3 h-3" /></button>
-                                                                <button onClick={() => setProductToDelete(product)} className="flex items-center justify-center p-1.5 rounded-lg bg-white border border-gray-100 text-gray-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all shadow-sm" title="Delete product"><Trash2 className="w-3 h-3" /></button>
+                                                            <div className="relative z-20 flex flex-col items-end justify-between self-stretch shrink-0 py-0.5">
+                                                                <div className="flex items-center gap-1">
+                                                                    <div className="scale-75 origin-right">
+                                                                        <StatusToggleButton
+                                                                            status={product.status || 'active'}
+                                                                            onChange={() => handleToggleProductStatus(product)}
+                                                                        />
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="flex items-baseline gap-1 my-1">
+                                                                    <span className="text-xs font-black text-gray-900 tracking-tighter leading-none">
+                                                                        ₹{product.price}
+                                                                    </span>
+                                                                    {product.originalPrice && (
+                                                                        <span className="text-[9px] text-red-500 line-through font-medium">
+                                                                            ₹{product.originalPrice}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+
+                                                                <div className="hidden sm:flex flex-row gap-1 items-center">
+                                                                    <button onClick={() => handleEditProduct(product)} className="flex items-center justify-center p-1.5 rounded-lg bg-white border border-gray-100 text-gray-500 hover:text-primary hover:border-primary hover:bg-primary/5 transition-all shadow-sm" title="Edit product"><Pencil className="w-3 h-3" /></button>
+                                                                    <button onClick={() => setProductToDelete(product)} className="flex items-center justify-center p-1.5 rounded-lg bg-white border border-gray-100 text-gray-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all shadow-sm" title="Delete product"><Trash2 className="w-3 h-3" /></button>
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    </div>
+                                                    </SwipeableCard>
                                                 ))
                                             ) : (
                                                 <div className="col-span-full p-6 flex flex-col items-center justify-center bg-gray-50/50 rounded-2xl border-2 border-dashed border-gray-100 text-center"><div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center mb-4"><Package className="w-8 h-8 text-primary/20" /></div><p className="text-base font-bold text-gray-900">Your Catalog is Empty</p><p className="text-sm text-gray-500 max-w-xs mt-1 mb-4">Start adding products to showcase them to your customers.</p><PremiumButton onClick={() => setShowAddProductModal(true)} className="rounded-xl shadow-lg shadow-primary/20"><Plus className="w-4 h-4 mr-2" />Add Product</PremiumButton></div>
