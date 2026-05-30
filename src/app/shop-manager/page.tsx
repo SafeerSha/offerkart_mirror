@@ -79,7 +79,7 @@ function SwipeableCard({ children, onEdit, onDelete, editTitle = "Edit", deleteT
     const handleTouchEnd = () => {
         if (startX === null || currentX === null) return;
         const diff = startX - currentX;
-        
+
         // If swiped left more than 50px, reveal actions
         if (diff > 50) {
             setIsSwiped(true);
@@ -88,7 +88,7 @@ function SwipeableCard({ children, onEdit, onDelete, editTitle = "Edit", deleteT
         else if (diff < -30) {
             setIsSwiped(false);
         }
-        
+
         setStartX(null);
         setCurrentX(null);
     };
@@ -103,7 +103,7 @@ function SwipeableCard({ children, onEdit, onDelete, editTitle = "Edit", deleteT
     };
 
     return (
-        <div 
+        <div
             ref={cardRef}
             className="relative overflow-hidden rounded-xl w-full"
             onTouchStart={handleTouchStart}
@@ -111,7 +111,7 @@ function SwipeableCard({ children, onEdit, onDelete, editTitle = "Edit", deleteT
             onTouchEnd={handleTouchEnd}
         >
             {/* Slideable Card Content */}
-            <div 
+            <div
                 onClick={handleContentClick}
                 className={cn(
                     "transition-transform duration-300 ease-out select-none w-full relative z-10",
@@ -122,13 +122,13 @@ function SwipeableCard({ children, onEdit, onDelete, editTitle = "Edit", deleteT
             </div>
 
             {/* Hidden Action Panel behind the card (revealed on swipe left) */}
-            <div 
+            <div
                 className={cn(
                     "absolute right-0 top-0 bottom-0 flex items-center gap-2 px-3 bg-gradient-to-l from-orange-500/10 to-transparent border-l border-primary/10 rounded-r-xl transition-all duration-300 z-0",
                     isSwiped ? "opacity-100 translate-x-0" : "opacity-0 translate-x-4"
                 )}
             >
-                <button 
+                <button
                     onClick={(e) => {
                         e.stopPropagation();
                         setIsSwiped(false);
@@ -139,7 +139,7 @@ function SwipeableCard({ children, onEdit, onDelete, editTitle = "Edit", deleteT
                 >
                     <Pencil className="w-4 h-4" />
                 </button>
-                <button 
+                <button
                     onClick={(e) => {
                         e.stopPropagation();
                         setIsSwiped(false);
@@ -186,12 +186,35 @@ function DashboardContent() {
     const publishedOffers = useMemo(() => {
         if (!offersResponse?.success || !offersResponse?.data) return [] as any[];
         const result = offersResponse.data as any;
-        return (Array.isArray(result) ? result : (result.data || [])) as any[];
+        const offersArray = Array.isArray(result) ? result : (result.data || []);
+        return offersArray.filter((offer: any) => !offer.isDraft) as any[];
+    }, [offersResponse]);
+
+    const draftedOffers = useMemo(() => {
+        if (!offersResponse?.success || !offersResponse?.data) return [] as any[];
+        const result = offersResponse.data as any;
+        const offersArray = Array.isArray(result) ? result : (result.data || []);
+        return offersArray.filter((offer: any) => offer.isDraft) as any[];
     }, [offersResponse]);
 
     // 3. Fetch Products
     const { data: productsData, isLoading: isLoadingProducts } = useAllProducts(activeShopId || undefined);
-    const products = (productsData || []) as Product[];
+    const products = useMemo(() => {
+        const prods = (productsData || []) as Product[];
+        return prods.filter((p: any) => !p.isDraft);
+    }, [productsData]);
+
+    const draftedProducts = useMemo(() => {
+        const prods = (productsData || []) as Product[];
+        return prods.filter((p: any) => p.isDraft);
+    }, [productsData]);
+
+    const allDrafts = useMemo(() => {
+        return [
+            ...draftedOffers.map((o: any) => ({ ...o, _draftType: 'offer' })),
+            ...draftedProducts.map((p: any) => ({ ...p, _draftType: 'product' }))
+        ];
+    }, [draftedOffers, draftedProducts]);
 
     // 4. Fetch Branches for mapping in product cards
     const { data: branchesResponse } = useBranches(activeShopId || "");
@@ -308,6 +331,11 @@ function DashboardContent() {
     };
 
     const handleToggleOfferStatus = async (offer: any) => {
+        if (offer.isDraft) {
+            toast.error("Draft offers cannot be activated. Please publish it first.");
+            return;
+        }
+
         try {
             if (activeShopId) {
                 const idToUse = offer.offerId || offer.id || offer.batchId;
@@ -706,6 +734,15 @@ function DashboardContent() {
                                                     </PremiumButton>
                                                 </Link>
                                             </div>
+                                            <PremiumButton
+                                                onClick={handleLogout}
+                                                variant="outline"
+                                                size="sm"
+                                                className="w-full rounded-xl py-3.5 mt-2 border-rose-100 hover:border-rose-200 bg-rose-50/30 hover:bg-rose-50 text-rose-600 gap-1.5 transition-all duration-300"
+                                            >
+                                                <LogOut className="w-3.5 h-3.5" />
+                                                <span className="text-[10px] font-bold uppercase tracking-wider">Logout</span>
+                                            </PremiumButton>
                                         </div>
                                     </div>
                                 </PremiumCard>
@@ -733,6 +770,15 @@ function DashboardContent() {
                                                     <span className="text-xs font-bold uppercase tracking-wider">Create Your Shop</span>
                                                 </PremiumButton>
                                             </Link>
+                                            <PremiumButton
+                                                onClick={handleLogout}
+                                                variant="outline"
+                                                size="sm"
+                                                className="w-full rounded-xl py-3.5 mt-2 border-rose-100 hover:border-rose-200 bg-rose-50/30 hover:bg-rose-50 text-rose-600 gap-1.5 shadow-sm transition-all duration-300 hover:shadow-md"
+                                            >
+                                                <LogOut className="w-3.5 h-3.5" />
+                                                <span className="text-[10px] font-bold uppercase tracking-wider">Logout</span>
+                                            </PremiumButton>
                                         </div>
                                     </div>
                                 </PremiumCard>
@@ -741,11 +787,10 @@ function DashboardContent() {
                         <PremiumCard variant="glass" padding="none" className="overflow-hidden shadow-lg shadow-black/5">
                             <div className="p-5">
                                 <SectionTitle className="mb-4 text-xs text-gray-400 font-bold uppercase tracking-widest">Quick Utilities</SectionTitle>
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-3 gap-2.5">
                                     <ActionButton icon={Settings} label="Business" href="/shop-manager/shop-settings" variant="grid" />
                                     <ActionButton icon={Paintbrush} label="Designer" href="/shop-manager/poster-designer" variant="grid" />
                                     <ActionButton icon={BarChart3} label="Analysis" variant="grid" />
-                                    <ActionButton icon={LogOut} label="Logout" className="text-rose-500" variant="grid" onClick={handleLogout} />
                                 </div>
                             </div>
                         </PremiumCard>
@@ -764,6 +809,11 @@ function DashboardContent() {
                                             <TabsTrigger value="products" className="flex-1 xs:flex-none data-[state=active]:bg-orange-500 data-[state=active]:text-white gap-2 transition-all">
                                                 <Package className="w-4 h-4" /> Products
                                             </TabsTrigger>
+                                            {allDrafts.length > 0 && (
+                                                <TabsTrigger value="drafts" className="flex-1 xs:flex-none data-[state=active]:bg-orange-500 data-[state=active]:text-white gap-2 transition-all">
+                                                    <Pencil className="w-4 h-4" /> Drafts
+                                                </TabsTrigger>
+                                            )}
                                         </TabsList>
                                         <div className="flex flex-col items-end">
                                             <span className="text-[9px] text-gray-400 font-bold block sm:hidden mt-0.5">← Swipe left on items to manage</span>
@@ -828,7 +878,7 @@ function DashboardContent() {
                                                             return (
                                                                 <SwipeableCard
                                                                     key={id}
-                                                                    onEdit={() => openEditModal(offer)}
+                                                                    onEdit={() => offer.isDraft ? router.push(`/shop-manager/poster-designer?draftId=${offer.batchId || offer.id}`) : openEditModal(offer)}
                                                                     onDelete={() => setOfferToDelete(offer)}
                                                                     editTitle="Edit offer"
                                                                     deleteTitle="Delete offer"
@@ -860,8 +910,10 @@ function DashboardContent() {
                                                                                 </div>
                                                                             )}
                                                                             <div className="absolute top-1 left-1">
-                                                                                <div className="px-1 py-0.5 rounded bg-white/90 backdrop-blur-sm shadow-sm border border-gray-100">
-                                                                                    <p className="text-[8px] font-black text-primary uppercase tracking-tighter">New</p>
+                                                                                <div className={cn("px-1 py-0.5 rounded backdrop-blur-sm shadow-sm border", offer.isDraft ? "bg-amber-100/90 border-amber-200" : "bg-white/90 border-gray-100")}>
+                                                                                    <p className={cn("text-[8px] font-black uppercase tracking-tighter", offer.isDraft ? "text-amber-600" : "text-primary")}>
+                                                                                        {offer.isDraft ? "Draft" : "New"}
+                                                                                    </p>
                                                                                 </div>
                                                                             </div>
                                                                         </div>
@@ -873,7 +925,7 @@ function DashboardContent() {
 
                                                                             <div className="flex items-center gap-1.5 mt-0.5 min-w-0 pr-2">
                                                                                 <div className="text-[9px] font-bold text-orange-500 uppercase tracking-widest leading-none truncate">
-                                                                                    Offer
+                                                                                    {offer.type ? `${offer.type}` : ''}
                                                                                 </div>
                                                                             </div>
 
@@ -1081,6 +1133,104 @@ function DashboardContent() {
                                             )}
                                         </div>
                                     </TabsContent>
+
+                                    {allDrafts.length > 0 && (
+                                        <TabsContent value="drafts" className="mt-0 focus-visible:ring-0">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar p-1">
+                                                {allDrafts.map((draft, idx) => {
+                                                    const isOffer = draft._draftType === 'offer';
+                                                    const id = isOffer ? (draft.offerId || draft.batchId || idx) : draft.id;
+                                                    const image = isOffer ? (draft.posters?.[0]?.posterSrc || draft.posterSrc) : draft.image;
+                                                    const title = isOffer ? draft.title : draft.name;
+                                                    const badgeText = isOffer ? 'OFFER' : 'PRODUCT';
+                                                    const typeIcon = isOffer ? <Tag className="w-6 h-6 text-gray-300" /> : <ShoppingBag className="w-6 h-6 text-gray-300" />;
+
+                                                    return (
+                                                        <SwipeableCard
+                                                            key={`draft-${draft._draftType}-${id}`}
+                                                            onEdit={() => {
+                                                                if (isOffer) {
+                                                                    if (draft.type === "BUILDER") {
+                                                                        if (draft.rawDesigner) {
+                                                                            const rawData = typeof draft.rawDesigner === 'string' ? draft.rawDesigner : JSON.stringify(draft.rawDesigner);
+                                                                            const dataToSave = rawData
+                                                                                .replace(/&amp;quot;/g, '"')
+                                                                                .replace(/&quot;/g, '"')
+                                                                                .replace(/&#039;/g, "'")
+                                                                                .replace(/&lt;/g, '<')
+                                                                                .replace(/&gt;/g, '>')
+                                                                                .replace(/&amp;/g, '&');
+                                                                            localStorage.setItem('designer_draft_data', dataToSave);
+                                                                        } else {
+                                                                            localStorage.removeItem('designer_draft_data');
+                                                                        }
+                                                                        router.push(`/shop-manager/poster-designer?draftId=${draft.batchId || draft.offerId || draft.id}&fromLocalStorage=true`);
+                                                                    } else {
+                                                                        openEditModal(draft);
+                                                                    }
+                                                                } else {
+                                                                    handleEditProduct(draft);
+                                                                }
+                                                            }}
+                                                            onDelete={() => isOffer ? setOfferToDelete(draft) : setProductToDelete(draft)}
+                                                            editTitle={`Edit ${draft._draftType}`}
+                                                            deleteTitle={`Delete ${draft._draftType}`}
+                                                        >
+                                                            <div className="group relative flex items-start gap-3 p-3 rounded-xl bg-gray-50/50 border border-gray-100 hover:border-primary/20 hover:bg-white hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 overflow-hidden">
+                                                                <div className="relative w-16 h-16 rounded-lg bg-white overflow-hidden shrink-0 border border-gray-100 shadow-sm z-10 transition-all duration-300">
+                                                                    {image ? (
+                                                                        <Image src={image} alt={title || ""} fill unoptimized className="object-cover" />
+                                                                    ) : (
+                                                                        <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+                                                                            {typeIcon}
+                                                                        </div>
+                                                                    )}
+                                                                    <div className="absolute top-1 left-1"><div className="px-1 py-0.5 rounded bg-amber-100/90 backdrop-blur-sm shadow-sm border border-amber-200"><p className="text-[8px] font-black text-amber-600 uppercase tracking-tighter">{badgeText}</p></div></div>
+                                                                </div>
+                                                                <div className="min-w-0 flex-1 z-10 flex flex-col justify-center self-stretch py-0.5">
+                                                                    <h4 className="font-bold text-xs text-gray-900 truncate">{title}</h4>
+                                                                    <div className="flex items-center gap-1.5 mt-1">
+                                                                        <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">
+                                                                            {isOffer ? `Offer Draft ${draft.type ? `• ${draft.type}` : ''}` : 'Product Draft'}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="relative z-20 flex flex-col items-end justify-between self-stretch shrink-0 py-0.5">
+                                                                    <div className="hidden sm:flex flex-row gap-1 items-center">
+                                                                        <button onClick={() => {
+                                                                            if (isOffer) {
+                                                                                if (draft.type === "BUILDER") {
+                                                                                    if (draft.rawDesigner) {
+                                                                                        const rawData = typeof draft.rawDesigner === 'string' ? draft.rawDesigner : JSON.stringify(draft.rawDesigner);
+                                                                                        const dataToSave = rawData
+                                                                                            .replace(/&amp;quot;/g, '"')
+                                                                                            .replace(/&quot;/g, '"')
+                                                                                            .replace(/&#039;/g, "'")
+                                                                                            .replace(/&lt;/g, '<')
+                                                                                            .replace(/&gt;/g, '>')
+                                                                                            .replace(/&amp;/g, '&');
+                                                                                        localStorage.setItem('designer_draft_data', dataToSave);
+                                                                                    } else {
+                                                                                        localStorage.removeItem('designer_draft_data');
+                                                                                    }
+                                                                                    router.push(`/shop-manager/poster-designer?draftId=${draft.batchId || draft.offerId || draft.id}&fromLocalStorage=true`);
+                                                                                } else {
+                                                                                    openEditModal(draft);
+                                                                                }
+                                                                            } else {
+                                                                                handleEditProduct(draft);
+                                                                            }
+                                                                        }} className="flex items-center justify-center p-1.5 rounded-lg bg-white border border-gray-100 text-gray-500 hover:text-primary hover:border-primary hover:bg-primary/5 transition-all shadow-sm"><Pencil className="w-3 h-3" /></button>
+                                                                        <button onClick={() => isOffer ? setOfferToDelete(draft) : setProductToDelete(draft)} className="flex items-center justify-center p-1.5 rounded-lg bg-white border border-gray-100 text-gray-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all shadow-sm"><Trash2 className="w-3 h-3" /></button>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </SwipeableCard>
+                                                    );
+                                                })}
+                                            </div>
+                                        </TabsContent>
+                                    )}
                                 </div>
                             </PremiumCard>
                         </Tabs>

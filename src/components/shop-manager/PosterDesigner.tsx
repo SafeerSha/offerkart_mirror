@@ -500,7 +500,7 @@ function ProductCardContent({ el, onUpdate }: { el: CanvasElement; onUpdate: (id
                     <div className="absolute bottom-0 left-0 right-0 bg-white p-1">
                         <div className="flex items-center gap-1">
                             <div className="bg-red-600 text-white px-2 py-1 flex flex-col items-center justify-center min-w-[50px] rounded-none shadow-sm">
-                                <span className="text-[7px] font-bold leading-none opacity-80">QAR</span>
+                                <span className="text-[7px] font-bold leading-none opacity-80">INR</span>
                                 <span className="text-sm font-black leading-none">{el.cardOfferPrice}</span>
                             </div>
                             <div className="flex flex-col min-w-0">

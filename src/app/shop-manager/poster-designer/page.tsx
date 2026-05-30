@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, Suspense, useMemo, useCallback, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import PosterDesigner, { PosterDesignerRef, DesignerPosterData } from "@/components/shop-manager/PosterDesigner";
@@ -9,7 +9,7 @@ import { CanvasElement } from "@/components/shop-manager/PosterDesigner";
 import { PosterTemplateSelector } from "@/components/shop-manager/PosterTemplateSelector";
 import { TemplateConfig } from "@/lib/posterTemplates";
 import { templateConfigToCanvasElements, ShopData } from "@/lib/templateToCanvas";
-import { useMyShops, useBranches, useCreateOffer } from "@/hooks/useApi";
+import { useMyShops, useBranches, useCreateOffer, useOfferById } from "@/hooks/useApi";
 import { cn, formatDateLocal } from "@/lib/utils";
 import { AppModal } from "@/components/shared/AppModal";
 import { PremiumButton } from "@/components/shared/PremiumButton";
@@ -32,14 +32,109 @@ type PosterPageDraft = {
     initialCanvasBg: string;
 };
 
-export default function PosterDesignerPage() {
+function parseRawDesigner(data: string) {
+    try {
+        return JSON.parse(data);
+    } catch (firstError) {
+        try {
+            const decoded = data
+                .replace(/&amp;quot;/g, '"')
+                .replace(/&quot;/g, '"')
+                .replace(/&#039;/g, "'")
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/&amp;/g, '&');
+            return JSON.parse(decoded);
+        } catch (secondError) {
+            throw firstError;
+        }
+    }
+}
+
+function PosterDesignerInner() {
     const { data: session } = useSession();
     const [posterPages, setPosterPages] = useState<PosterPageDraft[]>([]);
     const [activePageId, setActivePageId] = useState<string | null>(null);
     const [isChoosingTemplate, setIsChoosingTemplate] = useState(true);
 
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const draftId = searchParams.get('draftId');
     const [forceLeave, setForceLeave] = useState(false);
+    const [isDraftLoaded, setIsDraftLoaded] = useState(false);
+
+    const { data: draftOfferResponse } = useOfferById(draftId && !searchParams.get('fromLocalStorage') ? draftId : "");
+
+    useEffect(() => {
+        const fromLocalStorage = searchParams.get('fromLocalStorage') === 'true';
+        
+        // 1. Try loading from LocalStorage first (Frontend workaround)
+        if (draftId && fromLocalStorage && !isDraftLoaded) {
+            const storedDesigner = localStorage.getItem('designer_draft_data');
+            if (storedDesigner) {
+                try {
+                    const parsedPages = parseRawDesigner(storedDesigner);
+                    if (!Array.isArray(parsedPages)) {
+                        toast.error("LocalStorage rawDesigner is not an array!");
+                    } else {
+                        setPosterPages(parsedPages);
+                        setIsChoosingTemplate(false);
+                        if (parsedPages.length > 0) {
+                            setActivePageId(parsedPages[0].id);
+                        }
+                        toast.success("Draft design loaded from browser!");
+                    }
+                    setIsDraftLoaded(true);
+                } catch (e: any) {
+                    console.error("Failed to parse designer_draft_data", e);
+                    toast.error(`Draft Load Error: ${e.message}`);
+                    setIsDraftLoaded(true);
+                }
+                return; // Exit early if we loaded from local storage
+            } else {
+                toast.error("Error: LocalStorage missing design data. The backend might not be sending it.");
+                setIsDraftLoaded(true); // Stop trying to load
+                return;
+            }
+        }
+
+        // 2. Fallback to API if not loaded from LocalStorage
+        if (draftId && draftOfferResponse?.success && draftOfferResponse?.data && !isDraftLoaded) {
+            const offer = draftOfferResponse.data as any;
+            if (offer.rawDesigner) {
+                try {
+                    const parsedPages = typeof offer.rawDesigner === 'string' 
+                        ? parseRawDesigner(offer.rawDesigner) 
+                        : offer.rawDesigner;
+                    
+                    if (!Array.isArray(parsedPages)) {
+                        toast.error("rawDesigner is not an array!");
+                        console.error("rawDesigner is not an array:", parsedPages);
+                    } else {
+                        setPosterPages(parsedPages);
+                        setIsChoosingTemplate(false);
+                        if (parsedPages.length > 0) {
+                            setActivePageId(parsedPages[0].id);
+                        }
+                        setOfferTitle(offer.title || "");
+                        setValidFrom(offer.validFrom ? new Date(offer.validFrom) : undefined);
+                        setValidTo(offer.validTo ? new Date(offer.validTo) : undefined);
+                        if (offer.branches) {
+                            setSelectedBranchIds(offer.branches.map((b: any) => String(b.id || b.branchId || b.branch_id)));
+                        }
+                        toast.success("Draft design loaded from API successfully");
+                    }
+                    setIsDraftLoaded(true);
+                } catch (e: any) {
+                    console.error("Failed to parse rawDesigner from draft", e);
+                    toast.error(`Draft Load Error: ${e.message}`);
+                }
+            } else {
+                toast.error("Draft API response missing rawDesigner property!");
+                setIsDraftLoaded(true);
+            }
+        }
+    }, [draftId, draftOfferResponse, isDraftLoaded, searchParams]);
 
     // ── Publish Modal State ──────────────────────────────────────────────
     const [showPublishModal, setShowPublishModal] = useState(false);
@@ -140,6 +235,80 @@ export default function PosterDesignerPage() {
         setForceLeave(false);
     };
 
+    const handleSaveDraft = async () => {
+        const toastId = toast.loading(`Saving draft...`);
+        setIsPublishing(true);
+
+        try {
+            const results = [];
+            for (const page of posterPages) {
+                const ref = designerRefs.current[page.id];
+                if (ref) {
+                    const data = await ref.captureAsImage();
+                    if (data) {
+                        results.push({ pageId: page.id, posterFile: data.posterFile, markedItems: data.markedItems });
+                    }
+                }
+            }
+
+            if (results.length === 0) {
+                toast.error("Failed to capture posters for draft", { id: toastId });
+                setIsPublishing(false);
+                return;
+            }
+
+            const posterData = results.map((cp, index) => {
+                return {
+                    id: crypto.randomUUID(),
+                    posterSrc: "", // Skip S3 upload for drafts
+                    type: "marked_poster" as const,
+                    order: index + 1,
+                    markedItems: cp.markedItems,
+                };
+            });
+
+            const selectedBranches = branches.filter((b: any) => selectedBranchIds.includes(String(b.id)));
+            const branchesToUse = selectedBranches.length > 0 ? selectedBranches : (branches.length > 0 ? [branches[0]] : []);
+            const batchId = crypto.randomUUID();
+
+            const offerPayload = {
+                batchId: batchId,
+                title: offerTitle.trim() || `Draft Offer - ${formatDateLocal(new Date())}`,
+                validFrom: validFrom ? formatDateLocal(validFrom) : formatDateLocal(new Date()),
+                validTo: validTo ? formatDateLocal(validTo) : formatDateLocal(new Date(Date.now() + 86400000 * 7)),
+                branchIds: branchesToUse.map((b: any) => b.id),
+                branchNames: branchesToUse.map((b: any) => b.branch_name || b.name || "Default Branch"),
+                branchCity: branchesToUse[0]?.city || "Default City",
+                createdAt: new Date().toISOString(),
+                status: 'draft',
+                isActive: false,
+                posters: posterData,
+                isDraft: true,
+                type: "BUILDER",
+                rawDesigner: JSON.stringify(posterPages),
+            };
+
+            const res = await createOfferMutation({ payload: offerPayload, shopId: activeShopId || "" });
+            if (res.success) {
+                toast.success("Draft saved successfully!", { id: toastId });
+                setShowLeaveWarning(false);
+                if (pendingLeaveAction) {
+                    setForceLeave(true);
+                    pendingLeaveAction();
+                } else {
+                    router.push("/shop-manager");
+                }
+            } else {
+                toast.error((res as any).message || "Failed to save draft", { id: toastId });
+            }
+        } catch (err: any) {
+            console.error("Save draft error", err);
+            toast.error("Failed to save draft: " + (err.message || err), { id: toastId });
+        } finally {
+            setIsPublishing(false);
+        }
+    };
+
     // Stable boolean — only flips when dirty status actually changes (not on every keystroke)
     const isDesignerDirty = useMemo(() => {
         if (isChoosingTemplate) return false;
@@ -213,10 +382,10 @@ export default function PosterDesignerPage() {
 
     const handleDeletePoster = (e: React.MouseEvent, pageId: string) => {
         e.stopPropagation();
-        
+
         setPosterPages((prev) => {
             const filtered = prev.filter(p => p.id !== pageId);
-            
+
             if (pageId === activePageId) {
                 if (filtered.length > 0) {
                     setActivePageId(filtered[filtered.length - 1].id);
@@ -225,7 +394,7 @@ export default function PosterDesignerPage() {
                     setIsChoosingTemplate(true);
                 }
             }
-            
+
             return filtered;
         });
     };
@@ -341,6 +510,8 @@ export default function PosterDesignerPage() {
                 status: isActive ? 'active' : 'paused',
                 isActive: isActive,
                 posters: posterData,
+                isDraft: false,
+                type: "BUILDER",
             };
 
             const res = await createOfferMutation({ payload: offerPayload, shopId: activeShopId || "" });
@@ -450,7 +621,7 @@ export default function PosterDesignerPage() {
                                                             {page.template.name}
                                                         </span>
                                                     )}
-                                                    <div 
+                                                    <div
                                                         className="ml-1 rounded-full p-0.5 hover:bg-gray-200/50 hover:text-red-500 transition-colors"
                                                         onClick={(e) => handleDeletePoster(e, page.id)}
                                                     >
@@ -477,7 +648,7 @@ export default function PosterDesignerPage() {
                                     </div>
                                     <div className="relative h-[calc(100vh-140px)] w-full">
                                         {posterPages.map(page => (
-                                            <div 
+                                            <div
                                                 key={page.id}
                                                 className={cn(
                                                     "absolute inset-0 h-full w-full",
@@ -667,12 +838,25 @@ export default function PosterDesignerPage() {
                             <p className="mt-1 text-xs opacity-80">Your current poster edits have not been exported or saved yet.</p>
                         </div>
                     </div>
-                    <div className="flex gap-3 justify-end">
-                        <PremiumButton variant="outline" onClick={cancelLeave} className="rounded-xl">
+                    <div className="flex gap-3 justify-end flex-wrap">
+                        <PremiumButton
+                            variant="outline"
+                            onClick={cancelLeave}
+                            disabled={isPublishing}
+                            className="rounded-xl"
+                        >
                             Stay here
                         </PremiumButton>
                         <PremiumButton
+                            onClick={handleSaveDraft}
+                            disabled={isPublishing}
+                            className="rounded-xl bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-500/20 border-0"
+                        >
+                            {isPublishing ? "Saving..." : "Save Draft"}
+                        </PremiumButton>
+                        <PremiumButton
                             onClick={confirmLeave}
+                            disabled={isPublishing}
                             className="rounded-xl px-6 bg-orange-500 hover:bg-orange-600 text-white shadow-lg shadow-orange-500/20"
                         >
                             Leave anyway
@@ -681,5 +865,13 @@ export default function PosterDesignerPage() {
                 </div>
             </AppModal>
         </div>
+    );
+}
+
+export default function PosterDesignerPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>}>
+            <PosterDesignerInner />
+        </Suspense>
     );
 }

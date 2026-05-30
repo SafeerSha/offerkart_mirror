@@ -342,6 +342,7 @@ function CreateOfferContent() {
                 status: isActive ? 'active' : 'paused',
                 isActive: isActive,
                 posters: finalPosters,
+                type: "UPLOAD",
             };
 
             try {
