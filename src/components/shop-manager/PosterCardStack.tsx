@@ -53,6 +53,7 @@ interface PosterCardStackProps {
     submitButtonText?: string;
     editorReturnTo?: "create-offer" | "edit-offer";
     editorReturnUrl?: string;
+    onSaveDraft?: (posters: PosterItem[]) => void;
 }
 
 type Phase = "upload" | "classify" | "summary";
@@ -71,6 +72,7 @@ export const PosterCardStack = ({
     submitButtonText = "Publish",
     editorReturnTo = "create-offer",
     editorReturnUrl,
+    onSaveDraft,
 }: PosterCardStackProps) => {
     const [phase, setPhase] = useState<Phase>("upload");
     const [posters, setPosters] = useState<PosterItem[]>([]);
@@ -847,13 +849,36 @@ export const PosterCardStack = ({
                     </PremiumButton>
                 </div>
 
-                <PremiumButton
-                    onClick={handleNext}
-                    rightIcon={ArrowRight}
-                    className="rounded-xl w-full h-10 text-base font-bold shadow-lg shadow-primary/20"
-                >
-                    {submitButtonText}
-                </PremiumButton>
+                <div className="flex gap-2">
+                    {onSaveDraft && (
+                        <PremiumButton
+                            onClick={() => {
+                                const classified = posters.map((p) => {
+                                    const type = p.type === "unclassified" ? ("just_post" as const) : p.type;
+                                    return {
+                                        ...p,
+                                        type,
+                                        markedItems: type === "marked_poster" ? (p.markedItems || []) : [],
+                                    };
+                                });
+                                onSaveDraft(classified);
+                            }}
+                            className="rounded-xl flex-1 h-10 text-sm bg-none bg-yellow-600 hover:bg-yellow-700 text-white shadow-lg shadow-yellow-600/20 border-0"
+                        >
+                            Save Draft
+                        </PremiumButton>
+                    )}
+                    <PremiumButton
+                        onClick={handleNext}
+                        rightIcon={ArrowRight}
+                        className={cn(
+                            "rounded-xl h-10 text-sm font-bold shadow-lg shadow-primary/20",
+                            onSaveDraft ? "flex-1" : "w-full text-base"
+                        )}
+                    >
+                        {submitButtonText}
+                    </PremiumButton>
+                </div>
             </div>
         </div>
     );

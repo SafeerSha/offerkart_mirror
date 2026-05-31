@@ -787,15 +787,15 @@ function PosterDesignerInner() {
                         </div>
                     </div>
 
-                    <div className="flex items-center justify-between pt-4 border-t border-primary/10">
-                        <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-1.5 hidden sm:flex">
+                    <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center sm:justify-between pt-4 border-t border-primary/10">
+                        <div className="flex items-center justify-between sm:justify-start gap-3">
+                            <div className="flex items-center gap-1.5">
                                 <div className={cn(
                                     "w-2 h-2 rounded-full",
                                     isActive ? "bg-[#1cc080]" : "bg-gray-400"
                                 )} />
                                 <span className={cn(
-                                    "text-[13px] font-bold uppercase tracking-wider",
+                                    "text-[11px] font-bold uppercase tracking-wider",
                                     isActive ? "text-slate-800" : "text-gray-500"
                                 )}>
                                     {isActive ? "Active" : "Paused"}
@@ -803,22 +803,30 @@ function PosterDesignerInner() {
                             </div>
                             <StatusToggleButton status={isActive ? "active" : "paused"} onChange={(newStatus) => setIsActive(newStatus === "active")} />
                         </div>
-                        <div className="flex gap-3">
+                        <div className="flex flex-col sm:flex-row gap-2.5 sm:justify-end">
                             <PremiumButton
                                 variant="outline"
                                 onClick={() => setShowPublishModal(false)}
-                                className="rounded-xl"
+                                className="rounded-xl w-full sm:w-auto order-3 sm:order-1"
                             >
                                 Cancel
+                            </PremiumButton>
+                            <PremiumButton
+                                onClick={handleSaveDraft}
+                                isLoading={isPublishing}
+                                className="rounded-xl bg-none bg-yellow-600 hover:bg-yellow-700 text-white shadow-lg shadow-yellow-600/20 border-0 w-full sm:w-auto order-2 sm:order-2"
+                                disabled={isPublishing}
+                            >
+                                Save Draft
                             </PremiumButton>
                             <PremiumButton
                                 onClick={handlePublishSubmit}
                                 isLoading={isPublishing}
                                 leftIcon={Send}
-                                className="rounded-xl"
+                                className="rounded-xl w-full sm:w-auto order-1 sm:order-3"
                                 disabled={isPublishing}
                             >
-                                {isPublishing ? "Publishing..." : "Confirm & Publish"}
+                                {isPublishing ? "Publishing..." : "Publish"}
                             </PremiumButton>
                         </div>
                     </div>

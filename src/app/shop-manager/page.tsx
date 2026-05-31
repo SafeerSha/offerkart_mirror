@@ -319,7 +319,9 @@ function DashboardContent() {
     };
 
     const openEditModal = (offer: any) => {
-        const id = String(offer.offerId || offer.id || offer.batchId);
+        // If it's a draft and has a batchId, use batchId so it loads correctly from local storage
+        const isLocalDraft = offer.isDraft && offer.batchId;
+        const id = isLocalDraft ? String(offer.batchId) : String(offer.offerId || offer.id || offer.batchId);
         router.push(`/shop-manager/edit-offer/${id}`);
     };
 
@@ -971,7 +973,7 @@ function DashboardContent() {
                                                                 return (
                                                                     <SwipeableCard
                                                                         key={id}
-                                                                        onEdit={() => offer.isDraft ? router.push(`/shop-manager/poster-designer?draftId=${offer.batchId || offer.id}`) : openEditModal(offer)}
+                                                                        onEdit={() => (offer.isDraft && offer.type === "BUILDER") ? router.push(`/shop-manager/poster-designer?draftId=${offer.batchId || offer.id}`) : openEditModal(offer)}
                                                                         onDelete={() => setOfferToDelete(offer)}
                                                                         editTitle="Edit offer"
                                                                         deleteTitle="Delete offer"

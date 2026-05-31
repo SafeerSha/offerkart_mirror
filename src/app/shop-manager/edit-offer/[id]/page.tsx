@@ -26,7 +26,7 @@ import { MultiSearchableSelect } from "@/components/shared/MultiSearchableSelect
 import { StatusToggleButton } from "@/components/shared/StatusToggleButton";
 import { AppModal } from "@/components/shared/AppModal";
 import { cn, formatDateLocal } from "@/lib/utils";
-import { getOfferById, updateOffer } from "@/lib/api/offers";
+import { getOfferById, getAllOffers, updateOffer } from "@/lib/api/offers";
 import { getBranches } from "@/lib/api/branch";
 import { getMyShops } from "@/lib/api/shop";
 import { s3Api } from "@/lib/api/s3";
@@ -91,23 +91,73 @@ function EditOfferContent() {
     const [isEditing, setIsEditing] = useState(false);
     const [previewState, setPreviewState] = useState<PosterPreviewState | null>(null);
 
-    // ── Load offer from API ──────────────────────────────────────────────────
+    // ── Load offer from local storage, list API, or detail API ────────────────
     useEffect(() => {
         const load = async () => {
             setIsLoading(true);
             try {
-                // Fetch from API
-                const res = await getOfferById(offerId);
+                let offer = null;
 
-                if (res.success && res.data) {
-                    const raw = res.data as any;
-                    // Handle wrapped responses (e.g., { success, data: { ... } }) or direct responses
-                    const offer = raw?.data ?? raw;
-
-                    if (process.env.NODE_ENV === "development") {
-                        console.log("Edit Offer Data:", { raw, offer });
+                // 1. Try local storage first (covers locally-saved drafts)
+                const localOffers = await storage.getItem<any[]>("markedPosters");
+                if (localOffers && localOffers.length > 0) {
+                    offer = localOffers.find(o =>
+                        String(o.batchId) === String(offerId) ||
+                        String(o.id) === String(offerId) ||
+                        String(o.offerId) === String(offerId)
+                    ) || null;
+                    if (offer && process.env.NODE_ENV === "development") {
+                        console.log("Loaded offer from local storage:", offer);
                     }
+                }
 
+                // 2. Try fetching from getAllOffers list endpoint (works for drafts too)
+                if (!offer) {
+                    try {
+                        let shopId = (session as any)?.shopId ?? (session?.user as any)?.shopId;
+                        if (!shopId) {
+                            const shopRes = await getMyShops();
+                            if (shopRes.success && shopRes.data) {
+                                const list = Array.isArray(shopRes.data) ? shopRes.data : (shopRes.data as any).data || [];
+                                if (list.length > 0) shopId = list[0].id;
+                            }
+                        }
+                        if (shopId) {
+                            const allRes = await getAllOffers(String(shopId));
+                            if (allRes.success && allRes.data) {
+                                const allList = Array.isArray(allRes.data) ? allRes.data : (allRes.data as any).data || [];
+                                offer = allList.find((o: any) =>
+                                    String(o.offerId) === String(offerId) ||
+                                    String(o.id) === String(offerId) ||
+                                    String(o.batchId) === String(offerId)
+                                ) || null;
+                                if (offer && process.env.NODE_ENV === "development") {
+                                    console.log("Loaded offer from allOffers list:", offer);
+                                }
+                            }
+                        }
+                    } catch (listErr) {
+                        console.warn("getAllOffers fallback failed:", listErr);
+                    }
+                }
+
+                // 3. Last resort: try the detail endpoint directly
+                if (!offer) {
+                    try {
+                        const res = await getOfferById(offerId);
+                        if (res.success && res.data) {
+                            const raw = res.data as any;
+                            offer = raw?.data ?? raw;
+                            if (process.env.NODE_ENV === "development") {
+                                console.log("Loaded offer from detail API:", offer);
+                            }
+                        }
+                    } catch (detailErr) {
+                        console.warn("getOfferById fallback failed:", detailErr);
+                    }
+                }
+
+                if (offer) {
                     // Ultra-resilient title extraction
                     setTitle(offer.title || offer.offerName || offer.offer_name || "");
 
@@ -147,8 +197,20 @@ function EditOfferContent() {
 
                     // Ultra-resilient poster extraction
                     let postersRaw = offer.posters || offer.poster_links || offer.offer_posters;
+                    
+                    if (typeof postersRaw === 'string') {
+                        try {
+                            postersRaw = JSON.parse(postersRaw);
+                        } catch (e) {
+                            console.warn("Failed to parse posters string:", e);
+                        }
+                    }
 
                     // If no posters array, try to construct one from single image fields
+                    if (postersRaw && !Array.isArray(postersRaw) && Array.isArray(postersRaw.data)) {
+                        postersRaw = postersRaw.data;
+                    }
+
                     if (!postersRaw || (Array.isArray(postersRaw) && postersRaw.length === 0)) {
                         const singleOfferImage = offer.posterSrc || offer.poster_src || offer.image || offer.imageUrl || offer.image_url || offer.url;
                         if (singleOfferImage && typeof singleOfferImage === 'string') {
@@ -164,7 +226,7 @@ function EditOfferContent() {
                     }
 
                     const apiPosters: PosterItem[] = (Array.isArray(postersRaw) ? postersRaw : [])
-                        .filter((p: any) => !!(p.posterSrc || p.poster_src || p.imageUrl || p.image_url || p.url))
+                        .filter((p: any) => !!(p.posterSrc || p.poster_src || p.imageUrl || p.image_url || p.url || p.previewUrl))
                         .map((p: any, i: number) => {
                             // Extract marked items from API structure (offerProducts -> areas)
                             let marked: any[] = p.markedItems || p.marked_items || [];
@@ -193,9 +255,10 @@ function EditOfferContent() {
 
                             return {
                                 id: String(p.id || i),
-                                previewUrl: p.posterSrc || p.poster_src || p.imageUrl || p.image_url || p.url,
-                                type: marked.length > 0 ? "marked_poster" : "just_post",
+                                previewUrl: p.previewUrl || p.posterSrc || p.poster_src || p.imageUrl || p.image_url || p.url,
+                                type: marked.length > 0 ? "marked_poster" : (p.type || "just_post"),
                                 markedItems: marked,
+                                file: p.file // retain file if it's a local draft
                             };
                         });
 
@@ -215,7 +278,7 @@ function EditOfferContent() {
             }
         };
         load();
-    }, [offerId]);
+    }, [offerId, session]);
 
     // ── Load branches ────────────────────────────────────────────────────────
     useEffect(() => {
@@ -313,14 +376,39 @@ function EditOfferContent() {
                 posters: posterData,
             };
 
-            const res = await updateOffer(offerId, payload as any, String(shopId));
-            if (res.success) {
+            // Try to update on the server if possible (or fallback if it fails for local drafts)
+            let success = false;
+            try {
+                const res = await updateOffer(offerId, payload as any, String(shopId));
+                success = res.success;
+            } catch (apiErr) {
+                console.warn("API Update failed, updating locally only:", apiErr);
+            }
+
+            // Always update local storage so local list is in sync
+            const localOffers = await storage.getItem<any[]>("markedPosters");
+            if (localOffers && localOffers.length > 0) {
+                const updatedOffers = localOffers.map(o => {
+                    if (String(o.batchId || o.id || o.offerId) === String(offerId)) {
+                        return {
+                            ...o,
+                            ...payload,
+                            isDraft: o.isDraft ? false : o.isDraft, // mark as published if it was draft
+                        };
+                    }
+                    return o;
+                });
+                await storage.setItem("markedPosters", updatedOffers);
+                success = true;
+            }
+
+            if (success) {
                 await storage.removeItem("currentEditingPosters");
                 await storage.removeItem("edit_offer_return");
                 toast.success("Offer updated successfully!");
                 router.push("/shop-manager");
             } else {
-                throw new Error(res.error || "Update failed");
+                throw new Error("Update failed");
             }
         } catch (err: any) {
             toast.error(`Failed to save: ${err.message}`);
@@ -558,7 +646,7 @@ function EditOfferContent() {
                                 className="rounded-xl"
                                 disabled={isSaving || isLoading || isBranchesLoading}
                             >
-                                {isSaving ? "Updating Offer..." : (isLoading || isBranchesLoading) ? "Synchronizing... ⏳" : "Confirm & Update"}
+                                {isSaving ? "Updating Offer..." : (isLoading || isBranchesLoading) ? "Synchronizing... ⏳" : "Update"}
                             </PremiumButton>
                         </div>
                     </div>

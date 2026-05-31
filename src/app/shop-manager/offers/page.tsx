@@ -228,8 +228,53 @@ function ShopOffersContent() {
     // Filtered offers
     const filteredOffers = useMemo(() => {
         return allOffersList.filter((offer: any) => {
-            const matchesSearch = (offer.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-                (offer.type || "").toLowerCase().includes(searchQuery.toLowerCase());
+            const query = searchQuery.toLowerCase().trim();
+            let matchesSearch = true;
+            
+            if (query) {
+                const matchesTitle = (offer.title || "").toLowerCase().includes(query);
+                const matchesType = (offer.type || "").toLowerCase().includes(query);
+                const matchesCategory = (offer.category || "").toLowerCase().includes(query);
+
+                // Match Branch
+                let matchesBranch = false;
+                if (offer.branches && Array.isArray(offer.branches)) {
+                    matchesBranch = offer.branches.some((b: any) => (b.branchName || "").toLowerCase().includes(query));
+                }
+                if (offer.branchNames && Array.isArray(offer.branchNames)) {
+                    matchesBranch = matchesBranch || offer.branchNames.some((name: string) => name.toLowerCase().includes(query));
+                }
+                if (offer.branchName) {
+                    matchesBranch = matchesBranch || offer.branchName.toLowerCase().includes(query);
+                }
+
+                // Match Dates (e.g., "30/05", "May", "June")
+                let matchesDate = false;
+                if (offer.validFrom) {
+                    const dateStr = new Date(offer.validFrom).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    const dateLong = new Date(offer.validFrom).toLocaleDateString('en-US', { month: 'long', day: '2-digit' }).toLowerCase();
+                    matchesDate = matchesDate || dateStr.includes(query) || dateLong.includes(query);
+                }
+                if (offer.validTo) {
+                    const dateStr = new Date(offer.validTo).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    const dateLong = new Date(offer.validTo).toLocaleDateString('en-US', { month: 'long', day: '2-digit' }).toLowerCase();
+                    matchesDate = matchesDate || dateStr.includes(query) || dateLong.includes(query);
+                }
+
+                // Match Price or discount value
+                let matchesPrice = false;
+                if (offer.price !== undefined && offer.price !== null) {
+                    matchesPrice = matchesPrice || String(offer.price).includes(query) || `₹${offer.price}`.toLowerCase().includes(query) || `rs ${offer.price}`.toLowerCase().includes(query);
+                }
+                if (offer.originalPrice !== undefined && offer.originalPrice !== null) {
+                    matchesPrice = matchesPrice || String(offer.originalPrice).includes(query) || `₹${offer.originalPrice}`.toLowerCase().includes(query);
+                }
+                if (offer.discountValue !== undefined && offer.discountValue !== null) {
+                    matchesPrice = matchesPrice || String(offer.discountValue).includes(query);
+                }
+
+                matchesSearch = matchesTitle || matchesType || matchesCategory || matchesBranch || matchesDate || matchesPrice;
+            }
 
             const matchesStatus = statusFilter === "all"
                 ? !offer.isDraft
@@ -337,7 +382,7 @@ function ShopOffersContent() {
                             return (
                                 <SwipeableCard
                                     key={id}
-                                    onEdit={() => offer.isDraft ? router.push(`/shop-manager/poster-designer?draftId=${offer.batchId || offer.id}`) : openEditModal(offer)}
+                                    onEdit={() => (offer.isDraft && offer.type === "BUILDER") ? router.push(`/shop-manager/poster-designer?draftId=${offer.batchId || offer.id}`) : openEditModal(offer)}
                                     onDelete={() => setOfferToDelete(offer)}
                                     editTitle="Edit"
                                     deleteTitle="Delete"

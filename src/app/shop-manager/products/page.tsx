@@ -288,8 +288,46 @@ function ShopProductsContent() {
     // Filtered products
     const filteredProducts = useMemo(() => {
         return allProductsList.filter((product: any) => {
-            const matchesSearch = (product.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-                (product.category || "").toLowerCase().includes(searchQuery.toLowerCase());
+            const query = searchQuery.toLowerCase().trim();
+            let matchesSearch = true;
+
+            if (query) {
+                const matchesName = (product.name || "").toLowerCase().includes(query);
+                const matchesCategory = (product.category || "").toLowerCase().includes(query);
+
+                // Match Branch using branchNameMap
+                let matchesBranch = false;
+                if (product.branchIds && Array.isArray(product.branchIds)) {
+                    matchesBranch = product.branchIds.some((id: any) => {
+                        const branchName = branchNameMap[String(id)];
+                        return branchName && branchName.toLowerCase().includes(query);
+                    });
+                }
+
+                // Match Dates (e.g. validFrom, validTo)
+                let matchesDate = false;
+                if (product.validFrom) {
+                    const dateStr = new Date(product.validFrom).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    const dateLong = new Date(product.validFrom).toLocaleDateString('en-US', { month: 'long', day: '2-digit' }).toLowerCase();
+                    matchesDate = matchesDate || dateStr.includes(query) || dateLong.includes(query);
+                }
+                if (product.validTo) {
+                    const dateStr = new Date(product.validTo).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    const dateLong = new Date(product.validTo).toLocaleDateString('en-US', { month: 'long', day: '2-digit' }).toLowerCase();
+                    matchesDate = matchesDate || dateStr.includes(query) || dateLong.includes(query);
+                }
+
+                // Match Price / Original Price
+                let matchesPrice = false;
+                if (product.price !== undefined && product.price !== null) {
+                    matchesPrice = matchesPrice || String(product.price).includes(query) || `₹${product.price}`.toLowerCase().includes(query) || `rs ${product.price}`.toLowerCase().includes(query) || `rs. ${product.price}`.toLowerCase().includes(query);
+                }
+                if (product.originalPrice !== undefined && product.originalPrice !== null) {
+                    matchesPrice = matchesPrice || String(product.originalPrice).includes(query) || `₹${product.originalPrice}`.toLowerCase().includes(query);
+                }
+
+                matchesSearch = matchesName || matchesCategory || matchesBranch || matchesDate || matchesPrice;
+            }
 
             const matchesStatus = statusFilter === "all"
                 ? !product.isDraft
@@ -303,7 +341,7 @@ function ShopProductsContent() {
 
             return matchesSearch && matchesStatus;
         });
-    }, [allProductsList, searchQuery, statusFilter]);
+    }, [allProductsList, searchQuery, statusFilter, branchNameMap]);
 
     return (
         <main className="min-h-screen pt-28 lg:pt-32 pb-12 bg-[radial-gradient(circle_at_top_right,hsl(var(--color-primary)/0.05)_0%,transparent_50%)]">
