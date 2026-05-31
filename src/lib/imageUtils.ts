@@ -16,10 +16,17 @@ export const ensureS3Url = async (imageUrl: string | null | undefined, fallbackF
     // If it is a base64 string
     if (imageUrl.startsWith("data:image")) {
         try {
-            const res = await fetch(imageUrl);
-            const blob = await res.blob();
+            const parts = imageUrl.split(",");
+            const mime = parts[0].match(/:(.*?);/)?.[1] || "image/png";
+            const bstr = atob(parts[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            while (n--) {
+                u8arr[n] = bstr.charCodeAt(n);
+            }
+            const blob = new Blob([u8arr], { type: mime });
             // Transform to a File object that s3Api can digest
-            const file = new File([blob], fallbackFilename, { type: blob.type || "image/png" });
+            const file = new File([blob], fallbackFilename, { type: mime });
             
             const response = await s3Api.uploadImage(file);
             

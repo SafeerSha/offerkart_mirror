@@ -12,6 +12,7 @@ interface MultiSearchableSelectProps {
     isLoading?: boolean;
     disabled?: boolean;
     className?: string;
+    emptyAction?: React.ReactNode;
 }
 
 export function MultiSearchableSelect({
@@ -22,6 +23,7 @@ export function MultiSearchableSelect({
     isLoading = false,
     disabled = false,
     className,
+    emptyAction,
 }: MultiSearchableSelectProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [search, setSearch] = useState("");
@@ -157,8 +159,9 @@ export function MultiSearchableSelect({
                             );
                         })
                     ) : (
-                        <div className="px-4 py-3 text-sm text-gray-400 text-center">
-                            {options.length === 0 ? "No options available" : "No matches found"}
+                        <div className="px-4 py-3 text-sm text-gray-400 text-center flex flex-col items-center gap-1.5">
+                            <span>{options.length === 0 ? "No options available" : "No matches found"}</span>
+                            {options.length === 0 && emptyAction}
                         </div>
                     )}
                 </div>

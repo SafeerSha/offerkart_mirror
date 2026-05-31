@@ -63,7 +63,7 @@ function CreateOfferContent() {
     const [offerTitle, setOfferTitle] = useState("");
     const [offerStatus, setOfferStatus] = useState("active");
     const [isActive, setIsActive] = useState(true);
-    const [validFrom, setValidFrom] = useState<Date>();
+    const [validFrom, setValidFrom] = useState<Date | undefined>(() => new Date());
     const [validTo, setValidTo] = useState<Date>();
     const [classifiedPosters, setClassifiedPosters] = useState<PosterItem[]>([]);
     const [publishErrors, setPublishErrors] = useState<{ title?: string; validFrom?: string; validTo?: string; branch?: string }>({});
@@ -342,6 +342,7 @@ function CreateOfferContent() {
                 status: isActive ? 'active' : 'paused',
                 isActive: isActive,
                 posters: finalPosters,
+                type: "UPLOAD",
             };
 
             try {
@@ -425,14 +426,14 @@ function CreateOfferContent() {
 
     return (
         <div className="min-h-screen bg-background">
-            <div className="h-20 lg:h-32" />
+            <div className="h-28 lg:h-36" />
 
             <main className="w-full relative overflow-hidden bg-background min-h-screen">
                 <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-[500px] h-[500px] bg-primary/5 rounded-full blur-3xl pointer-events-none" />
                 <div className="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/2 w-[400px] h-[400px] bg-secondary/5 rounded-full blur-3xl pointer-events-none" />
 
                 <div className={cn(
-                    "mx-auto relative px-4 lg:px-8 py-4 md:py-12 transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]",
+                    "mx-auto relative px-4 lg:px-8 py-6 md:py-12 transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]",
                     isEditing ? "max-w-[1400px]" : previewState ? "max-w-full" : "max-w-6xl"
                 )}>
                     {!isEditing && (

@@ -110,6 +110,7 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
         markedItems: poster.markedItems || [],
         currency: '₹'
     });
+    const [savedItemIds, setSavedItemIds] = useState<Set<string>>(() => new Set((poster.markedItems || []).map(item => item.id)));
     const [isDrawing, setIsDrawing] = useState(false);
     const [startPos, setStartPos] = useState<Position | null>(null);
     const [currentRect, setCurrentRect] = useState<Rect | null>(null);
@@ -151,6 +152,8 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
             markedItems: poster.markedItems || [],
             currency: '₹'
         });
+
+        setSavedItemIds(new Set((poster.markedItems || []).map(item => item.id)));
 
         // Reset CORS setting for new images
         setImgCrossOrigin("anonymous");
@@ -385,6 +388,11 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
             ...prev,
             markedItems: prev.markedItems.filter(item => item.id !== id)
         }));
+        setSavedItemIds(prev => {
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+        });
         if (currentMarkedItem?.id === id) setShowModal(false);
         toast.success("Item removed");
     };
@@ -428,9 +436,27 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
             markedItems: prev.markedItems.map(item => item.id === updatedItem.id ? updatedItem : item)
         }));
 
+        setSavedItemIds(prev => {
+            const next = new Set(prev);
+            next.add(updatedItem.id);
+            return next;
+        });
+
         setShowModal(false);
         setHighlightedId(null);
         toast.success("Item saved");
+    };
+
+    const handleCancelForm = () => {
+        if (currentMarkedItem && !savedItemIds.has(currentMarkedItem.id)) {
+            // Remove the unsaved new marking
+            setPosterData(prev => ({
+                ...prev,
+                markedItems: prev.markedItems.filter(item => item.id !== currentMarkedItem.id)
+            }));
+        }
+        setShowModal(false);
+        setHighlightedId(null);
     };
 
     const handleAIFill = () => {
@@ -645,51 +671,51 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                                     </Text>
                                 </div>
                             ) : (
-                                <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                                <div className="flex flex-col gap-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
                                     {posterData.markedItems.map((item, idx) => (
                                         <div
                                             key={item.id}
                                             onClick={() => handleEditItem(item)}
                                             className={cn(
-                                                "group flex gap-3 p-3 rounded-2xl border transition-all cursor-pointer",
+                                                "group flex gap-3 p-3 rounded-2xl border transition-all cursor-pointer bg-white shadow-sm hover:shadow-md",
                                                 highlightedId === item.id
-                                                    ? "bg-primary/5 border-primary"
-                                                    : "bg-muted/30 border-border/50 hover:bg-muted/50"
+                                                    ? "bg-primary/5 border-primary shadow-primary/5"
+                                                    : "border-border/50 hover:bg-muted/10"
                                             )}
                                         >
-                                            <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-black/10 shrink-0">
+                                            <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-black/5 shrink-0 border border-border/20 shadow-inner">
                                                 {item.productImage ? (
                                                     <Image src={item.productImage} alt="" fill unoptimized className="object-cover" />
                                                 ) : (
                                                     <div className="w-full h-full flex items-center justify-center text-xs opacity-30">#{idx + 1}</div>
                                                 )}
                                             </div>
-                                            <div className="flex-1 min-w-0 pr-6 relative">
-                                                <h4 className="font-bold text-sm truncate pr-4">{item.name || `Item ${idx + 1}`}</h4>
-                                                <div className="flex items-center gap-2 mt-1">
-                                                    <span className="text-xs line-through opacity-40">{item.currency} {item.oldPrice}</span>
-                                                    <span className="text-sm font-bold text-green-500">{item.currency} {item.offerPrice}</span>
+                                            <div className="flex-1 min-w-0 pr-6 relative flex flex-col justify-center">
+                                                <h4 className="font-bold text-sm text-gray-900 truncate pr-4">{item.name || `Item ${idx + 1}`}</h4>
+                                                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1">
+                                                    <span className="text-xs line-through opacity-40 whitespace-nowrap">{item.currency}{item.oldPrice}</span>
+                                                    <span className="text-sm font-bold text-green-600 whitespace-nowrap">{item.currency}{item.offerPrice}</span>
                                                 </div>
-                                                {formData.mainCategory && (
+                                                {item.mainCategory && (
                                                     <div className="flex flex-wrap gap-1 mt-1.5 auto-rows-min">
                                                         <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-black whitespace-nowrap uppercase">
-                                                            {formData.mainCategory}
+                                                            {item.mainCategory}
                                                         </span>
-                                                        {formData.subcategories && formData.subcategories.slice(0, 1).map(cat => (
+                                                        {item.subcategories && item.subcategories.slice(0, 1).map(cat => (
                                                             <span key={cat} className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/5 text-primary border border-primary/10 font-bold whitespace-nowrap">
                                                                 {cat}
                                                             </span>
                                                         ))}
-                                                        {formData.subcategories && formData.subcategories.length > 1 && (
+                                                        {item.subcategories && item.subcategories.length > 1 && (
                                                             <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border font-bold">
-                                                                +{formData.subcategories.length - 1}
+                                                                +{item.subcategories.length - 1}
                                                             </span>
                                                         )}
                                                     </div>
                                                 )}
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); handleDeleteItem(item.id); }}
-                                                    className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 p-1.5 text-destructive rounded-lg hover:bg-destructive/10 transition-all"
+                                                    className="absolute top-1/2 -translate-y-1/2 right-0 opacity-0 group-hover:opacity-100 p-1.5 text-destructive rounded-lg hover:bg-destructive/10 transition-all"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
                                                 </button>
@@ -711,7 +737,7 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                                     </li>
                                     <li className="flex gap-2">
                                         <span className="text-primary font-bold">2.</span>
-                                        <span>The AI will extract name and price from your selection.</span>
+                                        <span>OCR will automatically extract name and price from your selection.</span>
                                     </li>
                                     <li className="flex gap-2">
                                         <span className="text-primary font-bold">3.</span>
@@ -730,7 +756,7 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                     {/* Backdrop */}
                     <div
                         className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300"
-                        onClick={() => { setShowModal(false); setHighlightedId(null); }}
+                        onClick={handleCancelForm}
                     />
 
                     {/* Modal Panel */}
@@ -745,7 +771,7 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                                 </div>
                                 <button
                                     type="button"
-                                    onClick={() => { setShowModal(false); setHighlightedId(null); }}
+                                    onClick={handleCancelForm}
                                     className="p-2 hover:bg-gray-100 rounded-full transition-colors"
                                 >
                                     <X className="w-5 h-5" />
@@ -979,7 +1005,7 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                                         type="button"
                                         variant="outline"
                                         className="flex-1 h-12 rounded-2xl text-sm font-bold bg-white"
-                                        onClick={() => { setShowModal(false); setHighlightedId(null); }}
+                                        onClick={handleCancelForm}
                                     >
                                         Cancel
                                     </PremiumButton>

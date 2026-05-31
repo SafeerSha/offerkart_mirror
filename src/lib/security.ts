@@ -27,21 +27,26 @@ export function hasSuspiciousPattern(value: string): boolean {
     return patterns.some(pattern => pattern.test(value));
 }
 
-export function sanitizePayload<T>(data: T): T {
+export function sanitizePayload<T>(data: T, key?: string): T {
     if (data === null || data === undefined) return data;
+
+    // Skip HTML sanitization for fields holding JSON strings (like rawDesigner)
+    if (key === "rawDesigner") {
+        return data;
+    }
 
     if (typeof data === "string") {
         return sanitizeInput(data) as unknown as T;
     }
 
     if (Array.isArray(data)) {
-        return data.map(item => sanitizePayload(item)) as unknown as T;
+        return data.map(item => sanitizePayload(item, key)) as unknown as T;
     }
 
     if (typeof data === "object") {
         const sanitized = {} as any;
-        for (const [key, value] of Object.entries(data)) {
-            sanitized[key] = sanitizePayload(value);
+        for (const [k, value] of Object.entries(data)) {
+            sanitized[k] = sanitizePayload(value, k);
         }
         return sanitized as T;
     }

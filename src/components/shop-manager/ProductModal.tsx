@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { AppModal } from "@/components/shared/AppModal";
 import { PremiumInput } from "@/components/shared/PremiumInput";
 import { PremiumButton } from "@/components/shared/PremiumButton";
-import { Package, Tag, IndianRupee, Image as ImageIcon, Plus, Check, Loader2, X } from "lucide-react";
+import { Package, Tag, IndianRupee, Image as ImageIcon, Plus, Check, Loader2, X, AlertTriangle } from "lucide-react";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { getBranches } from "@/lib/api/branch";
@@ -42,6 +42,8 @@ export const ProductModal = ({
     const [image, setImage] = useState<any>(null);
     const [description, setDescription] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isDirty, setIsDirty] = useState(false);
+    const [showConfirmDiscard, setShowConfirmDiscard] = useState(false);
 
     // New Fields
     const [validFrom, setValidFrom] = useState<Date | undefined>(undefined);
@@ -50,6 +52,7 @@ export const ProductModal = ({
     const [status, setStatus] = useState<string>("active");
     const [branches, setBranches] = useState<any[]>(availableBranches);
     const [isBranchesLoading, setIsBranchesLoading] = useState(false);
+    const [resolvedShopId, setResolvedShopId] = useState<string | null>(null);
 
     // File handling
     const [rawFile, setRawFile] = useState<File | null>(null);
@@ -87,48 +90,65 @@ export const ProductModal = ({
         }
     }, [availableBranches]);
 
-    useEffect(() => {
+    const fetchBranches = useCallback(async (force = false) => {
         if (!open) return;
         // Skip fetch if already provided by prop
         if (availableBranches && availableBranches.length > 0) {
             return;
         }
-        // Only fetch once per modal open
-        if (hasFetchedBranches.current) return;
+        if (hasFetchedBranches.current && !force) return;
         hasFetchedBranches.current = true;
 
-        const fetchBranches = async () => {
-            setIsBranchesLoading(true);
-            try {
-                let shopId = sessionShopId;
-                if (!shopId) {
-                    const shopRes = await getMyShops();
-                    if (shopRes.success && shopRes.data) {
-                        const shopList = Array.isArray(shopRes.data) ? shopRes.data : (shopRes.data as any).data || [];
-                        if (shopList.length > 0) shopId = shopList[0].id;
-                    }
+        setIsBranchesLoading(true);
+        try {
+            let shopId = sessionShopId;
+            if (!shopId) {
+                const shopRes = await getMyShops();
+                if (shopRes.success && shopRes.data) {
+                    const shopList = Array.isArray(shopRes.data) ? shopRes.data : (shopRes.data as any).data || [];
+                    if (shopList.length > 0) shopId = shopList[0].id;
                 }
-
-                if (!shopId) {
-                    setBranches([]);
-                    return;
-                }
-
-                const res = await getBranches(shopId);
-                if (res.success && res.data) {
-                    const list = Array.isArray(res.data) ? res.data : (res.data as any).data || [];
-                    setBranches(Array.isArray(list) ? list : []);
-                }
-            } catch (error) {
-                console.error("Failed to load branches:", error);
-            } finally {
-                setIsBranchesLoading(false);
             }
+
+            if (!shopId) {
+                setBranches([]);
+                setResolvedShopId(null);
+                return;
+            }
+            setResolvedShopId(String(shopId));
+
+            const res = await getBranches(shopId);
+            if (res.success && res.data) {
+                const list = Array.isArray(res.data) ? res.data : (res.data as any).data || [];
+                setBranches(Array.isArray(list) ? list : []);
+            }
+        } catch (error) {
+            console.error("Failed to load branches:", error);
+        } finally {
+            setIsBranchesLoading(false);
+        }
+    }, [open, sessionShopId, availableBranches]);
+
+    // Initial fetch when open changes
+    useEffect(() => {
+        if (open) {
+            fetchBranches();
+        }
+    }, [open, fetchBranches]);
+
+    // Re-fetch branches on window focus (e.g. user returns from branch creation tab)
+    useEffect(() => {
+        if (!open) return;
+
+        const handleWindowFocus = () => {
+            fetchBranches(true);
         };
 
-        fetchBranches();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open, sessionShopId]);
+        window.addEventListener("focus", handleWindowFocus);
+        return () => {
+            window.removeEventListener("focus", handleWindowFocus);
+        };
+    }, [open, fetchBranches]);
 
     // Fix for mobile keyboard "stuck" UI bug where the window remains scrolled after keyboard dismiss
     useEffect(() => {
@@ -152,6 +172,22 @@ export const ProductModal = ({
             return () => form.removeEventListener('focusout', handleBlur);
         }
     }, [open]);
+
+    // Reset dirty state and confirmation when modal is closed/opened
+    useEffect(() => {
+        if (!open) {
+            setIsDirty(false);
+            setShowConfirmDiscard(false);
+        }
+    }, [open]);
+
+    const handleOpenChange = (newOpen: boolean) => {
+        if (!newOpen && isDirty && !isSubmitting) {
+            setShowConfirmDiscard(true);
+            return;
+        }
+        onOpenChange(newOpen);
+    };
 
     // Form initialization — only when modal opens or product changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -191,11 +227,12 @@ export const ProductModal = ({
             setOriginalPrice("");
             setImage(null);
             setDescription("");
-            setValidFrom(undefined);
+            setValidFrom(new Date());
             setValidTo(undefined);
             setSelectedBranchIds([]);
             setStatus("active");
         }
+        setIsDirty(false); // Reset to clean after initialization values are loaded
     }, [open, isEditMode, product]);
 
     // Category resolution — runs separately so loading state changes don't reset form fields
@@ -270,6 +307,7 @@ export const ProductModal = ({
                 debugger;
                 if (response.success && response.data?.url) {
                     setImage(response.data.url);
+                    setIsDirty(true);
                 } else {
                     toast({
                         title: "Upload Failed",
@@ -356,6 +394,7 @@ export const ProductModal = ({
             };
 
             await onSubmit(backendPayload);
+            setIsDirty(false); // Reset dirty state on successful submission!
         } catch (err: any) {
             console.error("Submission failed", err);
             toast({
@@ -374,9 +413,10 @@ export const ProductModal = ({
     }));
 
     return (
+        <>
         <AppModal
             open={open}
-            onOpenChange={onOpenChange}
+            onOpenChange={handleOpenChange}
             title={isEditMode ? "Edit Product" : "Add New Product"}
             description={isEditMode ? "Modify your product information." : "Create a new product listing for your shop catalog."}
             className="sm:max-w-xl max-h-[90dvh] overflow-hidden px-4 pb-1 rounded-[32px] sm:rounded-3xl"
@@ -414,6 +454,7 @@ export const ProductModal = ({
                                                         e.stopPropagation();
                                                         setImage(null);
                                                         setRawFile(null);
+                                                        setIsDirty(true);
                                                     }}
                                                     className="p-1 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-500 transition-all hover:scale-105"
                                                     title="Remove image"
@@ -447,7 +488,7 @@ export const ProductModal = ({
                                     placeholder="Premium Cotton T-Shirt"
                                     icon={Package}
                                     value={name}
-                                    onChange={(e) => setName(e.target.value)}
+                                    onChange={(e) => { setName(e.target.value); setIsDirty(true); }}
                                     required
                                 />
                             </div>
@@ -463,6 +504,7 @@ export const ProductModal = ({
                                     onChange={(val) => {
                                         setCategory(val);
                                         setSubcategory("");
+                                        setIsDirty(true);
                                     }}
                                     placeholder="Select Category"
                                     isLoading={isCategoriesLoading}
@@ -475,7 +517,7 @@ export const ProductModal = ({
                                 <SearchableSelect
                                     options={dynamicSubcategories.map((sub: any) => sub.name)}
                                     value={subcategory}
-                                    onChange={(val) => setSubcategory(val)}
+                                    onChange={(val) => { setSubcategory(val); setIsDirty(true); }}
                                     placeholder={isLoadingSubcategories ? "Loading..." : "Select Subcategory"}
                                     disabled={!category || isLoadingSubcategories}
                                     isLoading={isLoadingSubcategories}
@@ -492,7 +534,7 @@ export const ProductModal = ({
                                 placeholder="499"
                                 icon={IndianRupee}
                                 value={price}
-                                onChange={(e) => setPrice(e.target.value)}
+                                onChange={(e) => { setPrice(e.target.value); setIsDirty(true); }}
                                 required
                             />
 
@@ -503,7 +545,7 @@ export const ProductModal = ({
                                 placeholder="799"
                                 icon={IndianRupee}
                                 value={originalPrice}
-                                onChange={(e) => setOriginalPrice(e.target.value)}
+                                onChange={(e) => { setOriginalPrice(e.target.value); setIsDirty(true); }}
                             />
                         </div>
 
@@ -511,14 +553,14 @@ export const ProductModal = ({
                             <PremiumDatePicker
                                 label="Start Date *"
                                 date={validFrom}
-                                setDate={setValidFrom}
+                                setDate={(date) => { setValidFrom(date); setIsDirty(true); }}
                                 placeholder="Valid from"
                                 minDate={new Date()}
                             />
                             <PremiumDatePicker
                                 label="End Date *"
                                 date={validTo}
-                                setDate={setValidTo}
+                                setDate={(date) => { setValidTo(date); setIsDirty(true); }}
                                 placeholder="Valid to"
                                 minDate={validFrom || new Date()}
                             />
@@ -529,10 +571,49 @@ export const ProductModal = ({
                             <MultiSearchableSelect
                                 options={branchOptions}
                                 selectedValues={selectedBranchIds}
-                                onChange={setSelectedBranchIds}
+                                onChange={(val) => { setSelectedBranchIds(val); setIsDirty(true); }}
                                 placeholder="Select branches..."
                                 isLoading={isBranchesLoading}
+                                emptyAction={
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            const shopId = resolvedShopId || sessionShopId;
+                                            if (shopId) {
+                                                window.open(`/shop-manager/${shopId}/add-branch`, "_blank");
+                                            } else {
+                                                window.open(`/shop-manager`, "_blank");
+                                            }
+                                        }}
+                                        className="text-xs font-bold text-orange-600 hover:underline mt-0.5 cursor-pointer block"
+                                    >
+                                        Add Branch +
+                                    </button>
+                                }
                             />
+                            {branches.length === 0 && !isBranchesLoading && (
+                                <div className="flex items-center justify-between p-3 mt-1.5 rounded-xl border border-dashed border-orange-500/20 bg-orange-500/5 text-[11px] text-gray-600 animate-in fade-in duration-200">
+                                    <div className="flex items-center gap-1.5 font-medium">
+                                        <AlertTriangle className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+                                        <span>No branches available. You must add a branch first.</span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const shopId = resolvedShopId || sessionShopId;
+                                            if (shopId) {
+                                                window.open(`/shop-manager/${shopId}/add-branch`, "_blank");
+                                            } else {
+                                                window.open(`/shop-manager`, "_blank");
+                                            }
+                                        }}
+                                        className="text-orange-600 font-bold hover:underline shrink-0 ml-2 cursor-pointer"
+                                    >
+                                        Add Branch +
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         <div className="space-y-1.5">
@@ -541,7 +622,7 @@ export const ProductModal = ({
                                 className="w-full px-3 py-2 bg-background/40 border border-primary/10 focus:border-primary/50 focus:ring-1 focus:ring-primary/20 focus:outline-none transition-all rounded-xl text-sm min-h-[70px] bg-white/50 backdrop-blur-sm"
                                 placeholder="Add clear product features, size, and details."
                                 value={description}
-                                onChange={(e) => setDescription(e.target.value)}
+                                onChange={(e) => { setDescription(e.target.value); setIsDirty(true); }}
                             />
                         </div>
                     </div>
@@ -556,7 +637,7 @@ export const ProductModal = ({
                         <div className="flex items-center h-8 bg-white/50 backdrop-blur-sm rounded-xl">
                             <StatusToggleButton
                                 status={status === "active" ? "active" : "paused"}
-                                onChange={(s) => setStatus(s === "active" ? "active" : "inactive")}
+                                onChange={(s) => { setStatus(s === "active" ? "active" : "inactive"); setIsDirty(true); }}
                             />
                         </div>
                         <span className={status === "active" ? "text-emerald-500 font-bold text-xs" : "text-gray-400 font-bold text-xs"}>
@@ -568,7 +649,7 @@ export const ProductModal = ({
                         <PremiumButton
                             type="button"
                             variant="outline"
-                            onClick={() => onOpenChange(false)}
+                            onClick={() => handleOpenChange(false)}
                             className="rounded-xl px-4 h-9 text-xs"
                             disabled={isSubmitting}
                         >
@@ -586,5 +667,42 @@ export const ProductModal = ({
                 </div>
             </form>
         </AppModal>
+
+        {/* DISCARD CONFIRMATION MODAL */}
+        <AppModal
+            open={showConfirmDiscard}
+            onOpenChange={setShowConfirmDiscard}
+            title="Discard Unsaved Changes?"
+            description="You have made edits to this product. Are you sure you want to discard them? This action cannot be undone."
+            className="sm:max-w-md p-6 rounded-[28px] sm:rounded-2xl"
+        >
+            <div className="flex flex-col gap-4 mt-2">
+                <div className="flex justify-end gap-3">
+                    <PremiumButton
+                        type="button"
+                        variant="outline"
+                        onClick={() => setShowConfirmDiscard(false)}
+                        className="rounded-xl px-4 h-9 text-xs cursor-pointer font-bold"
+                        glow={false}
+                    >
+                        Keep Editing
+                    </PremiumButton>
+                    <PremiumButton
+                        type="button"
+                        variant="destructive"
+                        onClick={() => {
+                            setShowConfirmDiscard(false);
+                            setIsDirty(false);
+                            onOpenChange(false);
+                        }}
+                        className="rounded-xl px-4 h-9 text-xs cursor-pointer font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-600/20"
+                        glow={false}
+                    >
+                        Discard Changes
+                    </PremiumButton>
+                </div>
+            </div>
+        </AppModal>
+        </>
     );
 };

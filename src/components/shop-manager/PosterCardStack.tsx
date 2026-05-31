@@ -452,7 +452,7 @@ export const PosterCardStack = ({
                     onDrop={handleDrop}
                     className={cn(
                         "relative flex flex-col items-center justify-center cursor-pointer transition-all duration-300",
-                        "min-h-[360px] rounded-3xl overflow-hidden",
+                        "min-h-[380px] sm:min-h-[400px] rounded-3xl overflow-hidden py-8 px-6 sm:py-10 sm:px-8",
                         "border-2 border-dashed",
                         isDragging
                             ? "border-primary bg-primary/10 scale-[1.01] shadow-glow"
@@ -466,21 +466,18 @@ export const PosterCardStack = ({
                         {isDragging ? <Upload className="w-10 h-10 animate-bounce" /> : <Plus className="w-10 h-10" />}
                     </div>
 
-                    <Text className="font-bold text-xl mb-1">
+                    <Text className="font-bold text-xl mb-1 text-center">
                         {isDragging ? "Drop your files here" : "Upload Offer Posters"}
                     </Text>
-                    <Text className="opacity-50 text-sm max-w-xs text-center">
-                        Drag & drop
-                    </Text>
-                    <Text className="text-sm opacity-50 mb-5 max-w-xs text-center">
-                        Drop images or PDF
+                    <Text className="opacity-50 text-sm mb-5 max-w-xs text-center">
+                        Drag & drop images or PDF here
                     </Text>
 
                     <div className="px-6 py-3 rounded-2xl gradient-primary text-white text-sm font-bold uppercase tracking-wider shadow-lg shadow-primary/20">
                         Select Files
                     </div>
 
-                    <Text className="text-xs opacity-30 mt-4">
+                    <Text className="text-[10px] sm:text-xs opacity-50 mt-5 px-4 text-center leading-relaxed font-medium">
                         PDF, JPG, PNG, WEBP — Max {maxSizeMB}MB each — Up to {maxPosters} posters
                     </Text>
                 </div>

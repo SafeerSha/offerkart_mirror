@@ -41,16 +41,15 @@ async function preprocessImageForOCR(
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const data = imageData.data;
 
-    // Calculate histogram for contrast enhancement
-    const grayValues: number[] = [];
+    // Single pass: compute min/max gray without spreading into Math.min/max
+    // (spreading millions of values blows the JS call stack for large images)
+    let minGray = 255;
+    let maxGray = 0;
     for (let i = 0; i < data.length; i += 4) {
         const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
-        grayValues.push(gray);
+        if (gray < minGray) minGray = gray;
+        if (gray > maxGray) maxGray = gray;
     }
-
-    // Find min and max for normalization
-    const minGray = Math.min(...grayValues);
-    const maxGray = Math.max(...grayValues);
     const range = maxGray - minGray || 1;
 
     // Apply grayscale and contrast enhancement
@@ -62,10 +61,6 @@ async function preprocessImageForOCR(
 
         // Apply slight gamma correction for better dynamic range
         normalized = Math.pow(normalized / 255, 0.8) * 255;
-
-        // Apply thresholding for cleaner text (Otsu's method approximation)
-        const threshold = 128;
-        const isText = normalized < threshold;
 
         // Preserve some gray for anti-aliasing, but strengthen contrast
         if (normalized < 60) {
@@ -127,6 +122,7 @@ function HotspotEditorContent() {
     const [isProcessing, setIsProcessing] = useState(false);
     const [highlightedId, setHighlightedId] = useState<string | null>(null);
     const [imgCrossOrigin, setImgCrossOrigin] = useState<"anonymous" | undefined>("anonymous");
+    const [newlyCreatedItemId, setNewlyCreatedItemId] = useState<string | null>(null);
 
     const [formData, setFormData] = useState({
         name: '',
@@ -296,12 +292,12 @@ function HotspotEditorContent() {
             setIsDrawing(false);
             setCurrentRect(null);
             return;
-        } setIsDrawing(false);
+        }
+        setIsDrawing(false);
         const { x, y, width, height } = currentRect;
         const container = containerRef.current;
         if (!container) return;
 
-        // Calculate relative coordinates using real-time container dimensions
         const relX = x / container.offsetWidth;
         const relY = y / container.offsetHeight;
         const relW = width / container.offsetWidth;
@@ -317,32 +313,31 @@ function HotspotEditorContent() {
         setPosterData(prev => ({ ...prev, markedItems: [...prev.markedItems, tempItem] }));
         setCurrentRect(null);
 
-        // --- AI Extraction ---
+        // --- OCR Extraction ---
         setIsProcessing(true);
         try {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
-            const container = containerRef.current;
+            const innerContainer = containerRef.current;
             const img = imgRef.current;
 
-            if (!container || !img) return;
+            if (!innerContainer || !img) return;
 
-            // Robust validation of image and measurements
-            if (!img.complete || img.naturalWidth === 0 || container.offsetWidth === 0) {
-                console.error("Image or Container state check failed:", { 
-                    complete: img.complete, 
-                    naturalWidth: img.naturalWidth, 
-                    containerWidth: container.offsetWidth 
+            if (!img.complete || img.naturalWidth === 0 || innerContainer.offsetWidth === 0) {
+                console.error('Image or Container state check failed:', {
+                    complete: img.complete,
+                    naturalWidth: img.naturalWidth,
+                    containerWidth: innerContainer.offsetWidth
                 });
                 throw new Error('Image not fully loaded. Please wait a moment and try again.');
             }
 
-            const scaleX = img.naturalWidth / container.offsetWidth;
-            const scaleY = img.naturalHeight / container.offsetHeight;
+            const scaleX = img.naturalWidth / innerContainer.offsetWidth;
+            const scaleY = img.naturalHeight / innerContainer.offsetHeight;
 
             const sw = Math.round(width * scaleX);
             const sh = Math.round(height * scaleY);
-            
+
             if (sw <= 0 || sh <= 0) {
                 throw new Error('Selection is too small to process.');
             }
@@ -350,80 +345,91 @@ function HotspotEditorContent() {
             canvas.width = sw;
             canvas.height = sh;
 
-            ctx.drawImage(img, x * scaleX, y * scaleY, sw, sh, 0, 0, sw, sh);
-            const croppedDataUrl = canvas.toDataURL();
+            // Load image through proxy to avoid canvas taint from cross-origin S3 URLs
+            const posterSrc = posterData.posterSrc;
+            let drawableImage: HTMLImageElement;
+            try {
+                const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(posterSrc)}`;
+                const blobRes = await fetch(proxyUrl);
+                if (!blobRes.ok) throw new Error(`Proxy fetch failed: ${blobRes.status}`);
+                const blob = await blobRes.blob();
+                const objectUrl = URL.createObjectURL(blob);
+                drawableImage = await new Promise<HTMLImageElement>((resolve, reject) => {
+                    const proxyImg = new window.Image();
+                    proxyImg.onload = () => resolve(proxyImg);
+                    proxyImg.onerror = reject;
+                    proxyImg.src = objectUrl;
+                });
+                URL.revokeObjectURL(objectUrl);
+            } catch (proxyErr) {
+                console.warn('Proxy load failed, falling back to direct img element:', proxyErr);
+                drawableImage = img;
+            }
 
-            // Step 1: Preprocess image for better OCR results
+            ctx.drawImage(drawableImage, x * scaleX, y * scaleY, sw, sh, 0, 0, sw, sh);
+            const croppedDataUrl = canvas.toDataURL();
+            
+            // Pass 1: OCR on preprocessed (contrast-enhanced) crop — good for dark text on light BG
             const processedDataUrl = await preprocessImageForOCR(canvas, ctx);
 
-            // Step 2: OCR — Extract raw text from the cropped image with enhanced settings
-            const worker = await createWorker('ara+eng', 1, {
+            // Pass 2: OCR on color-inverted crop — recovers white-on-red/dark price badges
+            const invertCanvas = document.createElement('canvas');
+            invertCanvas.width = sw;
+            invertCanvas.height = sh;
+            const invertCtx = invertCanvas.getContext('2d', { willReadFrequently: true })!;
+            ctx.drawImage(drawableImage, x * scaleX, y * scaleY, sw, sh, 0, 0, sw, sh);
+            const invertData = ctx.getImageData(0, 0, sw, sh);
+            for (let i = 0; i < invertData.data.length; i += 4) {
+                invertData.data[i]     = 255 - invertData.data[i];
+                invertData.data[i + 1] = 255 - invertData.data[i + 1];
+                invertData.data[i + 2] = 255 - invertData.data[i + 2];
+            }
+            invertCtx.putImageData(invertData, 0, 0);
+            const invertedDataUrl = invertCanvas.toDataURL('image/png');
+
+            // Run OCR — no char whitelist so the LSTM model operates freely
+            const worker = await createWorker('eng', 1, {
                 logger: m => console.log('OCR Progress:', m),
             });
-
-            // Set parameters for better accuracy (Tesseract.js v5+ uses LSTM by default)
-            await worker.setParameters({
-                tessedit_char_whitelist: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\s\u0600-\u06FF\u0750-\u077F.,%+-',
-            });
-
-            const { data: { text: ocrText, confidence } } = await worker.recognize(processedDataUrl);
+            // DO NOT set tessedit_char_whitelist — invalid Unicode range syntax breaks digit recognition
+            const [{ data: { text: ocrPass1, confidence } }, { data: { text: ocrPass2 } }] = await Promise.all([
+                worker.recognize(processedDataUrl),
+                worker.recognize(invertedDataUrl),
+            ]);
             await worker.terminate();
 
-            console.log('OCR Confidence:', confidence, 'Extracted text:', ocrText);
+            // Merge both passes — gives the best chance of catching text on any background
+            const ocrText = `${ocrPass1}\n${ocrPass2}`;
+            console.log('OCR Confidence:', confidence, '\nPass1:', ocrPass1, '\nPass2:', ocrPass2);
 
-            let extractedName = '';
-            let extractedDescription = '';
+            // Parse OCR text into structured fields
+            // Use first non-empty line from pass1 as product name
+            const extractedName = ocrPass1.split('\n').map(l => l.trim()).find(l => l.length > 1) || 'Marked Product';
+            const extractedDescription = ocrPass1.trim();
             let extractedOldPrice = 0;
             let extractedOfferPrice = 0;
 
-            // Step 2: AI — Parse the OCR text into structured fields
-            try {
-                const { askAI } = await import('@/lib/ai/aiClient');
-                const aiResult = await askAI<{
-                    brand?: string;
-                    productName?: string;
-                    description?: string;
-                    oldPrice?: number;
-                    offerPrice?: number;
-                }>(ocrText, 'extract product name, prices, description');
-
-                if (aiResult.success && aiResult.data) {
-                    const d = aiResult.data!;
-                    // Combine brand + product name intelligently
-                    extractedName = d.productName || '';
-                    if (d.brand && d.productName && !extractedName.toLowerCase().includes((d.brand || "").toLowerCase())) {
-                        extractedName = `${d.brand} ${d.productName}`;
-                    }
-                    extractedDescription = d.description || '';
-                    extractedOldPrice = d.oldPrice || 0;
-                    extractedOfferPrice = d.offerPrice || 0;
-                } else {
-                    throw new Error(aiResult.error || 'AI parsing returned no data');
-                }
-            } catch (aiError) {
-                console.warn('AI parsing failed, using basic OCR fallback:', aiError);
-
-                // Fallback: basic text parsing (first line = name, full text = description)
-                extractedName = ocrText.split('\n')[0].trim() || 'Marked Product';
-                extractedDescription = ocrText.trim();
-
-                const priceMatches = ocrText.match(/\d+\.\d+/g);
-                if (priceMatches && priceMatches.length > 0) {
-                    const prices = priceMatches.map(p => parseFloat(p)).filter(p => !isNaN(p));
-                    if (prices.length >= 2) {
-                        const sorted = [...prices].sort((a, b) => b - a);
-                        extractedOldPrice = sorted[0];
-                        extractedOfferPrice = sorted[1];
-                    } else {
-                        extractedOfferPrice = prices[0];
-                        extractedOldPrice = prices[0];
-                    }
-                }
+            // Regex handles: plain integers (666), decimals (99.99), Indian comma-format (1,299)
+            const priceRegex = /(?:₹|Rs\.?|INR)?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)/g;
+            const rawPriceNumbers: number[] = [];
+            let m: RegExpExecArray | null;
+            while ((m = priceRegex.exec(ocrText)) !== null) {
+                const val = parseFloat(m[1].replace(/,/g, ''));
+                if (!isNaN(val) && val > 0 && val < 1_000_000) rawPriceNumbers.push(val);
+            }
+            // De-duplicate and sort descending (higher = old/MRP, lower = offer)
+            const prices = [...new Set(rawPriceNumbers)].sort((a, b) => b - a);
+            if (prices.length >= 2) {
+                extractedOldPrice = prices[0];
+                extractedOfferPrice = prices[1];
+            } else if (prices.length === 1) {
+                extractedOfferPrice = prices[0];
+                extractedOldPrice = prices[0];
             }
 
             const updatedItem: MarkedItemType = {
                 ...tempItem,
-                name: extractedName || 'Marked Product',
+                name: extractedName,
                 description: extractedDescription,
                 productImage: croppedDataUrl,
                 oldPrice: extractedOldPrice,
@@ -435,11 +441,10 @@ function HotspotEditorContent() {
                 markedItems: prev.markedItems.map(item => item.id === id ? updatedItem : item)
             }));
 
-            // Open Modal for refinement
             handleEditItem(updatedItem);
         } catch (err) {
-            console.error("OCR Error:", err);
-            toast.error("AI extraction failed. Please enter details manually.");
+            console.error('OCR Error:', err);
+            toast.error('OCR extraction failed. Please enter details manually.');
             handleEditItem(tempItem);
         } finally {
             setIsProcessing(false);
@@ -1017,30 +1022,30 @@ function HotspotEditorContent() {
                                     </Text>
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-2 gap-2 sm:gap-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                                <div className="flex flex-col gap-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
                                     {posterData.markedItems.map((item, idx) => (
                                         <div
                                             key={item.id}
                                             onClick={() => handleEditItem(item)}
                                             className={cn(
-                                                "group flex gap-2 sm:gap-3 p-2 sm:p-3 rounded-2xl border transition-all cursor-pointer",
+                                                "group flex gap-3 p-3 rounded-2xl border transition-all cursor-pointer bg-white shadow-sm hover:shadow-md",
                                                 highlightedId === item.id
-                                                    ? "bg-primary/5 border-primary"
-                                                    : "bg-muted/30 border-border/50 hover:bg-muted/50"
+                                                    ? "bg-primary/5 border-primary shadow-primary/5"
+                                                    : "border-border/50 hover:bg-muted/10"
                                             )}
                                         >
-                                            <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-black/10 shrink-0">
+                                            <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-black/5 shrink-0 border border-border/20 shadow-inner">
                                                 {item.productImage ? (
                                                     <Image src={item.productImage} fill unoptimized className="object-cover" alt="" />
                                                 ) : (
                                                     <div className="w-full h-full flex items-center justify-center text-xs opacity-30">#{idx + 1}</div>
                                                 )}
                                             </div>
-                                            <div className="flex-1 min-w-0 pr-6 relative">
-                                                <h4 className="font-bold text-sm truncate pr-4">{item.name || `Item ${idx + 1}`}</h4>
-                                                <div className="flex items-center gap-2 mt-1">
-                                                    <span className="text-xs line-through opacity-40">{item.currency} {item.oldPrice}</span>
-                                                    <span className="text-sm font-bold text-green-500">{item.currency} {item.offerPrice}</span>
+                                            <div className="flex-1 min-w-0 pr-6 relative flex flex-col justify-center">
+                                                <h4 className="font-bold text-sm text-gray-900 truncate pr-4">{item.name || `Item ${idx + 1}`}</h4>
+                                                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1">
+                                                    <span className="text-xs line-through opacity-40 whitespace-nowrap">{item.currency}{item.oldPrice}</span>
+                                                    <span className="text-sm font-bold text-green-600 whitespace-nowrap">{item.currency}{item.offerPrice}</span>
                                                 </div>
                                                 {item.mainCategory && (
                                                     <div className="flex flex-wrap gap-1 mt-1.5 auto-rows-min">
@@ -1061,7 +1066,7 @@ function HotspotEditorContent() {
                                                 )}
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); handleDeleteItem(item.id); }}
-                                                    className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 p-1.5 text-destructive rounded-lg hover:bg-destructive/10 transition-all"
+                                                    className="absolute top-1/2 -translate-y-1/2 right-0 opacity-0 group-hover:opacity-100 p-1.5 text-destructive rounded-lg hover:bg-destructive/10 transition-all"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
                                                 </button>
@@ -1083,7 +1088,7 @@ function HotspotEditorContent() {
                                     </li>
                                     <li className="flex gap-2">
                                         <span className="text-primary font-bold">2.</span>
-                                        <span>The AI will extract name and price from your selection.</span>
+                                        <span>OCR will automatically extract name and price from your selection.</span>
                                     </li>
                                     <li className="flex gap-2">
                                         <span className="text-primary font-bold">3.</span>
