@@ -1,4 +1,4 @@
-import { FEATURED_SHOPS, FEATURED_OFFERS } from "./mockData";
+import { FEATURED_SHOPS, FEATURED_OFFERS, ALL_OFFERS } from "./mockData";
 import { Offer, OfferPayload } from "../types/offer";
 import { backend } from "./backendClient";
 import { ENDPOINTS } from "./endpoints";
@@ -220,7 +220,7 @@ export async function getPaginatedOffers(page: number = 1, limit: number = DEFAU
 
 export async function getAllUserOffers(query: Omit<UserOfferQuery, "page"> = {}) {
     const limit = query.limit ?? 100;
-    const allOffers: Offer[] = [];
+    const allOffers: Offer[] = [...ALL_OFFERS] as any[];
     let page = 1;
     let hasMore = true;
     let error: string | undefined;
@@ -243,24 +243,16 @@ export async function getAllUserOffers(query: Omit<UserOfferQuery, "page"> = {})
     }
 
     return {
-        success: !error,
+        success: !error || allOffers.length > 0,
         data: allOffers,
-        error,
+        error: error && allOffers.length === 0 ? error : undefined,
     };
 }
 
 export async function getUserOfferById(id: string | number) {
     const allOffersResult = await getAllUserOffers({ limit: 100 });
 
-    if (!allOffersResult.success) {
-        return {
-            success: false,
-            data: null,
-            error: allOffersResult.error,
-        };
-    }
-
-    const offer = allOffersResult.data.find((item) => String(item.id) === String(id)) || null;
+    const offer = allOffersResult.data?.find((item) => String(item.id) === String(id) || String(item.offerId) === String(id)) || null;
 
     return {
         success: !!offer,
@@ -269,8 +261,10 @@ export async function getUserOfferById(id: string | number) {
     };
 }
 
-export async function getOfferById(id: string) {
-    return backend.get<Offer>(ENDPOINTS.OFFER.DETAILS(id));
+export async function getOfferById(id: string, shopId?: string) {
+    return backend.get<Offer>(ENDPOINTS.OFFER.DETAILS(id), {
+        headers: shopId ? { shopId } : {},
+    });
 }
 
 export async function toggleOfferStatus(id: string, shopId: string) {

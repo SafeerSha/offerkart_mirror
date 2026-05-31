@@ -13,6 +13,8 @@ interface MarkedPosterProps {
     imageClassName?: string;
     showNames?: boolean;
     priority?: boolean;
+    interactive?: boolean;
+    onItemClick?: (item: MarkedItem) => void;
 }
 
 /**
@@ -30,7 +32,9 @@ export function MarkedPoster({
     className,
     imageClassName,
     showNames = true,
-    priority = false
+    priority = false,
+    interactive = false,
+    onItemClick
 }: MarkedPosterProps) {
     const [aspectRatio, setAspectRatio] = useState<number | null>(null);
 
@@ -69,7 +73,18 @@ export function MarkedPoster({
                 {markedItems.map((item) => (
                     <div
                         key={item.id}
-                        className="absolute border-[1.5px] border-red-500 bg-red-500/10 pointer-events-none transition-all shadow-sm z-10"
+                        onClick={(e) => {
+                            if (interactive && onItemClick) {
+                                e.stopPropagation();
+                                onItemClick(item);
+                            }
+                        }}
+                        className={cn(
+                            "absolute transition-all shadow-sm z-10",
+                            interactive 
+                                ? "border-2 border-primary/50 bg-primary/10 hover:bg-primary/20 hover:border-primary hover:shadow-[0_0_15px_rgba(var(--primary),0.5)] cursor-pointer pointer-events-auto animate-pulse hover:animate-none" 
+                                : "border-[1.5px] border-red-500 bg-red-500/10 pointer-events-none"
+                        )}
                         style={{
                             left: `${item.x * 100}%`,
                             top: `${item.y * 100}%`,
@@ -78,8 +93,11 @@ export function MarkedPoster({
                         }}
                     >
                         {showNames && item.name && item.name !== "Processing..." && (
-                            <div className="absolute top-0 left-0 bg-red-500 px-1 py-0.5 rounded-br-sm">
-                                <span className="text-[8px] sm:text-[10px] font-bold text-white truncate block leading-none">
+                            <div className={cn(
+                                "absolute top-0 left-0 px-1 py-0.5 rounded-br-sm",
+                                interactive ? "bg-primary text-primary-foreground" : "bg-red-500 text-white"
+                            )}>
+                                <span className="text-[8px] sm:text-[10px] font-bold truncate block leading-none">
                                     {item.name}
                                 </span>
                             </div>

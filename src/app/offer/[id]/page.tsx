@@ -22,9 +22,11 @@ export async function generateStaticParams() {
 
 function mapOfferForDetail(offer: Offer) {
     const primaryImage = offer.posters?.[0]?.posterSrc || (typeof offer.image === "string" ? offer.image : undefined) || "/images/shop-registration-bg-light.png";
+    const idAsNum = Number(offer.id);
+    const finalId = isNaN(idAsNum) ? offer.id : idAsNum;
 
     return {
-        id: Number(offer.id),
+        id: finalId as any,
         shopName: offer.shopName || "OfferKart",
         offerName: offer.offerName || offer.title || "Untitled Offer",
         images: [primaryImage],
@@ -43,8 +45,11 @@ function mapOfferForDetail(offer: Offer) {
 }
 
 function mapOfferForSimilarCard(offer: Offer) {
+    const idAsNum = Number(offer.id);
+    const finalId = isNaN(idAsNum) ? offer.id : idAsNum;
+
     return {
-        id: Number(offer.id),
+        id: finalId as any,
         shopName: offer.shopName || "OfferKart",
         offerName: offer.offerName || offer.title || "Untitled Offer",
         image: typeof offer.image === "string" ? offer.image : offer.posters?.[0]?.posterSrc || "/images/shop-registration-bg-light.png",
@@ -65,13 +70,13 @@ export async function generateMetadata({
 }: {
     params: { id: string }
 }): Promise<Metadata> {
-    const offerResult = await getUserOfferById(params.id);
-    const offer = offerResult.data;
+    const offerResult = await getUserOfferById(params.id).catch(() => ({ success: false, data: null }));
+    const offer = offerResult?.data;
 
     if (!offer) {
         return {
-            title: "Offer not found - OfferKart",
-            description: "The requested offer could not be found.",
+            title: "Offer details - OfferKart",
+            description: "View offer details and interactive posters on OfferKart.",
         };
     }
 
@@ -103,7 +108,7 @@ export default async function OfferDetailPage({
 
     const allOffers = allOffersResult.success ? allOffersResult.data : [];
     const filteredSimilarOffers = allOffers
-        .filter((offer) => String(offer.id) !== params.id)
+        .filter((o) => String(o.id) !== params.id)
         .slice(0, 5)
         .map(mapOfferForSimilarCard);
 

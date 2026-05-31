@@ -459,12 +459,16 @@ function ShopOffersContent() {
                                         </div>
 
                                         <div className="relative z-20 flex flex-col items-end justify-between self-stretch shrink-0 py-0.5">
-                                            <div className="scale-75 origin-right">
-                                                <StatusToggleButton
-                                                    status={offer.status || 'active'}
-                                                    onChange={() => handleToggleOfferStatus(offer)}
-                                                />
-                                            </div>
+                                            {!offer.isDraft ? (
+                                                <div className="scale-75 origin-right">
+                                                    <StatusToggleButton
+                                                        status={offer.status || 'active'}
+                                                        onChange={() => handleToggleOfferStatus(offer)}
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <div className="h-6" />
+                                            )}
 
                                             <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400">
                                                 <Clock className="w-3 h-3 shrink-0" />

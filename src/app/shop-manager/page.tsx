@@ -1004,13 +1004,15 @@ function DashboardContent() {
                                                                                         <Tag className="w-6 h-6 text-gray-300 group-hover:text-primary transition-colors rotate-12" />
                                                                                     </div>
                                                                                 )}
-                                                                                <div className="absolute top-1 left-1">
-                                                                                    <div className={cn("px-1 py-0.5 rounded backdrop-blur-sm shadow-sm border", offer.isDraft ? "bg-amber-100/90 border-amber-200" : "bg-white/90 border-gray-100")}>
-                                                                                        <p className={cn("text-[8px] font-black uppercase tracking-tighter", offer.isDraft ? "text-amber-600" : "text-primary")}>
-                                                                                            {offer.isDraft ? "Draft" : "New"}
-                                                                                        </p>
+                                                                                {offer.isDraft && (
+                                                                                    <div className="absolute top-1 left-1">
+                                                                                        <div className="px-1 py-0.5 rounded backdrop-blur-sm shadow-sm border bg-amber-100/90 border-amber-200">
+                                                                                            <p className="text-[8px] font-black uppercase tracking-tighter text-amber-600">
+                                                                                                Draft
+                                                                                            </p>
+                                                                                        </div>
                                                                                     </div>
-                                                                                </div>
+                                                                                )}
                                                                             </div>
 
                                                                             <div className="min-w-0 flex-1 z-10 flex flex-col justify-center self-stretch py-0.5">
@@ -1052,12 +1054,16 @@ function DashboardContent() {
 
                                                                             <div className="relative z-20 flex flex-col items-end justify-between self-stretch shrink-0 py-0.5">
                                                                                 <div className="flex items-center gap-1">
-                                                                                    <div className="scale-75 origin-right">
-                                                                                        <StatusToggleButton
-                                                                                            status={offer.status || 'active'}
-                                                                                            onChange={() => handleToggleOfferStatus(offer)}
-                                                                                        />
-                                                                                    </div>
+                                                                                    {!offer.isDraft ? (
+                                                                                        <div className="scale-75 origin-right">
+                                                                                            <StatusToggleButton
+                                                                                                status={offer.status || 'active'}
+                                                                                                onChange={() => handleToggleOfferStatus(offer)}
+                                                                                            />
+                                                                                        </div>
+                                                                                    ) : (
+                                                                                        <div className="h-6" />
+                                                                                    )}
                                                                                 </div>
 
                                                                                 <div className="flex items-baseline gap-1 my-1 text-[8px] font-semibold text-slate-400">
@@ -1160,7 +1166,6 @@ function DashboardContent() {
                                                                             <ShoppingBag className="w-6 h-6 text-gray-300" />
                                                                         </div>
                                                                     )}
-                                                                    <div className="absolute top-1 left-1"><div className="px-1 py-0.5 rounded bg-white/90 backdrop-blur-sm shadow-sm border border-gray-100"><p className="text-[8px] font-black text-primary uppercase tracking-tighter">New</p></div></div>
                                                                 </div>
 
                                                                 <div className="min-w-0 flex-1 z-10 flex flex-col justify-center self-stretch py-0.5">

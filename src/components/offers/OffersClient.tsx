@@ -64,6 +64,8 @@ export default function OffersClient({
         }
     }, [searchParams]);
 
+
+
     const handleCategoryChange = useCallback((category: string) => {
         setActiveFilters(prev => ({ ...prev, category, subcategory: [] }));
         setPage(1);

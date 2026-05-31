@@ -130,7 +130,8 @@ export const PosterCardStack = ({
         if (initialPosters && initialPosters.length > 0 && !hasProcessedInitial) {
             setHasProcessedInitial(true);
             setPosters(initialPosters);
-            setPhase("classify");
+            const allAlreadyClassified = initialPosters.every(p => p.type !== "unclassified");
+            setPhase(allAlreadyClassified ? "summary" : "classify");
         }
     }, [initialPosters, hasProcessedInitial]);
 
