@@ -81,10 +81,8 @@ function CreateOfferContent() {
     const [draftToDiscard, setDraftToDiscard] = useState<string | null>(null);
     const [previewState, setPreviewState] = useState<PosterPreviewState | null>(null);
 
-    // Fetch branches when publish modal opens
+    // Fetch branches when page loads or session changes
     useEffect(() => {
-        if (!showPublishModal) return;
-
         const fetchBranchesWithFallback = async () => {
             setIsBranchesLoading(true);
             try {
@@ -110,14 +108,13 @@ function CreateOfferContent() {
                 }
             } catch (error) {
                 console.error("Failed to load branches:", error);
-                toast.error("Failed to load branches");
             } finally {
                 setIsBranchesLoading(false);
             }
         };
 
         fetchBranchesWithFallback();
-    }, [showPublishModal, session]);
+    }, [session]);
 
     useEffect(() => {
         if (editBatchId) {
@@ -343,6 +340,7 @@ function CreateOfferContent() {
                 isActive: isActive,
                 posters: finalPosters,
                 type: "UPLOAD",
+                isDraft: false,
             };
 
             try {
@@ -376,6 +374,114 @@ function CreateOfferContent() {
         } catch (err) {
             console.error("Publish error:", err);
             toast.error("Failed to publish");
+        } finally {
+            setIsPublishing(false);
+        }
+    };
+
+    const handleSaveDraftSubmit = async (postersOverride?: PosterItem[]) => {
+        setIsPublishing(true);
+        const toastId = toast.loading("Saving draft...");
+
+        try {
+            const activePosters = postersOverride || classifiedPosters;
+            const posterData = await Promise.all(
+                activePosters.map(async (poster) => {
+                    let s3Url = "";
+                    if (poster.uploadPromise) {
+                        s3Url = await poster.uploadPromise;
+                    } else {
+                        if (!poster.file) {
+                            throw new Error("Missing poster file for upload.");
+                        }
+                        const res = await s3Api.uploadImage(poster.file).catch(() => null);
+                        const payload = (res?.data as any)?.data || res?.data;
+                        const uploadedUrl = payload?.url || payload?.fileUrl || payload?.imageUrl || (res?.data as any)?.imageUrl || (typeof payload === 'string' ? payload : null);
+                        if (!res || !res.success || !uploadedUrl) {
+                            throw new Error(`Failed to upload poster: ${poster.file.name}`);
+                        }
+                        s3Url = uploadedUrl;
+                    }
+
+                    const processedMarkedItems = await Promise.all(
+                        (poster.markedItems || []).map(async (item: any) => {
+                            if (item.productImage && typeof item.productImage === 'string' && item.productImage.startsWith("data:")) {
+                                const cleanUrl = await ensureS3Url(item.productImage);
+                                return { ...item, productImage: cleanUrl || "" };
+                            }
+                            return item;
+                        })
+                    );
+
+                    return {
+                        id: poster.id,
+                        posterSrc: s3Url,
+                        type: poster.type,
+                        markedItems: processedMarkedItems,
+                    };
+                })
+            );
+
+            const existing = await storage.getItem<any[]>("markedPosters");
+            let allPosters = existing || [];
+
+            let finalPosters = isUpdateMode ? [...existingPosters, ...posterData] : posterData;
+            finalPosters = finalPosters.map((p, i) => ({ ...p, order: i + 1 }));
+
+            if (isUpdateMode && editBatchId) {
+                allPosters = allPosters.filter(o => o.batchId !== editBatchId);
+            }
+
+            const selectedBranches = branches.filter((b) => selectedBranchIds.includes(String(b.id)));
+            const branchesToUse = selectedBranches.length > 0 ? selectedBranches : (branches.length > 0 ? [branches[0]] : []);
+
+            const payload = {
+                batchId: (isUpdateMode && editBatchId) ? editBatchId : crypto.randomUUID(),
+                title: offerTitle.trim() || `Draft Offer - ${formatDateLocal(new Date())}`,
+                validFrom: validFrom ? formatDateLocal(validFrom) : formatDateLocal(new Date()),
+                validTo: validTo ? formatDateLocal(validTo) : formatDateLocal(new Date(Date.now() + 86400000 * 7)),
+                branchIds: branchesToUse.map(b => b.id),
+                branchNames: branchesToUse.map(b => b.branch_name),
+                branchCity: branchesToUse[0]?.city || "Default City",
+                createdAt: (isUpdateMode && editBatchId && allPosters.find(o => o.batchId === editBatchId)?.createdAt) || new Date().toISOString(),
+                status: 'draft',
+                isActive: false,
+                posters: finalPosters,
+                type: "UPLOAD",
+                isDraft: true,
+            };
+
+            try {
+                let shopId = session?.shopId ?? (session?.user as any)?.shopId;
+                if (!shopId && session) {
+                    const shopRes = await getMyShops();
+                    if (shopRes.success && shopRes.data) {
+                        const shopList = Array.isArray(shopRes.data) ? shopRes.data : (shopRes.data as any).data || [];
+                        if (shopList.length > 0) shopId = shopList[0].id;
+                    }
+                }
+
+                if (shopId) {
+                    if (isUpdateMode && editBatchId) {
+                        await updateOffer(String(editBatchId), payload, String(shopId));
+                    } else {
+                        await createOffer(payload, String(shopId));
+                    }
+                }
+            } catch (networkError) {
+                console.warn("API Error:", networkError);
+            }
+
+            allPosters.push(payload);
+            await storage.setItem("markedPosters", allPosters);
+
+            activePosters.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+            toast.success("Draft saved successfully!", { id: toastId });
+            setShowPublishModal(false);
+            router.push("/shop-manager");
+        } catch (err) {
+            console.error("Draft save error:", err);
+            toast.error("Failed to save draft", { id: toastId });
         } finally {
             setIsPublishing(false);
         }
@@ -473,6 +579,7 @@ function CreateOfferContent() {
                                     onEditingChange={setIsEditing}
                                     onPreviewChange={setPreviewState}
                                     submitButtonText={isUpdateMode ? "Continue to Update" : "Publish"}
+                                    onSaveDraft={handleSaveDraftSubmit}
                                 />
                             </PremiumCard>
 
@@ -718,9 +825,9 @@ function CreateOfferContent() {
                         </div>
                     </div>
 
-                    <div className="flex items-center justify-between pt-4 border-t border-primary/10">
-                        <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-1.5 hidden sm:flex">
+                    <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center sm:justify-between pt-4 border-t border-primary/10">
+                        <div className="flex items-center justify-between sm:justify-start gap-3">
+                            <div className="flex items-center gap-1.5">
                                 <div className={cn(
                                     "w-2 h-2 rounded-full",
                                     isActive ? "bg-[#1cc080]" : "bg-gray-400"
@@ -734,22 +841,30 @@ function CreateOfferContent() {
                             </div>
                             <StatusToggleButton status={isActive ? "active" : "paused"} onChange={(newStatus) => setIsActive(newStatus === "active")} />
                         </div>
-                        <div className="flex gap-3">
+                        <div className="flex flex-col sm:flex-row gap-2.5 sm:justify-end">
                             <PremiumButton
                                 variant="outline"
                                 onClick={() => setShowPublishModal(false)}
-                                className="rounded-xl"
+                                className="rounded-xl w-full sm:w-auto order-3 sm:order-1"
                             >
                                 Cancel
+                            </PremiumButton>
+                            <PremiumButton
+                                onClick={() => handleSaveDraftSubmit()}
+                                isLoading={isPublishing}
+                                className="rounded-xl bg-none bg-yellow-600 hover:bg-yellow-700 text-white shadow-lg shadow-yellow-600/20 border-0 w-full sm:w-auto order-2 sm:order-2"
+                                disabled={isPublishing}
+                            >
+                                Save Draft
                             </PremiumButton>
                             <PremiumButton
                                 onClick={handlePublishSubmit}
                                 isLoading={isPublishing}
                                 leftIcon={Send}
-                                className="rounded-xl"
+                                className="rounded-xl w-full sm:w-auto order-1 sm:order-3"
                                 disabled={isPublishing}
                             >
-                                {isUpdateMode ? "Confirm & Update" : "Confirm & Publish"}
+                                {isUpdateMode ? "Update" : "Publish"}
                             </PremiumButton>
                         </div>
                     </div>
