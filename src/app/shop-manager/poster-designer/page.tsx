@@ -9,7 +9,7 @@ import { CanvasElement } from "@/components/shop-manager/PosterDesigner";
 import { PosterTemplateSelector } from "@/components/shop-manager/PosterTemplateSelector";
 import { TemplateConfig } from "@/lib/posterTemplates";
 import { templateConfigToCanvasElements, ShopData } from "@/lib/templateToCanvas";
-import { useMyShops, useBranches, useCreateOffer, useOfferById } from "@/hooks/useApi";
+import { useMyShops, useBranches, useCreateOffer, useUpdateOffer, useOfferById } from "@/hooks/useApi";
 import { cn, formatDateLocal } from "@/lib/utils";
 import { AppModal } from "@/components/shared/AppModal";
 import { PremiumButton } from "@/components/shared/PremiumButton";
@@ -67,7 +67,7 @@ function PosterDesignerInner() {
 
     useEffect(() => {
         const fromLocalStorage = searchParams.get('fromLocalStorage') === 'true';
-        
+
         // 1. Try loading from LocalStorage first (Frontend workaround)
         if (draftId && fromLocalStorage && !isDraftLoaded) {
             const storedDesigner = localStorage.getItem('designer_draft_data');
@@ -103,10 +103,10 @@ function PosterDesignerInner() {
             const offer = draftOfferResponse.data as any;
             if (offer.rawDesigner) {
                 try {
-                    const parsedPages = typeof offer.rawDesigner === 'string' 
-                        ? parseRawDesigner(offer.rawDesigner) 
+                    const parsedPages = typeof offer.rawDesigner === 'string'
+                        ? parseRawDesigner(offer.rawDesigner)
                         : offer.rawDesigner;
-                    
+
                     if (!Array.isArray(parsedPages)) {
                         toast.error("rawDesigner is not an array!");
                         console.error("rawDesigner is not an array:", parsedPages);
@@ -147,6 +147,7 @@ function PosterDesignerInner() {
     const [publishErrors, setPublishErrors] = useState<{ title?: string; validFrom?: string; validTo?: string; branch?: string }>({});
     const [capturedPosters, setCapturedPosters] = useState<{ pageId: string; posterFile: File; markedItems: MarkedItem[] }[]>([]);
     const { mutateAsync: createOfferMutation } = useCreateOffer();
+    const { mutateAsync: updateOfferMutation } = useUpdateOffer();
     const designerRefs = useRef<Record<string, PosterDesignerRef | null>>({});
 
     // Fetch shop data
@@ -269,7 +270,7 @@ function PosterDesignerInner() {
 
             const selectedBranches = branches.filter((b: any) => selectedBranchIds.includes(String(b.id)));
             const branchesToUse = selectedBranches.length > 0 ? selectedBranches : (branches.length > 0 ? [branches[0]] : []);
-            const batchId = crypto.randomUUID();
+            const batchId = draftId || crypto.randomUUID();
 
             const offerPayload = {
                 batchId: batchId,
@@ -288,7 +289,9 @@ function PosterDesignerInner() {
                 rawDesigner: JSON.stringify(posterPages),
             };
 
-            const res = await createOfferMutation({ payload: offerPayload, shopId: activeShopId || "" });
+            const res = draftId
+                ? await updateOfferMutation({ id: draftId, payload: offerPayload, shopId: activeShopId || "" })
+                : await createOfferMutation({ payload: offerPayload, shopId: activeShopId || "" });
             if (res.success) {
                 toast.success("Draft saved successfully!", { id: toastId });
                 setShowLeaveWarning(false);
@@ -497,7 +500,7 @@ function PosterDesignerInner() {
 
             const selectedBranches = branches.filter((b: any) => selectedBranchIds.includes(String(b.id)));
 
-            const batchId = crypto.randomUUID();
+            const batchId = draftId || crypto.randomUUID();
             const offerPayload = {
                 batchId: batchId,
                 title: offerTitle,
@@ -512,9 +515,12 @@ function PosterDesignerInner() {
                 posters: posterData,
                 isDraft: false,
                 type: "BUILDER",
+                rawDesigner: JSON.stringify(posterPages),
             };
 
-            const res = await createOfferMutation({ payload: offerPayload, shopId: activeShopId || "" });
+            const res = draftId
+                ? await updateOfferMutation({ id: draftId, payload: offerPayload, shopId: activeShopId || "" })
+                : await createOfferMutation({ payload: offerPayload, shopId: activeShopId || "" });
             if (res.success) {
                 // Sync with local storage markedPosters for dashboard list / offline cache consistency
                 try {
@@ -550,7 +556,7 @@ function PosterDesignerInner() {
 
     return (
         <div className="min-h-screen bg-background">
-            <div className="h-20 lg:h-32" />
+            <div className="h-28 lg:h-32" />
 
             <main className="w-full relative overflow-hidden bg-background min-h-screen">
                 {/* Decorative background elements */}
@@ -658,8 +664,8 @@ function PosterDesignerInner() {
                                                 <PosterDesigner
                                                     ref={(el) => { designerRefs.current[page.id] = el; }}
                                                     shopId={activeShopId || undefined}
-                                                    initialElements={page.initialElements}
-                                                    initialBg={page.initialCanvasBg}
+                                                    initialElements={page.elements}
+                                                    initialBg={page.canvasBg}
                                                     templateConfig={page.template}
                                                     onBack={handleBackToTemplates}
                                                     onSnapshotChange={(snapshot) => handleSnapshotChange(page.id, snapshot)}
@@ -838,26 +844,26 @@ function PosterDesignerInner() {
                             <p className="mt-1 text-xs opacity-80">Your current poster edits have not been exported or saved yet.</p>
                         </div>
                     </div>
-                    <div className="flex gap-3 justify-end flex-wrap">
+                    <div className="flex flex-col sm:flex-row gap-2.5 sm:justify-end">
                         <PremiumButton
                             variant="outline"
                             onClick={cancelLeave}
                             disabled={isPublishing}
-                            className="rounded-xl"
+                            className="rounded-xl w-full sm:w-auto order-3 sm:order-1"
                         >
                             Stay here
                         </PremiumButton>
                         <PremiumButton
                             onClick={handleSaveDraft}
                             disabled={isPublishing}
-                            className="rounded-xl bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-500/20 border-0"
+                            className="rounded-xl bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-500/20 border-0 w-full sm:w-auto order-2 sm:order-2"
                         >
                             {isPublishing ? "Saving..." : "Save Draft"}
                         </PremiumButton>
                         <PremiumButton
                             onClick={confirmLeave}
                             disabled={isPublishing}
-                            className="rounded-xl px-6 bg-orange-500 hover:bg-orange-600 text-white shadow-lg shadow-orange-500/20"
+                            className="rounded-xl px-6 bg-orange-500 hover:bg-orange-600 text-white shadow-lg shadow-orange-500/20 w-full sm:w-auto order-1 sm:order-3"
                         >
                             Leave anyway
                         </PremiumButton>

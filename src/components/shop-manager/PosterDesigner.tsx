@@ -3094,8 +3094,21 @@ export const PosterDesigner = forwardRef<PosterDesignerRef, {
                 <div className="space-y-4 py-4">
                     <div className="max-h-[400px] overflow-y-auto pr-2 custom-scrollbar space-y-2">
                         {products.length === 0 ? (
-                            <div className="text-center py-8 text-sm text-gray-500">
-                                No available products to import.
+                            <div className="p-6 flex flex-col items-center justify-center bg-gray-50/50 rounded-2xl border-2 border-dashed border-gray-200/60 text-center">
+                                <div className="w-12 h-12 rounded-full bg-orange-500/5 flex items-center justify-center mb-3">
+                                    <Package className="w-6 h-6 text-orange-500/30" />
+                                </div>
+                                <p className="text-sm font-bold text-gray-900">Your Catalog is Empty</p>
+                                <p className="text-xs text-gray-500 max-w-xs mt-1 mb-4">Add products to your catalog to import them.</p>
+                                <PremiumButton
+                                    onClick={() => {
+                                        setShowProductModal(false);
+                                        setShowCardModal(true);
+                                    }}
+                                    className="rounded-xl cursor-pointer text-xs flex items-center gap-1.5 shadow-none hover:shadow-none"
+                                >
+                                    <Plus className="w-3.5 h-3.5" /> Add Product
+                                </PremiumButton>
                             </div>
                         ) : (
                             products.map((p) => {

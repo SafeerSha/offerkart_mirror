@@ -32,6 +32,9 @@ import Image from "next/image";
 import { useSession, signOut } from "next-auth/react";
 import { useSearchParams, useRouter } from "next/navigation";
 
+// React Query
+import { useQueryClient } from "@tanstack/react-query";
+
 // Shared utilities
 import { cn, getRelativeTime } from "@/lib/utils";
 import { storage } from "@/lib/storage";
@@ -162,6 +165,15 @@ function DashboardContent() {
     const isMobile = useIsMobile();
     const [activeTab, setActiveTab] = useState("offers");
     const [isShopActive, setIsShopActive] = useState(true);
+
+    const queryClient = useQueryClient();
+
+    // Force React Query to fetch the latest data on dashboard mount
+    useEffect(() => {
+        queryClient.invalidateQueries({ queryKey: ["allOffers"] });
+        queryClient.invalidateQueries({ queryKey: ["myShops"] });
+        queryClient.invalidateQueries({ queryKey: ["allProducts"] });
+    }, [queryClient]);
 
     // ================= API DATA HOOKS =================
 
@@ -450,13 +462,20 @@ function DashboardContent() {
         }
     }, [searchParams]);
 
+    // Automatically switch active tab back to "offers" if drafts are empty
+    useEffect(() => {
+        if (allDrafts.length === 0 && activeTab === "drafts") {
+            setActiveTab("offers");
+        }
+    }, [allDrafts.length, activeTab]);
+
     const handleLogout = () => {
         setIsLoggingOut(true);
         signOut({ callbackUrl: "/" });
     };
 
     return (
-        <main className="min-h-screen pt-20 lg:pt-32 pb-12 bg-[radial-gradient(circle_at_top_right,hsl(var(--color-primary)/0.05)_0%,transparent_50%)]">
+        <main className="min-h-screen pt-28 lg:pt-32 pb-12 bg-[radial-gradient(circle_at_top_right,hsl(var(--color-primary)/0.05)_0%,transparent_50%)]">
             <div className="container mx-auto px-4">
                 <Breadcrumbs items={[{ label: "Shop Dashboard" }]} />
 
@@ -477,198 +496,228 @@ function DashboardContent() {
                                 <span className="sm:hidden">Home</span>
                             </Link>
                         </PremiumButton>
-                        <PremiumButton asChild className="rounded-full shadow-lg shadow-primary/20 w-full md:w-auto justify-center px-1 sm:px-3 md:px-4 py-1.5 md:py-2.5 h-auto text-[11px] sm:text-xs md:text-sm">
-                            <Link href="/shop-manager/create-offer">
+
+                        {shops.length > 0 ? (
+                            <PremiumButton asChild className="rounded-full shadow-lg shadow-primary/20 w-full md:w-auto justify-center px-1 sm:px-3 md:px-4 py-1.5 md:py-2.5 h-auto text-[11px] sm:text-xs md:text-sm">
+                                <Link href="/shop-manager/create-offer">
+                                    <span className="hidden sm:inline">Add Offer</span>
+                                    <span className="sm:hidden">Offer +</span>
+                                </Link>
+                            </PremiumButton>
+                        ) : (
+                            <PremiumButton
+                                onClick={() => toast.error("Please create a shop profile first to add offers or products.")}
+                                className="rounded-full w-full md:w-auto justify-center px-1 sm:px-3 md:px-4 py-1.5 md:py-2.5 h-auto text-[11px] sm:text-xs md:text-sm opacity-40 cursor-not-allowed hover:shadow-none active:scale-100"
+                                glow={false}
+                            >
                                 <span className="hidden sm:inline">Add Offer</span>
-                                <span className="sm:hidden">Offer</span>
-                            </Link>
-                        </PremiumButton>
-                        <PremiumButton onClick={() => setShowAddProductModal(true)} className="rounded-full shadow-lg shadow-primary/20 w-full md:w-auto justify-center px-1 sm:px-3 md:px-4 py-1.5 md:py-2.5 h-auto text-[11px] sm:text-xs md:text-sm">
+                                <span className="sm:hidden">Offer +</span>
+                            </PremiumButton>
+                        )}
+
+                        <PremiumButton
+                            onClick={() => {
+                                if (shops.length > 0) {
+                                    setShowAddProductModal(true);
+                                } else {
+                                    toast.error("Please create a shop profile first to add offers or products.");
+                                }
+                            }}
+                            className={cn(
+                                "rounded-full w-full md:w-auto justify-center px-1 sm:px-3 md:px-4 py-1.5 md:py-2.5 h-auto text-[11px] sm:text-xs md:text-sm",
+                                shops.length > 0
+                                    ? "shadow-lg shadow-primary/20"
+                                    : "opacity-40 cursor-not-allowed hover:shadow-none active:scale-100"
+                            )}
+                            glow={shops.length > 0}
+                        >
                             <span className="hidden sm:inline">Add Product</span>
-                            <span className="sm:hidden">Product</span>
+                            <span className="sm:hidden">Product +</span>
                         </PremiumButton>
                     </div>
                 </div>
 
                 {/* Quick Stats */}
-                <div className="mb-12">
-                    <div className="md:hidden">
-                        <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-sm font-semibold text-gray-700">Quick Stats</h3>
-                            <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                                <span>Swipe to view</span>
-                                <ChevronRight className="w-3.5 h-3.5 animate-pulse" />
+                {shops.length > 0 && (
+                    <div className="mb-12">
+                        <div className="md:hidden">
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-sm font-semibold text-gray-700">Quick Stats</h3>
+                                <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                                    <span>Swipe to view</span>
+                                    <ChevronRight className="w-3.5 h-3.5 animate-pulse" />
+                                </div>
                             </div>
+                            <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide px-1">
+                                <div className="w-[85vw] sm:w-[240px] flex-none shrink-0 snap-center">
+                                    {isLoadingOffers ? (
+                                        <Skeleton className="h-24 w-full rounded-2xl" />
+                                    ) : (
+                                        <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 transition-all duration-300 rounded-2xl">
+                                            <div className="p-3.5 flex items-center gap-3">
+                                                <div className="p-2 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform flex-shrink-0">
+                                                    <Package className="w-5 h-5" />
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-center justify-between gap-2 mb-0.5">
+                                                        <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate">Offers</h3>
+                                                        <div className="flex items-center gap-1 text-[9px] text-emerald-500 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded-lg whitespace-nowrap">
+                                                            <Calendar className="w-2.5 h-2.5" />
+                                                            Active
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-baseline gap-2">
+                                                        <div className="text-xl font-black text-gray-900 tracking-tight">
+                                                            {publishedOffers.filter((o: any) => o.status === 'active').length}
+                                                        </div>
+                                                        <span className="text-[10px] text-gray-400 font-medium truncate">
+                                                            / {publishedOffers.filter((o: any) => o.status !== 'active').length} paused
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </PremiumCard>
+                                    )}
+                                </div>
+                                <div className="w-[85vw] sm:w-[240px] flex-none shrink-0 snap-center">
+                                    {isLoadingProducts ? (
+                                        <Skeleton className="h-24 w-full rounded-2xl" />
+                                    ) : (
+                                        <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 transition-all duration-300 rounded-2xl">
+                                            <div className="p-3.5 flex items-center gap-3">
+                                                <div className="p-2 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform flex-shrink-0">
+                                                    <ShoppingBag className="w-5 h-5" />
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-center justify-between gap-2 mb-0.5">
+                                                        <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate">Products</h3>
+                                                        <div className="flex items-center gap-1 text-[9px] text-emerald-500 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded-lg whitespace-nowrap">
+                                                            <Calendar className="w-2.5 h-2.5" />
+                                                            Active
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-baseline gap-2">
+                                                        <div className="text-xl font-black text-gray-900 tracking-tight">
+                                                            {products.filter((p: any) => p.status === 'active').length}
+                                                        </div>
+                                                        <span className="text-[10px] text-gray-400 font-medium truncate">
+                                                            / {products.filter((p: any) => p.status !== 'active').length} paused
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </PremiumCard>
+                                    )}
+                                </div>
+                                <div className="w-[85vw] sm:w-[220px] flex-none shrink-0 snap-center">
+                                    <StatCard icon={BarChart3} label="Total Views" value="1.2k" trend="+15%" isLoading={isLoadingOffers} />
+                                </div>
+                                <div className="w-[85vw] sm:w-[220px] flex-none shrink-0 snap-center">
+                                    <StatCard icon={MousePointer2} label="Engagement" value="48" trend="+8 up" isLoading={isLoadingOffers} />
+                                </div>
+                                <div className="w-[85vw] sm:w-[220px] flex-none shrink-0 snap-center">
+                                    <StatCard icon={Tag} label="Conv. Rate" value="4.8%" trend="+0.5%" isLoading={isLoadingOffers} />
+                                </div>
+                            </div>
+
                         </div>
-                        <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide px-1">
-                            <div className="w-[85vw] sm:w-[240px] flex-none shrink-0 snap-center">
-                                {isLoadingOffers ? (
-                                    <Skeleton className="h-24 w-full rounded-2xl" />
-                                ) : (
-                                    <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 transition-all duration-300 rounded-2xl">
-                                        <div className="p-3.5 flex items-center gap-3">
-                                            <div className="p-2 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform flex-shrink-0">
-                                                <Package className="w-5 h-5" />
+
+                        <div className="hidden md:grid grid-cols-2 xl:grid-cols-5 gap-4">
+                            {isLoadingOffers ? (
+                                <Skeleton className="h-24 w-full rounded-2xl" />
+                            ) : (
+                                <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 transition-all duration-300 rounded-2xl">
+                                    <div className="p-4 flex items-center gap-3">
+                                        <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform flex-shrink-0">
+                                            <Package className="w-5 h-5 transition-transform" />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex items-center justify-between gap-2 mb-0.5">
+                                                <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate">Offers</h3>
+                                                <div className="flex items-center gap-1 text-[10px] text-emerald-500 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-lg whitespace-nowrap">
+                                                    <Calendar className="w-3 h-3" />
+                                                    Live
+                                                </div>
                                             </div>
-                                            <div className="min-w-0 flex-1">
-                                                <div className="flex items-center justify-between gap-2 mb-0.5">
-                                                    <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate">Offers</h3>
-                                                    <div className="flex items-center gap-1 text-[9px] text-emerald-500 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded-lg whitespace-nowrap">
-                                                        <Calendar className="w-2.5 h-2.5" />
-                                                        Active
-                                                    </div>
+                                            <div className="flex items-baseline gap-2">
+                                                <div className="text-2xl font-black text-gray-900 tracking-tighter">
+                                                    {publishedOffers.filter((o: any) => o.status === 'active').length}
                                                 </div>
-                                                <div className="flex items-baseline gap-2">
-                                                    <div className="text-xl font-black text-gray-900 tracking-tight">
-                                                        {publishedOffers.filter((o: any) => o.status === 'active').length}
-                                                    </div>
-                                                    <span className="text-[10px] text-gray-400 font-medium truncate">
-                                                        / {publishedOffers.filter((o: any) => o.status !== 'active').length} paused
-                                                    </span>
-                                                </div>
+                                                <span className="text-[11px] text-gray-400 font-medium truncate mt-1">
+                                                    / {publishedOffers.filter((o: any) => o.status !== 'active').length} paused
+                                                </span>
                                             </div>
                                         </div>
-                                    </PremiumCard>
-                                )}
-                            </div>
-                            <div className="w-[85vw] sm:w-[240px] flex-none shrink-0 snap-center">
-                                {isLoadingProducts ? (
-                                    <Skeleton className="h-24 w-full rounded-2xl" />
-                                ) : (
-                                    <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 transition-all duration-300 rounded-2xl">
-                                        <div className="p-3.5 flex items-center gap-3">
-                                            <div className="p-2 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform flex-shrink-0">
-                                                <ShoppingBag className="w-5 h-5" />
+                                    </div>
+                                </PremiumCard>
+                            )}
+                            {isLoadingProducts ? (
+                                <Skeleton className="h-24 w-full rounded-2xl" />
+                            ) : (
+                                <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 transition-all duration-300 rounded-2xl">
+                                    <div className="p-4 flex items-center gap-3">
+                                        <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform flex-shrink-0">
+                                            <ShoppingBag className="w-5 h-5 transition-transform" />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex items-center justify-between gap-2 mb-0.5">
+                                                <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate">Products</h3>
+                                                <div className="flex items-center gap-1 text-[10px] text-emerald-500 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-lg whitespace-nowrap">
+                                                    <Calendar className="w-3 h-3" />
+                                                    Live
+                                                </div>
                                             </div>
-                                            <div className="min-w-0 flex-1">
-                                                <div className="flex items-center justify-between gap-2 mb-0.5">
-                                                    <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate">Products</h3>
-                                                    <div className="flex items-center gap-1 text-[9px] text-emerald-500 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded-lg whitespace-nowrap">
-                                                        <Calendar className="w-2.5 h-2.5" />
-                                                        Active
-                                                    </div>
+                                            <div className="flex items-baseline gap-2">
+                                                <div className="text-2xl font-black text-gray-900 tracking-tighter">
+                                                    {products.filter((p: any) => p.status === 'active').length}
                                                 </div>
-                                                <div className="flex items-baseline gap-2">
-                                                    <div className="text-xl font-black text-gray-900 tracking-tight">
-                                                        {products.filter((p: any) => p.status === 'active').length}
-                                                    </div>
-                                                    <span className="text-[10px] text-gray-400 font-medium truncate">
-                                                        / {products.filter((p: any) => p.status !== 'active').length} paused
-                                                    </span>
-                                                </div>
+                                                <span className="text-[11px] text-gray-400 font-medium truncate mt-1">
+                                                    / {products.filter((p: any) => p.status !== 'active').length} paused
+                                                </span>
                                             </div>
                                         </div>
-                                    </PremiumCard>
-                                )}
-                            </div>
-                            <div className="w-[85vw] sm:w-[220px] flex-none shrink-0 snap-center">
-                                <StatCard icon={BarChart3} label="Total Views" value="1.2k" trend="+15%" isLoading={isLoadingOffers} />
-                            </div>
-                            <div className="w-[85vw] sm:w-[220px] flex-none shrink-0 snap-center">
-                                <StatCard icon={MousePointer2} label="Engagement" value="48" trend="+8 up" isLoading={isLoadingOffers} />
-                            </div>
-                            <div className="w-[85vw] sm:w-[220px] flex-none shrink-0 snap-center">
-                                <StatCard icon={Tag} label="Conv. Rate" value="4.8%" trend="+0.5%" isLoading={isLoadingOffers} />
-                            </div>
+                                    </div>
+                                </PremiumCard>
+                            )}
+                            <StatCard icon={BarChart3} label="Total Views" value="1.2k" trend="+15% vs last month" isLoading={isLoadingOffers} />
+                            <StatCard icon={MousePointer2} label="Audience Engagement" value="48" trend="8 new today" isLoading={isLoadingOffers} />
+                            <StatCard icon={Tag} label="Conversion Rate" value="4.8%" trend="+0.5%" isLoading={isLoadingOffers} />
                         </div>
 
                     </div>
-
-                    <div className="hidden md:grid grid-cols-2 xl:grid-cols-5 gap-4">
-                        {isLoadingOffers ? (
-                            <Skeleton className="h-24 w-full rounded-2xl" />
-                        ) : (
-                            <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 transition-all duration-300 rounded-2xl">
-                                <div className="p-4 flex items-center gap-3">
-                                    <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform flex-shrink-0">
-                                        <Package className="w-5 h-5 transition-transform" />
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                        <div className="flex items-center justify-between gap-2 mb-0.5">
-                                            <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate">Offers</h3>
-                                            <div className="flex items-center gap-1 text-[10px] text-emerald-500 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-lg whitespace-nowrap">
-                                                <Calendar className="w-3 h-3" />
-                                                Live
-                                            </div>
-                                        </div>
-                                        <div className="flex items-baseline gap-2">
-                                            <div className="text-2xl font-black text-gray-900 tracking-tighter">
-                                                {publishedOffers.filter((o: any) => o.status === 'active').length}
-                                            </div>
-                                            <span className="text-[11px] text-gray-400 font-medium truncate mt-1">
-                                                / {publishedOffers.filter((o: any) => o.status !== 'active').length} paused
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </PremiumCard>
-                        )}
-                        {isLoadingProducts ? (
-                            <Skeleton className="h-24 w-full rounded-2xl" />
-                        ) : (
-                            <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 transition-all duration-300 rounded-2xl">
-                                <div className="p-4 flex items-center gap-3">
-                                    <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform flex-shrink-0">
-                                        <ShoppingBag className="w-5 h-5 transition-transform" />
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                        <div className="flex items-center justify-between gap-2 mb-0.5">
-                                            <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate">Products</h3>
-                                            <div className="flex items-center gap-1 text-[10px] text-emerald-500 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-lg whitespace-nowrap">
-                                                <Calendar className="w-3 h-3" />
-                                                Live
-                                            </div>
-                                        </div>
-                                        <div className="flex items-baseline gap-2">
-                                            <div className="text-2xl font-black text-gray-900 tracking-tighter">
-                                                {products.filter((p: any) => p.status === 'active').length}
-                                            </div>
-                                            <span className="text-[11px] text-gray-400 font-medium truncate mt-1">
-                                                / {products.filter((p: any) => p.status !== 'active').length} paused
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </PremiumCard>
-                        )}
-                        <StatCard icon={BarChart3} label="Total Views" value="1.2k" trend="+15% vs last month" isLoading={isLoadingOffers} />
-                        <StatCard icon={MousePointer2} label="Audience Engagement" value="48" trend="8 new today" isLoading={isLoadingOffers} />
-                        <StatCard icon={Tag} label="Conversion Rate" value="4.8%" trend="+0.5%" isLoading={isLoadingOffers} />
-                    </div>
-
-                </div>
+                )}
 
                 {/* Main Content Areas */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-1 space-y-6 order-2">
-                        {/* Shop Profile Spotlight */}
-                        {isLoadingShops && (
-                            <PremiumCard variant="glass" padding="none" className="overflow-hidden">
-                                <div className="h-16 bg-gray-100/50 animate-pulse" />
-                                <div className="px-5 pb-5 -mt-8 relative z-10 flex flex-col items-center">
-                                    <Skeleton className="w-16 h-16 rounded-2xl bg-white shadow-lg shadow-black/5" />
-                                    <Skeleton className="h-6 w-40 mt-3 rounded-lg" />
-                                    <Skeleton className="h-4 w-24 mt-2 rounded-lg" />
-                                    <div className="grid grid-cols-2 gap-4 w-full mt-4 py-2.5 border-y border-primary/5">
-                                        <div className="space-y-2">
-                                            <Skeleton className="h-4 w-8 mx-auto" />
-                                            <Skeleton className="h-2 w-12 mx-auto" />
+                    {shops.length > 0 && (
+                        <div className="lg:col-span-1 space-y-6 order-2">
+                            {/* Shop Profile Spotlight */}
+                            {isLoadingShops && (
+                                <PremiumCard variant="glass" padding="none" className="overflow-hidden">
+                                    <div className="h-16 bg-gray-100/50 animate-pulse" />
+                                    <div className="px-5 pb-5 -mt-8 relative z-10 flex flex-col items-center">
+                                        <Skeleton className="w-16 h-16 rounded-2xl bg-white shadow-lg shadow-black/5" />
+                                        <Skeleton className="h-6 w-40 mt-3 rounded-lg" />
+                                        <Skeleton className="h-4 w-24 mt-2 rounded-lg" />
+                                        <div className="grid grid-cols-2 gap-4 w-full mt-4 py-2.5 border-y border-primary/5">
+                                            <div className="space-y-2">
+                                                <Skeleton className="h-4 w-8 mx-auto" />
+                                                <Skeleton className="h-2 w-12 mx-auto" />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Skeleton className="h-4 w-8 mx-auto" />
+                                                <Skeleton className="h-2 w-12 mx-auto" />
+                                            </div>
                                         </div>
-                                        <div className="space-y-2">
-                                            <Skeleton className="h-4 w-8 mx-auto" />
-                                            <Skeleton className="h-2 w-12 mx-auto" />
+                                        <div className="grid grid-cols-2 gap-3 w-full mt-4">
+                                            <Skeleton className="h-10 w-full rounded-xl" />
+                                            <Skeleton className="h-10 w-full rounded-xl" />
                                         </div>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-3 w-full mt-4">
-                                        <Skeleton className="h-10 w-full rounded-xl" />
-                                        <Skeleton className="h-10 w-full rounded-xl" />
-                                    </div>
-                                </div>
-                            </PremiumCard>
-                        )}
+                                </PremiumCard>
+                            )}
 
-                        {!isLoadingShops && (
-                            shops.length > 0 ? (
+                            {!isLoadingShops && (
                                 <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:shadow-2xl hover:shadow-primary/5 transition-all duration-500">
                                     <div className="h-16 bg-orange-500/[0.08] relative">
                                         <div className="absolute top-3 right-3 z-20 scale-90 origin-top-right">
@@ -721,14 +770,14 @@ function DashboardContent() {
                                                 </div>
                                             </div>
                                             <div className="grid grid-cols-2 gap-2 w-full mt-4">
-                                                <Link href={`/shop-manager/${shops[0].id}/branches`} className="w-full">
-                                                    <PremiumButton variant="outline" size="sm" className="w-full rounded-xl py-3.5 border-primary/10 hover:border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary gap-1.5">
+                                                <Link href={`/shop-manager/${shops[0].id}/branches`} className="w-full cursor-pointer">
+                                                    <PremiumButton variant="outline" glow={false} size="sm" className="w-full rounded-xl py-3.5 border-primary/10 hover:border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary gap-1.5 shadow-none cursor-pointer">
                                                         <GitBranch className="w-3 h-3" />
                                                         <span className="text-[10px] font-bold uppercase tracking-wider">Branches</span>
                                                     </PremiumButton>
                                                 </Link>
-                                                <Link href={`/shop-manager/add-shop?id=${shops[0].id}`} className="w-full">
-                                                    <PremiumButton variant="outline" size="sm" className="w-full rounded-xl py-3.5 border-primary/10 hover:border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary gap-1.5">
+                                                <Link href={`/shop-manager/add-shop?id=${shops[0].id}`} className="w-full cursor-pointer">
+                                                    <PremiumButton variant="outline" glow={false} size="sm" className="w-full rounded-xl py-3.5 border-primary/10 hover:border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary gap-1.5 shadow-none cursor-pointer">
                                                         <Settings className="w-3 h-3" />
                                                         <span className="text-[10px] font-bold uppercase tracking-wider">Manage</span>
                                                     </PremiumButton>
@@ -737,8 +786,9 @@ function DashboardContent() {
                                             <PremiumButton
                                                 onClick={handleLogout}
                                                 variant="outline"
+                                                glow={false}
                                                 size="sm"
-                                                className="w-full rounded-xl py-3.5 mt-2 border-rose-100 hover:border-rose-200 bg-rose-50/30 hover:bg-rose-50 text-rose-600 gap-1.5 transition-all duration-300"
+                                                className="w-full rounded-xl py-3.5 mt-2 border-rose-100 hover:border-rose-200 bg-rose-50/30 hover:bg-rose-50 text-rose-600 gap-1.5 transition-all duration-300 shadow-none cursor-pointer"
                                             >
                                                 <LogOut className="w-3.5 h-3.5" />
                                                 <span className="text-[10px] font-bold uppercase tracking-wider">Logout</span>
@@ -746,494 +796,578 @@ function DashboardContent() {
                                         </div>
                                     </div>
                                 </PremiumCard>
-                            ) : (
-                                <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:shadow-2xl hover:shadow-primary/5 transition-all duration-500">
-                                    <div className="h-16 bg-orange-500/[0.08] relative flex items-center justify-center border-b border-primary/5">
-                                        <div className="absolute inset-0 bg-gradient-to-r from-orange-500/10 via-transparent to-orange-500/10 group-hover:opacity-100 transition-opacity" />
+                            )}
+
+                            <PremiumCard variant="glass" padding="none" className="overflow-hidden shadow-lg shadow-black/5">
+                                <div className="p-5">
+                                    <SectionTitle className="mb-4 text-xs text-gray-400 font-bold uppercase tracking-widest">Quick Utilities</SectionTitle>
+                                    <div className="grid grid-cols-3 gap-2.5">
+                                        <ActionButton icon={Settings} label="Business" href="/shop-manager/shop-settings" variant="grid" />
+                                        <ActionButton icon={Paintbrush} label="Designer" href="/shop-manager/poster-designer" variant="grid" />
+                                        <ActionButton icon={BarChart3} label="Analysis" variant="grid" />
                                     </div>
-                                    <div className="px-5 pb-6 -mt-8 relative z-10">
-                                        <div className="flex flex-col items-center text-center">
-                                            <div className="w-16 h-16 rounded-2xl bg-white p-1 shadow-xl shadow-black/5 ring-4 ring-white relative flex items-center justify-center">
-                                                <div className="w-full h-full rounded-xl bg-primary/5 flex items-center justify-center overflow-hidden relative">
-                                                    <Store className="w-6 h-6 text-primary/30" />
-                                                </div>
-                                            </div>
-                                            <div className="mt-4 w-full">
-                                                <h3 className="text-lg font-black text-gray-900 tracking-tight">No Shop Yet</h3>
-                                                <p className="text-xs text-gray-500 mt-1.5 mb-5 leading-relaxed">
-                                                    Ready to start selling? Create your virtual shop profile to showcase your business.
-                                                </p>
-                                            </div>
-                                            <Link href="/shop-manager/add-shop" className="w-full">
-                                                <PremiumButton className="w-full rounded-xl py-3.5 shadow-lg shadow-primary/20 flex items-center justify-center gap-2 border-none hover:scale-[1.02] transition-all duration-300">
-                                                    <Plus className="w-4 h-4" />
-                                                    <span className="text-xs font-bold uppercase tracking-wider">Create Your Shop</span>
+                                </div>
+                            </PremiumCard>
+                        </div>
+                    )}
+
+                    {/* Tabs Content */}
+                    <div className={cn("space-y-6 order-1 scroll-mt-24 md:scroll-mt-32", shops.length > 0 ? "lg:col-span-2" : "lg:col-span-3")} ref={tabsRef}>
+                        {shops.length === 0 ? (
+                            <div className="max-w-4xl mx-auto space-y-8 py-4">
+                                {/* Hero Card */}
+                                <PremiumCard variant="glass" padding="none" className="overflow-hidden border border-primary/10 rounded-3xl shadow-xl shadow-primary/5 hover:shadow-2xl transition-all duration-500 bg-gradient-to-br from-orange-500/[0.03] via-transparent to-rose-500/[0.02]">
+                                    <div className="p-8 md:p-12 flex flex-col md:flex-row items-center justify-between gap-8 w-full">
+                                        <div className="space-y-3 text-center md:text-left max-w-xl">
+                                            <span className="px-3 py-1 rounded-full text-[10px] font-bold text-orange-600 bg-orange-100/50 uppercase tracking-widest">
+                                                Onboarding Started
+                                            </span>
+                                            <h3 className="text-2xl md:text-3xl font-black text-gray-900 tracking-tight leading-tight">
+                                                Let's Launch Your Digital Storefront
+                                            </h3>
+                                            <p className="text-sm text-gray-500 leading-relaxed">
+                                                To start publishing deals, sharing posters, and attracting local shoppers, you first need to set up your virtual shop profile.
+                                            </p>
+                                        </div>
+                                        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto shrink-0 justify-center">
+                                            <Link href="/shop-manager/add-shop" className="w-full sm:w-auto">
+                                                <PremiumButton className="w-full rounded-2xl py-4 px-8 shadow-lg shadow-orange-500/20 hover:shadow-orange-500/30 flex items-center justify-center gap-2.5 border-none hover:scale-[1.02] active:scale-95 transition-all duration-300 text-sm font-bold tracking-wide uppercase">
+                                                    <Plus className="w-5 h-5" />
+                                                    Create Shop
                                                 </PremiumButton>
                                             </Link>
                                             <PremiumButton
                                                 onClick={handleLogout}
                                                 variant="outline"
-                                                size="sm"
-                                                className="w-full rounded-xl py-3.5 mt-2 border-rose-100 hover:border-rose-200 bg-rose-50/30 hover:bg-rose-50 text-rose-600 gap-1.5 shadow-sm transition-all duration-300 hover:shadow-md"
+                                                glow={false}
+                                                className="w-full sm:w-auto rounded-2xl py-4 px-6 border-rose-100 hover:border-rose-200 bg-rose-50/20 hover:bg-rose-50 text-rose-600 gap-1.5 transition-all duration-300 shadow-none"
                                             >
-                                                <LogOut className="w-3.5 h-3.5" />
-                                                <span className="text-[10px] font-bold uppercase tracking-wider">Logout</span>
+                                                <LogOut className="w-4 h-4" />
+                                                <span className="text-xs font-bold uppercase tracking-wider">Logout</span>
                                             </PremiumButton>
                                         </div>
                                     </div>
                                 </PremiumCard>
-                            )
-                        )}
-                        <PremiumCard variant="glass" padding="none" className="overflow-hidden shadow-lg shadow-black/5">
-                            <div className="p-5">
-                                <SectionTitle className="mb-4 text-xs text-gray-400 font-bold uppercase tracking-widest">Quick Utilities</SectionTitle>
-                                <div className="grid grid-cols-3 gap-2.5">
-                                    <ActionButton icon={Settings} label="Business" href="/shop-manager/shop-settings" variant="grid" />
-                                    <ActionButton icon={Paintbrush} label="Designer" href="/shop-manager/poster-designer" variant="grid" />
-                                    <ActionButton icon={BarChart3} label="Analysis" variant="grid" />
+
+                                {/* Stepper Visual Flow */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+                                    {/* Step 1: Active */}
+                                    <PremiumCard variant="glass" className="relative border border-orange-500/20 bg-white/60 hover:bg-white transition-all duration-300 p-6 rounded-2xl">
+                                        <div className="absolute top-4 right-4 w-6 h-6 rounded-full bg-orange-500/10 text-orange-600 flex items-center justify-center text-xs font-bold ring-4 ring-orange-100/50">
+                                            1
+                                        </div>
+                                        <div className="flex flex-col h-full justify-between">
+                                            <div>
+                                                <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center mb-4 text-orange-600">
+                                                    <Store className="w-5 h-5" />
+                                                </div>
+                                                <h4 className="font-bold text-sm text-gray-900 mb-1">Create Shop</h4>
+                                                <p className="text-xs text-gray-500 leading-relaxed mb-4">
+                                                    Add your branding, address, and live map coordinates.
+                                                </p>
+                                            </div>
+                                            <span className="text-[10px] font-black text-orange-500 uppercase tracking-widest flex items-center gap-1.5 mt-2">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+                                                In Progress
+                                            </span>
+                                        </div>
+                                    </PremiumCard>
+
+                                    {/* Step 2: Locked */}
+                                    <PremiumCard variant="glass" className="opacity-60 border border-primary/5 bg-gray-50/30 p-6 rounded-2xl">
+                                        <div className="absolute top-4 right-4 w-6 h-6 rounded-full bg-gray-200 text-gray-400 flex items-center justify-center text-xs font-bold">
+                                            2
+                                        </div>
+                                        <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center mb-4 text-gray-400">
+                                            <Tag className="w-5 h-5" />
+                                        </div>
+                                        <h4 className="font-bold text-sm text-gray-700 mb-1">List Offers</h4>
+                                        <p className="text-xs text-gray-400 leading-relaxed">
+                                            Create promotional posters using our AI studio or design canvas.
+                                        </p>
+                                    </PremiumCard>
+
+                                    {/* Step 3: Locked */}
+                                    <PremiumCard variant="glass" className="opacity-60 border border-primary/5 bg-gray-50/30 p-6 rounded-2xl">
+                                        <div className="absolute top-4 right-4 w-6 h-6 rounded-full bg-gray-200 text-gray-400 flex items-center justify-center text-xs font-bold">
+                                            3
+                                        </div>
+                                        <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center mb-4 text-gray-400">
+                                            <BarChart3 className="w-5 h-5" />
+                                        </div>
+                                        <h4 className="font-bold text-sm text-gray-700 mb-1">Publish & Attract</h4>
+                                        <p className="text-xs text-gray-400 leading-relaxed">
+                                            Go live! Reach nearby shoppers and drive foot traffic directly to your physical store.
+                                        </p>
+                                    </PremiumCard>
                                 </div>
                             </div>
-                        </PremiumCard>
-                    </div>
-
-                    {/* Tabs Content */}
-                    <div className="lg:col-span-2 space-y-6 order-1 scroll-mt-24 md:scroll-mt-32" ref={tabsRef}>
-                        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                            <PremiumCard variant="glass" padding="none" className="overflow-hidden">
-                                <div className="p-4 pb-0 border-b border-primary/5">
-                                    <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-3 mb-2">
-                                        <TabsList className="bg-primary/5 p-1 gap-1 w-full xs:w-auto">
-                                            <TabsTrigger value="offers" className="flex-1 xs:flex-none data-[state=active]:bg-orange-500 data-[state=active]:text-white gap-2 transition-all">
-                                                <Tag className="w-4 h-4" /> Offers
-                                            </TabsTrigger>
-                                            <TabsTrigger value="products" className="flex-1 xs:flex-none data-[state=active]:bg-orange-500 data-[state=active]:text-white gap-2 transition-all">
-                                                <Package className="w-4 h-4" /> Products
-                                            </TabsTrigger>
-                                            {allDrafts.length > 0 && (
-                                                <TabsTrigger value="drafts" className="flex-1 xs:flex-none data-[state=active]:bg-orange-500 data-[state=active]:text-white gap-2 transition-all">
-                                                    <Pencil className="w-4 h-4" /> Drafts
+                        ) : (
+                            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                                <PremiumCard variant="glass" padding="none" className="overflow-hidden">
+                                    <div className="p-4 pb-0 border-b border-primary/5">
+                                        <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-3 mb-2">
+                                            <TabsList className="bg-primary/5 p-1 gap-1 w-full xs:w-auto">
+                                                <TabsTrigger value="offers" className="flex-1 xs:flex-none data-[state=active]:bg-orange-500 data-[state=active]:text-white gap-2 transition-all">
+                                                    <Tag className="w-4 h-4" /> Offers
                                                 </TabsTrigger>
-                                            )}
-                                        </TabsList>
-                                        <div className="flex flex-col items-end">
-                                            <span className="text-[9px] text-gray-400 font-bold block sm:hidden mt-0.5">← Swipe left on items to manage</span>
+                                                <TabsTrigger value="products" className="flex-1 xs:flex-none data-[state=active]:bg-orange-500 data-[state=active]:text-white gap-2 transition-all">
+                                                    <Package className="w-4 h-4" /> Products
+                                                </TabsTrigger>
+                                                {allDrafts.length > 0 && (
+                                                    <TabsTrigger value="drafts" className="flex-1 xs:flex-none data-[state=active]:bg-orange-500 data-[state=active]:text-white gap-2 transition-all">
+                                                        <Pencil className="w-4 h-4" /> Drafts
+                                                    </TabsTrigger>
+                                                )}
+                                            </TabsList>
+                                            <div className="flex flex-col items-end">
+                                                <span className="text-[9px] text-gray-400 font-bold block sm:hidden mt-0.5">← Swipe left on items to manage</span>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                <div className="p-4">
-                                    <TabsContent value="offers" className="mt-0 space-y-3 focus-visible:ring-0">
-                                        {isLoadingOffers ? (
-                                            <div className="space-y-4">
-                                                {[1, 2, 3].map((i) => (
-                                                    <div key={i} className="relative rounded-2xl bg-white border border-gray-100 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-5 animate-pulse">
-                                                        <div className="flex items-center gap-4 min-w-0 flex-1">
-                                                            <Skeleton className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl shrink-0" />
-                                                            <div className="min-w-0 flex-1 space-y-2">
-                                                                <div className="flex items-center gap-2">
-                                                                    <Skeleton className="h-5 w-1/2 rounded-md" />
-                                                                    <Skeleton className="h-4 w-16 rounded-full" />
-                                                                </div>
-                                                                <div className="flex gap-3">
-                                                                    <Skeleton className="h-3 w-24 rounded" />
-                                                                    <Skeleton className="h-3 w-20 rounded" />
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 shrink-0 w-full sm:w-auto">
-                                                            <div className="flex flex-col items-center sm:items-end w-full sm:w-auto space-y-2">
-                                                                <Skeleton className="h-2 w-20" />
-                                                                <Skeleton className="h-4 w-32" />
-                                                            </div>
-                                                            <div className="flex flex-row sm:flex-col items-center gap-3 w-full sm:w-auto justify-between sm:justify-center px-4 sm:px-0 sm:pl-8 border-l-0 sm:border-l border-gray-100">
-                                                                <Skeleton className="h-4 w-12" />
-                                                                <div className="flex gap-2">
-                                                                    <Skeleton className="h-10 w-10 rounded-xl" />
-                                                                    <Skeleton className="h-10 w-10 rounded-xl" />
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <>
-                                                {publishedOffers.length === 0 && (
-                                                    <Link href="/shop-manager/create-offer" className="block">
-                                                        <div className="p-1 rounded-xl border-2 border-dashed border-primary/20 hover:border-primary/40 bg-primary/5 hover:bg-primary/10 transition-all group cursor-pointer">
-                                                            <div className="flex items-center justify-center gap-3">
-                                                                <div className="w-10 h-10 rounded-xl bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center transition-colors">
-                                                                    <Plus className="w-5 h-5 text-primary" />
-                                                                </div>
-                                                                <div className="text-left"><h4 className="font-bold text-gray-900 group-hover:text-primary transition-colors">Add Offer</h4></div>
-                                                            </div>
-                                                        </div>
-                                                    </Link>
-                                                )}
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar p-1">
-                                                    {publishedOffers.length > 0 ? (
-                                                        publishedOffers.map((offer, idx) => {
-                                                            const id = offer.offerId || offer.batchId || idx;
-                                                            const offerImage = offer.posters?.[0]?.posterSrc || offer.posterSrc;
-                                                            return (
-                                                                <SwipeableCard
-                                                                    key={id}
-                                                                    onEdit={() => offer.isDraft ? router.push(`/shop-manager/poster-designer?draftId=${offer.batchId || offer.id}`) : openEditModal(offer)}
-                                                                    onDelete={() => setOfferToDelete(offer)}
-                                                                    editTitle="Edit offer"
-                                                                    deleteTitle="Delete offer"
-                                                                >
-                                                                    <div className="group relative flex items-start gap-3 p-3 rounded-xl bg-gray-50/50 border border-gray-100 hover:border-primary/20 hover:bg-white hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 overflow-hidden">
-                                                                        <div
-                                                                            className={`group/img relative w-16 h-16 rounded-lg bg-white overflow-hidden shrink-0 border border-gray-100 shadow-sm z-10 transition-all duration-300 ${offerImage ? 'cursor-pointer active:scale-95' : ''}`}
-                                                                            onClick={(e) => {
-                                                                                if (offerImage) {
-                                                                                    e.preventDefault();
-                                                                                    e.stopPropagation();
-                                                                                    setPreviewLogo({ src: offerImage, name: offer.title || "Offer Preview" });
-                                                                                }
-                                                                            }}
-                                                                            title={offerImage ? "View large poster" : undefined}
-                                                                        >
-                                                                            {offerImage ? (
-                                                                                <>
-                                                                                    <Image src={offerImage} alt={offer.title || "Offer"} fill unoptimized className="object-cover group-hover:scale-110 transition-transform duration-500" />
-                                                                                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-[1px]">
-                                                                                        <div className="bg-white/90 p-1.5 rounded-full shadow-lg scale-75 group-hover/img:scale-100 transition-transform duration-300">
-                                                                                            <Eye className="w-4 h-4 text-primary" />
-                                                                                        </div>
-                                                                                    </div>
-                                                                                </>
-                                                                            ) : (
-                                                                                <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
-                                                                                    <Tag className="w-6 h-6 text-gray-300 group-hover:text-primary transition-colors rotate-12" />
-                                                                                </div>
-                                                                            )}
-                                                                            <div className="absolute top-1 left-1">
-                                                                                <div className={cn("px-1 py-0.5 rounded backdrop-blur-sm shadow-sm border", offer.isDraft ? "bg-amber-100/90 border-amber-200" : "bg-white/90 border-gray-100")}>
-                                                                                    <p className={cn("text-[8px] font-black uppercase tracking-tighter", offer.isDraft ? "text-amber-600" : "text-primary")}>
-                                                                                        {offer.isDraft ? "Draft" : "New"}
-                                                                                    </p>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-
-                                                                        <div className="min-w-0 flex-1 z-10 flex flex-col justify-center self-stretch py-0.5">
-                                                                            <h4 className="font-bold text-xs text-gray-900 truncate group-hover:text-primary transition-colors leading-tight">
-                                                                                {offer.title || "Untitled Offer"}
-                                                                            </h4>
-
-                                                                            <div className="flex items-center gap-1.5 mt-0.5 min-w-0 pr-2">
-                                                                                <div className="text-[9px] font-bold text-orange-500 uppercase tracking-widest leading-none truncate">
-                                                                                    {offer.type ? `${offer.type}` : ''}
-                                                                                </div>
-                                                                            </div>
-
-                                                                            {(offer.validFrom || offer.validTo || (offer.branches && offer.branches.length > 0) || offer.branchNames || offer.branchName) && (
-                                                                                <div className="flex flex-wrap items-center gap-1 text-[8px] text-gray-500 mt-1">
-                                                                                    {(offer.validFrom || offer.validTo) && (
-                                                                                        <span className="bg-gray-50 border border-gray-100/80 text-gray-600 px-1.5 py-0.5 rounded flex items-center gap-1 font-medium">
-                                                                                            <Calendar className="w-2.5 h-2.5 text-gray-400 shrink-0" />
-                                                                                            <span>
-                                                                                                {offer.validFrom ? new Date(offer.validFrom).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' }) : "n/a"}{offer.validTo ? ` - ${new Date(offer.validTo).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}` : ""}
-                                                                                            </span>
-                                                                                        </span>
-                                                                                    )}
-                                                                                    {((offer.branches && offer.branches.length > 0) || offer.branchNames || offer.branchName) && (
-                                                                                        <span className="bg-primary/5 text-primary border border-primary/10 px-1.5 py-0.5 rounded font-medium flex items-center gap-1">
-                                                                                            <GitBranch className="w-2.5 h-2.5 shrink-0" />
-                                                                                            <span className="truncate max-w-[90px]">
-                                                                                                {offer.branches ? (
-                                                                                                    offer.branches.length > 1 ? `${offer.branches[0].branchName} +${offer.branches.length - 1}` : offer.branches[0].branchName
-                                                                                                ) : (
-                                                                                                    offer.branchNames ? offer.branchNames[0] : offer.branchName
-                                                                                                )}
-                                                                                            </span>
-                                                                                        </span>
-                                                                                    )}
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-
-                                                                        <div className="relative z-20 flex flex-col items-end justify-between self-stretch shrink-0 py-0.5">
-                                                                            <div className="flex items-center gap-1">
-                                                                                <div className="scale-75 origin-right">
-                                                                                    <StatusToggleButton
-                                                                                        status={offer.status || 'active'}
-                                                                                        onChange={() => handleToggleOfferStatus(offer)}
-                                                                                    />
-                                                                                </div>
-                                                                            </div>
-
-                                                                            <div className="flex items-baseline gap-1 my-1 text-[8px] font-semibold text-slate-400">
-                                                                                <Clock className="w-2.5 h-2.5 shrink-0" />
-                                                                                <span>{getRelativeTime(offer.createdAt || offer.validFrom) ? getRelativeTime(offer.createdAt || offer.validFrom) : "Active"}</span>
-                                                                            </div>
-
-                                                                            <div className="hidden sm:flex flex-row gap-1 items-center">
-                                                                                <button onClick={() => openEditModal(offer)} className="flex items-center justify-center p-1.5 rounded-lg bg-white border border-gray-100 text-gray-500 hover:text-primary hover:border-primary hover:bg-primary/5 transition-all shadow-sm" title="Edit offer"><Pencil className="w-3 h-3" /></button>
-                                                                                <button onClick={() => setOfferToDelete(offer)} className="flex items-center justify-center p-1.5 rounded-lg bg-white border border-gray-100 text-gray-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all shadow-sm" title="Delete offer"><Trash2 className="w-3 h-3" /></button>
-                                                                            </div>
-                                                                        </div>
+                                    <div className="p-4">
+                                        <TabsContent value="offers" className="mt-0 space-y-3 focus-visible:ring-0">
+                                            {isLoadingOffers ? (
+                                                <div className="space-y-4">
+                                                    {[1, 2, 3].map((i) => (
+                                                        <div key={i} className="relative rounded-2xl bg-white border border-gray-100 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-5 animate-pulse">
+                                                            <div className="flex items-center gap-4 min-w-0 flex-1">
+                                                                <Skeleton className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl shrink-0" />
+                                                                <div className="min-w-0 flex-1 space-y-2">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <Skeleton className="h-5 w-1/2 rounded-md" />
+                                                                        <Skeleton className="h-4 w-16 rounded-full" />
                                                                     </div>
-                                                                </SwipeableCard>
-                                                            );
-                                                        })
-                                                    ) : (
-                                                        <div className="col-span-full p-8 rounded-xl border border-dashed border-primary/10 opacity-60 flex flex-col items-center justify-center text-center">
-                                                            <Tag className="w-12 h-12 mb-4 text-primary/30" /><p className="text-sm font-medium mb-1">No offers published yet</p><p className="text-xs opacity-60 italic">Your active offers will appear here</p>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </>
-                                        )}
-                                    </TabsContent>
-
-                                    <TabsContent value="products" className="mt-0 space-y-3 focus-visible:ring-0">
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar p-1">
-                                            {isLoadingProducts ? (
-                                                <>
-                                                    {[1, 2, 3, 4].map((i) => (
-                                                        <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50/50 border border-gray-100 animate-pulse">
-                                                            <Skeleton className="w-16 h-16 rounded-lg shrink-0" />
-                                                            <div className="min-w-0 flex-1 space-y-2">
-                                                                <Skeleton className="h-2 w-16" />
-                                                                <Skeleton className="h-4 w-3/4" />
-                                                                <Skeleton className="h-5 w-20" />
+                                                                    <div className="flex gap-3">
+                                                                        <Skeleton className="h-3 w-24 rounded" />
+                                                                        <Skeleton className="h-3 w-20 rounded" />
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 shrink-0 w-full sm:w-auto">
+                                                                <div className="flex flex-col items-center sm:items-end w-full sm:w-auto space-y-2">
+                                                                    <Skeleton className="h-2 w-20" />
+                                                                    <Skeleton className="h-4 w-32" />
+                                                                </div>
+                                                                <div className="flex flex-row sm:flex-col items-center gap-3 w-full sm:w-auto justify-between sm:justify-center px-4 sm:px-0 sm:pl-8 border-l-0 sm:border-l border-gray-100">
+                                                                    <Skeleton className="h-4 w-12" />
+                                                                    <div className="flex gap-2">
+                                                                        <Skeleton className="h-10 w-10 rounded-xl" />
+                                                                        <Skeleton className="h-10 w-10 rounded-xl" />
+                                                                    </div>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     ))}
-                                                </>
-                                            ) : products && products.length > 0 ? (
-                                                products.map((product) => (
-                                                    <SwipeableCard
-                                                        key={product.id}
-                                                        onEdit={() => handleEditProduct(product)}
-                                                        onDelete={() => setProductToDelete(product)}
-                                                        editTitle="Edit product"
-                                                        deleteTitle="Delete product"
-                                                    >
-                                                        <div className="group relative flex items-start gap-3 p-3 rounded-xl bg-gray-50/50 border border-gray-100 hover:border-primary/20 hover:bg-white hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 overflow-hidden">
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar p-1">
+                                                        {publishedOffers.length > 0 ? (
+                                                            publishedOffers.slice(0, 15).map((offer, idx) => {
+                                                                const id = offer.offerId || offer.batchId || idx;
+                                                                const offerImage = offer.posters?.[0]?.posterSrc || offer.posterSrc;
+                                                                return (
+                                                                    <SwipeableCard
+                                                                        key={id}
+                                                                        onEdit={() => offer.isDraft ? router.push(`/shop-manager/poster-designer?draftId=${offer.batchId || offer.id}`) : openEditModal(offer)}
+                                                                        onDelete={() => setOfferToDelete(offer)}
+                                                                        editTitle="Edit offer"
+                                                                        deleteTitle="Delete offer"
+                                                                    >
+                                                                        <div className="group relative flex items-start gap-3 p-3 rounded-xl bg-gray-50/50 border border-gray-100 hover:border-primary/20 hover:bg-white hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 overflow-hidden">
+                                                                            <div
+                                                                                className={`group/img relative w-16 h-16 rounded-lg bg-white overflow-hidden shrink-0 border border-gray-100 shadow-sm z-10 transition-all duration-300 ${offerImage ? 'cursor-pointer active:scale-95' : ''}`}
+                                                                                onClick={(e) => {
+                                                                                    if (offerImage) {
+                                                                                        e.preventDefault();
+                                                                                        e.stopPropagation();
+                                                                                        setPreviewLogo({ src: offerImage, name: offer.title || "Offer Preview" });
+                                                                                    }
+                                                                                }}
+                                                                                title={offerImage ? "View large poster" : undefined}
+                                                                            >
+                                                                                {offerImage ? (
+                                                                                    <>
+                                                                                        <Image src={offerImage} alt={offer.title || "Offer"} fill unoptimized className="object-cover group-hover:scale-110 transition-transform duration-500" />
+                                                                                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-[1px]">
+                                                                                            <div className="bg-white/90 p-1.5 rounded-full shadow-lg scale-75 group-hover/img:scale-100 transition-transform duration-300">
+                                                                                                <Eye className="w-4 h-4 text-primary" />
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </>
+                                                                                ) : (
+                                                                                    <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+                                                                                        <Tag className="w-6 h-6 text-gray-300 group-hover:text-primary transition-colors rotate-12" />
+                                                                                    </div>
+                                                                                )}
+                                                                                <div className="absolute top-1 left-1">
+                                                                                    <div className={cn("px-1 py-0.5 rounded backdrop-blur-sm shadow-sm border", offer.isDraft ? "bg-amber-100/90 border-amber-200" : "bg-white/90 border-gray-100")}>
+                                                                                        <p className={cn("text-[8px] font-black uppercase tracking-tighter", offer.isDraft ? "text-amber-600" : "text-primary")}>
+                                                                                            {offer.isDraft ? "Draft" : "New"}
+                                                                                        </p>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
 
-                                                            <div
-                                                                className={`group/img relative w-16 h-16 rounded-lg bg-white overflow-hidden shrink-0 border border-gray-100 shadow-sm z-10 transition-all duration-300 ${product.image ? 'cursor-pointer active:scale-95' : ''}`}
-                                                                onClick={(e) => {
-                                                                    if (product.image) {
-                                                                        e.preventDefault();
-                                                                        e.stopPropagation();
-                                                                        setPreviewLogo({ src: product.image, name: product.name });
-                                                                    }
-                                                                }}
-                                                                title={product.image ? "View large image" : undefined}
-                                                            >
-                                                                {product.image ? (
-                                                                    <>
-                                                                        <Image src={product.image} alt={product.name} fill unoptimized className="object-cover group-hover:scale-110 transition-transform duration-500" />
-                                                                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-[1px]">
-                                                                            <div className="bg-white/90 p-1.5 rounded-full shadow-lg scale-75 group-hover/img:scale-100 transition-transform duration-300">
-                                                                                <Eye className="w-4 h-4 text-primary" />
+                                                                            <div className="min-w-0 flex-1 z-10 flex flex-col justify-center self-stretch py-0.5">
+                                                                                <h4 className="font-bold text-xs text-gray-900 truncate group-hover:text-primary transition-colors leading-tight">
+                                                                                    {offer.title || "Untitled Offer"}
+                                                                                </h4>
+
+                                                                                <div className="flex items-center gap-1.5 mt-0.5 min-w-0 pr-2">
+                                                                                    <div className="text-[9px] font-bold text-orange-500 uppercase tracking-widest leading-none truncate">
+                                                                                        {offer.type ? `${offer.type}` : ''}
+                                                                                    </div>
+                                                                                </div>
+
+                                                                                {(offer.validFrom || offer.validTo || (offer.branches && offer.branches.length > 0) || offer.branchNames || offer.branchName) && (
+                                                                                    <div className="flex flex-wrap items-center gap-1 text-[8px] text-gray-500 mt-1">
+                                                                                        {(offer.validFrom || offer.validTo) && (
+                                                                                            <span className="bg-gray-50 border border-gray-100/80 text-gray-600 px-1.5 py-0.5 rounded flex items-center gap-1 font-medium">
+                                                                                                <Calendar className="w-2.5 h-2.5 text-gray-400 shrink-0" />
+                                                                                                <span>
+                                                                                                    {offer.validFrom ? new Date(offer.validFrom).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' }) : "n/a"}{offer.validTo ? ` - ${new Date(offer.validTo).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}` : ""}
+                                                                                                </span>
+                                                                                            </span>
+                                                                                        )}
+                                                                                        {((offer.branches && offer.branches.length > 0) || offer.branchNames || offer.branchName) && (
+                                                                                            <span className="bg-primary/5 text-primary border border-primary/10 px-1.5 py-0.5 rounded font-medium flex items-center gap-1">
+                                                                                                <GitBranch className="w-2.5 h-2.5 shrink-0" />
+                                                                                                <span className="truncate max-w-[90px]">
+                                                                                                    {offer.branches ? (
+                                                                                                        offer.branches.length > 1 ? `${offer.branches[0].branchName} +${offer.branches.length - 1}` : offer.branches[0].branchName
+                                                                                                    ) : (
+                                                                                                        offer.branchNames ? offer.branchNames[0] : offer.branchName
+                                                                                                    )}
+                                                                                                </span>
+                                                                                            </span>
+                                                                                        )}
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+
+                                                                            <div className="relative z-20 flex flex-col items-end justify-between self-stretch shrink-0 py-0.5">
+                                                                                <div className="flex items-center gap-1">
+                                                                                    <div className="scale-75 origin-right">
+                                                                                        <StatusToggleButton
+                                                                                            status={offer.status || 'active'}
+                                                                                            onChange={() => handleToggleOfferStatus(offer)}
+                                                                                        />
+                                                                                    </div>
+                                                                                </div>
+
+                                                                                <div className="flex items-baseline gap-1 my-1 text-[8px] font-semibold text-slate-400">
+                                                                                    <Clock className="w-2.5 h-2.5 shrink-0" />
+                                                                                    <span>{getRelativeTime(offer.createdAt || offer.validFrom) ? getRelativeTime(offer.createdAt || offer.validFrom) : "Active"}</span>
+                                                                                </div>
+
+                                                                                <div className="hidden sm:flex flex-row gap-1 items-center">
+                                                                                    <button onClick={() => openEditModal(offer)} className="flex items-center justify-center p-1.5 rounded-lg bg-white border border-gray-100 text-gray-500 hover:text-primary hover:border-primary hover:bg-primary/5 transition-all shadow-sm" title="Edit offer"><Pencil className="w-3 h-3" /></button>
+                                                                                    <button onClick={() => setOfferToDelete(offer)} className="flex items-center justify-center p-1.5 rounded-lg bg-white border border-gray-100 text-gray-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all shadow-sm" title="Delete offer"><Trash2 className="w-3 h-3" /></button>
+                                                                                </div>
                                                                             </div>
                                                                         </div>
-                                                                    </>
-                                                                ) : (
-                                                                    <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
-                                                                        <ShoppingBag className="w-6 h-6 text-gray-300" />
-                                                                    </div>
-                                                                )}
-                                                                <div className="absolute top-1 left-1"><div className="px-1 py-0.5 rounded bg-white/90 backdrop-blur-sm shadow-sm border border-gray-100"><p className="text-[8px] font-black text-primary uppercase tracking-tighter">New</p></div></div>
+                                                                    </SwipeableCard>
+                                                                );
+                                                            })
+                                                        ) : (
+                                                            <div className="col-span-full p-6 flex flex-col items-center justify-center bg-gray-50/50 rounded-2xl border-2 border-dashed border-gray-100 text-center">
+                                                                <div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center mb-4">
+                                                                    <Tag className="w-8 h-8 text-primary/20" />
+                                                                </div>
+                                                                <p className="text-base font-bold text-gray-900">Your Campaign Catalog is Empty</p>
+                                                                <p className="text-sm text-gray-500 max-w-xs mt-1 mb-4">Start publishing offers to showcase them to your customers.</p>
+                                                                <Link href="/shop-manager/create-offer">
+                                                                    <PremiumButton className="rounded-xl shadow-lg shadow-primary/20">
+                                                                        Add Offer
+                                                                        <Plus className="w-4 h-4" />
+                                                                    </PremiumButton>
+                                                                </Link>
                                                             </div>
+                                                        )}
+                                                    </div>
 
-                                                            <div className="min-w-0 flex-1 z-10 flex flex-col justify-center self-stretch py-0.5">
-                                                                <h4 className="font-bold text-xs text-gray-900 truncate group-hover:text-primary transition-colors leading-tight">
-                                                                    {product.name}
-                                                                </h4>
-
-                                                                <div className="flex items-center gap-1.5 mt-0.5 min-w-0 pr-2">
-                                                                    <div className="text-[9px] font-bold text-orange-500 uppercase tracking-widest leading-none truncate">
-                                                                        {product.category}
-                                                                    </div>
-                                                                </div>
-
-                                                                {(product.validFrom || (product.branchIds && product.branchIds.length > 0)) && (
-                                                                    <div className="flex flex-wrap items-center gap-1 text-[8px] text-gray-500 mt-1">
-                                                                        {product.validFrom && (
-                                                                            <span className="bg-gray-50 border border-gray-100/80 text-gray-600 px-1.5 py-0.5 rounded flex items-center gap-1 font-medium">
-                                                                                <Calendar className="w-2.5 h-2.5 text-gray-400 shrink-0" />
-                                                                                <span>
-                                                                                    {new Date(product.validFrom).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}{product.validTo ? ` - ${new Date(product.validTo).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}` : " onwards"}
-                                                                                </span>
-                                                                            </span>
-                                                                        )}
-                                                                        {product.branchIds && product.branchIds.length > 0 && (
-                                                                            product.branchIds.length === 1 ? (
-                                                                                <span className="bg-primary/5 text-primary border border-primary/10 px-1.5 py-0.5 rounded font-medium flex items-center gap-1">
-                                                                                    <GitBranch className="w-2.5 h-2.5 shrink-0" />
-                                                                                    <span className="truncate max-w-[90px]">
-                                                                                        {branchNameMap[String(product.branchIds[0])] || `Branch ${product.branchIds[0]}`}
-                                                                                    </span>
-                                                                                </span>
-                                                                            ) : (
-                                                                                <TooltipProvider delayDuration={100}>
-                                                                                    <Tooltip>
-                                                                                        <TooltipTrigger asChild>
-                                                                                            <span className="bg-primary/5 text-primary border border-primary/10 px-1.5 py-0.5 rounded font-medium flex items-center gap-1 cursor-pointer">
-                                                                                                <GitBranch className="w-2.5 h-2.5 shrink-0" />
-                                                                                                <span>{product.branchIds.length} branches</span>
-                                                                                            </span>
-                                                                                        </TooltipTrigger>
-                                                                                        <TooltipContent side="top" className="bg-white p-2 rounded-xl shadow-xl border border-gray-100 z-[100] max-w-[200px]">
-                                                                                            <div className="space-y-1">
-                                                                                                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider border-b pb-1 mb-1 border-gray-50">Active Branches</p>
-                                                                                                {product.branchIds.map((bid: any, idx: number) => (
-                                                                                                    <p key={idx} className="text-[11px] font-semibold text-gray-700 truncate">
-                                                                                                        • {branchNameMap[String(bid)] || `Branch ${bid}`}
-                                                                                                    </p>
-                                                                                                ))}
-                                                                                            </div>
-                                                                                        </TooltipContent>
-                                                                                    </Tooltip>
-                                                                                </TooltipProvider>
-                                                                            )
-                                                                        )}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-
-                                                            <div className="relative z-20 flex flex-col items-end justify-between self-stretch shrink-0 py-0.5">
-                                                                <div className="flex items-center gap-1">
-                                                                    <div className="scale-75 origin-right">
-                                                                        <StatusToggleButton
-                                                                            status={product.status || 'active'}
-                                                                            onChange={() => handleToggleProductStatus(product)}
-                                                                        />
-                                                                    </div>
-                                                                </div>
-
-                                                                <div className="flex items-baseline gap-1 my-1">
-                                                                    <span className="text-xs font-black text-gray-900 tracking-tighter leading-none">
-                                                                        ₹{product.price}
-                                                                    </span>
-                                                                    {product.originalPrice && (
-                                                                        <span className="text-[9px] text-red-500 line-through font-medium">
-                                                                            ₹{product.originalPrice}
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-
-                                                                <div className="hidden sm:flex flex-row gap-1 items-center">
-                                                                    <button onClick={() => handleEditProduct(product)} className="flex items-center justify-center p-1.5 rounded-lg bg-white border border-gray-100 text-gray-500 hover:text-primary hover:border-primary hover:bg-primary/5 transition-all shadow-sm" title="Edit product"><Pencil className="w-3 h-3" /></button>
-                                                                    <button onClick={() => setProductToDelete(product)} className="flex items-center justify-center p-1.5 rounded-lg bg-white border border-gray-100 text-gray-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all shadow-sm" title="Delete product"><Trash2 className="w-3 h-3" /></button>
-                                                                </div>
-                                                            </div>
+                                                    {publishedOffers.length > 0 && (
+                                                        <div className="flex justify-center pt-2 pb-2 border-t border-gray-50">
+                                                            <Link href="/shop-manager/offers" className="w-full sm:w-auto">
+                                                                <PremiumButton
+                                                                    variant="outline"
+                                                                    glow={false}
+                                                                    className="w-full sm:w-auto rounded-xl py-1 px-6 border-primary/10 hover:border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary gap-1.5 shadow-none cursor-pointer text-xs font-bold uppercase tracking-wider"
+                                                                >
+                                                                    <span>View All ({publishedOffers.length})</span>
+                                                                    <ArrowRight className="w-2.5 h-2.5" />
+                                                                </PremiumButton>
+                                                            </Link>
                                                         </div>
-                                                    </SwipeableCard>
-                                                ))
-                                            ) : (
-                                                <div className="col-span-full p-6 flex flex-col items-center justify-center bg-gray-50/50 rounded-2xl border-2 border-dashed border-gray-100 text-center"><div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center mb-4"><Package className="w-8 h-8 text-primary/20" /></div><p className="text-base font-bold text-gray-900">Your Catalog is Empty</p><p className="text-sm text-gray-500 max-w-xs mt-1 mb-4">Start adding products to showcase them to your customers.</p><PremiumButton onClick={() => setShowAddProductModal(true)} className="rounded-xl shadow-lg shadow-primary/20"><Plus className="w-4 h-4 mr-2" />Add Product</PremiumButton></div>
+                                                    )}
+                                                </>
                                             )}
-                                        </div>
-                                    </TabsContent>
+                                        </TabsContent>
 
-                                    {allDrafts.length > 0 && (
-                                        <TabsContent value="drafts" className="mt-0 focus-visible:ring-0">
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar p-1">
-                                                {allDrafts.map((draft, idx) => {
-                                                    const isOffer = draft._draftType === 'offer';
-                                                    const id = isOffer ? (draft.offerId || draft.batchId || idx) : draft.id;
-                                                    const image = isOffer ? (draft.posters?.[0]?.posterSrc || draft.posterSrc) : draft.image;
-                                                    const title = isOffer ? draft.title : draft.name;
-                                                    const badgeText = isOffer ? 'OFFER' : 'PRODUCT';
-                                                    const typeIcon = isOffer ? <Tag className="w-6 h-6 text-gray-300" /> : <ShoppingBag className="w-6 h-6 text-gray-300" />;
-
-                                                    return (
+                                        <TabsContent value="products" className="mt-0 space-y-3 focus-visible:ring-0">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar p-1">
+                                                {isLoadingProducts ? (
+                                                    <>
+                                                        {[1, 2, 3, 4].map((i) => (
+                                                            <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50/50 border border-gray-100 animate-pulse">
+                                                                <Skeleton className="w-16 h-16 rounded-lg shrink-0" />
+                                                                <div className="min-w-0 flex-1 space-y-2">
+                                                                    <Skeleton className="h-2 w-16" />
+                                                                    <Skeleton className="h-4 w-3/4" />
+                                                                    <Skeleton className="h-5 w-20" />
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </>
+                                                ) : products && products.length > 0 ? (
+                                                    products.slice(0, 15).map((product) => (
                                                         <SwipeableCard
-                                                            key={`draft-${draft._draftType}-${id}`}
-                                                            onEdit={() => {
-                                                                if (isOffer) {
-                                                                    if (draft.type === "BUILDER") {
-                                                                        if (draft.rawDesigner) {
-                                                                            const rawData = typeof draft.rawDesigner === 'string' ? draft.rawDesigner : JSON.stringify(draft.rawDesigner);
-                                                                            const dataToSave = rawData
-                                                                                .replace(/&amp;quot;/g, '"')
-                                                                                .replace(/&quot;/g, '"')
-                                                                                .replace(/&#039;/g, "'")
-                                                                                .replace(/&lt;/g, '<')
-                                                                                .replace(/&gt;/g, '>')
-                                                                                .replace(/&amp;/g, '&');
-                                                                            localStorage.setItem('designer_draft_data', dataToSave);
-                                                                        } else {
-                                                                            localStorage.removeItem('designer_draft_data');
-                                                                        }
-                                                                        router.push(`/shop-manager/poster-designer?draftId=${draft.batchId || draft.offerId || draft.id}&fromLocalStorage=true`);
-                                                                    } else {
-                                                                        openEditModal(draft);
-                                                                    }
-                                                                } else {
-                                                                    handleEditProduct(draft);
-                                                                }
-                                                            }}
-                                                            onDelete={() => isOffer ? setOfferToDelete(draft) : setProductToDelete(draft)}
-                                                            editTitle={`Edit ${draft._draftType}`}
-                                                            deleteTitle={`Delete ${draft._draftType}`}
+                                                            key={product.id}
+                                                            onEdit={() => handleEditProduct(product)}
+                                                            onDelete={() => setProductToDelete(product)}
+                                                            editTitle="Edit product"
+                                                            deleteTitle="Delete product"
                                                         >
                                                             <div className="group relative flex items-start gap-3 p-3 rounded-xl bg-gray-50/50 border border-gray-100 hover:border-primary/20 hover:bg-white hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 overflow-hidden">
-                                                                <div className="relative w-16 h-16 rounded-lg bg-white overflow-hidden shrink-0 border border-gray-100 shadow-sm z-10 transition-all duration-300">
-                                                                    {image ? (
-                                                                        <Image src={image} alt={title || ""} fill unoptimized className="object-cover" />
+
+                                                                <div
+                                                                    className={`group/img relative w-16 h-16 rounded-lg bg-white overflow-hidden shrink-0 border border-gray-100 shadow-sm z-10 transition-all duration-300 ${product.image ? 'cursor-pointer active:scale-95' : ''}`}
+                                                                    onClick={(e) => {
+                                                                        if (product.image) {
+                                                                            e.preventDefault();
+                                                                            e.stopPropagation();
+                                                                            setPreviewLogo({ src: product.image, name: product.name });
+                                                                        }
+                                                                    }}
+                                                                    title={product.image ? "View large image" : undefined}
+                                                                >
+                                                                    {product.image ? (
+                                                                        <>
+                                                                            <Image src={product.image} alt={product.name} fill unoptimized className="object-cover group-hover:scale-110 transition-transform duration-500" />
+                                                                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-[1px]">
+                                                                                <div className="bg-white/90 p-1.5 rounded-full shadow-lg scale-75 group-hover/img:scale-100 transition-transform duration-300">
+                                                                                    <Eye className="w-4 h-4 text-primary" />
+                                                                                </div>
+                                                                            </div>
+                                                                        </>
                                                                     ) : (
                                                                         <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
-                                                                            {typeIcon}
+                                                                            <ShoppingBag className="w-6 h-6 text-gray-300" />
                                                                         </div>
                                                                     )}
-                                                                    <div className="absolute top-1 left-1"><div className="px-1 py-0.5 rounded bg-amber-100/90 backdrop-blur-sm shadow-sm border border-amber-200"><p className="text-[8px] font-black text-amber-600 uppercase tracking-tighter">{badgeText}</p></div></div>
+                                                                    <div className="absolute top-1 left-1"><div className="px-1 py-0.5 rounded bg-white/90 backdrop-blur-sm shadow-sm border border-gray-100"><p className="text-[8px] font-black text-primary uppercase tracking-tighter">New</p></div></div>
                                                                 </div>
+
                                                                 <div className="min-w-0 flex-1 z-10 flex flex-col justify-center self-stretch py-0.5">
-                                                                    <h4 className="font-bold text-xs text-gray-900 truncate">{title}</h4>
-                                                                    <div className="flex items-center gap-1.5 mt-1">
-                                                                        <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">
-                                                                            {isOffer ? `Offer Draft ${draft.type ? `• ${draft.type}` : ''}` : 'Product Draft'}
-                                                                        </span>
+                                                                    <h4 className="font-bold text-xs text-gray-900 truncate group-hover:text-primary transition-colors leading-tight">
+                                                                        {product.name}
+                                                                    </h4>
+
+                                                                    <div className="flex items-center gap-1.5 mt-0.5 min-w-0 pr-2">
+                                                                        <div className="text-[9px] font-bold text-orange-500 uppercase tracking-widest leading-none truncate">
+                                                                            {product.category}
+                                                                        </div>
                                                                     </div>
+
+                                                                    {(product.validFrom || (product.branchIds && product.branchIds.length > 0)) && (
+                                                                        <div className="flex flex-wrap items-center gap-1 text-[8px] text-gray-500 mt-1">
+                                                                            {product.validFrom && (
+                                                                                <span className="bg-gray-50 border border-gray-100/80 text-gray-600 px-1.5 py-0.5 rounded flex items-center gap-1 font-medium">
+                                                                                    <Calendar className="w-2.5 h-2.5 text-gray-400 shrink-0" />
+                                                                                    <span>
+                                                                                        {new Date(product.validFrom).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}{product.validTo ? ` - ${new Date(product.validTo).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}` : " onwards"}
+                                                                                    </span>
+                                                                                </span>
+                                                                            )}
+                                                                            {product.branchIds && product.branchIds.length > 0 && (
+                                                                                product.branchIds.length === 1 ? (
+                                                                                    <span className="bg-primary/5 text-primary border border-primary/10 px-1.5 py-0.5 rounded font-medium flex items-center gap-1">
+                                                                                        <GitBranch className="w-2.5 h-2.5 shrink-0" />
+                                                                                        <span className="truncate max-w-[90px]">
+                                                                                            {branchNameMap[String(product.branchIds[0])] || `Branch ${product.branchIds[0]}`}
+                                                                                        </span>
+                                                                                    </span>
+                                                                                ) : (
+                                                                                    <TooltipProvider delayDuration={100}>
+                                                                                        <Tooltip>
+                                                                                            <TooltipTrigger asChild>
+                                                                                                <span className="bg-primary/5 text-primary border border-primary/10 px-1.5 py-0.5 rounded font-medium flex items-center gap-1 cursor-pointer">
+                                                                                                    <GitBranch className="w-2.5 h-2.5 shrink-0" />
+                                                                                                    <span>{product.branchIds.length} branches</span>
+                                                                                                </span>
+                                                                                            </TooltipTrigger>
+                                                                                            <TooltipContent side="top" className="bg-white p-2 rounded-xl shadow-xl border border-gray-100 z-[100] max-w-[200px]">
+                                                                                                <div className="space-y-1">
+                                                                                                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider border-b pb-1 mb-1 border-gray-50">Active Branches</p>
+                                                                                                    {product.branchIds.map((bid: any, idx: number) => (
+                                                                                                        <p key={idx} className="text-[11px] font-semibold text-gray-700 truncate">
+                                                                                                            • {branchNameMap[String(bid)] || `Branch ${bid}`}
+                                                                                                        </p>
+                                                                                                    ))}
+                                                                                                </div>
+                                                                                            </TooltipContent>
+                                                                                        </Tooltip>
+                                                                                    </TooltipProvider>
+                                                                                )
+                                                                            )}
+                                                                        </div>
+                                                                    )}
                                                                 </div>
+
                                                                 <div className="relative z-20 flex flex-col items-end justify-between self-stretch shrink-0 py-0.5">
+                                                                    <div className="flex items-center gap-1">
+                                                                        <div className="scale-75 origin-right">
+                                                                            <StatusToggleButton
+                                                                                status={product.status || 'active'}
+                                                                                onChange={() => handleToggleProductStatus(product)}
+                                                                            />
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div className="flex items-baseline gap-1 my-1">
+                                                                        <span className="text-xs font-black text-gray-900 tracking-tighter leading-none">
+                                                                            ₹{product.price}
+                                                                        </span>
+                                                                        {product.originalPrice && (
+                                                                            <span className="text-[9px] text-red-500 line-through font-medium">
+                                                                                ₹{product.originalPrice}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+
                                                                     <div className="hidden sm:flex flex-row gap-1 items-center">
-                                                                        <button onClick={() => {
-                                                                            if (isOffer) {
-                                                                                if (draft.type === "BUILDER") {
-                                                                                    if (draft.rawDesigner) {
-                                                                                        const rawData = typeof draft.rawDesigner === 'string' ? draft.rawDesigner : JSON.stringify(draft.rawDesigner);
-                                                                                        const dataToSave = rawData
-                                                                                            .replace(/&amp;quot;/g, '"')
-                                                                                            .replace(/&quot;/g, '"')
-                                                                                            .replace(/&#039;/g, "'")
-                                                                                            .replace(/&lt;/g, '<')
-                                                                                            .replace(/&gt;/g, '>')
-                                                                                            .replace(/&amp;/g, '&');
-                                                                                        localStorage.setItem('designer_draft_data', dataToSave);
-                                                                                    } else {
-                                                                                        localStorage.removeItem('designer_draft_data');
-                                                                                    }
-                                                                                    router.push(`/shop-manager/poster-designer?draftId=${draft.batchId || draft.offerId || draft.id}&fromLocalStorage=true`);
-                                                                                } else {
-                                                                                    openEditModal(draft);
-                                                                                }
-                                                                            } else {
-                                                                                handleEditProduct(draft);
-                                                                            }
-                                                                        }} className="flex items-center justify-center p-1.5 rounded-lg bg-white border border-gray-100 text-gray-500 hover:text-primary hover:border-primary hover:bg-primary/5 transition-all shadow-sm"><Pencil className="w-3 h-3" /></button>
-                                                                        <button onClick={() => isOffer ? setOfferToDelete(draft) : setProductToDelete(draft)} className="flex items-center justify-center p-1.5 rounded-lg bg-white border border-gray-100 text-gray-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all shadow-sm"><Trash2 className="w-3 h-3" /></button>
+                                                                        <button onClick={() => handleEditProduct(product)} className="flex items-center justify-center p-1.5 rounded-lg bg-white border border-gray-100 text-gray-500 hover:text-primary hover:border-primary hover:bg-primary/5 transition-all shadow-sm" title="Edit product"><Pencil className="w-3 h-3" /></button>
+                                                                        <button onClick={() => setProductToDelete(product)} className="flex items-center justify-center p-1.5 rounded-lg bg-white border border-gray-100 text-gray-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all shadow-sm" title="Delete product"><Trash2 className="w-3 h-3" /></button>
                                                                     </div>
                                                                 </div>
                                                             </div>
                                                         </SwipeableCard>
-                                                    );
-                                                })}
+                                                    ))
+                                                ) : (
+                                                    <div className="col-span-full p-6 flex flex-col items-center justify-center bg-gray-50/50 rounded-2xl border-2 border-dashed border-gray-100 text-center"><div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center mb-4"><Package className="w-8 h-8 text-primary/20" /></div><p className="text-base font-bold text-gray-900">Your Catalog is Empty</p><p className="text-sm text-gray-500 max-w-xs mt-1 mb-4">Start adding products to showcase them to your customers.</p><PremiumButton onClick={() => setShowAddProductModal(true)} className="rounded-xl shadow-lg shadow-primary/20">Add Product<Plus className="w-4 h-4" /></PremiumButton></div>
+                                                )}
                                             </div>
+
+                                            {products && products.length > 0 && (
+                                                <div className="flex justify-center pt-2 pb-2 border-t border-gray-50">
+                                                    <Link href="/shop-manager/products" className="w-full sm:w-auto">
+                                                        <PremiumButton
+                                                            variant="outline"
+                                                            glow={false}
+                                                            className="w-full sm:w-auto rounded-xl py-1 px-6 border-primary/10 hover:border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary gap-1.5 shadow-none cursor-pointer text-xs font-bold uppercase tracking-wider"
+                                                        >
+                                                            <span>View All ({products.length})</span>
+                                                            <ArrowRight className="w-2.5 h-2.5" />
+                                                        </PremiumButton>
+                                                    </Link>
+                                                </div>
+                                            )}
                                         </TabsContent>
-                                    )}
-                                </div>
-                            </PremiumCard>
-                        </Tabs>
+
+                                        {allDrafts.length > 0 && (
+                                            <TabsContent value="drafts" className="mt-0 focus-visible:ring-0">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar p-1">
+                                                    {allDrafts.map((draft, idx) => {
+                                                        const isOffer = draft._draftType === 'offer';
+                                                        const id = isOffer ? (draft.offerId || draft.batchId || idx) : draft.id;
+                                                        const image = isOffer ? (draft.posters?.[0]?.posterSrc || draft.posterSrc) : draft.image;
+                                                        const title = isOffer ? draft.title : draft.name;
+                                                        const badgeText = isOffer ? 'OFFER' : 'PRODUCT';
+                                                        const typeIcon = isOffer ? <Tag className="w-6 h-6 text-gray-300" /> : <ShoppingBag className="w-6 h-6 text-gray-300" />;
+
+                                                        return (
+                                                            <SwipeableCard
+                                                                key={`draft-${draft._draftType}-${id}`}
+                                                                onEdit={() => {
+                                                                    if (isOffer) {
+                                                                        if (draft.type === "BUILDER") {
+                                                                            if (draft.rawDesigner) {
+                                                                                const rawData = typeof draft.rawDesigner === 'string' ? draft.rawDesigner : JSON.stringify(draft.rawDesigner);
+                                                                                const dataToSave = rawData
+                                                                                    .replace(/&amp;quot;/g, '"')
+                                                                                    .replace(/&quot;/g, '"')
+                                                                                    .replace(/&#039;/g, "'")
+                                                                                    .replace(/&lt;/g, '<')
+                                                                                    .replace(/&gt;/g, '>')
+                                                                                    .replace(/&amp;/g, '&');
+                                                                                localStorage.setItem('designer_draft_data', dataToSave);
+                                                                            } else {
+                                                                                localStorage.removeItem('designer_draft_data');
+                                                                            }
+                                                                            router.push(`/shop-manager/poster-designer?draftId=${draft.batchId || draft.offerId || draft.id}&fromLocalStorage=true`);
+                                                                        } else {
+                                                                            openEditModal(draft);
+                                                                        }
+                                                                    } else {
+                                                                        handleEditProduct(draft);
+                                                                    }
+                                                                }}
+                                                                onDelete={() => isOffer ? setOfferToDelete(draft) : setProductToDelete(draft)}
+                                                                editTitle={`Edit ${draft._draftType}`}
+                                                                deleteTitle={`Delete ${draft._draftType}`}
+                                                            >
+                                                                <div className="group relative flex items-start gap-3 p-3 rounded-xl bg-gray-50/50 border border-gray-100 hover:border-primary/20 hover:bg-white hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 overflow-hidden">
+                                                                    <div className="relative w-16 h-16 rounded-lg bg-white overflow-hidden shrink-0 border border-gray-100 shadow-sm z-10 transition-all duration-300">
+                                                                        {image ? (
+                                                                            <Image src={image} alt={title || ""} fill unoptimized className="object-cover" />
+                                                                        ) : (
+                                                                            <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+                                                                                {typeIcon}
+                                                                            </div>
+                                                                        )}
+                                                                        <div className="absolute top-1 left-1"><div className="px-1 py-0.5 rounded bg-amber-100/90 backdrop-blur-sm shadow-sm border border-amber-200"><p className="text-[8px] font-black text-amber-600 uppercase tracking-tighter">{badgeText}</p></div></div>
+                                                                    </div>
+                                                                    <div className="min-w-0 flex-1 z-10 flex flex-col justify-center self-stretch py-0.5">
+                                                                        <h4 className="font-bold text-xs text-gray-900 truncate">{title}</h4>
+                                                                        <div className="flex items-center gap-1.5 mt-1">
+                                                                            <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">
+                                                                                {isOffer ? `Offer Draft ${draft.type ? `• ${draft.type}` : ''}` : 'Product Draft'}
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="relative z-20 flex flex-col items-end justify-between self-stretch shrink-0 py-0.5">
+                                                                        <div className="hidden sm:flex flex-row gap-1 items-center">
+                                                                            <button onClick={() => {
+                                                                                if (isOffer) {
+                                                                                    if (draft.type === "BUILDER") {
+                                                                                        if (draft.rawDesigner) {
+                                                                                            const rawData = typeof draft.rawDesigner === 'string' ? draft.rawDesigner : JSON.stringify(draft.rawDesigner);
+                                                                                            const dataToSave = rawData
+                                                                                                .replace(/&amp;quot;/g, '"')
+                                                                                                .replace(/&quot;/g, '"')
+                                                                                                .replace(/&#039;/g, "'")
+                                                                                                .replace(/&lt;/g, '<')
+                                                                                                .replace(/&gt;/g, '>')
+                                                                                                .replace(/&amp;/g, '&');
+                                                                                            localStorage.setItem('designer_draft_data', dataToSave);
+                                                                                        } else {
+                                                                                            localStorage.removeItem('designer_draft_data');
+                                                                                        }
+                                                                                        router.push(`/shop-manager/poster-designer?draftId=${draft.batchId || draft.offerId || draft.id}&fromLocalStorage=true`);
+                                                                                    } else {
+                                                                                        openEditModal(draft);
+                                                                                    }
+                                                                                } else {
+                                                                                    handleEditProduct(draft);
+                                                                                }
+                                                                            }} className="flex items-center justify-center p-1.5 rounded-lg bg-white border border-gray-100 text-gray-500 hover:text-primary hover:border-primary hover:bg-primary/5 transition-all shadow-sm"><Pencil className="w-3 h-3" /></button>
+                                                                            <button onClick={() => isOffer ? setOfferToDelete(draft) : setProductToDelete(draft)} className="flex items-center justify-center p-1.5 rounded-lg bg-white border border-gray-100 text-gray-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all shadow-sm"><Trash2 className="w-3 h-3" /></button>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </SwipeableCard>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </TabsContent>
+                                        )}
+                                    </div>
+                                </PremiumCard>
+                            </Tabs>
+                        )}
                     </div>
                 </div>
             </div>
