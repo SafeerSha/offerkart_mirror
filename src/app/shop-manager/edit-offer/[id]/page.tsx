@@ -97,22 +97,49 @@ function EditOfferContent() {
             setIsLoading(true);
             try {
                 let offer = null;
+                let isLoadedFromLocalStorageDraft = false;
 
                 // 1. Try local storage first (covers locally-saved drafts)
                 const localOffers = await storage.getItem<any[]>("markedPosters");
                 if (localOffers && localOffers.length > 0) {
-                    offer = localOffers.find(o =>
+                    const localOffer = localOffers.find(o =>
                         String(o.batchId) === String(offerId) ||
                         String(o.id) === String(offerId) ||
                         String(o.offerId) === String(offerId)
-                    ) || null;
-                    if (offer && process.env.NODE_ENV === "development") {
-                        console.log("Loaded offer from local storage:", offer);
+                    );
+                    if (localOffer) {
+                        if (localOffer.isDraft) {
+                            offer = localOffer;
+                            isLoadedFromLocalStorageDraft = true;
+                            if (process.env.NODE_ENV === "development") {
+                                console.log("Loaded offer as a draft from local storage:", offer);
+                            }
+                        } else {
+                            // If it's not a draft, hold onto it as a backup
+                            offer = localOffer;
+                        }
                     }
                 }
 
-                // 2. Try fetching from getAllOffers list endpoint (works for drafts too)
-                if (!offer) {
+                // 2. Try fetching from the detail endpoint directly if NOT a local storage draft
+                // (Works for all published offers and always includes full posters/hotspots)
+                if (!isLoadedFromLocalStorageDraft) {
+                    try {
+                        const res = await getOfferById(offerId);
+                        if (res.success && res.data) {
+                            const raw = res.data as any;
+                            offer = raw?.data ?? raw;
+                            if (process.env.NODE_ENV === "development") {
+                                console.log("Loaded offer from detail API:", offer);
+                            }
+                        }
+                    } catch (detailErr) {
+                        console.warn("getOfferById failed:", detailErr);
+                    }
+                }
+
+                // 3. Fallback: Try fetching from getAllOffers list endpoint if not successfully loaded from detail API
+                if (!isLoadedFromLocalStorageDraft && (!offer || !offer.posters || offer.posters.length === 0)) {
                     try {
                         let shopId = (session as any)?.shopId ?? (session?.user as any)?.shopId;
                         if (!shopId) {
@@ -126,34 +153,25 @@ function EditOfferContent() {
                             const allRes = await getAllOffers(String(shopId));
                             if (allRes.success && allRes.data) {
                                 const allList = Array.isArray(allRes.data) ? allRes.data : (allRes.data as any).data || [];
-                                offer = allList.find((o: any) =>
+                                const listOffer = allList.find((o: any) =>
                                     String(o.offerId) === String(offerId) ||
                                     String(o.id) === String(offerId) ||
                                     String(o.batchId) === String(offerId)
-                                ) || null;
-                                if (offer && process.env.NODE_ENV === "development") {
-                                    console.log("Loaded offer from allOffers list:", offer);
+                                );
+                                if (listOffer) {
+                                    if (!offer) {
+                                        offer = listOffer;
+                                    } else {
+                                        offer = { ...listOffer, ...offer };
+                                    }
+                                    if (process.env.NODE_ENV === "development") {
+                                        console.log("Merged/Loaded offer from allOffers list:", offer);
+                                    }
                                 }
                             }
                         }
                     } catch (listErr) {
                         console.warn("getAllOffers fallback failed:", listErr);
-                    }
-                }
-
-                // 3. Last resort: try the detail endpoint directly
-                if (!offer) {
-                    try {
-                        const res = await getOfferById(offerId);
-                        if (res.success && res.data) {
-                            const raw = res.data as any;
-                            offer = raw?.data ?? raw;
-                            if (process.env.NODE_ENV === "development") {
-                                console.log("Loaded offer from detail API:", offer);
-                            }
-                        }
-                    } catch (detailErr) {
-                        console.warn("getOfferById fallback failed:", detailErr);
                     }
                 }
 

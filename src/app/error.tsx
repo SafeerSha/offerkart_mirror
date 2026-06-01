@@ -1,9 +1,12 @@
-"use client"; // Error components must be Client Components
+"use client";
 
 import { useEffect } from "react";
 import { AlertTriangle, RefreshCcw } from "lucide-react";
 import { Heading, Text } from "@/components/shared/Typography";
 import { PremiumButton } from "@/components/shared/PremiumButton";
+import { createStructuredLogger } from "@/lib/logger";
+
+const logger = createStructuredLogger("ErrorPage");
 
 export default function Error({
   error,
@@ -13,9 +16,10 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Log the error to an error reporting service
-    console.error("Application error:", error);
-  }, [error]);
+    logger.error("Application error boundary triggered", error, {
+      digest: error.digest,
+    });
+  }, [error, reset]);
 
   return (
     <div className="min-h-[70vh] flex flex-col items-center justify-center p-4">

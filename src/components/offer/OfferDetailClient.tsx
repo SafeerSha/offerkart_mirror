@@ -6,13 +6,14 @@ import { Tag, ChevronLeft, ChevronRight } from "lucide-react";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { Subheading, Text } from "@/components/shared/Typography";
 import { MarkedPoster } from "@/components/shared/MarkedPoster";
-import { Poster } from "@/lib/types/offer";
+import { Poster, MarkedItem } from "@/lib/types/offer";
 
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import OfferCard from "@/components/offer/OfferCard";
+import { ConsumerProductModal } from "@/components/offer/ConsumerProductModal";
 
 interface OfferDetail {
-    id: number;
+    id: number | string;
     shopName: string;
     offerName: string;
     images: (string | StaticImageData)[];
@@ -51,6 +52,8 @@ interface OfferDetailClientProps {
 export default function OfferDetailClient({ offer, similarOffers }: OfferDetailClientProps) {
     const [posterIndex, setPosterIndex] = useState(0);
     const [similarCarouselIndex, setSimilarCarouselIndex] = useState(0);
+    const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+    const [selectedProductName, setSelectedProductName] = useState<string | null>(null);
 
     const [breadcrumbItems, setBreadcrumbItems] = useState([
         { label: "Offers", href: "/offers" },
@@ -118,6 +121,13 @@ export default function OfferDetailClient({ offer, similarOffers }: OfferDetailC
                             markedItems={offer.posters?.[posterIndex]?.markedItems || []}
                             className="w-full h-full"
                             showNames={true}
+                            interactive={true}
+                            onItemClick={(item: MarkedItem) => {
+                                if (item.name && item.name !== "Processing...") {
+                                    setSelectedProductName(item.name);
+                                    setIsProductModalOpen(true);
+                                }
+                            }}
                         />
                         <div className="absolute top-4 left-4">
                             <span className="badge-futuristic">
@@ -193,8 +203,8 @@ export default function OfferDetailClient({ offer, similarOffers }: OfferDetailC
                         >
                             {Array.from({ length: totalSlides }, (_, slideIndex) => (
                                 <div key={slideIndex} className="flex-shrink-0 w-full flex gap-6">
-                                    {similarOffers.slice(slideIndex * itemsPerSlide, (slideIndex + 1) * itemsPerSlide).map((offer) => (
-                                        <div key={offer.id} className="flex-1">
+                                    {similarOffers.slice(slideIndex * itemsPerSlide, (slideIndex + 1) * itemsPerSlide).map((offer, idx) => (
+                                        <div key={`${offer.id || 'similar'}-${slideIndex}-${idx}`} className="flex-1">
                                             <OfferCard {...offer} />
                                         </div>
                                     ))}
@@ -204,6 +214,11 @@ export default function OfferDetailClient({ offer, similarOffers }: OfferDetailC
                     </div>
                 </div>
             </div>
+            <ConsumerProductModal
+                open={isProductModalOpen}
+                onOpenChange={setIsProductModalOpen}
+                productName={selectedProductName}
+            />
         </div>
     );
 }

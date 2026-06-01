@@ -2,6 +2,7 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { ENDPOINTS } from "@/lib/api/endpoints";
 import { backend } from "@/lib/api/backendClient";
+import type { AuthUser, AuthLoginData } from "@/lib/types/auth";
 
 export const authOptions: NextAuthOptions = {
     providers: [
@@ -15,27 +16,30 @@ export const authOptions: NextAuthOptions = {
                 if (!credentials?.email || !credentials?.password) return null;
 
                 try {
-                    const res = await backend.post<any>(ENDPOINTS.AUTH.LOGIN, {
+                    const res = await backend.post<AuthLoginData>(ENDPOINTS.AUTH.LOGIN, {
                         email: credentials.email,
                         password: credentials.password,
                     });
 
                     if (res.success && res.data) {
-                        const result = res.data as any;
+                        const userData = res.data && typeof res.data === 'object' && (res.data as Record<string, unknown>).status === "success"
+                            ? (res.data as Record<string, unknown>).data as AuthLoginData ?? res.data
+                            : res.data;
+                        const { token, ...user } = userData as Record<string, unknown>;
                         
-                        // Handle both { status: "success", data: {...} } and direct data structures
-                        const userData = result.status === "success" ? result.data : result;
-                        
-                        const { token, ...user } = userData;
-                        return {
-                            id: user.id || user.uid || "1",
-                            name: user.full_name,
-                            full_name: user.full_name,
-                            email: user.email,
-                            phone: user.phone || "",
-                            business_name: user.business_name,
-                            accessToken: token,
+                        const authUser: AuthUser = {
+                            id: String(user?.id ?? user?.uid ?? "1"),
+                            full_name: (user?.full_name as string | undefined) ?? "",
+                            email: (user?.email as string | undefined) ?? "",
+                            phone: (user?.phone as string | undefined) ?? "",
+                            business_name: (user?.business_name as string | undefined) ?? "",
                         };
+                        
+                        return {
+                            ...authUser,
+                            name: authUser.full_name || undefined,
+                            accessToken: token as string | undefined,
+                        } as any;
                     }
                     return null;
                 } catch (error) {
@@ -60,10 +64,10 @@ export const authOptions: NextAuthOptions = {
             return token;
         },
         async session({ session, token }) {
-            (session as any).user = token.user;
-            (session as any).shopId = token.shopId;
+            (session as unknown as Record<string, unknown>).user = token.user;
+            (session as unknown as Record<string, unknown>).shopId = token.shopId;
             if (session.user && token.shopId) {
-                (session.user as any).shopId = token.shopId;
+                (session.user as unknown as Record<string, unknown>).shopId = token.shopId;
             }
             return session;
         }

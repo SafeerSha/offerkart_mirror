@@ -102,14 +102,20 @@ export async function POST(req: NextRequest) {
         logger.log(`[Vision API] Requesting extraction using role: ${targetRole} | HasImage: ${!!image}`);
 
         let result;
-        let provider = "HuggingFace";
+        let provider = "OpenRouter";
 
-        try {
-            result = await callHuggingFace(messages);
-        } catch (hfError: any) {
-            logger.warn(`[Vision API] HuggingFace failed: ${hfError.message}. Falling back to OpenRouter...`);
-            provider = "OpenRouter";
+        if (image) {
+            // Vision pipeline: Route directly to multimodal OpenRouter models (e.g. Gemini-2.0-flash)
             result = await callOpenRouter(messages);
+        } else {
+            // Text-only OCR pipeline: Try HuggingFace first with OpenRouter fallback
+            try {
+                result = await callHuggingFace(messages);
+                provider = "HuggingFace";
+            } catch (hfError: any) {
+                logger.warn(`[Vision API] HuggingFace failed for text processing: ${hfError.message}. Falling back to OpenRouter...`);
+                result = await callOpenRouter(messages);
+            }
         }
 
         let parsedData: any;

@@ -1,4 +1,4 @@
-import { logger } from "@/lib/logger";
+import { createStructuredLogger } from "@/lib/logger";
 
 export const HF_MODELS = [
     "google/gemma-2-9b-it",
@@ -14,13 +14,20 @@ interface HFResponse {
     model: string;
 }
 
-function getErrorMessage(error: any): string {
+const hfLogger = createStructuredLogger("HuggingFaceClient");
+
+function getErrorMessage(error: unknown): string {
     if (!error) return "Unknown error";
     if (typeof error === "string") return error;
-    if (typeof error === "object") {
-        return error.message || error.error || JSON.stringify(error);
+    if (typeof error === "object" && "message" in error) {
+        const msg = (error as Record<string, unknown>).message;
+        if (typeof msg === "string") return msg;
     }
-    return String(error);
+    try {
+        return JSON.stringify(error);
+    } catch {
+        return String(error);
+    }
 }
 
 export async function callHuggingFace(messages: any[]): Promise<HFResponse> {
@@ -28,10 +35,11 @@ export async function callHuggingFace(messages: any[]): Promise<HFResponse> {
     const endpoint = "https://router.huggingface.co/v1/chat/completions";
 
     if (!apiKey) {
+        hfLogger.error("HUGGINGFACE_API_KEY is not defined in environment variables.");
         throw new Error("HUGGINGFACE_API_KEY is not defined in environment variables.");
     }
 
-    logger.log(`[HuggingFace] Starting request with ${HF_MODELS.length} models in rotation.`);
+    hfLogger.info("Starting request", { modelCount: HF_MODELS.length });
 
     for (const model of HF_MODELS) {
         let attempts = 0;
@@ -42,7 +50,7 @@ export async function callHuggingFace(messages: any[]): Promise<HFResponse> {
             const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
             try {
-                logger.log(`[HuggingFace] CALLING ENDPOINT: ${endpoint} | MODEL: ${model} (Attempt ${attempts + 1}/3)`);
+                hfLogger.debug("Calling endpoint", { endpoint, model, attempt: attempts + 1 });
 
                 const response = await fetch(endpoint, {
                     method: "POST",
@@ -63,7 +71,8 @@ export async function callHuggingFace(messages: any[]): Promise<HFResponse> {
                     errMsg.toLowerCase().includes("limit");
 
                 if (isRateLimited) {
-                    logger.warn(`[HuggingFace] Rate limit hit for ${model}. skipping...`);
+                    hfLogger.warn("Rate limit hit", { model });
+                    clearTimeout(timeoutId);
                     break;
                 }
 
@@ -72,29 +81,29 @@ export async function callHuggingFace(messages: any[]): Promise<HFResponse> {
                 }
 
                 if (typeof data !== 'object' || !data.choices?.[0]?.message?.content) {
-                    logger.error("[HuggingFace] Invalid response format:", data);
+                    hfLogger.error("Invalid response format", undefined, { data });
                     throw new Error("Invalid response format from HF.");
                 }
 
-                logger.log(`[HuggingFace] Success with ${model}`);
+                hfLogger.info("Success", { model });
                 return { content: data.choices[0].message.content, model };
 
             } catch (error: any) {
                 clearTimeout(timeoutId);
                 attempts++;
-                const errMsg = getErrorMessage(error);
-                logger.error(`[HuggingFace] Error with ${model}: ${errMsg}`);
+                hfLogger.error("Error with model", error instanceof Error ? error : new Error(String(error)), { model, attempt: attempts });
 
                 if (attempts < maxAttempts) {
                     const backoff = Math.pow(2, attempts - 1) * 1000;
-                    logger.log(`[HuggingFace] Retrying in ${backoff}ms...`);
+                    hfLogger.debug("Retrying with backoff", { backoffMs: backoff });
                     await new Promise(resolve => setTimeout(resolve, backoff));
                 } else {
-                    logger.warn(`[HuggingFace] ${model} exhausted. Moving to next.`);
+                    hfLogger.warn("Model exhausted, moving to next", { model });
                 }
             }
         }
     }
 
+    hfLogger.error("All models unavailable");
     throw new Error("All Hugging Face models are currently unavailable OR rate-limited.");
 }
