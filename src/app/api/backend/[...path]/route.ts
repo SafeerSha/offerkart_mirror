@@ -100,6 +100,41 @@ async function handleProxy(request: NextRequest, context: { params: Promise<{ pa
         responseHeaders.set("content-type", responseContentType);
     }
 
+    // Automate dynamic on-demand ISR revalidations on successful merchant mutations
+    if (upstreamResponse.ok && ["POST", "PUT", "PATCH", "DELETE"].includes(request.method.toUpperCase())) {
+        try {
+            const { revalidatePath } = await import("next/cache");
+            
+            if (upstreamPath.startsWith("business/offer")) {
+                revalidatePath("/");
+                revalidatePath("/offers");
+                
+                // Extract offer ID from path (e.g. business/offer/:id or business/offer/inactivate/:id)
+                const parts = upstreamPath.split("/");
+                const id = parts[2];
+                if (id && id !== "inactivate") {
+                    revalidatePath(`/offer/${id}`);
+                } else if (parts[3]) {
+                    revalidatePath(`/offer/${parts[3]}`);
+                }
+            } else if (upstreamPath.startsWith("business/shop")) {
+                revalidatePath("/");
+            } else if (upstreamPath.startsWith("business/product") || upstreamPath.startsWith("business/offerproduct")) {
+                revalidatePath("/products");
+                const parts = upstreamPath.split("/");
+                const isOfferProd = upstreamPath.startsWith("business/offerproduct");
+                const id = parts[isOfferProd ? 2 : 2];
+                if (id && id !== "inactivate") {
+                    revalidatePath(`/product/${id}`);
+                } else if (parts[3]) {
+                    revalidatePath(`/product/${parts[3]}`);
+                }
+            }
+        } catch (revalError) {
+            console.error("ISR dynamic revalidation failed inside proxy:", revalError);
+        }
+    }
+
     return new NextResponse(upstreamResponse.body, {
         status: upstreamResponse.status,
         statusText: upstreamResponse.statusText,

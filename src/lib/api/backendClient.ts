@@ -3,10 +3,23 @@ import { z } from "zod";
 import { ApiResponse } from "../types/api";
 import { sanitizePayload } from "../security";
 
-
 const IS_SERVER = typeof window === "undefined";
 const BACKEND_PROXY_PREFIX = config.api.proxyPrefix;
 const UPSTREAM_API_BASE_URL = config.api.upstreamBaseUrl;
+
+type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+
+function coerceAccessToken(session: Record<string, unknown> | null | undefined): string | undefined {
+    const maybe = session?.user;
+    if (maybe && typeof maybe === "object" && "accessToken" in maybe) {
+        return (maybe as { accessToken?: string }).accessToken;
+    }
+    return session?.accessToken as string | undefined;
+}
+
+function coerceShopId(session: Record<string, unknown> | null | undefined): string | undefined {
+    return session?.shopId as string | undefined;
+}
 
 
 /**
@@ -63,22 +76,22 @@ export const backend = {
                 const { getServerSession } = await import("next-auth/next");
                 const { authOptions } = await import("@/lib/auth");
                 
-                let session = null;
+                let session: Record<string, unknown> | null = null;
                 try {
                     // Wrap in try-catch to avoid "Dynamic server usage" errors during static build
-                    session = await getServerSession(authOptions);
+                    const serverSession = await getServerSession(authOptions);
+                    session = serverSession as Record<string, unknown> | null;
                 } catch (error) {
                     // Silently fail during build/static generation phase
                 }
 
                 if (session) {
-                    // accessToken is stored on session.user (per auth.ts session callback)
-                    const accessToken = (session as any)?.user?.accessToken;
+                    const accessToken = coerceAccessToken(session);
                     if (accessToken && !headers.has("Authorization")) {
                         headers.set("Authorization", `Bearer ${accessToken}`);
                     }
                     
-                    const shopId = (session as any)?.shopId;
+                    const shopId = coerceShopId(session);
                     if (shopId && !headers.has("shopId")) {
                         headers.set("shopId", shopId);
                     }
@@ -89,12 +102,12 @@ export const backend = {
                     const { getSession } = await import("next-auth/react");
                     const session = await getSession();
                     if (session) {
-                        const accessToken = (session as any)?.user?.accessToken;
+                        const accessToken = coerceAccessToken(session as unknown as Record<string, unknown>);
                         if (accessToken && !headers.has("Authorization")) {
                             headers.set("Authorization", `Bearer ${accessToken}`);
                         }
                         
-                        const shopId = (session as any)?.shopId;
+                        const shopId = coerceShopId(session as unknown as Record<string, unknown>);
                         if (shopId && !headers.has("shopId")) {
                             headers.set("shopId", shopId);
                         }
@@ -123,7 +136,7 @@ export const backend = {
             }
 
             // 7. Safe Body Extraction
-            let result: any = {};
+            let result: unknown = {};
             const contentType = response.headers.get("content-type") || "";
             
             if (response.status !== 204 && contentType.includes("application/json")) {
@@ -143,9 +156,16 @@ export const backend = {
 
             // 8. Handle non-OK statuses
             if (!response.ok) {
+                if (result && typeof result === "object" && !Array.isArray(result)) {
+                    const obj = result as Record<string, unknown>;
+                    return {
+                        success: false,
+                        error: obj.message as string || obj.error as string || `Request failed with status ${response.status}`,
+                    };
+                }
                 return {
                     success: false,
-                    error: result.message || result.error || `Request failed with status ${response.status}`,
+                    error: `Request failed with status ${response.status}`,
                 };
             }
 
@@ -160,16 +180,16 @@ export const backend = {
 
             return {
                 success: true,
-                data: result,
-                message: result.message,
+                data: result as T,
+                message: result && typeof result === "object" && !Array.isArray(result) ? (result as Record<string, unknown>).message as string | undefined : undefined,
             };
 
-
-        } catch (error: any) {
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : "Network error or server unreachable";
             console.error("Backend Request Failure:", error);
             return {
                 success: false,
-                error: error.message || "Network error or server unreachable",
+                error: message,
             };
         }
     },
@@ -178,15 +198,15 @@ export const backend = {
         return this.request<T>(path, { ...options, method: "GET" });
     },
 
-    post<T>(path: string, body?: any, options?: Omit<RequestInit, "method" | "body">) {
+    post<T>(path: string, body?: unknown, options?: Omit<RequestInit, "method" | "body">) {
         return this.request<T>(path, { ...options, method: "POST", body: body instanceof FormData ? body : JSON.stringify(body) });
     },
 
-    put<T>(path: string, body?: any, options?: Omit<RequestInit, "method" | "body">) {
+    put<T>(path: string, body?: unknown, options?: Omit<RequestInit, "method" | "body">) {
         return this.request<T>(path, { ...options, method: "PUT", body: body instanceof FormData ? body : JSON.stringify(body) });
     },
 
-    patch<T>(path: string, body?: any, options?: Omit<RequestInit, "method" | "body">) {
+    patch<T>(path: string, body?: unknown, options?: Omit<RequestInit, "method" | "body">) {
         return this.request<T>(path, { ...options, method: "PATCH", body: body instanceof FormData ? body : JSON.stringify(body) });
     },
 

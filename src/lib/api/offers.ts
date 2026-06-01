@@ -250,6 +250,18 @@ export async function getAllUserOffers(query: Omit<UserOfferQuery, "page"> = {})
 }
 
 export async function getUserOfferById(id: string | number) {
+    try {
+        const response = await backend.get<UserOfferApiItem>(`${ENDPOINTS.USER_OFFER.BASE}/${id}`);
+        if (response.success && response.data) {
+            return {
+                success: true,
+                data: mapUserOfferToOffer(response.data),
+            };
+        }
+    } catch (err) {
+        console.warn(`Direct user offer lookup for ID ${id} failed, attempting fallback scan:`, err);
+    }
+
     const allOffersResult = await getAllUserOffers({ limit: 100 });
 
     const offer = allOffersResult.data?.find((item) => String(item.id) === String(id) || String(item.offerId) === String(id)) || null;
@@ -260,6 +272,7 @@ export async function getUserOfferById(id: string | number) {
         error: offer ? undefined : "Offer not found",
     };
 }
+
 
 export async function getOfferById(id: string, shopId?: string) {
     return backend.get<Offer>(ENDPOINTS.OFFER.DETAILS(id), {

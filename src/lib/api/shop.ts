@@ -1,13 +1,14 @@
 import { backend } from "./backendClient";
-import { RegisterShopRequest, LoginShopRequest, LoginResponse } from "../types/auth";
+import { RegisterShopRequest, LoginShopRequest } from "../types/auth";
 import { ENDPOINTS } from "./endpoints";
+import { AuthLoginData } from "../types/auth";
 
 export async function registerShop(data: RegisterShopRequest) {
     return await backend.post(ENDPOINTS.AUTH.REGISTER, data);
 }
 
 export async function loginShop(data: LoginShopRequest) {
-    return await backend.post<LoginResponse>(ENDPOINTS.AUTH.LOGIN, data);
+    return await backend.post<AuthLoginData>(ENDPOINTS.AUTH.LOGIN, data);
 }
 
 export async function addShop(data: FormData | any) {

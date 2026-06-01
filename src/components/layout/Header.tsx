@@ -13,14 +13,24 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { cn } from "@/lib/utils";
+import { getPlacesByPin } from "indian_places";
 
 const locations = [
     "All",
-    "City Alpha",
-    "City Beta",
-    "City Gamma",
-    "City Delta",
-    "City Epsilon",
+    "Kochi",
+    "Thiruvananthapuram",
+    "Kozhikode",
+    "Thrissur",
+    "Palakkad",
+    "Kollam",
+    "Kannur",
+    "Alappuzha",
+    "Kottayam",
+    "Malappuram",
+    "Pathanamthitta",
+    "Idukki",
+    "Wayanad",
+    "Kasaragod",
 ];
 
 interface LocationDropdownContentProps {
@@ -227,11 +237,24 @@ const Header = () => {
     const fetchLocations = async (pin: string) => {
         setLoading(true);
         try {
+            // 1. Try local lookup first (instant, offline-first, no CORS)
+            const pinNum = parseInt(pin, 10);
+            if (!isNaN(pinNum)) {
+                const localPlaces = getPlacesByPin(pinNum);
+                if (localPlaces && localPlaces.length > 0) {
+                    const formatted = localPlaces.map((p: any) => `${p.place}, ${p.district}`);
+                    setDropdownLocations(formatted);
+                    setLoading(false);
+                    return;
+                }
+            }
+
+            // 2. Unreliable external API fallback (with CORS fallback protection)
             const response = await fetch(`https://api.postalpincode.in/pincode/${pin}`);
             const data = await response.json();
             if (data[0].Status === 'Success' && data[0].PostOffice.length > 0) {
                 const postOffices = data[0].PostOffice;
-                setDropdownLocations(postOffices.map((po: { Name: string }) => po.Name));
+                setDropdownLocations(postOffices.map((po: { Name: string; District: string }) => `${po.Name}, ${po.District}`));
             }
         } catch (error) {
             console.error('Error fetching location:', error);
@@ -480,11 +503,6 @@ const Header = () => {
                                  <DropdownMenu modal={false} open={desktopLocationOpen} onOpenChange={(open) => setDesktopLocationOpen(open)}>
                                     <DropdownMenuTrigger asChild>
                                         <button 
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                setDesktopLocationOpen(!desktopLocationOpen);
-                                            }}
                                             className="relative text-foreground hover:text-primary transition-all font-medium flex items-center gap-2 group border-0 outline-none select-none"
                                         >
                                             <MapPin className="w-4 h-4 text-orange-500 group-hover:scale-110 transition-transform" />
@@ -514,11 +532,6 @@ const Header = () => {
                                 <DropdownMenu modal={false} open={mobileLocationOpen} onOpenChange={(open) => setMobileLocationOpen(open)}>
                                     <DropdownMenuTrigger asChild>
                                         <button 
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                setMobileLocationOpen(!mobileLocationOpen);
-                                            }}
                                             className="relative text-foreground hover:text-primary transition-all font-medium flex items-center gap-2 group border-0 outline-none focus:ring-0 focus:ring-offset-0 focus:outline-none select-none"
                                         >
                                             <MapPin className="w-4 h-4 text-orange-500 group-hover:scale-110 transition-transform" />

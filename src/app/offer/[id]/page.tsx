@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import OfferDetailClient from "@/components/offer/OfferDetailClient";
 import { notFound } from "next/navigation";
-import { getAllUserOffers, getUserOfferById } from "@/lib/api/offers";
+import { getAllUserOffers, getUserOfferById, getPaginatedOffers } from "@/lib/api/offers";
 import { Offer } from "@/lib/types/offer";
 
 // ISR: Revalidate every 10 minutes
@@ -97,17 +97,17 @@ export default async function OfferDetailPage({
 }: {
     params: { id: string }
 }) {
-    const [offerResult, allOffersResult] = await Promise.all([
+    const [offerResult, similarOffersResult] = await Promise.all([
         getUserOfferById(params.id),
-        getAllUserOffers({ limit: 100 }),
+        getPaginatedOffers(1, 8),
     ]);
 
     if (!offerResult.data) {
         notFound();
     }
 
-    const allOffers = allOffersResult.success ? allOffersResult.data : [];
-    const filteredSimilarOffers = allOffers
+    const similarOffers = similarOffersResult.success ? similarOffersResult.data : [];
+    const filteredSimilarOffers = similarOffers
         .filter((o) => String(o.id) !== params.id)
         .slice(0, 5)
         .map(mapOfferForSimilarCard);
