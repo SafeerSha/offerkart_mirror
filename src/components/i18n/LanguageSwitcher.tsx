@@ -5,9 +5,13 @@ import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import { useTranslation } from "@/hooks/useTranslation";
 import { cn } from "@/lib/utils";
-import { Globe, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 
-export function LanguageSwitcher() {
+type LanguageSwitcherProps = {
+  className?: string;
+};
+
+export const LanguageSwitcher = ({ className }: LanguageSwitcherProps) => {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const { locale } = useTranslation();
@@ -48,7 +52,7 @@ export function LanguageSwitcher() {
   return (
     <div
       ref={containerRef}
-      className="relative inline-block text-left"
+      className={cn("relative inline-block text-left", className)}
     >
       <button
         type="button"
@@ -100,4 +104,4 @@ export function LanguageSwitcher() {
       )}
     </div>
   );
-}
+};

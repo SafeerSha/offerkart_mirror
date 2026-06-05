@@ -280,15 +280,18 @@ const Header = () => {
     const mobileMenu = mobileMenuOpen && (
         <div className="lg:hidden mt-4 p-6 glass-card rounded-2xl animate-in slide-in-from-top-5 duration-300 border border-primary/10 overflow-hidden pointer-events-auto">
             {/* Mobile Search Bar Integration */}
-            <div className="relative mb-6">
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 p-1.5 bg-orange-500/10 rounded-lg">
-                    <Search className="w-4 h-4 text-orange-600" />
+            <div className="flex items-center gap-1 mb-6">
+                <div className="relative flex-1">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 p-1.5 bg-orange-500/10 rounded-lg">
+                        <Search className="w-4 h-4 text-orange-600" />
+                    </div>
+                    <input
+                        type="text"
+                        placeholder="Search shops, offers..."
+                        className="w-full pl-12 pr-4 py-3 bg-secondary/30 border border-primary/10 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium"
+                    />
                 </div>
-                <input
-                    type="text"
-                    placeholder="Search shops, offers..."
-                    className="w-full pl-12 pr-4 py-3 bg-secondary/30 border border-primary/10 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium"
-                />
+                <LanguageSwitcher />
             </div>
 
             <nav className="flex flex-col gap-0">
@@ -583,28 +586,31 @@ const Header = () => {
                                         </div>
                                     </PremiumButton>
                                 ) : (
-                                    <PremiumButton
-                                        asChild
-                                        size="sm"
-                                        className={cn(
-                                            "rounded-2xl px-3 sm:px-4 lg:px-6 shadow-lg shadow-primary/20 transition-all duration-300",
-                                            (pathname.startsWith("/shop-manager") || pathname === "/profile") && "ring-2 ring-primary ring-offset-2 scale-105"
-                                        )}
-                                    >
-                                        {user?.business_name ? (
-                                            <Link href="/shop-manager" className="flex items-center">
-                                                <LayoutDashboard className="w-4 h-4 mr-2" />
-                                                <span className="inline">Manage Shop</span>
-                                            </Link>
-                                        ) : (
-                                            <Link href="/profile" className="flex items-center">
-                                                <User className="w-4 h-4 mr-2" />
-                                                <span className="inline">
-                                                    {user?.full_name || "Profile"}
-                                                </span>
-                                            </Link>
-                                        )}
-                                    </PremiumButton>
+                                    <div className="flex items-center gap-1">
+                                        <PremiumButton
+                                            asChild
+                                            size="sm"
+                                            className={cn(
+                                                "rounded-2xl px-3 sm:px-4 lg:px-6 shadow-lg shadow-primary/20 transition-all duration-300",
+                                                (pathname.startsWith("/shop-manager") || pathname === "/profile") && "ring-2 ring-primary ring-offset-2 scale-105"
+                                            )}
+                                        >
+                                            {user?.business_name ? (
+                                                <Link href="/shop-manager" className="flex items-center">
+                                                    <LayoutDashboard className="w-4 h-4 mr-2" />
+                                                    <span className="inline">Manage Shop</span>
+                                                </Link>
+                                            ) : (
+                                                <Link href="/profile" className="flex items-center">
+                                                    <User className="w-4 h-4 mr-2" />
+                                                    <span className="inline">
+                                                        {user?.full_name || "Profile"}
+                                                    </span>
+                                                </Link>
+                                            )}
+                                        </PremiumButton>
+                                        <LanguageSwitcher />
+                                    </div>
                                 )}
 
                                 {(!isRegistered || !user?.business_name) && (
@@ -623,8 +629,6 @@ const Header = () => {
                                     </PremiumButton>
                                 )}
                             </div>
-
-                            <LanguageSwitcher />
 
                             <button
                                 type="button"

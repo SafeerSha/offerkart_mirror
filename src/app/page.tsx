@@ -6,20 +6,20 @@ import FeaturedProducts from "@/components/home/FeaturedProducts";
 import ShopRegistrationSection from "@/components/home/ShopRegistrationSection";
 import { getFeaturedShops, getFeaturedOffers, getPaginatedOffers } from "@/lib/api/offers";
 import { getAllProducts } from "@/lib/api/products";
+import { CACHE_TAGS } from "@/lib/api/cache-tags";
 import { Store, Ticket, MapPin, Award } from "lucide-react";
 import { Heading, Subheading, Text } from "@/components/shared/Typography";
 import { cn } from "@/lib/utils";
 import { getTranslations } from "@/lib/i18n/server";
 
-// ISR: Revalidate every 5 minutes
-export const revalidate = 300;
+export const revalidate = false;
 
 export default async function HomePage() {
   const [featuredShopsRes, featuredOffersRes, allOffersRes, allProducts] = await Promise.all([
     getFeaturedShops(),
     getFeaturedOffers(),
-    getPaginatedOffers(1, 8),
-    getAllProducts(),
+    getPaginatedOffers(1, 8, {}, { next: { tags: [CACHE_TAGS.HOME, CACHE_TAGS.OFFERS] } }),
+    getAllProducts(undefined, { next: { tags: [CACHE_TAGS.PRODUCTS] } }),
   ]);
 
   const featuredShops = (featuredShopsRes as any).success ? ((featuredShopsRes as any).data || []) : [];

@@ -1,7 +1,8 @@
 import { FEATURED_SHOPS, FEATURED_OFFERS, ALL_OFFERS } from "./mockData";
 import { Offer, OfferPayload } from "../types/offer";
-import { backend } from "./backendClient";
+import { backend, BackendRequestOptions } from "./backendClient";
 import { ENDPOINTS } from "./endpoints";
+import { CACHE_TAGS } from "./cache-tags";
 
 const DEFAULT_USER_OFFER_IMAGE = "/images/shop-registration-bg-light.png";
 const DEFAULT_USER_OFFER_LIMIT = 8;
@@ -120,7 +121,7 @@ async function fetchUserOffersPage({
     shopId,
     latitude,
     longitude,
-}: UserOfferQuery = {}): Promise<PaginatedOffersResult> {
+}: UserOfferQuery = {}, cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">): Promise<PaginatedOffersResult> {
     const params = new URLSearchParams({
         page: String(page),
         limit: String(limit),
@@ -144,7 +145,10 @@ async function fetchUserOffersPage({
         }
     }
 
-    const response = await backend.get<UserOfferApiResponse>(`${ENDPOINTS.USER_OFFER.BASE}?${params.toString()}`);
+    const response = await backend.get<UserOfferApiResponse>(`${ENDPOINTS.USER_OFFER.BASE}?${params.toString()}`, {
+        next: { tags: [CACHE_TAGS.OFFERS] },
+        ...cacheOptions,
+    });
 
     if (!response.success || !response.data) {
         return {
@@ -210,12 +214,17 @@ export async function getAllOffers(shopId?: string) {
     });
 }
 
-export async function getPaginatedOffers(page: number = 1, limit: number = DEFAULT_USER_OFFER_LIMIT, query: Omit<UserOfferQuery, "page" | "limit"> = {}) {
+export async function getPaginatedOffers(
+    page: number = 1,
+    limit: number = DEFAULT_USER_OFFER_LIMIT,
+    query: Omit<UserOfferQuery, "page" | "limit"> = {},
+    cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">
+) {
     return fetchUserOffersPage({
         page,
         limit,
         ...query,
-    });
+    }, cacheOptions);
 }
 
 export async function getAllUserOffers(query: Omit<UserOfferQuery, "page"> = {}) {
@@ -249,9 +258,15 @@ export async function getAllUserOffers(query: Omit<UserOfferQuery, "page"> = {})
     };
 }
 
-export async function getUserOfferById(id: string | number) {
+export async function getUserOfferById(
+    id: string | number,
+    cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">
+) {
     try {
-        const response = await backend.get<UserOfferApiItem>(`${ENDPOINTS.USER_OFFER.BASE}/${id}`);
+        const response = await backend.get<UserOfferApiItem>(`${ENDPOINTS.USER_OFFER.BASE}/${id}`, {
+            next: { tags: [CACHE_TAGS.OFFERS, CACHE_TAGS.OFFER(id)] },
+            ...cacheOptions,
+        });
         if (response.success && response.data) {
             return {
                 success: true,

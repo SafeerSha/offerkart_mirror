@@ -1,12 +1,18 @@
-import { backend } from './backendClient';
+import { backend, BackendRequestOptions } from './backendClient';
 import { ENDPOINTS } from './endpoints';
 import { ALL_PRODUCTS } from './mockData';
-import { Product, OfferProductPayload } from '../types/product';
-import { updateOfferProduct, getOfferProductById, getAllOfferProducts, deleteOfferProduct } from './offerproduct';
+import { OfferProductPayload } from '../types/product';
+import { updateOfferProduct, getAllOfferProducts, deleteOfferProduct } from './offerproduct';
+import { CACHE_TAGS } from './cache-tags';
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-export async function getAllProducts(shopId?: string) {
+export async function getAllProducts(
+    shopId?: string,
+    cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">
+) {
+    void cacheOptions;
+
     if (!shopId || shopId === "all" || shopId === "undefined" || shopId === "null" || shopId === "") {
         console.log(`[API] Skipping backend products fetch (no valid shopId provided: ${shopId || 'all'}). Using local/mock products.`);
         await delay(50);
@@ -99,9 +105,12 @@ export async function getAllProducts(shopId?: string) {
     return [...customProducts, ...ALL_PRODUCTS];
 }
 
-export async function getProductById(id: string) {
+export async function getProductById(
+    id: string,
+    cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">
+) {
     await delay(100);
-    const all = await getAllProducts();
+    const all = await getAllProducts(undefined, cacheOptions);
     const product = all.find(p => p.id.toString() === id);
 
     if (product) {
@@ -119,7 +128,10 @@ export async function getProductById(id: string) {
 
     // Try fetching from actual backend API for dynamic IDs not in static mocks
     try {
-        const res = await getOfferProductById(id);
+        const res = await backend.get<any>(ENDPOINTS.OFFER_PRODUCT.DETAILS(id), {
+            next: { tags: [CACHE_TAGS.PRODUCTS, CACHE_TAGS.PRODUCT(id)] },
+            ...cacheOptions,
+        });
         if (res.success && res.data) {
             const data = res.data;
             // Map backend payload format back to application Product format

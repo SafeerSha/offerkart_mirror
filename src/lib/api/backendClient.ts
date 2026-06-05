@@ -7,7 +7,12 @@ const IS_SERVER = typeof window === "undefined";
 const BACKEND_PROXY_PREFIX = config.api.proxyPrefix;
 const UPSTREAM_API_BASE_URL = config.api.upstreamBaseUrl;
 
-type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+type NextCacheOptions = { tags?: string[]; revalidate?: number | false };
+export type BackendRequestOptions = RequestInit & {
+    tags?: string[];
+    revalidate?: number | false;
+    next?: NextCacheOptions;
+};
 
 function coerceAccessToken(session: Record<string, unknown> | null | undefined): string | undefined {
     const maybe = session?.user;
@@ -35,7 +40,7 @@ function coerceShopId(session: Record<string, unknown> | null | undefined): stri
 export const backend = {
     async request<T>(
         path: string,
-        options: RequestInit = {},
+        options: BackendRequestOptions = {},
         schema?: z.ZodSchema<T>
     ): Promise<ApiResponse<T>> {
 
@@ -118,11 +123,20 @@ export const backend = {
             }
 
             // 5. Execute Fetch
-            const response = await fetch(url, {
-                ...options,
+            // Normalize Next.js cache options and pass them through on the server only.
+            const { next: nextCacheOptions, tags, revalidate, ...restOptions } = options;
+            const normalizedNextCacheOptions = nextCacheOptions ?? ((tags || revalidate !== undefined)
+                ? { tags, revalidate }
+                : undefined);
+            const fetchOptions: RequestInit & { next?: NextCacheOptions } = {
+                ...restOptions,
                 body,
                 headers,
-            });
+            };
+            if (IS_SERVER && normalizedNextCacheOptions) {
+                fetchOptions.next = normalizedNextCacheOptions;
+            }
+            const response = await fetch(url, fetchOptions);
 
             // 6. Handle Global Intercepts by Status (e.g. 401)
             // We do this BEFORE parsing JSON to handle empty 401 bodies
@@ -194,23 +208,23 @@ export const backend = {
         }
     },
 
-    get<T>(path: string, options?: Omit<RequestInit, "method">) {
+    get<T>(path: string, options?: Omit<BackendRequestOptions, "method">) {
         return this.request<T>(path, { ...options, method: "GET" });
     },
 
-    post<T>(path: string, body?: unknown, options?: Omit<RequestInit, "method" | "body">) {
+    post<T>(path: string, body?: unknown, options?: Omit<BackendRequestOptions, "method" | "body">) {
         return this.request<T>(path, { ...options, method: "POST", body: body instanceof FormData ? body : JSON.stringify(body) });
     },
 
-    put<T>(path: string, body?: unknown, options?: Omit<RequestInit, "method" | "body">) {
+    put<T>(path: string, body?: unknown, options?: Omit<BackendRequestOptions, "method" | "body">) {
         return this.request<T>(path, { ...options, method: "PUT", body: body instanceof FormData ? body : JSON.stringify(body) });
     },
 
-    patch<T>(path: string, body?: unknown, options?: Omit<RequestInit, "method" | "body">) {
+    patch<T>(path: string, body?: unknown, options?: Omit<BackendRequestOptions, "method" | "body">) {
         return this.request<T>(path, { ...options, method: "PATCH", body: body instanceof FormData ? body : JSON.stringify(body) });
     },
 
-    delete<T>(path: string, options?: Omit<RequestInit, "method">) {
+    delete<T>(path: string, options?: Omit<BackendRequestOptions, "method">) {
         return this.request<T>(path, { ...options, method: "DELETE" });
     },
 };
