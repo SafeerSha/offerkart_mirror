@@ -1,0 +1,23 @@
+{
+  "hero": {
+    "exploreAllOffers": "Explore All Offers"
+  },
+  "features": {
+    "badge": "Premium Features",
+    "titlePrefix": "Why Choose ",
+    "titleSuffix": "OfferKart?",
+    "subheading": "The smartest way to discover and save at your favorite local businesses.",
+    "localShops": {
+      "title": "Local Shops",
+      "desc": "Find offers from trusted local businesses in your neighborhood."
+    },
+    "bestDeals": {
+      "title": "Best Deals",
+      "desc": "Get access to exclusive coupons and discounts on various products."
+    },
+    "locationBased": {
+      "title": "Location Based",
+      "desc": "Easily find offers near you with our location-based search."
+    }
+  }
+}

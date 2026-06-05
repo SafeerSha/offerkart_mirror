@@ -13,12 +13,14 @@ import {
     SheetTitle,
     SheetTrigger,
 } from "@/components/ui/sheet";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface ProductsClientProps {
     initialProducts: any[];
 }
 
 export default function ProductsClient({ initialProducts }: ProductsClientProps) {
+    const { t } = useTranslation("common");
     const [products] = useState<any[]>(initialProducts);
     const [isLoading] = useState(false);
     const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
@@ -71,14 +73,14 @@ export default function ProductsClient({ initialProducts }: ProductsClientProps)
             <div className="pt-28"></div>
 
             <main className="container mx-auto px-4 py-8">
-                <Breadcrumbs items={[{ label: "Products" }]} />
+                <Breadcrumbs items={[{ label: t("nav.products") }]} />
 
                 <div className="flex flex-col lg:flex-row gap-10">
                     <aside className="hidden lg:block w-72 flex-shrink-0">
                         <div className="sticky top-32">
                             <h2 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
                                 <Filter className="w-5 h-5 text-orange-500" />
-                                Refine Products
+                                {t("catalog.refineProducts")}
                             </h2>
                             <div className="bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm">
                                 <FilterPanel
@@ -100,17 +102,17 @@ export default function ProductsClient({ initialProducts }: ProductsClientProps)
                                 <SheetTrigger asChild>
                                     <button className="w-full h-12 bg-white border border-gray-200 rounded-xl flex items-center justify-center gap-2 font-semibold text-gray-700 hover:bg-gray-50 transition-all shadow-sm">
                                         <Filter className="w-4 h-4" />
-                                        Filters & Sorting
+                                        {t("catalog.filtersSorting")}
                                     </button>
                                 </SheetTrigger>
                                 <SheetContent side="left" className="w-[300px] border-r-0 bg-white">
                                     <SheetHeader className="mb-8">
                                         <SheetTitle className="text-2xl font-bold flex items-center gap-2">
                                             <Filter className="w-6 h-6 text-orange-500" />
-                                            Filters
+                                            {t("catalog.filters")}
                                         </SheetTitle>
                                         <SheetDescription>
-                                            Refine the product list by choosing your preferred categories.
+                                            {t("catalog.filtersDescProducts")}
                                         </SheetDescription>
                                     </SheetHeader>
                                     <div className="pb-8">
@@ -133,10 +135,10 @@ export default function ProductsClient({ initialProducts }: ProductsClientProps)
                                 <div className="h-8 w-1.5 bg-orange-500 rounded-full" />
                                 <div>
                                     <h2 className="text-2xl font-bold text-gray-900">
-                                        {activeFilters.category === "All" ? "All Products" : activeFilters.category}
+                                        {activeFilters.category === "All" ? t("catalog.allProducts") : activeFilters.category}
                                     </h2>
                                     <p className="text-sm text-gray-500 font-medium">
-                                        Showing {filteredProducts.length} premium items
+                                        {t("catalog.showingPremiumItems").replace("{count}", filteredProducts.length.toString())}
                                     </p>
                                 </div>
                             </div>

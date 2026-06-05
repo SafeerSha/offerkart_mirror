@@ -7,8 +7,10 @@ import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { useTranslation } from "@/hooks/useTranslation";
 
 export default function ForgotPasswordPage() {
+    const { t } = useTranslation("login");
     const [email, setEmail] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
@@ -22,9 +24,9 @@ export default function ForgotPasswordPage() {
             await new Promise(resolve => setTimeout(resolve, 1500));
             
             setIsSubmitted(true);
-            toast.success("Reset link sent! Please check your email.");
+            toast.success(t("forgotPassword.toastSuccess"));
         } catch (error) {
-            toast.error("Something went wrong. Please try again.");
+            toast.error(t("forgotPassword.toastError"));
         } finally {
             setIsLoading(false);
         }
@@ -43,10 +45,11 @@ export default function ForgotPasswordPage() {
                             <span className="text-3xl font-bold">O</span>
                         </div>
                         <h1 className="text-5xl font-bold mb-4 leading-tight">
-                            Security First with<br />OfferKart
+                            {t("forgotPassword.decorativeTitle").split('\n')[0]}<br />
+                            {t("forgotPassword.decorativeTitle").split('\n')[1]}
                         </h1>
                         <p className="text-xl text-white/80 max-w-md">
-                            Protecting your account and data is our top priority.
+                            {t("forgotPassword.decorativeDesc")}
                         </p>
                     </div>
                 </div>
@@ -57,8 +60,8 @@ export default function ForgotPasswordPage() {
                 <div className="p-6 lg:p-8">
                     <Breadcrumbs
                         items={[
-                            { label: "Login", href: "/login" },
-                            { label: "Forgot Password" }
+                            { label: t("form.title"), href: "/login" },
+                            { label: t("forgotPassword.pageTitle") }
                         ]}
                     />
                 </div>
@@ -66,11 +69,11 @@ export default function ForgotPasswordPage() {
                 <div className="flex-1 flex items-center justify-center px-6 lg:px-16 pb-12">
                     <div className="w-full max-w-md">
                         <div className="mb-8">
-                            <h2 className="text-3xl font-bold text-gray-900 mb-2">Reset Password</h2>
+                            <h2 className="text-3xl font-bold text-gray-900 mb-2">{t("forgotPassword.title")}</h2>
                             <p className="text-gray-600">
                                 {isSubmitted 
-                                    ? "We've sent a password reset link to your email address." 
-                                    : "Enter your email address and we'll send you a link to reset your password."}
+                                    ? t("forgotPassword.subtitleAfter") 
+                                    : t("forgotPassword.subtitleBefore")}
                             </p>
                         </div>
 
@@ -78,7 +81,7 @@ export default function ForgotPasswordPage() {
                             <form onSubmit={handleSubmit} className="space-y-5">
                                 <div className="space-y-2">
                                     <Label htmlFor="email" className="text-gray-700 font-medium">
-                                        Email Address
+                                        {t("form.emailLabel")}
                                     </Label>
                                     <div className="relative">
                                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -103,7 +106,7 @@ export default function ForgotPasswordPage() {
                                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                     ) : (
                                         <>
-                                            Send Reset Link
+                                            {t("forgotPassword.sendLink")}
                                             <ArrowRight className="w-5 h-5" />
                                         </>
                                     )}
@@ -112,14 +115,14 @@ export default function ForgotPasswordPage() {
                         ) : (
                             <div className="space-y-6">
                                 <div className="p-4 bg-orange-50 rounded-xl border border-orange-100 text-orange-800 text-sm">
-                                    Check your inbox at <strong>{email}</strong> for further instructions.
+                                    {t("forgotPassword.checkInbox").replace("{email}", email)}
                                 </div>
                                 <button
                                     onClick={() => setIsSubmitted(false)}
                                     className="text-orange-500 font-medium hover:text-orange-600 transition-colors flex items-center gap-2"
                                 >
                                     <ArrowLeft className="w-4 h-4" />
-                                    Try another email
+                                    {t("forgotPassword.tryAnother")}
                                 </button>
                             </div>
                         )}
@@ -130,7 +133,7 @@ export default function ForgotPasswordPage() {
                                 className="font-semibold text-gray-600 hover:text-orange-500 transition-colors flex items-center justify-center gap-2"
                             >
                                 <ArrowLeft className="w-4 h-4" />
-                                Back to login
+                                {t("forgotPassword.backToLogin")}
                             </Link>
                         </div>
                     </div>

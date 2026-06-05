@@ -12,6 +12,8 @@ import {
 import "./globals.css";
 import { Providers } from "./providers";
 import { ConditionalHeader } from "@/components/layout/ConditionalHeader";
+import { cookies } from "next/headers";
+import { Locale } from "@/lib/i18n/config";
 
 const rubik = Rubik({
   subsets: ["latin"],
@@ -81,15 +83,26 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  let locale: Locale = "en";
+  try {
+    const cookieStore = await cookies();
+    const cookieLocale = cookieStore.get("locale")?.value;
+    if (cookieLocale === "en" || cookieLocale === "ml") {
+      locale = cookieLocale as Locale;
+    }
+  } catch (e) {
+    // cookies() can throw if called during static generation or build phase
+  }
+
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <body className={`${rubik.variable} ${inter.variable} ${playfair.variable} ${staatliches.variable} ${montserrat.variable} ${outfit.variable} ${quicksand.variable} ${bebasNeue.variable} antialiased`} suppressHydrationWarning>
-        <Providers>
+        <Providers locale={locale}>
           <ConditionalHeader />
           {children}
         </Providers>

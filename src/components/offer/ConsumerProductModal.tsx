@@ -7,6 +7,7 @@ import { PremiumButton } from "@/components/shared/PremiumButton";
 import { ShoppingCart, IndianRupee, Heart, Tag } from "lucide-react";
 import { Subheading, Text } from "@/components/shared/Typography";
 import { toast } from "@/hooks/use-toast";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface ConsumerProductModalProps {
     open: boolean;
@@ -26,6 +27,7 @@ export const ConsumerProductModal = ({
     onOpenChange,
     productName,
 }: ConsumerProductModalProps) => {
+    const { t } = useTranslation("common");
     const [mockProduct, setMockProduct] = useState<any>(null);
     const [isAddedToCart, setIsAddedToCart] = useState(false);
 
@@ -38,12 +40,12 @@ export const ConsumerProductModal = ({
 
             setMockProduct({
                 name: productName,
-                description: `Experience the premium quality of our ${productName}. Carefully crafted to provide the best value for your money. Don't miss out on this exclusive offer!`,
+                description: t("catalog.mockProductDesc").replace("{productName}", productName),
                 image: getMockImage(productName),
                 originalPrice: basePrice,
                 price: offerPrice,
                 discount: `${discount}% OFF`,
-                category: "Featured Collection",
+                category: t("catalog.featuredCollection"),
                 stock: Math.floor(Math.random() * 50) + 5,
             });
             setIsAddedToCart(false);
@@ -55,13 +57,13 @@ export const ConsumerProductModal = ({
                 }
             }, 300);
         }
-    }, [open, productName]);
+    }, [open, productName, t]);
 
     const handleAddToCart = () => {
         setIsAddedToCart(true);
         toast({
-            title: "Added to Cart",
-            description: `${productName} has been added to your cart.`,
+            title: t("catalog.addedToCart"),
+            description: t("catalog.addedToCartDesc").replace("{productName}", productName || ""),
         });
     };
 
@@ -135,13 +137,13 @@ export const ConsumerProductModal = ({
                                 glow={!isAddedToCart}
                             >
                                 {isAddedToCart ? (
-                                    "Added to Cart"
-                                ) : (
-                                    <>
-                                        <ShoppingCart className="w-5 h-5 mr-2" />
-                                        Add to Cart
-                                    </>
-                                )}
+                                    t("catalog.addedToCart")
+                               ) : (
+                                   <>
+                                       <ShoppingCart className="w-5 h-5 mr-2" />
+                                       {t("catalog.addToCart")}
+                                   </>
+                               )}
                             </PremiumButton>
                         </div>
                     </div>

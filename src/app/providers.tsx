@@ -6,8 +6,10 @@ import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { SessionProvider } from "next-auth/react";
+import { LanguageProvider } from "@/components/i18n/LanguageProvider";
+import { Locale } from "@/lib/i18n/config";
 
-export function Providers({ children }: { children: React.ReactNode }) {
+export function Providers({ children, locale = "en" }: { children: React.ReactNode; locale?: Locale }) {
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {
@@ -22,16 +24,18 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <SessionProvider>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          enableSystem
-          disableTransitionOnChange
-        >
-          {children}
-          <Toaster />
-          <Sonner />
-        </ThemeProvider>
+        <LanguageProvider locale={locale}>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="light"
+            enableSystem
+            disableTransitionOnChange
+          >
+            {children}
+            <Toaster />
+            <Sonner />
+          </ThemeProvider>
+        </LanguageProvider>
       </SessionProvider>
     </QueryClientProvider>
   );

@@ -9,6 +9,7 @@ import { getAllProducts } from "@/lib/api/products";
 import { Store, Ticket, MapPin, Award } from "lucide-react";
 import { Heading, Subheading, Text } from "@/components/shared/Typography";
 import { cn } from "@/lib/utils";
+import { getTranslations } from "@/lib/i18n/server";
 
 // ISR: Revalidate every 5 minutes
 export const revalidate = 300;
@@ -25,6 +26,7 @@ export default async function HomePage() {
   const featuredOffers = (featuredOffersRes as any).success ? ((featuredOffersRes as any).data || []) : [];
   const allOffers = allOffersRes.success ? allOffersRes.data : [];
 
+  const { t } = await getTranslations("home");
 
   return (
     <div className="min-h-screen bg-background">
@@ -47,7 +49,7 @@ export default async function HomePage() {
           <OfferGrid
             offers={allOffers}
             redirectToOffers={true}
-            buttonText="Explore All Offers"
+            buttonText={t("hero.exploreAllOffers")}
             columns={4}
           />
         </div>
@@ -69,11 +71,14 @@ export default async function HomePage() {
           <div className="text-center mb-16 md:mb-20">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/5 text-primary text-xs font-bold uppercase tracking-[0.2em] mb-6 animate-fade-in border border-primary/10">
               <Award className="w-4 h-4" />
-              <span>Premium Features</span>
+              <span>{t("features.badge")}</span>
             </div>
-            <Heading className="text-4xl md:text-5xl lg:text-6xl mb-6">Why Choose <span className="text-gradient">OfferKart?</span></Heading>
+            <Heading className="text-4xl md:text-5xl lg:text-6xl mb-6">
+              {t("features.titlePrefix")}
+              <span className="text-gradient">{t("features.titleSuffix")}</span>
+            </Heading>
             <Text className="max-w-2xl mx-auto text-lg opacity-70">
-              The smartest way to discover and save at your favorite local businesses.
+              {t("features.subheading")}
             </Text>
           </div>
 
@@ -81,24 +86,24 @@ export default async function HomePage() {
             {[
               {
                 icon: Store,
-                title: "Local Shops",
-                desc: "Find offers from trusted local businesses in your neighborhood.",
+                title: t("features.localShops.title"),
+                desc: t("features.localShops.desc"),
                 color: "from-orange-500/10 to-transparent",
                 iconColor: "text-orange-500",
                 delay: "0s"
               },
               {
                 icon: Ticket,
-                title: "Best Deals",
-                desc: "Get access to exclusive coupons and discounts on various products.",
+                title: t("features.bestDeals.title"),
+                desc: t("features.bestDeals.desc"),
                 color: "from-blue-500/10 to-transparent",
                 iconColor: "text-blue-500",
                 delay: "0.1s"
               },
               {
                 icon: MapPin,
-                title: "Location Based",
-                desc: "Easily find offers near you with our location-based search.",
+                title: t("features.locationBased.title"),
+                desc: t("features.locationBased.desc"),
                 color: "from-purple-500/10 to-transparent",
                 iconColor: "text-purple-500",
                 delay: "0.2s"

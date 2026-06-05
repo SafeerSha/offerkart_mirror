@@ -1,0 +1,22 @@
+{
+  "dashboard": {
+    "welcome": "Welcome",
+    "desc": "Manage your shop, list new offers, and track your business performance all in one place.",
+    "quickStats": "Quick Stats",
+    "swipeToView": "Swipe to view",
+    "emptyCatalog": "Your Campaign Catalog is Empty",
+    "emptyCatalogDesc": "Start publishing offers to showcase them to your customers.",
+    "activeBranches": "Active Branches",
+    "onboarding": {
+      "started": "Onboarding Started",
+      "launchTitle": "Let's Launch Your Digital Storefront",
+      "launchDesc": "To start publishing deals, sharing posters, and attracting local shoppers, you first need to set up your virtual shop profile.",
+      "createShop": "Create Shop",
+      "createShopDesc": "Add your branding, address, and live map coordinates.",
+      "listOffers": "List Offers",
+      "listOffersDesc": "Create promotional posters using our AI studio or design canvas.",
+      "publish": "Publish",
+      "publishDesc": "Go live! Reach nearby shoppers and drive foot traffic directly to your physical store."
+    }
+  }
+}

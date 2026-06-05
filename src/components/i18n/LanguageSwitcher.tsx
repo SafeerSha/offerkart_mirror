@@ -1,0 +1,103 @@
+"use client";
+
+import { useTransition, useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Cookies from "js-cookie";
+import { useTranslation } from "@/hooks/useTranslation";
+import { cn } from "@/lib/utils";
+import { Globe, ChevronDown } from "lucide-react";
+
+export function LanguageSwitcher() {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const { locale } = useTranslation();
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleLanguageChange = (newLocale: string) => {
+    setIsOpen(false);
+    if (newLocale === locale) return;
+
+    // Set the cookie
+    Cookies.set("locale", newLocale, { expires: 365, path: "/" });
+
+    // Transition and refresh current page router state
+    startTransition(() => {
+      router.refresh();
+    });
+  };
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const languages = [
+    { code: "en", label: "EN", nativeLabel: "English" },
+    { code: "ml", label: "ML", nativeLabel: "മലയാളം" },
+  ];
+
+  const currentLanguage = languages.find((lang) => lang.code === locale) || languages[0];
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative inline-block text-left"
+    >
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        disabled={isPending}
+        className={cn(
+          "flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all duration-200 outline-none select-none",
+          "bg-orange-50/80 dark:bg-orange-950/20 border-orange-200/60 dark:border-orange-900/40 text-orange-800 dark:text-orange-300",
+          "hover:bg-orange-100/80 dark:hover:bg-orange-950/45 hover:border-orange-300/80 dark:hover:border-orange-800/60",
+          "shadow-[0_1px_2px_rgba(249,115,22,0.05)] active:scale-[0.98]",
+          isPending && "opacity-70 pointer-events-none",
+          isOpen && "border-orange-500 dark:border-orange-400 ring-2 ring-orange-500/20"
+        )}
+      >
+        {/* <Globe className="w-3.5 h-3.5 text-orange-500/70 dark:text-orange-400/70" /> */}
+        <span className="min-w-[1.25rem] text-center">{currentLanguage.label}</span>
+        <ChevronDown className={cn("w-3 h-3 text-orange-500/60 dark:text-orange-400/60 transition-transform duration-200", isOpen && "rotate-180")} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 mt-1.5 w-36 origin-top-right rounded-2xl border border-orange-100 dark:border-orange-950 bg-white/95 dark:bg-slate-950/95 p-1.5 shadow-xl backdrop-blur-md animate-in fade-in slide-in-from-top-1 duration-150 z-50">
+          {languages.map((lang) => {
+            const isSelected = lang.code === locale;
+            return (
+              <button
+                key={lang.code}
+                type="button"
+                onClick={() => handleLanguageChange(lang.code)}
+                className={cn(
+                  "w-full flex items-center justify-between px-3 py-2 text-left rounded-xl text-xs font-medium transition-colors outline-none",
+                  isSelected
+                    ? "bg-orange-100/70 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 font-semibold"
+                    : "text-orange-900/80 dark:text-orange-200/80 hover:bg-orange-50/70 dark:hover:bg-orange-950/20"
+                )}
+              >
+                <span>{lang.nativeLabel}</span>
+                <span className={cn(
+                  "text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider",
+                  isSelected
+                    ? "bg-orange-200/50 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300"
+                    : "bg-orange-50 dark:bg-orange-950/40 text-orange-600/70 dark:text-orange-400/70"
+                )}>
+                  {lang.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
