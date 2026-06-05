@@ -1,9 +1,8 @@
-import { FEATURED_SHOPS, FEATURED_OFFERS, ALL_OFFERS } from "./mockData";
 import { Offer, OfferPayload } from "../types/offer";
 import { backend, BackendRequestOptions } from "./backendClient";
 import { ENDPOINTS } from "./endpoints";
 import { CACHE_TAGS } from "./cache-tags";
-import { getUserOffersList, getUserOfferDetails, getMockUserOffers } from "./userOffersService";
+import { getUserOffersList, getUserOfferDetails } from "./userOffersService";
 
 const DEFAULT_USER_OFFER_IMAGE = "/images/shop-registration-bg-light.png";
 const DEFAULT_USER_OFFER_LIMIT = 8;
@@ -18,6 +17,7 @@ interface UserOfferApiItem {
     defaultPoster: string | null;
     daysLeft: number | null;
     distanceKm: number | null;
+    shopId?: number;
 }
 
 interface UserOfferApiResponse {
@@ -112,6 +112,7 @@ function mapUserOfferToOffer(item: UserOfferApiItem): Offer {
         description: `${item.offerName} from ${item.shopName}`,
         isActive: true,
         status: "active",
+        shopId: item.shopId,
     };
 }
 
@@ -153,21 +154,20 @@ async function fetchUserOffersPage({
     }
 
     if (!response || !response.success || !response.data) {
-        console.log("Upstream user/offer request failed, using mock data");
-        const mockResult = getMockUserOffers({ shopId, page, limit, latitude: latitude ?? undefined, longitude: longitude ?? undefined, sort });
-        const mappedOffers = mockResult.data.map(mapUserOfferToOffer);
+        console.warn("Upstream user/offer request failed");
         return {
-            success: true,
-            data: mappedOffers,
+            success: false,
+            data: [],
             page,
             limit,
-            count: mockResult.count,
-            hasMore: page * limit < mockResult.count,
+            count: 0,
+            hasMore: false,
+            error: response?.error || "Failed to fetch offers",
         };
     }
 
     const result = response.data;
-    const mappedOffers = result.data.map(mapUserOfferToOffer);
+    const mappedOffers = (result.data || []).map(mapUserOfferToOffer);
     const totalCount = typeof result.count === "number" ? result.count : mappedOffers.length;
 
     return {
@@ -199,16 +199,61 @@ export async function deleteOffer(id: string, shopId?: string) {
 }
 
 export async function getFeaturedShops() {
+    try {
+        const result = await fetchUserOffersPage({ page: 1, limit: 100 });
+        if (result.success && result.data) {
+            const shopsMap = new Map();
+            for (const offer of result.data) {
+                if (offer.shopName && !shopsMap.has(offer.shopName)) {
+                    shopsMap.set(offer.shopName, {
+                        id: offer.shopId || offer.id,
+                        name: offer.shopName,
+                        offer: offer.offerName,
+                        image: offer.image || DEFAULT_USER_OFFER_IMAGE,
+                        badge: "Featured",
+                        rating: 4.5
+                    });
+                }
+            }
+            return {
+                success: true,
+                data: Array.from(shopsMap.values()).slice(0, 10),
+            };
+        }
+    } catch (e) {
+        console.error("Failed to fetch featured shops:", e);
+    }
     return {
         success: true,
-        data: FEATURED_SHOPS,
+        data: [],
     };
 }
 
 export async function getFeaturedOffers() {
+    try {
+        const result = await fetchUserOffersPage({ page: 1, limit: 100 });
+        if (result.success && result.data) {
+            const offersMap = new Map();
+            for (const offer of result.data) {
+                if (offer.shopName && !offersMap.has(offer.shopName)) {
+                    offersMap.set(offer.shopName, {
+                        id: offer.shopId || offer.id,
+                        name: offer.shopName,
+                        logo: offer.shopLogo || offer.image || DEFAULT_USER_OFFER_IMAGE
+                    });
+                }
+            }
+            return {
+                success: true,
+                data: Array.from(offersMap.values()).slice(0, 10),
+            };
+        }
+    } catch (e) {
+        console.error("Failed to fetch featured offers:", e);
+    }
     return {
         success: true,
-        data: FEATURED_OFFERS,
+        data: [],
     };
 }
 
@@ -253,13 +298,6 @@ export async function getAllUserOffers(query: Omit<UserOfferQuery, "page"> = {})
         allOffers.push(...result.data);
         hasMore = result.hasMore;
         page += 1;
-    }
-
-    if (allOffers.length === 0) {
-        return {
-            success: true,
-            data: [...ALL_OFFERS] as any[],
-        };
     }
 
     return {

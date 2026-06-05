@@ -52,38 +52,16 @@ export const ConsumerProductModal = ({
                             stock: 10,
                         });
                     } else {
-                        // Generate mock data when opened
-                        const basePrice = Math.floor(Math.random() * 2000) + 500;
-                        const discount = Math.floor(Math.random() * 40) + 10;
-                        const offerPrice = Math.floor(basePrice * (1 - discount / 100));
-
                         setMockProduct({
+                            notFound: true,
                             name: productName,
-                            description: t("catalog.mockProductDesc").replace("{productName}", productName),
-                            image: getMockImage(productName),
-                            originalPrice: basePrice,
-                            price: offerPrice,
-                            discount: `${discount}% OFF`,
-                            category: t("catalog.featuredCollection"),
-                            stock: Math.floor(Math.random() * 50) + 5,
                         });
                     }
                 } catch (error) {
                     console.error("Failed to fetch product details for modal:", error);
-                    // Generate mock data on error fallback
-                    const basePrice = Math.floor(Math.random() * 2000) + 500;
-                    const discount = Math.floor(Math.random() * 40) + 10;
-                    const offerPrice = Math.floor(basePrice * (1 - discount / 100));
-
                     setMockProduct({
+                        notFound: true,
                         name: productName,
-                        description: t("catalog.mockProductDesc").replace("{productName}", productName),
-                        image: getMockImage(productName),
-                        originalPrice: basePrice,
-                        price: offerPrice,
-                        discount: `${discount}% OFF`,
-                        category: t("catalog.featuredCollection"),
-                        stock: Math.floor(Math.random() * 50) + 5,
                     });
                 } finally {
                     setIsLoading(false);
@@ -120,6 +98,21 @@ export const ConsumerProductModal = ({
             {!mockProduct ? (
                 <div className="h-64 flex items-center justify-center">
                     <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                </div>
+            ) : mockProduct.notFound ? (
+                <div className="p-8 text-center bg-card">
+                    <div className="w-16 h-16 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center mb-4 mx-auto shadow-sm">
+                        <Tag className="w-8 h-8 text-slate-400" />
+                    </div>
+                    <Subheading className="text-xl font-bold mb-2 text-foreground">
+                        {mockProduct.name}
+                    </Subheading>
+                    <Text className="text-muted-foreground text-sm mb-6">
+                        Product details are not available for this item.
+                    </Text>
+                    <PremiumButton onClick={() => onOpenChange(false)} className="w-full rounded-2xl">
+                        Close
+                    </PremiumButton>
                 </div>
             ) : (
                 <div className="flex flex-col bg-card">

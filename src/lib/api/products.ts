@@ -1,10 +1,9 @@
 import { backend, BackendRequestOptions } from './backendClient';
 import { ENDPOINTS } from './endpoints';
-import { ALL_PRODUCTS } from './mockData';
 import { OfferProductPayload } from '../types/product';
 import { updateOfferProduct, getAllOfferProducts, deleteOfferProduct } from './offerproduct';
 import { CACHE_TAGS } from './cache-tags';
-import { getUserOfferProducts, getMockUserProducts } from './userOffersService';
+import { getUserOfferProducts } from './userOffersService';
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -47,23 +46,9 @@ export async function getAllProducts(
                 return userProductsRes.data.data;
             }
         } catch (e) {
-            console.error("getAllProducts (end user) failed, using mock:", e);
+            console.error("getAllProducts (end user) failed:", e);
         }
-
-        console.log(`[API] Skipping backend products fetch (no valid shopId provided: ${shopId || 'all'}). Using local/mock products.`);
-        await delay(50);
-        let customProducts: any[] = [];
-        if (typeof window !== "undefined") {
-            const stored = localStorage.getItem("customProducts");
-            if (stored) {
-                try {
-                    customProducts = JSON.parse(stored);
-                } catch (e) {
-                    console.error(e);
-                }
-            }
-        }
-        return [...customProducts, ...ALL_PRODUCTS];
+        return [];
     }
 
     try {
@@ -123,10 +108,6 @@ export async function getAllProducts(
         console.error(`[API] Critical error fetching products for shopId: ${shopId}:`, error);
     }
 
-    console.log("[API] Falling back to mock data (ALL_PRODUCTS)");
-
-    // Fallback to local storage + mock data
-    await delay(100);
     let customProducts: any[] = [];
     if (typeof window !== "undefined") {
         const stored = localStorage.getItem("customProducts");
@@ -138,7 +119,7 @@ export async function getAllProducts(
             }
         }
     }
-    return [...customProducts, ...ALL_PRODUCTS];
+    return customProducts;
 }
 
 export async function getProductById(
@@ -283,14 +264,19 @@ export async function getUserProducts(query: {
     }
 
     if (!response || !response.success || !response.data) {
-        const mockRes = getMockUserProducts({ search, categoryId, shopId, minPrice, maxPrice, sort, page, limit });
-        if (mockRes && mockRes.success && mockRes.data) {
-            if (mockRes.data.data && Array.isArray(mockRes.data.data)) {
-                mockRes.data.data = mockRes.data.data.map(mapUserProductToProduct);
-            }
-            return mockRes;
-        }
-        return { success: false };
+        return {
+            success: false,
+            data: {
+                data: [],
+                pagination: {
+                    total: 0,
+                    page,
+                    limit,
+                    totalPages: 0
+                }
+            },
+            error: response?.error || "Failed to fetch products"
+        };
     }
 
     const result = response;

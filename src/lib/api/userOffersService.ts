@@ -325,10 +325,17 @@ export async function getUserOffersList(query: {
             }
         }
     } catch (e) {
-        console.error("Upstream user/offer request failed, using mock data:", e);
+        console.error("Upstream user/offer request failed:", e);
     }
 
-    return getMockUserOffers({ shopId, page, limit, latitude, longitude, sort });
+    return {
+        success: false,
+        page,
+        limit,
+        sort,
+        count: 0,
+        data: []
+    };
 }
 
 export async function getUserOfferDetails(id: string | number) {
@@ -342,10 +349,13 @@ export async function getUserOfferDetails(id: string | number) {
             }
         }
     } catch (e) {
-        console.error(`Upstream user/offer/${id} request failed, using mock data:`, e);
+        console.error(`Upstream user/offer/${id} request failed:`, e);
     }
 
-    return getMockUserOfferDetails(id);
+    return {
+        success: false,
+        error: "Offer not found"
+    };
 }
 
 export async function getUserOfferProducts(query: {
@@ -384,8 +394,19 @@ export async function getUserOfferProducts(query: {
             }
         }
     } catch (e) {
-        console.error("Upstream user/offer/products request failed, using mock data:", e);
+        console.error("Upstream user/offer/products request failed:", e);
     }
 
-    return getMockUserProducts({ search, categoryId, shopId, minPrice, maxPrice, sort, page, limit });
+    return {
+        success: false,
+        data: {
+            data: [],
+            pagination: {
+                total: 0,
+                page,
+                limit,
+                totalPages: 0
+            }
+        }
+    };
 }

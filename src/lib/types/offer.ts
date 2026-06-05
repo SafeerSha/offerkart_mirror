@@ -76,6 +76,7 @@ export interface Offer {
     discount?: string;
     rating?: number;
     posterSrc?: string;
+    shopId?: number;
 }
 
 export interface OfferPayload {
