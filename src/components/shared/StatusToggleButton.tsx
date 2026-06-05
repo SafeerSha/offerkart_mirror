@@ -1,10 +1,11 @@
 import React from 'react';
 import { cn } from "@/lib/utils";
 import { Power } from "lucide-react";
+import { OfferStatus } from "@/lib/types";
 
 interface StatusToggleButtonProps {
-    status: 'active' | 'paused' | string;
-    onChange: (newStatus: string) => void;
+    status: OfferStatus | string;
+    onChange: (newStatus: OfferStatus) => void;
     activeText?: string;
     pausedText?: string;
     className?: string;
@@ -15,12 +16,12 @@ export function StatusToggleButton({
     onChange,
     className
 }: StatusToggleButtonProps) {
-    const isActive = status === 'active';
+    const isActive = status === OfferStatus.ACTIVE;
     
     return (
         <button
             type="button"
-            onClick={() => onChange(isActive ? 'paused' : 'active')}
+            onClick={() => onChange(isActive ? OfferStatus.PAUSED : OfferStatus.ACTIVE)}
             className={cn(
                 "relative flex items-center w-[38px] h-5 rounded-full cursor-pointer transition-all duration-300 shadow-inner shrink-0 outline-none hover:ring-2 hover:ring-primary/20",
                 isActive ? "bg-[#1cc080]" : "bg-gray-200",

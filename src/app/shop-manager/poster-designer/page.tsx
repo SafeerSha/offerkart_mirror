@@ -19,6 +19,7 @@ import { MultiSearchableSelect } from "@/components/shared/MultiSearchableSelect
 import { StatusToggleButton } from "@/components/shared/StatusToggleButton";
 import { FileText, Plus, X, AlertTriangle, Type, GitBranch, Send } from "lucide-react";
 import { s3Api } from "@/lib/api";
+import { extractS3Url } from "@/lib/common";
 import { toast } from "sonner";
 import type { MarkedItem } from "@/lib/types/offer";
 import { storage } from "@/lib/storage";
@@ -483,8 +484,7 @@ function PosterDesignerInner() {
             const posterData = await Promise.all(
                 capturedPosters.map(async (cp, index) => {
                     const res = await s3Api.uploadImage(cp.posterFile, "offers");
-                    const payload = (res?.data as any)?.data || res?.data;
-                    const uploadedUrl = payload?.url || payload?.fileUrl || payload?.imageUrl || (res?.data as any)?.imageUrl || (typeof payload === 'string' ? payload : null);
+                    const uploadedUrl = extractS3Url(res);
                     if (!res?.success || !uploadedUrl) {
                         throw new Error(`Failed to upload poster ${index + 1}`);
                     }

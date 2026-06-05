@@ -2,3 +2,5 @@
 export type { Product, OfferProductPayload } from './product';
 export type { Branch } from './branch';
 export type { PosterItem, PosterPreviewState } from '../../components/shop-manager/PosterCardStack';
+export * from './offer';
+export * from './enums';

@@ -1,4 +1,5 @@
 import { s3Api } from "./api/s3";
+import { extractS3Url } from "./common";
 
 /**
  * Takes an image reference (URL, base64, or null) and ensures it is an external S3 URL.
@@ -29,10 +30,7 @@ export const ensureS3Url = async (imageUrl: string | null | undefined, fallbackF
             const file = new File([blob], fallbackFilename, { type: mime });
             
             const response = await s3Api.uploadImage(file);
-            
-            // Standard handle of various response shapes seen in code base
-            const payload = (response?.data as any)?.data || response?.data;
-            const uploadedUrl = payload?.url || payload?.fileUrl || payload?.imageUrl || (response?.data as any)?.imageUrl || (typeof payload === 'string' ? payload : null);
+            const uploadedUrl = extractS3Url(response);
 
             if (response.success && uploadedUrl) {
                 return uploadedUrl;
