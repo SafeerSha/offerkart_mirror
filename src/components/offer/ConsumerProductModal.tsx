@@ -8,6 +8,7 @@ import { ShoppingCart, IndianRupee, Heart, Tag } from "lucide-react";
 import { Subheading, Text } from "@/components/shared/Typography";
 import { toast } from "@/hooks/use-toast";
 import { useTranslation } from "@/hooks/useTranslation";
+import { getUserProducts } from "@/lib/api/products";
 
 interface ConsumerProductModalProps {
     open: boolean;
@@ -30,24 +31,65 @@ export const ConsumerProductModal = ({
     const { t } = useTranslation("common");
     const [mockProduct, setMockProduct] = useState<any>(null);
     const [isAddedToCart, setIsAddedToCart] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
         if (open && productName) {
-            // Generate mock data when opened
-            const basePrice = Math.floor(Math.random() * 2000) + 500;
-            const discount = Math.floor(Math.random() * 40) + 10;
-            const offerPrice = Math.floor(basePrice * (1 - discount / 100));
+            setIsLoading(true);
+            const fetchProductDetails = async () => {
+                try {
+                    const res = await getUserProducts({ search: productName, limit: 1 });
+                    if (res && res.success && res.data && res.data.data && res.data.data.length > 0) {
+                        const product = res.data.data[0];
+                        setMockProduct({
+                            name: product.name,
+                            description: product.description || t("catalog.mockProductDesc").replace("{productName}", productName),
+                            image: product.image || getMockImage(productName),
+                            originalPrice: product.originalPrice || product.price,
+                            price: product.price,
+                            discount: product.discount || "Sale",
+                            category: product.category || t("catalog.featuredCollection"),
+                            stock: 10,
+                        });
+                    } else {
+                        // Generate mock data when opened
+                        const basePrice = Math.floor(Math.random() * 2000) + 500;
+                        const discount = Math.floor(Math.random() * 40) + 10;
+                        const offerPrice = Math.floor(basePrice * (1 - discount / 100));
 
-            setMockProduct({
-                name: productName,
-                description: t("catalog.mockProductDesc").replace("{productName}", productName),
-                image: getMockImage(productName),
-                originalPrice: basePrice,
-                price: offerPrice,
-                discount: `${discount}% OFF`,
-                category: t("catalog.featuredCollection"),
-                stock: Math.floor(Math.random() * 50) + 5,
-            });
+                        setMockProduct({
+                            name: productName,
+                            description: t("catalog.mockProductDesc").replace("{productName}", productName),
+                            image: getMockImage(productName),
+                            originalPrice: basePrice,
+                            price: offerPrice,
+                            discount: `${discount}% OFF`,
+                            category: t("catalog.featuredCollection"),
+                            stock: Math.floor(Math.random() * 50) + 5,
+                        });
+                    }
+                } catch (error) {
+                    console.error("Failed to fetch product details for modal:", error);
+                    // Generate mock data on error fallback
+                    const basePrice = Math.floor(Math.random() * 2000) + 500;
+                    const discount = Math.floor(Math.random() * 40) + 10;
+                    const offerPrice = Math.floor(basePrice * (1 - discount / 100));
+
+                    setMockProduct({
+                        name: productName,
+                        description: t("catalog.mockProductDesc").replace("{productName}", productName),
+                        image: getMockImage(productName),
+                        originalPrice: basePrice,
+                        price: offerPrice,
+                        discount: `${discount}% OFF`,
+                        category: t("catalog.featuredCollection"),
+                        stock: Math.floor(Math.random() * 50) + 5,
+                    });
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+            fetchProductDetails();
             setIsAddedToCart(false);
         } else {
             // Optional: clear out after close animation

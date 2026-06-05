@@ -44,7 +44,7 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
     }
 
     const similarProducts = allProducts
-        .filter((p) => String(p.id) !== params.id && p.category === product.category)
+        .filter((p: any) => String(p.id) !== params.id && p.category === product.category)
         .slice(0, 4);
 
     return (

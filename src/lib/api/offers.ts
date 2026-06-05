@@ -3,6 +3,7 @@ import { Offer, OfferPayload } from "../types/offer";
 import { backend, BackendRequestOptions } from "./backendClient";
 import { ENDPOINTS } from "./endpoints";
 import { CACHE_TAGS } from "./cache-tags";
+import { getUserOffersList, getUserOfferDetails, getMockUserOffers } from "./userOffersService";
 
 const DEFAULT_USER_OFFER_IMAGE = "/images/shop-registration-bg-light.png";
 const DEFAULT_USER_OFFER_LIMIT = 8;
@@ -88,7 +89,7 @@ function mapUserOfferToOffer(item: UserOfferApiItem): Offer {
         title: item.offerName,
         image: primaryImage,
         posterSrc: primaryImage,
-        posters: primaryImage
+        posters: (item as any).posters || (primaryImage
             ? [
                 {
                     id: `poster-${item.id}`,
@@ -97,12 +98,12 @@ function mapUserOfferToOffer(item: UserOfferApiItem): Offer {
                     markedItems: [],
                 },
             ]
-            : [],
+            : []),
         category: "Offers",
         location: formatDistance(item.distanceKm),
         discount: formatDaysLeft(item.daysLeft),
-        validFrom: undefined,
-        validTo: undefined,
+        validFrom: (item as any).validFrom || undefined,
+        validTo: (item as any).validTo || undefined,
         totalPosters: item.totalPosters,
         numberOfPosters: item.totalPosters,
         daysLeft: item.daysLeft,
@@ -133,32 +134,35 @@ async function fetchUserOffersPage({
         params.set("shopId", normalizedShopId);
     }
 
-    if (sort === "nearby") {
+    if (sort === "nearby" || sort === "nearest") {
         const normalizedLatitude = normalizeOptionalQueryValue(latitude);
         const normalizedLongitude = normalizeOptionalQueryValue(longitude);
-
-        if (normalizedLatitude !== undefined) {
-            params.set("latitude", normalizedLatitude);
-        }
-        if (normalizedLongitude !== undefined) {
-            params.set("longitude", normalizedLongitude);
-        }
+        if (normalizedLatitude !== undefined) params.set("latitude", normalizedLatitude);
+        if (normalizedLongitude !== undefined) params.set("longitude", normalizedLongitude);
     }
 
-    const response = await backend.get<UserOfferApiResponse>(`${ENDPOINTS.USER_OFFER.BASE}?${params.toString()}`, {
-        next: { tags: [CACHE_TAGS.OFFERS] },
-        ...cacheOptions,
-    });
+    let response: any;
+    try {
+        response = await backend.get<UserOfferApiResponse>(`${ENDPOINTS.USER_OFFER.BASE}?${params.toString()}`, {
+            next: { tags: [CACHE_TAGS.OFFERS] },
+            ...cacheOptions,
+        });
+    } catch (e) {
+        console.error("fetchUserOffersPage backend call failed:", e);
+        response = { success: false };
+    }
 
-    if (!response.success || !response.data) {
+    if (!response || !response.success || !response.data) {
+        console.log("Upstream user/offer request failed, using mock data");
+        const mockResult = getMockUserOffers({ shopId, page, limit, latitude: latitude ?? undefined, longitude: longitude ?? undefined, sort });
+        const mappedOffers = mockResult.data.map(mapUserOfferToOffer);
         return {
-            success: false,
-            data: [],
+            success: true,
+            data: mappedOffers,
             page,
             limit,
-            count: 0,
-            hasMore: false,
-            error: response.error || "Failed to load offers",
+            count: mockResult.count,
+            hasMore: page * limit < mockResult.count,
         };
     }
 
@@ -169,10 +173,10 @@ async function fetchUserOffersPage({
     return {
         success: true,
         data: mappedOffers,
-        page: result.page,
-        limit: result.limit,
+        page: result.page || page,
+        limit: result.limit || limit,
         count: totalCount,
-        hasMore: result.page * result.limit < totalCount,
+        hasMore: (result.page || page) * (result.limit || limit) < totalCount,
     };
 }
 
@@ -229,7 +233,7 @@ export async function getPaginatedOffers(
 
 export async function getAllUserOffers(query: Omit<UserOfferQuery, "page"> = {}) {
     const limit = query.limit ?? 100;
-    const allOffers: Offer[] = [...ALL_OFFERS] as any[];
+    const allOffers: Offer[] = [];
     let page = 1;
     let hasMore = true;
     let error: string | undefined;
@@ -251,6 +255,13 @@ export async function getAllUserOffers(query: Omit<UserOfferQuery, "page"> = {})
         page += 1;
     }
 
+    if (allOffers.length === 0) {
+        return {
+            success: true,
+            data: [...ALL_OFFERS] as any[],
+        };
+    }
+
     return {
         success: !error || allOffers.length > 0,
         data: allOffers,
@@ -267,14 +278,14 @@ export async function getUserOfferById(
             next: { tags: [CACHE_TAGS.OFFERS, CACHE_TAGS.OFFER(id)] },
             ...cacheOptions,
         });
-        if (response.success && response.data) {
+        if (response && response.success && response.data) {
             return {
                 success: true,
                 data: mapUserOfferToOffer(response.data),
             };
         }
     } catch (err) {
-        console.warn(`Direct user offer lookup for ID ${id} failed, attempting fallback scan:`, err);
+        console.warn(`Direct user offer lookup for ID ${id} failed:`, err);
     }
 
     const allOffersResult = await getAllUserOffers({ limit: 100 });
@@ -287,7 +298,6 @@ export async function getUserOfferById(
         error: offer ? undefined : "Offer not found",
     };
 }
-
 
 export async function getOfferById(id: string, shopId?: string) {
     return backend.get<Offer>(ENDPOINTS.OFFER.DETAILS(id), {

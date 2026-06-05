@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Filter } from "lucide-react";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import ProductGrid from "@/components/products/ProductGrid";
@@ -14,15 +14,17 @@ import {
     SheetTrigger,
 } from "@/components/ui/sheet";
 import { useTranslation } from "@/hooks/useTranslation";
+import { getUserProducts } from "@/lib/api/products";
+import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
 
 interface ProductsClientProps {
     initialProducts: any[];
 }
 
-export default function ProductsClient({ initialProducts }: ProductsClientProps) {
+export default function ProductsClient({ initialProducts = [] }: ProductsClientProps) {
     const { t } = useTranslation("common");
-    const [products] = useState<any[]>(initialProducts);
-    const [isLoading] = useState(false);
+    const [products, setProducts] = useState<any[]>(initialProducts || []);
+    const [isLoading, setIsLoading] = useState(false);
     const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
     const [activeFilters, setActiveFilters] = useState<{
         category: string;
@@ -33,6 +35,9 @@ export default function ProductsClient({ initialProducts }: ProductsClientProps)
         subcategory: [],
         sort: "latest"
     });
+
+    const isFirstRender = useRef(true);
+    const { getCategoryId } = useCategoryHierarchy();
 
     const handleCategoryChange = useCallback((category: string) => {
         setActiveFilters(prev => ({ ...prev, category, subcategory: [] }));
@@ -46,27 +51,43 @@ export default function ProductsClient({ initialProducts }: ProductsClientProps)
         setActiveFilters(prev => ({ ...prev, sort }));
     }, []);
 
-    const filteredProducts = useMemo(() => {
-        let result = [...products];
+    const fetchFilteredProducts = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const catId = activeFilters.category !== "All"
+                ? getCategoryId(activeFilters.category, activeFilters.subcategory[0])
+                : undefined;
 
-        if (activeFilters.category !== "All") {
-            result = result.filter(p => p.category === activeFilters.category);
+            const mappedSort = activeFilters.sort === "latest" ? "newest" : "newest";
+
+            const res = await getUserProducts({
+                categoryId: catId ? String(catId) : undefined,
+                sort: mappedSort,
+                limit: 100
+            });
+
+            if (res && res.success && res.data && res.data.data) {
+                setProducts(res.data.data);
+            } else {
+                setProducts([]);
+            }
+        } catch (error) {
+            console.error("Failed to fetch products:", error);
+        } finally {
+            setIsLoading(false);
         }
+    }, [activeFilters, getCategoryId]);
 
-        if (activeFilters.subcategory.length > 0) {
-            result = result.filter(p =>
-                p.subcategory?.some((sub: string) => activeFilters.subcategory.includes(sub))
-            );
+    useEffect(() => {
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            return;
         }
+        fetchFilteredProducts();
+    }, [activeFilters, fetchFilteredProducts]);
 
-        result.sort((a, b) => {
-            if (activeFilters.sort === "latest") return b.id - a.id;
-            if (activeFilters.sort === "popular") return (b.rating || 0) - (a.rating || 0);
-            return 0;
-        });
-
-        return result;
-    }, [products, activeFilters]);
+    console.log("ProductsClient render products:", products, "isArray:", Array.isArray(products));
+    const filteredProducts = products || [];
 
     return (
         <div className="min-h-screen bg-gray-50/50">

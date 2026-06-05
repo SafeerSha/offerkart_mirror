@@ -51,9 +51,9 @@ describe("backend proxy revalidation", () => {
 
     expect(response.status).toBe(200);
     expect(revalidateTagMock).toHaveBeenCalledTimes(3);
-    expect(revalidateTagMock).toHaveBeenNthCalledWith(1, CACHE_TAGS.HOME);
-    expect(revalidateTagMock).toHaveBeenNthCalledWith(2, CACHE_TAGS.OFFERS);
-    expect(revalidateTagMock).toHaveBeenNthCalledWith(3, CACHE_TAGS.OFFER("42"));
+    expect(revalidateTagMock).toHaveBeenNthCalledWith(1, CACHE_TAGS.HOME, "max");
+    expect(revalidateTagMock).toHaveBeenNthCalledWith(2, CACHE_TAGS.OFFERS, "max");
+    expect(revalidateTagMock).toHaveBeenNthCalledWith(3, CACHE_TAGS.OFFER("42"), "max");
   });
 
   it("revalidates product tags for offerproduct inactivate mutations", async () => {
@@ -76,8 +76,8 @@ describe("backend proxy revalidation", () => {
     });
 
     expect(revalidateTagMock).toHaveBeenCalledTimes(2);
-    expect(revalidateTagMock).toHaveBeenNthCalledWith(1, CACHE_TAGS.PRODUCTS);
-    expect(revalidateTagMock).toHaveBeenNthCalledWith(2, CACHE_TAGS.PRODUCT("77"));
+    expect(revalidateTagMock).toHaveBeenNthCalledWith(1, CACHE_TAGS.PRODUCTS, "max");
+    expect(revalidateTagMock).toHaveBeenNthCalledWith(2, CACHE_TAGS.PRODUCT("77"), "max");
   });
 
   it("does not revalidate tags for successful GET requests", async () => {
