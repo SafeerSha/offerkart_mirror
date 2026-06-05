@@ -8,6 +8,7 @@ import { PremiumCard } from "@/components/shared/PremiumCard";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import ProductCard from "./ProductCard";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface Product {
     id: any;
@@ -31,6 +32,7 @@ interface ProductDetailClientProps {
 }
 
 export default function ProductDetailClient({ product, similarProducts }: ProductDetailClientProps) {
+    const { t } = useTranslation("common");
     const [selectedImage, setSelectedImage] = useState(0);
     const [isFavorite, setIsFavorite] = useState(false);
 
@@ -47,7 +49,7 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
             <div className="container mx-auto px-4 py-4 max-w-7xl">
                 <Breadcrumbs
                     items={[
-                        { label: "Products", href: "/products" },
+                        { label: t("nav.products"), href: "/products" },
                         { label: product.name }
                     ]}
                 />
@@ -55,7 +57,7 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                 <div className="mt-6 mb-8 flex items-center justify-between">
                     <Link href="/products" className="inline-flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-orange-600 transition-colors bg-white px-4 py-2 rounded-full border border-gray-100 shadow-sm">
                         <ArrowLeft className="w-4 h-4" />
-                        Back to Products
+                        {t("catalog.backToProducts")}
                     </Link>
                     <div className="flex items-center gap-2">
                         <button 
@@ -71,7 +73,7 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                         <button 
                             onClick={() => {
                                 navigator.clipboard.writeText(window.location.href);
-                                alert("Link copied to clipboard!");
+                                alert(t("catalog.linkCopied"));
                             }}
                             className="p-3 rounded-full bg-white text-gray-400 border border-gray-100 hover:text-orange-500 transition-all shadow-sm"
                         >
@@ -99,7 +101,7 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                                         <div className="w-24 h-24 rounded-full bg-white flex items-center justify-center shadow-sm border border-gray-100">
                                             <ShoppingBag className="w-10 h-10 text-gray-300" />
                                         </div>
-                                        <span className="text-xs font-medium text-gray-400">No image available</span>
+                                        <span className="text-xs font-medium text-gray-400">{t("catalog.noImage")}</span>
                                     </div>
                                 </div>
                             )}
@@ -144,14 +146,14 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                                     {product.name}
                                 </h1>
                                 <p className="text-gray-500 font-medium text-sm flex items-center gap-1.5">
-                                    Offered by <span className="text-gray-800 font-bold hover:text-orange-600 transition-colors cursor-pointer">{product.shopName}</span>
+                                    {t("catalog.offeredBy")} <span className="text-gray-800 font-bold hover:text-orange-600 transition-colors cursor-pointer">{product.shopName}</span>
                                 </p>
                             </div>
 
                             {/* Ratings & Pricing */}
                             <div className="flex flex-wrap items-center justify-between gap-4 p-5 bg-gray-50/50 border border-gray-100 rounded-2xl">
                                 <div className="space-y-1">
-                                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">Premium Offer Price</span>
+                                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">{t("catalog.premiumOfferPrice")}</span>
                                     <div className="flex items-end gap-3">
                                         <span className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight">
                                             ₹{product.price}
@@ -179,17 +181,17 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                             {/* Description */}
                             <div className="space-y-2">
                                 <h3 className="text-sm font-extrabold text-gray-900 uppercase tracking-wide flex items-center gap-2">
-                                    Description & Quality Assurance
+                                    {t("catalog.descQualityAssurance")}
                                 </h3>
                                 <p className="text-gray-600 font-medium leading-relaxed text-sm">
-                                    {product.description || `Experience outstanding quality with our ${product.name}, available at ${product.shopName}. All items are carefully vetted to ensure that they match the high standards of our valued customers. Limited stocks available.`}
+                                    {product.description || t("catalog.fallbackProductDesc").replace("{productName}", product.name).replace("{shopName}", product.shopName)}
                                 </p>
                             </div>
 
                             {/* Specifications */}
                             {product.specifications && product.specifications.length > 0 && (
                                 <div className="space-y-3 pt-2">
-                                    <h3 className="text-sm font-extrabold text-gray-900 uppercase tracking-wide">Key Information</h3>
+                                    <h3 className="text-sm font-extrabold text-gray-900 uppercase tracking-wide">{t("catalog.keyInformation")}</h3>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         {product.specifications.map((spec, index) => (
                                             <div key={index} className="flex items-center justify-between p-3.5 bg-gray-50 border border-gray-100 rounded-xl hover:bg-orange-50/20 hover:border-orange-100/50 transition-all">
@@ -206,17 +208,17 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                                 <PremiumButton 
                                     className="flex-1 h-14 rounded-2xl bg-orange-600 hover:bg-orange-700 shadow-xl shadow-orange-500/20 text-base"
                                     leftIcon={ShoppingBag}
-                                    onClick={() => alert("Added to cart! Let's complete the checkout.")}
+                                    onClick={() => alert(t("catalog.addedToCartAlert"))}
                                 >
-                                    Claim This Offer
+                                    {t("catalog.claimOffer")}
                                 </PremiumButton>
                                 <PremiumButton 
                                     variant="outline"
                                     className="h-14 px-6 rounded-2xl border-gray-200 hover:bg-gray-50 text-gray-700"
                                     leftIcon={Check}
-                                    onClick={() => alert("Checking availability with " + product.shopName + "...")}
+                                    onClick={() => alert(t("catalog.checkingAvailabilityAlert").replace("{shopName}", product.shopName))}
                                 >
-                                    Check In Stock
+                                    {t("catalog.checkInStock")}
                                 </PremiumButton>
                             </div>
                         </div>
@@ -230,8 +232,8 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                             <div className="flex items-center gap-4">
                                 <div className="h-8 w-1.5 bg-orange-500 rounded-full" />
                                 <div>
-                                    <h2 className="text-2xl font-bold text-gray-900 tracking-tight">More in {product.category}</h2>
-                                    <p className="text-sm text-gray-500 font-medium">Explore premium options curated just for you</p>
+                                    <h2 className="text-2xl font-bold text-gray-900 tracking-tight">{t("catalog.moreInCategory").replace("{category}", product.category)}</h2>
+                                    <p className="text-sm text-gray-500 font-medium">{t("catalog.explorePremiumOptions")}</p>
                                 </div>
                             </div>
                         </div>

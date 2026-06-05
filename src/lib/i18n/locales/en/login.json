@@ -1,0 +1,39 @@
+{
+  "decorative": {
+    "welcome": "Welcome to\nOfferKart",
+    "desc": "Discover amazing local deals and connect with trusted businesses in your neighborhood.",
+    "point1": "Find exclusive local offers",
+    "point2": "Connect with trusted shops",
+    "point3": "Save money every day"
+  },
+  "form": {
+    "title": "Sign in",
+    "subtitle": "Enter your credentials to access your account",
+    "emailLabel": "Email Address",
+    "passwordLabel": "Password",
+    "forgotPassword": "Forgot password?",
+    "passwordPlaceholder": "Enter your password",
+    "rememberMe": "Remember me for 30 days",
+    "submit": "Sign In",
+    "noAccount": "Don't have an account?",
+    "register": "Register your shop",
+    "securityWarning": "Suspicious active content detected. Please review your input.",
+    "invalidCredentials": "Invalid credentials. Please try again.",
+    "loginSuccess": "Login successful! Welcome back.",
+    "networkError": "Network error. Please try again later."
+  },
+  "forgotPassword": {
+    "pageTitle": "Forgot Password",
+    "title": "Reset Password",
+    "subtitleBefore": "Enter your email address and we'll send you a link to reset your password.",
+    "subtitleAfter": "We've sent a password reset link to your email address.",
+    "decorativeTitle": "Security First with\nOfferKart",
+    "decorativeDesc": "Protecting your account and data is our top priority.",
+    "sendLink": "Send Reset Link",
+    "checkInbox": "Check your inbox at {email} for further instructions.",
+    "tryAnother": "Try another email",
+    "backToLogin": "Back to login",
+    "toastSuccess": "Reset link sent! Please check your email.",
+    "toastError": "Something went wrong. Please try again."
+  }
+}

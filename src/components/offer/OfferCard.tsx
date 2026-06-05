@@ -7,6 +7,7 @@ import { MapPin, Clock, Heart, Tag } from "lucide-react";
 import { PremiumCard } from "@/components/shared/PremiumCard";
 import { MarkedPoster } from "@/components/shared/MarkedPoster";
 import { Poster } from "@/lib/types/offer";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface OfferCardProps {
   id?: number | string;
@@ -41,15 +42,20 @@ const OfferCard = ({
   daysLeft,
   posters,
 }: OfferCardProps) => {
+  const { t } = useTranslation("common");
   const router = useRouter();
   const [isHovered, setIsHovered] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
-  const offerDisplayName = offerName || title || "Untitled Offer";
+  const offerDisplayName = offerName || title || t("catalog.untitledOffer");
   const primaryId = id ?? offerId ?? 0;
-  const footerLocation = branchName ?? location ?? "Location unavailable";
+  const footerLocation = branchName ?? location ?? t("catalog.locationUnavailable");
   const footerValidity = typeof daysLeft === "number"
-    ? (daysLeft <= 0 ? "Ends today" : `${daysLeft} day${daysLeft === 1 ? "" : "s"} left`)
-    : [validFrom, validTo].filter(Boolean).join(" - ") || "Live now";
+    ? (daysLeft <= 0 
+        ? t("catalog.endsToday") 
+        : (daysLeft === 1 
+            ? t("catalog.dayLeft") 
+            : t("catalog.daysLeft").replace("{count}", String(daysLeft))))
+    : [validFrom, validTo].filter(Boolean).join(" - ") || t("catalog.liveNow");
   const posterSrc = posters?.[0]?.posterSrc || (typeof image === "string" ? image : image?.src) || "/images/shop-registration-bg-light.png";
 
   return (

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ShoppingCart, Star, Heart, Tag, IndianRupee, ShoppingBag } from "lucide-react";
 import { PremiumCard } from "@/components/shared/PremiumCard";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface ProductCardProps {
     id: number;
@@ -32,6 +33,7 @@ const ProductCard = ({
     reviews = 0,
     discount,
 }: ProductCardProps) => {
+    const { t } = useTranslation("common");
     const router = useRouter();
     const [isHovered, setIsHovered] = useState(false);
     const [isFavorite, setIsFavorite] = useState(false);
@@ -107,7 +109,7 @@ const ProductCard = ({
                 )}>
                     <button className="w-full py-3 bg-white text-gray-900 rounded-xl font-bold flex items-center justify-center gap-2 shadow-xl">
                         <ShoppingCart className="w-4 h-4 text-orange-500" />
-                        Quick View
+                        {t("catalog.quickView")}
                     </button>
                 </div>
             </div>
@@ -131,7 +133,7 @@ const ProductCard = ({
                         {name}
                     </h4>
                     <p className="text-gray-500 text-xs font-medium mb-4 flex items-center gap-1">
-                        by <span className="text-gray-900">{shopName}</span>
+                        {t("catalog.by")} <span className="text-gray-900">{shopName}</span>
                     </p>
                 </div>
 

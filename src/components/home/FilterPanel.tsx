@@ -16,6 +16,7 @@ import {
 
 import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
 import { useSubcategories } from "@/hooks/useApi";
+import { useTranslation } from "@/hooks/useTranslation";
 
 const sortOptions = [
   { value: "latest", label: "Latest" },
@@ -49,8 +50,16 @@ const FilterPanel = ({
   variant = "inline",
   className
 }: FilterPanelProps) => {
+  const { t } = useTranslation("common");
   const { mainCategories, categoryHierarchy, getCategoryId } = useCategoryHierarchy();
   const categories = ["All", ...mainCategories];
+
+  const sortOptions = [
+    { value: "latest", label: t("catalog.sortLatest") },
+    { value: "popular", label: t("catalog.sortPopular") },
+    { value: "nearby", label: t("catalog.sortNearby") },
+    { value: "discount", label: t("catalog.sortDiscount") },
+  ];
 
   // Internal state as fallback for uncontrolled usage
   const [_internalCategory, _setInternalCategory] = useState("All");
@@ -128,11 +137,15 @@ const FilterPanel = ({
         <div className="space-y-4">
           <div className="flex items-center gap-2 text-gray-900 font-semibold">
             <TrendingUp className="w-5 h-5 text-orange-500" />
-            <span>Sort Offers</span>
+            <span>
+              {typeof window !== "undefined" && window.location.pathname.includes("/products")
+                ? t("catalog.sortProducts")
+                : t("catalog.sortOffers")}
+            </span>
           </div>
           <Select value={sort} onValueChange={handleSortChange}>
             <SelectTrigger className="w-full bg-white border-gray-200 rounded-xl h-11">
-              <SelectValue placeholder="Sort by" />
+              <SelectValue placeholder={t("catalog.sortBy")} />
             </SelectTrigger>
             <SelectContent className="bg-white border-gray-200 shadow-xl">
               {sortOptions.map((option) => (
@@ -149,14 +162,14 @@ const FilterPanel = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-gray-900 font-semibold">
               <Tag className="w-5 h-5 text-orange-500" />
-              <span>Categories</span>
+              <span>{t("catalog.categories")}</span>
             </div>
             {hasActiveFilters && (
               <button
                 onClick={clearFilters}
                 className="text-xs text-orange-500 hover:text-orange-600 font-medium"
               >
-                Reset
+                {t("catalog.reset")}
               </button>
             )}
           </div>
@@ -172,7 +185,7 @@ const FilterPanel = ({
                       : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                   )}
                 >
-                  {cat}
+                  {cat === "All" ? t("catalog.all") : cat}
                   {category === cat && <div className="w-1.5 h-1.5 rounded-full bg-orange-500" />}
                 </button>
 
@@ -188,10 +201,10 @@ const FilterPanel = ({
                           : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
                       )}
                     >
-                      • All {cat}
+                      • {t("catalog.allPrefix")}{cat}
                     </button>
                     {isLoadingSubcategories ? (
-                        <div className="px-3 py-1 text-[13px] text-gray-400">Loading...</div>
+                        <div className="px-3 py-1 text-[13px] text-gray-400">{t("buttons.loading")}</div>
                     ) : (
                         dynamicSubcategories.map((sub: any) => (
                           <button
@@ -236,19 +249,19 @@ const FilterPanel = ({
                 className={cn("rounded-xl border-border/50 transition-all", showFilters && "bg-primary text-primary-foreground")}
               >
                 <Filter className="w-4 h-4 mr-2" />
-                Filters
+                {t("catalog.filters")}
                 <ChevronDown className={cn("w-4 h-4 ml-2 transition-transform", showFilters && "rotate-180")} />
               </PremiumButton>
               {hasActiveFilters && (
                 <PremiumButton variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground">
-                  <X className="w-4 h-4 mr-1" /> Clear
+                  <X className="w-4 h-4 mr-1" /> {t("catalog.clear")}
                 </PremiumButton>
               )}
             </div>
             <div className="flex items-center gap-2">
               <Select value={sort} onValueChange={handleSortChange}>
                 <SelectTrigger className="w-40 bg-white/50 border-gray-200 rounded-xl">
-                  <SelectValue placeholder="Sort" />
+                  <SelectValue placeholder={t("catalog.sortBy")} />
                 </SelectTrigger>
                 <SelectContent className="bg-white border-gray-200 shadow-xl">
                   {sortOptions.map((option) => (
@@ -270,7 +283,7 @@ const FilterPanel = ({
                       category === cat && "active"
                     )}
                   >
-                    {cat}
+                    {cat === "All" ? t("catalog.all") : cat}
                   </button>
                 ))}
               </div>

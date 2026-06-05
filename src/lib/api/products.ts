@@ -1,27 +1,54 @@
-import { backend } from './backendClient';
+import { backend, BackendRequestOptions } from './backendClient';
 import { ENDPOINTS } from './endpoints';
-import { ALL_PRODUCTS } from './mockData';
-import { Product, OfferProductPayload } from '../types/product';
-import { updateOfferProduct, getOfferProductById, getAllOfferProducts, deleteOfferProduct } from './offerproduct';
+import { OfferProductPayload } from '../types/product';
+import { updateOfferProduct, getAllOfferProducts, deleteOfferProduct } from './offerproduct';
+import { CACHE_TAGS } from './cache-tags';
+import { getUserOfferProducts } from './userOffersService';
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-export async function getAllProducts(shopId?: string) {
+export function mapUserProductToProduct(item: any): any {
+    if (!item) return null;
+    const primaryImage = item.imageUrl || item.image || null;
+    return {
+        id: item.id,
+        name: item.displayName || item.name || "Unnamed Product",
+        shopName: item.shopName || "Store Partner",
+        price: item.offerPrice !== undefined ? item.offerPrice : item.price,
+        originalPrice: item.originalPrice !== undefined ? item.originalPrice : item.price,
+        image: primaryImage,
+        description: item.displayDescription || item.description || "",
+        category: item.category?.name || item.category || String(item.categoryId || 1),
+        categoryId: item.categoryId,
+        rating: item.rating || 5,
+        reviews: item.reviews || 0,
+        discount: item.discount || (item.originalPrice && item.offerPrice && item.originalPrice > item.offerPrice 
+            ? `${Math.round(((item.originalPrice - item.offerPrice) / item.originalPrice) * 100)}% OFF` 
+            : undefined),
+        specifications: [
+            { label: "Category", value: item.category?.name || item.category || String(item.categoryId || 1) },
+            { label: "Availability", value: "In Stock" }
+        ],
+        images: [primaryImage]
+    };
+}
+
+export async function getAllProducts(
+    shopId?: string,
+    cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">
+) {
+    void cacheOptions;
+
     if (!shopId || shopId === "all" || shopId === "undefined" || shopId === "null" || shopId === "") {
-        console.log(`[API] Skipping backend products fetch (no valid shopId provided: ${shopId || 'all'}). Using local/mock products.`);
-        await delay(50);
-        let customProducts: any[] = [];
-        if (typeof window !== "undefined") {
-            const stored = localStorage.getItem("customProducts");
-            if (stored) {
-                try {
-                    customProducts = JSON.parse(stored);
-                } catch (e) {
-                    console.error(e);
-                }
+        try {
+            const userProductsRes = await getUserProducts({ limit: 100 });
+            if (userProductsRes && userProductsRes.success && userProductsRes.data && userProductsRes.data.data) {
+                return userProductsRes.data.data;
             }
+        } catch (e) {
+            console.error("getAllProducts (end user) failed:", e);
         }
-        return [...customProducts, ...ALL_PRODUCTS];
+        return [];
     }
 
     try {
@@ -41,9 +68,9 @@ export async function getAllProducts(shopId?: string) {
 
             const backendProducts = items.map((item: any) => ({
                 id: item.id,
-                name: item.displayName,
+                name: item.displayName || item.name,
                 shopName: item.shopName || "Store Partner",
-                price: item.offerPrice,
+                price: item.offerPrice || item.price,
                 originalPrice: item.originalPrice,
                 image: item.imageUrl || null,
                 // Use nested category name if available, else fallback to categoryId string
@@ -81,10 +108,6 @@ export async function getAllProducts(shopId?: string) {
         console.error(`[API] Critical error fetching products for shopId: ${shopId}:`, error);
     }
 
-    console.log("[API] Falling back to mock data (ALL_PRODUCTS)");
-
-    // Fallback to local storage + mock data
-    await delay(100);
     let customProducts: any[] = [];
     if (typeof window !== "undefined") {
         const stored = localStorage.getItem("customProducts");
@@ -96,13 +119,39 @@ export async function getAllProducts(shopId?: string) {
             }
         }
     }
-    return [...customProducts, ...ALL_PRODUCTS];
+    return customProducts;
 }
 
-export async function getProductById(id: string) {
+export async function getProductById(
+    id: string,
+    cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">
+) {
     await delay(100);
-    const all = await getAllProducts();
-    const product = all.find(p => p.id.toString() === id);
+
+    // First try to look up in all end-user products
+    try {
+        const userProductsRes = await getUserProducts({ limit: 1000 });
+        if (userProductsRes && userProductsRes.success && userProductsRes.data && userProductsRes.data.data) {
+            const product = userProductsRes.data.data.find((p: any) => p && p.id != null && p.id.toString() === id);
+            if (product) {
+                return {
+                    ...product,
+                    description: product.description || "This is a premium product available at " + product.shopName + ". Quality guaranteed.",
+                    specifications: product.specifications || [
+                        { label: "Category", value: product.category },
+                        { label: "Shop", value: product.shopName },
+                        { label: "Availability", value: "In Stock" }
+                    ],
+                    images: product.images || [product.image, product.image, product.image]
+                };
+            }
+        }
+    } catch (e) {
+        console.error("getProductById from user API failed:", e);
+    }
+
+    const all = await getAllProducts(undefined, cacheOptions);
+    const product = all.find((p: any) => p && p.id != null && p.id.toString() === id);
 
     if (product) {
         return {
@@ -119,7 +168,10 @@ export async function getProductById(id: string) {
 
     // Try fetching from actual backend API for dynamic IDs not in static mocks
     try {
-        const res = await getOfferProductById(id);
+        const res = await backend.get<any>(ENDPOINTS.OFFER_PRODUCT.DETAILS(id), {
+            next: { tags: [CACHE_TAGS.PRODUCTS, CACHE_TAGS.PRODUCT(id)] },
+            ...cacheOptions,
+        });
         if (res.success && res.data) {
             const data = res.data;
             // Map backend payload format back to application Product format
@@ -175,4 +227,88 @@ export async function updateProduct(id: string, payload: OfferProductPayload, sh
 
 export async function deleteProduct(id: string) {
     return deleteOfferProduct(id);
+}
+
+export async function getUserProducts(query: {
+    search?: string;
+    categoryId?: string;
+    shopId?: string;
+    minPrice?: number;
+    maxPrice?: number;
+    sort?: string;
+    page?: number;
+    limit?: number;
+}) {
+    const page = query.page || 1;
+    const limit = query.limit || 20;
+    const sort = query.sort || "newest";
+    const { search, categoryId, shopId, minPrice, maxPrice } = query;
+
+    const params = new URLSearchParams({
+        page: String(page),
+        limit: String(limit),
+        sort,
+    });
+    if (search) params.set("search", search);
+    if (categoryId) params.set("categoryId", categoryId);
+    if (shopId) params.set("shopId", shopId);
+    if (minPrice !== undefined) params.set("minPrice", String(minPrice));
+    if (maxPrice !== undefined) params.set("maxPrice", String(maxPrice));
+
+    let response: any;
+    try {
+        response = await backend.get<any>(`user/offer/products?${params.toString()}`);
+    } catch (e: any) {
+        console.error("getUserProducts backend call failed:", e);
+        response = { success: false };
+    }
+
+    if (!response || !response.success || !response.data) {
+        return {
+            success: false,
+            data: {
+                data: [],
+                pagination: {
+                    total: 0,
+                    page,
+                    limit,
+                    totalPages: 0
+                }
+            },
+            error: response?.error || "Failed to fetch products"
+        };
+    }
+
+    const result = response;
+    let apiData = result.data;
+    if (apiData && typeof apiData === "object" && apiData.success !== undefined) {
+        apiData = apiData.data;
+    }
+
+    let productsArray: any[] = [];
+    let pagination: any = null;
+
+    if (apiData && typeof apiData === "object") {
+        if (Array.isArray(apiData.data)) {
+            productsArray = apiData.data;
+            pagination = apiData.pagination || null;
+        } else if (Array.isArray(apiData)) {
+            productsArray = apiData;
+        }
+    }
+
+    const mappedProducts = productsArray.map((p: any) => mapUserProductToProduct(p));
+
+    return {
+        success: true,
+        data: {
+            data: mappedProducts,
+            pagination: pagination || {
+                total: mappedProducts.length,
+                page,
+                limit,
+                totalPages: Math.ceil(mappedProducts.length / limit)
+            }
+        }
+    };
 }

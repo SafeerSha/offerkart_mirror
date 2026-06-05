@@ -1,5 +1,6 @@
 import { backend } from "./backendClient";
 import { ENDPOINTS } from "./endpoints";
+import { CACHE_TAGS } from "./cache-tags";
 import { OfferProductPayload } from "../types/product";
 import { ApiResponse } from "../types/api";
 
@@ -22,7 +23,8 @@ export async function createOfferProduct(payload: OfferProductPayload, shopId: s
  */
 export async function getAllOfferProducts(shopId?: string): Promise<ApiResponse<any[]>> {
     return backend.get<any[]>(ENDPOINTS.OFFER_PRODUCT.BASE, {
-        headers: shopId ? { shopId } : {}
+        headers: shopId ? { shopId } : {},
+        next: { tags: [CACHE_TAGS.PRODUCTS] },
     });
 }
 
@@ -32,7 +34,9 @@ export async function getAllOfferProducts(shopId?: string): Promise<ApiResponse<
  * @returns Promise<ApiResponse<any>>
  */
 export async function getOfferProductById(id: string): Promise<ApiResponse<any>> {
-    return backend.get<any>(ENDPOINTS.OFFER_PRODUCT.DETAILS(id));
+    return backend.get<any>(ENDPOINTS.OFFER_PRODUCT.DETAILS(id), {
+        next: { tags: [CACHE_TAGS.PRODUCTS, CACHE_TAGS.PRODUCT(id)] },
+    });
 }
 
 /**

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { config } from "@/lib/config";
+import { CACHE_TAGS } from "@/lib/api/cache-tags";
 
 
 const UPSTREAM_API_BASE_URL = config.api.upstreamBaseUrl;
@@ -14,7 +15,13 @@ function isPublicPath(pathname: string) {
     return pathname.startsWith("user/") || PUBLIC_PATHS.has(pathname);
 }
 
-function filterRequestHeaders(request: NextRequest, hasBody: boolean) {
+function extractEntityId(upstreamPath: string) {
+    const parts = upstreamPath.split("/");
+    const reservedSegments = new Set(["business", "offer", "product", "offerproduct", "shop", "inactivate"]);
+    return parts.find((part) => part && !reservedSegments.has(part));
+}
+
+function filterRequestHeaders(request: NextRequest) {
     const headers = new Headers();
     const shopId = request.headers.get("shopId");
 
@@ -60,7 +67,7 @@ async function handleProxy(request: NextRequest, context: { params: Promise<{ pa
     upstreamUrl.search = request.nextUrl.search;
 
     const body = await readRequestBody(request);
-    const headers = filterRequestHeaders(request, body !== undefined);
+    const headers = filterRequestHeaders(request);
 
     if (!isPublicPath(upstreamPath)) {
         const token = await getToken({ req: request, secret: config.auth.secret });
@@ -103,35 +110,29 @@ async function handleProxy(request: NextRequest, context: { params: Promise<{ pa
     // Automate dynamic on-demand ISR revalidations on successful merchant mutations
     if (upstreamResponse.ok && ["POST", "PUT", "PATCH", "DELETE"].includes(request.method.toUpperCase())) {
         try {
-            const { revalidatePath } = await import("next/cache");
+            const { revalidateTag } = await import("next/cache");
             
-            if (upstreamPath.startsWith("business/offer")) {
-                revalidatePath("/");
-                revalidatePath("/offers");
-                
-                // Extract offer ID from path (e.g. business/offer/:id or business/offer/inactivate/:id)
-                const parts = upstreamPath.split("/");
-                const id = parts[2];
-                if (id && id !== "inactivate") {
-                    revalidatePath(`/offer/${id}`);
-                } else if (parts[3]) {
-                    revalidatePath(`/offer/${parts[3]}`);
+            if (upstreamPath.startsWith("business/product") || upstreamPath.startsWith("business/offerproduct")) {
+                revalidateTag(CACHE_TAGS.PRODUCTS, "max");
+
+                const id = extractEntityId(upstreamPath);
+                if (id) {
+                    revalidateTag(CACHE_TAGS.PRODUCT(id), "max");
+                }
+            } else if (upstreamPath.startsWith("business/offer")) {
+                revalidateTag(CACHE_TAGS.HOME, "max");
+                revalidateTag(CACHE_TAGS.OFFERS, "max");
+
+                const id = extractEntityId(upstreamPath);
+                if (id) {
+                    revalidateTag(CACHE_TAGS.OFFER(id), "max");
                 }
             } else if (upstreamPath.startsWith("business/shop")) {
-                revalidatePath("/");
-            } else if (upstreamPath.startsWith("business/product") || upstreamPath.startsWith("business/offerproduct")) {
-                revalidatePath("/products");
-                const parts = upstreamPath.split("/");
-                const isOfferProd = upstreamPath.startsWith("business/offerproduct");
-                const id = parts[isOfferProd ? 2 : 2];
-                if (id && id !== "inactivate") {
-                    revalidatePath(`/product/${id}`);
-                } else if (parts[3]) {
-                    revalidatePath(`/product/${parts[3]}`);
-                }
+                revalidateTag(CACHE_TAGS.HOME, "max");
+                revalidateTag(CACHE_TAGS.SHOPS, "max");
             }
         } catch (revalError) {
-            console.error("ISR dynamic revalidation failed inside proxy:", revalError);
+            console.error("Dynamic tag revalidation failed inside proxy:", revalError);
         }
     }
 

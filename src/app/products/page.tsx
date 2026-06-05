@@ -1,12 +1,11 @@
 import { getAllProducts } from "@/lib/api/products";
 import ProductsClient from "@/components/products/ProductsClient";
+import { CACHE_TAGS } from "@/lib/api/cache-tags";
 
-// ISR: Revalidate every 5 minutes
-export const revalidate = 300;
+export const revalidate = false;
 
 export default async function ProductsPage() {
-    // Fetch initial data on the server for ISR
-    const products = await getAllProducts();
+    const products = await getAllProducts(undefined, { next: { tags: [CACHE_TAGS.PRODUCTS] } });
 
     return (
         <ProductsClient initialProducts={products} />

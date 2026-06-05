@@ -14,6 +14,7 @@ import {
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { cn } from "@/lib/utils";
 import { getPlacesByPin } from "indian_places";
+import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 
 const locations = [
     "All",
@@ -279,15 +280,18 @@ const Header = () => {
     const mobileMenu = mobileMenuOpen && (
         <div className="lg:hidden mt-4 p-6 glass-card rounded-2xl animate-in slide-in-from-top-5 duration-300 border border-primary/10 overflow-hidden pointer-events-auto">
             {/* Mobile Search Bar Integration */}
-            <div className="relative mb-6">
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 p-1.5 bg-orange-500/10 rounded-lg">
-                    <Search className="w-4 h-4 text-orange-600" />
+            <div className="flex items-center gap-1 mb-6">
+                <div className="relative flex-1">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 p-1.5 bg-orange-500/10 rounded-lg">
+                        <Search className="w-4 h-4 text-orange-600" />
+                    </div>
+                    <input
+                        type="text"
+                        placeholder="Search shops, offers..."
+                        className="w-full pl-12 pr-4 py-3 bg-secondary/30 border border-primary/10 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium"
+                    />
                 </div>
-                <input
-                    type="text"
-                    placeholder="Search shops, offers..."
-                    className="w-full pl-12 pr-4 py-3 bg-secondary/30 border border-primary/10 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium"
-                />
+                <LanguageSwitcher />
             </div>
 
             <nav className="flex flex-col gap-0">
@@ -333,98 +337,103 @@ const Header = () => {
                 
                 <div className="h-px bg-primary/10 my-1 opacity-50" />
 
-                {!isRegistered ? (
-                    <button
-                        onClick={() => {
-                            setMobileMenuOpen(false);
-                            signIn();
-                        }}
-                        className="px-4 py-3 rounded-xl bg-primary/10 border border-primary/20 text-primary font-bold shadow-sm flex items-center transition-all duration-300 hover:bg-primary/20"
-                    >
-                        <LogIn className="w-4 h-4 mr-3" />
-                        Log In
-                    </button>
-                ) : (
-                    <>
-                        <Link 
-                            href="/profile" 
-                            onClick={() => setMobileMenuOpen(false)}
-                            className={cn(
-                                "px-4 py-3 rounded-xl transition-all duration-300 border flex items-center justify-between",
-                                pathname === "/profile"
-                                    ? "bg-orange-500/10 border-orange-500/20 text-orange-500 font-bold shadow-sm"
-                                    : "hover:bg-orange-500/5 hover:text-orange-500 border-transparent hover:border-orange-500/20"
-                            )}
+                <div className={cn(
+                    "transition-opacity duration-300 w-full flex flex-col gap-0",
+                    status === "loading" ? "opacity-0 pointer-events-none" : "opacity-100"
+                )}>
+                    {!isRegistered ? (
+                        <button
+                            onClick={() => {
+                                setMobileMenuOpen(false);
+                                signIn();
+                            }}
+                            className="px-4 py-3 rounded-xl bg-primary/10 border border-primary/20 text-primary font-bold shadow-sm flex items-center transition-all duration-300 hover:bg-primary/20 w-full text-left"
                         >
-                            <div className="flex items-center">
-                                <User className={cn("w-4 h-4 mr-3", pathname === "/profile" ? "text-orange-500" : "text-muted-foreground")} />
-                                Profile
-                            </div>
-                        </Link>
+                            <LogIn className="w-4 h-4 mr-3" />
+                            Log In
+                        </button>
+                    ) : (
+                        <>
+                            <Link 
+                                href="/profile" 
+                                onClick={() => setMobileMenuOpen(false)}
+                                className={cn(
+                                    "px-4 py-3 rounded-xl transition-all duration-300 border flex items-center justify-between",
+                                    pathname === "/profile"
+                                        ? "bg-orange-500/10 border-orange-500/20 text-orange-500 font-bold shadow-sm"
+                                        : "hover:bg-orange-500/5 hover:text-orange-500 border-transparent hover:border-orange-500/20"
+                                    )}
+                            >
+                                <div className="flex items-center">
+                                    <User className={cn("w-4 h-4 mr-3", pathname === "/profile" ? "text-orange-500" : "text-muted-foreground")} />
+                                    Profile
+                                </div>
+                            </Link>
 
+                            <PremiumButton
+                                asChild
+                                size="sm"
+                                className="rounded-2xl px-3 sm:px-4 lg:px-6 w-full justify-center mt-2 group"
+                            >
+                                <Link
+                                    href={user?.business_name ? "/shop-manager" : "/shop-registration"}
+                                    onClick={() => setMobileMenuOpen(false)}
+                                    className="flex items-center justify-center p-6"
+                                >
+                                    {user?.business_name ? (
+                                        <>
+                                            <LayoutDashboard className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
+                                            <span className="font-bold">Manage Shop</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Plus className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
+                                            <span className="font-bold">Add your shop</span>
+                                        </>
+                                    )}
+                                </Link>
+                            </PremiumButton>
+
+                            <button
+                                onClick={() => {
+                                    setIsLoggingOut(true);
+                                    signOut({ callbackUrl: "/" });
+                                }}
+                                disabled={isLoggingOut}
+                                className="px-4 py-3 rounded-xl hover:bg-destructive/10 text-destructive/80 hover:text-destructive transition-all duration-300 border border-transparent hover:border-destructive/20 flex items-center mt-2 w-full text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isLoggingOut ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 mr-3 animate-spin" />
+                                        <span className="font-medium">Logging out...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <LogIn className="w-4 h-4 mr-3" />
+                                        <span className="font-medium">Log Out</span>
+                                    </>
+                                )}
+                            </button>
+                        </>
+                    )}
+                    
+                    {!isRegistered && (
                         <PremiumButton
                             asChild
                             size="sm"
                             className="rounded-2xl px-3 sm:px-4 lg:px-6 w-full justify-center mt-2 group"
                         >
                             <Link
-                                href={user?.business_name ? "/shop-manager" : "/shop-registration"}
+                                href="/shop-registration"
                                 onClick={() => setMobileMenuOpen(false)}
                                 className="flex items-center justify-center p-6"
                             >
-                                {user?.business_name ? (
-                                    <>
-                                        <LayoutDashboard className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
-                                        <span className="font-bold">Manage Shop</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Plus className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
-                                        <span className="font-bold">Add your shop</span>
-                                    </>
-                                )}
+                                <Plus className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
+                                <span className="font-bold">Add your shop</span>
                             </Link>
                         </PremiumButton>
-
-                        <button
-                            onClick={() => {
-                                setIsLoggingOut(true);
-                                signOut({ callbackUrl: "/" });
-                            }}
-                            disabled={isLoggingOut}
-                            className="px-4 py-3 rounded-xl hover:bg-destructive/10 text-destructive/80 hover:text-destructive transition-all duration-300 border border-transparent hover:border-destructive/20 flex items-center mt-2 w-full text-left disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {isLoggingOut ? (
-                                <>
-                                    <Loader2 className="w-4 h-4 mr-3 animate-spin" />
-                                    <span className="font-medium">Logging out...</span>
-                                </>
-                            ) : (
-                                <>
-                                    <LogIn className="w-4 h-4 mr-3" />
-                                    <span className="font-medium">Log Out</span>
-                                </>
-                            )}
-                        </button>
-                    </>
-                )}
-                
-                {!isRegistered && (
-                    <PremiumButton
-                        asChild
-                        size="sm"
-                        className="rounded-2xl px-3 sm:px-4 lg:px-6 w-full justify-center mt-2 group"
-                    >
-                        <Link
-                            href="/shop-registration"
-                            onClick={() => setMobileMenuOpen(false)}
-                            className="flex items-center justify-center p-6"
-                        >
-                            <Plus className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
-                            <span className="font-bold">Add your shop</span>
-                        </Link>
-                    </PremiumButton>
-                )}
+                    )}
+                </div>
             </nav>
         </div>
     );
@@ -560,7 +569,10 @@ const Header = () => {
 
                         {/* Right: Desktop Buttons or Mobile Toggle */}
                         <div className="flex items-center gap-2 sm:gap-3">
-                            <div className="hidden lg:flex items-center gap-2 sm:gap-3">
+                            <div className={cn(
+                                "hidden lg:flex items-center gap-2 sm:gap-3 transition-opacity duration-300",
+                                status === "loading" ? "opacity-0 pointer-events-none" : "opacity-100"
+                            )}>
                                 {!isRegistered ? (
                                     <PremiumButton
                                         variant="outline"
@@ -574,28 +586,31 @@ const Header = () => {
                                         </div>
                                     </PremiumButton>
                                 ) : (
-                                    <PremiumButton
-                                        asChild
-                                        size="sm"
-                                        className={cn(
-                                            "rounded-2xl px-3 sm:px-4 lg:px-6 shadow-lg shadow-primary/20 transition-all duration-300",
-                                            (pathname.startsWith("/shop-manager") || pathname === "/profile") && "ring-2 ring-primary ring-offset-2 scale-105"
-                                        )}
-                                    >
-                                        {user?.business_name ? (
-                                            <Link href="/shop-manager" className="flex items-center">
-                                                <LayoutDashboard className="w-4 h-4 mr-2" />
-                                                <span className="inline">Manage Shop</span>
-                                            </Link>
-                                        ) : (
-                                            <Link href="/profile" className="flex items-center">
-                                                <User className="w-4 h-4 mr-2" />
-                                                <span className="inline">
-                                                    {user?.full_name || "Profile"}
-                                                </span>
-                                            </Link>
-                                        )}
-                                    </PremiumButton>
+                                    <div className="flex items-center gap-1">
+                                        <PremiumButton
+                                            asChild
+                                            size="sm"
+                                            className={cn(
+                                                "rounded-2xl px-3 sm:px-4 lg:px-6 shadow-lg shadow-primary/20 transition-all duration-300",
+                                                (pathname.startsWith("/shop-manager") || pathname === "/profile") && "ring-2 ring-primary ring-offset-2 scale-105"
+                                            )}
+                                        >
+                                            {user?.business_name ? (
+                                                <Link href="/shop-manager" className="flex items-center">
+                                                    <LayoutDashboard className="w-4 h-4 mr-2" />
+                                                    <span className="inline">Manage Shop</span>
+                                                </Link>
+                                            ) : (
+                                                <Link href="/profile" className="flex items-center">
+                                                    <User className="w-4 h-4 mr-2" />
+                                                    <span className="inline">
+                                                        {user?.full_name || "Profile"}
+                                                    </span>
+                                                </Link>
+                                            )}
+                                        </PremiumButton>
+                                        <LanguageSwitcher />
+                                    </div>
                                 )}
 
                                 {(!isRegistered || !user?.business_name) && (

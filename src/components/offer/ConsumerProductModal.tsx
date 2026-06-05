@@ -7,6 +7,8 @@ import { PremiumButton } from "@/components/shared/PremiumButton";
 import { ShoppingCart, IndianRupee, Heart, Tag } from "lucide-react";
 import { Subheading, Text } from "@/components/shared/Typography";
 import { toast } from "@/hooks/use-toast";
+import { useTranslation } from "@/hooks/useTranslation";
+import { getUserProducts } from "@/lib/api/products";
 
 interface ConsumerProductModalProps {
     open: boolean;
@@ -26,26 +28,46 @@ export const ConsumerProductModal = ({
     onOpenChange,
     productName,
 }: ConsumerProductModalProps) => {
+    const { t } = useTranslation("common");
     const [mockProduct, setMockProduct] = useState<any>(null);
     const [isAddedToCart, setIsAddedToCart] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
         if (open && productName) {
-            // Generate mock data when opened
-            const basePrice = Math.floor(Math.random() * 2000) + 500;
-            const discount = Math.floor(Math.random() * 40) + 10;
-            const offerPrice = Math.floor(basePrice * (1 - discount / 100));
-
-            setMockProduct({
-                name: productName,
-                description: `Experience the premium quality of our ${productName}. Carefully crafted to provide the best value for your money. Don't miss out on this exclusive offer!`,
-                image: getMockImage(productName),
-                originalPrice: basePrice,
-                price: offerPrice,
-                discount: `${discount}% OFF`,
-                category: "Featured Collection",
-                stock: Math.floor(Math.random() * 50) + 5,
-            });
+            setIsLoading(true);
+            const fetchProductDetails = async () => {
+                try {
+                    const res = await getUserProducts({ search: productName, limit: 1 });
+                    if (res && res.success && res.data && res.data.data && res.data.data.length > 0) {
+                        const product = res.data.data[0];
+                        setMockProduct({
+                            name: product.name,
+                            description: product.description || t("catalog.mockProductDesc").replace("{productName}", productName),
+                            image: product.image || getMockImage(productName),
+                            originalPrice: product.originalPrice || product.price,
+                            price: product.price,
+                            discount: product.discount || "Sale",
+                            category: product.category || t("catalog.featuredCollection"),
+                            stock: 10,
+                        });
+                    } else {
+                        setMockProduct({
+                            notFound: true,
+                            name: productName,
+                        });
+                    }
+                } catch (error) {
+                    console.error("Failed to fetch product details for modal:", error);
+                    setMockProduct({
+                        notFound: true,
+                        name: productName,
+                    });
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+            fetchProductDetails();
             setIsAddedToCart(false);
         } else {
             // Optional: clear out after close animation
@@ -55,13 +77,13 @@ export const ConsumerProductModal = ({
                 }
             }, 300);
         }
-    }, [open, productName]);
+    }, [open, productName, t]);
 
     const handleAddToCart = () => {
         setIsAddedToCart(true);
         toast({
-            title: "Added to Cart",
-            description: `${productName} has been added to your cart.`,
+            title: t("catalog.addedToCart"),
+            description: t("catalog.addedToCartDesc").replace("{productName}", productName || ""),
         });
     };
 
@@ -76,6 +98,21 @@ export const ConsumerProductModal = ({
             {!mockProduct ? (
                 <div className="h-64 flex items-center justify-center">
                     <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                </div>
+            ) : mockProduct.notFound ? (
+                <div className="p-8 text-center bg-card">
+                    <div className="w-16 h-16 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center mb-4 mx-auto shadow-sm">
+                        <Tag className="w-8 h-8 text-slate-400" />
+                    </div>
+                    <Subheading className="text-xl font-bold mb-2 text-foreground">
+                        {mockProduct.name}
+                    </Subheading>
+                    <Text className="text-muted-foreground text-sm mb-6">
+                        Product details are not available for this item.
+                    </Text>
+                    <PremiumButton onClick={() => onOpenChange(false)} className="w-full rounded-2xl">
+                        Close
+                    </PremiumButton>
                 </div>
             ) : (
                 <div className="flex flex-col bg-card">
@@ -135,13 +172,13 @@ export const ConsumerProductModal = ({
                                 glow={!isAddedToCart}
                             >
                                 {isAddedToCart ? (
-                                    "Added to Cart"
-                                ) : (
-                                    <>
-                                        <ShoppingCart className="w-5 h-5 mr-2" />
-                                        Add to Cart
-                                    </>
-                                )}
+                                    t("catalog.addedToCart")
+                               ) : (
+                                   <>
+                                       <ShoppingCart className="w-5 h-5 mr-2" />
+                                       {t("catalog.addToCart")}
+                                   </>
+                               )}
                             </PremiumButton>
                         </div>
                     </div>

@@ -1,4 +1,4 @@
-// Types for Offers in the Shop Manager
+import { OfferStatus, PosterType } from "./enums";
 
 export interface MarkedItem {
     id: string;
@@ -20,7 +20,7 @@ export interface MarkedItem {
 export interface Poster {
     id?: string;
     posterSrc: string;
-    type: "just_post" | "marked_poster" | "unclassified";
+    type: PosterType;
     order?: number;
     markedItems?: MarkedItem[];
     // Legacy fields
@@ -49,7 +49,7 @@ export interface Offer {
     description?: string;
     isFeatured?: boolean;
     batchId?: string;
-    status?: "active" | "paused" | "expired" | string;
+    status?: OfferStatus | string;
     isActive: boolean;
     validFrom?: string;
     validTo?: string;
@@ -76,6 +76,7 @@ export interface Offer {
     discount?: string;
     rating?: number;
     posterSrc?: string;
+    shopId?: number;
 }
 
 export interface OfferPayload {

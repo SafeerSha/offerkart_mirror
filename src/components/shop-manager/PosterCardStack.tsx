@@ -21,14 +21,15 @@ import { toast } from "sonner";
 import { storage } from "@/lib/storage";
 import Image from "next/image";
 import { s3Api } from "@/lib/api/s3";
+import { extractS3Url } from "@/lib/common";
 import { processPDFFile, isPDFFile, isImageFile } from "@/lib/pdf-processing";
-import { MarkedItem } from "@/lib/types/offer";
+import { MarkedItem, PosterType } from "@/lib/types";
 
 export interface PosterItem {
     id: string;
     file?: File;
     previewUrl: string;
-    type: "just_post" | "marked_poster" | "unclassified";
+    type: PosterType;
     markedItems?: MarkedItem[];
     uploadPromise?: Promise<string>;
 }
@@ -254,7 +255,7 @@ export const PosterCardStack = ({
         if (e.dataTransfer.files.length > 0) processFiles(e.dataTransfer.files);
     };
 
-    const classifyCurrentCard = (type: "just_post" | "marked_poster") => {
+    const classifyCurrentCard = (type: typeof PosterType.JUST_POST | typeof PosterType.MARKED_POSTER) => {
         if (animatingOut || isViewing) return;
 
         // Start background upload immediately if not already started
@@ -263,8 +264,7 @@ export const PosterCardStack = ({
         
         if (!newUploadPromise && currentPoster.file) {
             newUploadPromise = s3Api.uploadImage(currentPoster.file).then((res) => {
-                const payload = (res.data as any)?.data || res.data;
-                const uploadedUrl = payload?.url || payload?.fileUrl || payload?.imageUrl || (res.data as any)?.imageUrl || (typeof payload === 'string' ? payload : null);
+                const uploadedUrl = extractS3Url(res);
                 if (res.success && uploadedUrl) {
                     return uploadedUrl;
                 }
@@ -377,8 +377,7 @@ export const PosterCardStack = ({
         let uploadPromise = poster.uploadPromise;
         if (!uploadPromise && poster.file) {
             uploadPromise = s3Api.uploadImage(poster.file).then((res) => {
-                const payload = (res.data as any)?.data || res.data;
-                const uploadedUrl = payload?.url || payload?.fileUrl || payload?.imageUrl || (res.data as any)?.imageUrl || (typeof payload === 'string' ? payload : null);
+                const uploadedUrl = extractS3Url(res);
                 if (res.success && uploadedUrl) return uploadedUrl;
                 throw new Error(res.message || "Upload failed");
             }).catch(err => {

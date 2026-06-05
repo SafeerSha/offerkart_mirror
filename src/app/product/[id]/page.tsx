@@ -2,12 +2,15 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getProductById, getAllProducts } from "@/lib/api/products";
 import ProductDetailClient from "@/components/products/ProductDetailClient";
+import { CACHE_TAGS } from "@/lib/api/cache-tags";
 
-export const revalidate = 600;
+export const revalidate = false;
 export const dynamicParams = true;
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-    const product = await getProductById(params.id);
+    const product = await getProductById(params.id, {
+        next: { tags: [CACHE_TAGS.PRODUCTS, CACHE_TAGS.PRODUCT(params.id)] },
+    });
 
     if (!product) {
         return {
@@ -30,8 +33,10 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 
 export default async function ProductDetailPage({ params }: { params: { id: string } }) {
     const [product, allProducts] = await Promise.all([
-        getProductById(params.id),
-        getAllProducts()
+        getProductById(params.id, {
+            next: { tags: [CACHE_TAGS.PRODUCTS, CACHE_TAGS.PRODUCT(params.id)] },
+        }),
+        getAllProducts(undefined, { next: { tags: [CACHE_TAGS.PRODUCTS] } })
     ]);
 
     if (!product) {
@@ -39,7 +44,7 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
     }
 
     const similarProducts = allProducts
-        .filter((p) => String(p.id) !== params.id && p.category === product.category)
+        .filter((p: any) => String(p.id) !== params.id && p.category === product.category)
         .slice(0, 4);
 
     return (

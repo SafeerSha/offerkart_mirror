@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/sheet";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import { Offer } from "@/lib/types/offer";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface OffersClientProps {
     initialOffers: Offer[];
@@ -34,6 +35,7 @@ export default function OffersClient({
     initialFeaturedShops,
     hasMoreInitial
 }: OffersClientProps) {
+    const { t } = useTranslation("common");
     const searchParams = useSearchParams();
     const initialCategory = searchParams.get("category") || "All";
 
@@ -195,7 +197,7 @@ export default function OffersClient({
             <div className="pt-28"></div>
 
             <main className="container mx-auto px-4 py-8">
-                <Breadcrumbs items={[{ label: "Offers" }]} />
+                <Breadcrumbs items={[{ label: t("nav.offers") }]} />
 
                 <div className="flex flex-col lg:flex-row gap-10">
                     {/* Left Sidebar - Desktop */}
@@ -203,7 +205,7 @@ export default function OffersClient({
                         <div className="sticky top-32">
                             <h2 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
                                 <Filter className="w-5 h-5 text-orange-500" />
-                                Refine Results
+                                {t("catalog.refineResults")}
                             </h2>
                             <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
                                 <FilterPanel
@@ -226,17 +228,17 @@ export default function OffersClient({
                                 <SheetTrigger asChild>
                                     <button className="w-full h-12 bg-white border border-gray-200 rounded-xl flex items-center justify-center gap-2 font-semibold text-gray-700 hover:bg-gray-50 transition-all shadow-sm">
                                         <Filter className="w-4 h-4" />
-                                        Filters & Sorting
+                                        {t("catalog.filtersSorting")}
                                     </button>
                                 </SheetTrigger>
                                 <SheetContent side="left" className="w-[300px] border-r-0 bg-white">
                                     <SheetHeader className="mb-8">
                                         <SheetTitle className="text-2xl font-bold flex items-center gap-2">
                                             <Filter className="w-6 h-6 text-orange-500" />
-                                            Filters
+                                            {t("catalog.filters")}
                                         </SheetTitle>
                                         <SheetDescription>
-                                            Refine the results by choosing your preferred categories and sorting options.
+                                            {t("catalog.filtersDescOffers")}
                                         </SheetDescription>
                                     </SheetHeader>
                                     <div className="pb-8">
@@ -264,12 +266,12 @@ export default function OffersClient({
                             <div>
                                 <div className="flex items-center gap-2 mb-2">
                                     <span className="text-xs font-bold uppercase tracking-wider text-orange-500">
-                                        Offers & Deals
+                                        {t("catalog.offersDeals")}
                                     </span>
                                     {(activeFilters.category !== "All" || activeFilters.subcategory.length > 0) && (
                                         <div className="flex items-center gap-2 text-xs font-medium text-gray-400">
                                             <span>/</span>
-                                            <span className="text-gray-900">{activeFilters.category}</span>
+                                            <span className="text-gray-900">{activeFilters.category === "All" ? t("catalog.all") : activeFilters.category}</span>
                                             {activeFilters.subcategory.length > 0 && (
                                                 <>
                                                     <span>/</span>
@@ -280,7 +282,7 @@ export default function OffersClient({
                                     )}
                                 </div>
                                 <h3 className="text-2xl font-bold text-gray-900">
-                                    {activeFilters.category === "All" ? "Latest Highlights" : activeFilters.category}
+                                    {activeFilters.category === "All" ? t("catalog.latestHighlights") : activeFilters.category}
                                     {activeFilters.subcategory.length > 0 && (
                                         <span className="text-gray-400 font-medium">
                                             {" — "}{activeFilters.subcategory.join(", ")}
@@ -288,8 +290,8 @@ export default function OffersClient({
                                     )}
                                 </h3>
                                 <p className="text-gray-500 text-sm mt-1">
-                                    Showing verified amazing deals
-                                    {activeFilters.subcategory.length > 0 ? " in selected categories" : " for you"}
+                                    {t("catalog.showingVerifiedDeals")}
+                                    {activeFilters.subcategory.length > 0 ? t("catalog.inSelectedCategories") : t("catalog.forYou")}
                                 </p>
                             </div>
                         </div>
@@ -304,7 +306,7 @@ export default function OffersClient({
                                         <Loader2 className="w-5 h-5 text-orange-500 absolute inset-0 m-auto animate-pulse" />
                                     </div>
                                     <p className="text-sm font-medium text-gray-500 animate-pulse">
-                                        Discovering more amazing deals...
+                                        {t("catalog.discoveringMoreDeals")}
                                     </p>
                                 </div>
                             )}
@@ -312,7 +314,7 @@ export default function OffersClient({
                                 <div className="text-center py-8">
                                     <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 text-gray-500 text-sm font-medium">
                                         <div className="w-1.5 h-1.5 rounded-full bg-gray-400" />
-                                        You've caught up with all current deals
+                                        {t("catalog.caughtUpDeals")}
                                     </div>
                                 </div>
                             )}

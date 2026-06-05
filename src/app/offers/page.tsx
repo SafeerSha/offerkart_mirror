@@ -1,14 +1,13 @@
 import { Suspense } from "react";
 import { getPaginatedOffers, getFeaturedOffers } from "@/lib/api/offers";
 import OffersClient from "@/components/offers/OffersClient";
+import { CACHE_TAGS } from "@/lib/api/cache-tags";
 
-// ISR: Revalidate every 5 minutes
-export const revalidate = 300;
+export const revalidate = false;
 
 export default async function OffersPage() {
-    // Fetch initial data on the server for ISR
     const [offersResult, featuredOffersResult] = await Promise.all([
-        getPaginatedOffers(1, 8),
+        getPaginatedOffers(1, 8, {}, { next: { tags: [CACHE_TAGS.OFFERS] } }),
         getFeaturedOffers()
     ]);
 

@@ -30,6 +30,7 @@ import { PosterPreviewPanel } from "@/components/shop-manager/PosterPreviewPanel
 import { storage } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 import { ensureS3Url } from "@/lib/imageUtils";
+import { extractS3Url } from "@/lib/common";
 import { formatDateLocal } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -190,8 +191,7 @@ function CreateOfferContent() {
                         s3Url = await poster.uploadPromise;
                     } else if (poster.file) {
                         const res = await s3Api.uploadImage(poster.file).catch(() => null);
-                        const payload = (res?.data as any)?.data || res?.data;
-                        const uploadedUrl = payload?.url || payload?.fileUrl || payload?.imageUrl || (res?.data as any)?.imageUrl || (typeof payload === 'string' ? payload : null);
+                        const uploadedUrl = extractS3Url(res);
                         if (!res || !res.success || !uploadedUrl) throw new Error("Upload failed");
                         s3Url = uploadedUrl;
                     }
@@ -288,8 +288,7 @@ function CreateOfferContent() {
                             throw new Error("Missing poster file or S3 url for upload.");
                         }
                         const res = await s3Api.uploadImage(poster.file).catch(() => null);
-                        const payload = (res?.data as any)?.data || res?.data;
-                        const uploadedUrl = payload?.url || payload?.fileUrl || payload?.imageUrl || (res?.data as any)?.imageUrl || (typeof payload === 'string' ? payload : null);
+                        const uploadedUrl = extractS3Url(res);
                         if (!res || !res.success || !uploadedUrl) {
                             throw new Error(`Failed to upload poster: ${poster.file.name}`);
                         }
@@ -395,8 +394,7 @@ function CreateOfferContent() {
                             throw new Error("Missing poster file for upload.");
                         }
                         const res = await s3Api.uploadImage(poster.file).catch(() => null);
-                        const payload = (res?.data as any)?.data || res?.data;
-                        const uploadedUrl = payload?.url || payload?.fileUrl || payload?.imageUrl || (res?.data as any)?.imageUrl || (typeof payload === 'string' ? payload : null);
+                        const uploadedUrl = extractS3Url(res);
                         if (!res || !res.success || !uploadedUrl) {
                             throw new Error(`Failed to upload poster: ${poster.file.name}`);
                         }

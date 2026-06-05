@@ -11,6 +11,7 @@ import { Poster, MarkedItem } from "@/lib/types/offer";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import OfferCard from "@/components/offer/OfferCard";
 import { ConsumerProductModal } from "@/components/offer/ConsumerProductModal";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface OfferDetail {
     id: number | string;
@@ -50,13 +51,14 @@ interface OfferDetailClientProps {
 }
 
 export default function OfferDetailClient({ offer, similarOffers }: OfferDetailClientProps) {
+    const { t } = useTranslation("common");
     const [posterIndex, setPosterIndex] = useState(0);
     const [similarCarouselIndex, setSimilarCarouselIndex] = useState(0);
     const [isProductModalOpen, setIsProductModalOpen] = useState(false);
     const [selectedProductName, setSelectedProductName] = useState<string | null>(null);
 
     const [breadcrumbItems, setBreadcrumbItems] = useState([
-        { label: "Offers", href: "/offers" },
+        { label: t("nav.offers"), href: "/offers" },
         { label: offer.offerName }
     ]);
 
@@ -72,12 +74,12 @@ export default function OfferDetailClient({ offer, similarOffers }: OfferDetailC
                 // If coming from Offers list, preserve filters in the breadcrumb link
                 const path = referrer.replace(origin, "");
                 setBreadcrumbItems([
-                    { label: "Offers", href: path },
+                    { label: t("nav.offers"), href: path },
                     { label: offer.offerName }
                 ]);
             }
         }
-    }, [offer.offerName]);
+    }, [offer.offerName, t]);
 
     const nextPoster = () => {
         setPosterIndex((prev) => (prev + 1) % offer.images.length);
@@ -175,7 +177,7 @@ export default function OfferDetailClient({ offer, similarOffers }: OfferDetailC
                 {/* Similar Offers Carousel */}
                 <div className="mt-16">
                     <div className="flex items-center justify-between mb-8">
-                        <Subheading className="text-2xl font-bold">Similar Offers</Subheading>
+                        <Subheading className="text-2xl font-bold">{t("catalog.similarOffers")}</Subheading>
                         <div className="flex items-center gap-2">
                             <PremiumButton
                                 variant="outline"

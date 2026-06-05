@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PosterType, OfferStatus } from "../types";
 
 // ============ BASIC SCHEMAS ============
 
@@ -22,7 +23,7 @@ export const MarkedItemSchema = z.object({
 export const PosterSchema = z.object({
   id: z.string().optional(),
   posterSrc: z.string(),
-  type: z.enum(["just_post", "marked_poster", "unclassified"]),
+  type: z.enum([PosterType.JUST_POST, PosterType.MARKED_POSTER, PosterType.UNCLASSIFIED]),
   order: z.number().optional(),
   markedItems: z.array(MarkedItemSchema).optional(),
   title: z.string().optional(),
@@ -54,7 +55,7 @@ export const OfferSchema = z.object({
   id: z.union([z.number(), z.string()]).optional(),
   title: z.string().optional(),
   description: z.string().optional(),
-  status: z.string().optional(),
+  status: z.nativeEnum(OfferStatus).optional(),
   isActive: z.boolean().optional(),
   validFrom: z.string().optional(),
   validTo: z.string().optional(),

@@ -3,9 +3,9 @@ import OfferDetailClient from "@/components/offer/OfferDetailClient";
 import { notFound } from "next/navigation";
 import { getAllUserOffers, getUserOfferById, getPaginatedOffers } from "@/lib/api/offers";
 import { Offer } from "@/lib/types/offer";
+import { CACHE_TAGS } from "@/lib/api/cache-tags";
 
-// ISR: Revalidate every 10 minutes
-export const revalidate = 600;
+export const revalidate = false;
 
 // Enable dynamic params for new offers
 export const dynamicParams = true;
@@ -70,7 +70,9 @@ export async function generateMetadata({
 }: {
     params: { id: string }
 }): Promise<Metadata> {
-    const offerResult = await getUserOfferById(params.id).catch(() => ({ success: false, data: null }));
+    const offerResult = await getUserOfferById(params.id, {
+        next: { tags: [CACHE_TAGS.OFFERS, CACHE_TAGS.OFFER(params.id)] },
+    }).catch(() => ({ success: false, data: null }));
     const offer = offerResult?.data;
 
     if (!offer) {
@@ -98,8 +100,10 @@ export default async function OfferDetailPage({
     params: { id: string }
 }) {
     const [offerResult, similarOffersResult] = await Promise.all([
-        getUserOfferById(params.id),
-        getPaginatedOffers(1, 8),
+        getUserOfferById(params.id, {
+            next: { tags: [CACHE_TAGS.OFFERS, CACHE_TAGS.OFFER(params.id)] },
+        }),
+        getPaginatedOffers(1, 8, {}, { next: { tags: [CACHE_TAGS.OFFERS] } }),
     ]);
 
     if (!offerResult.data) {

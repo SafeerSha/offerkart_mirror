@@ -2,7 +2,24 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function proxy(request: NextRequest) {
+    // 1. Detect locale from cookie or Accept-Language header
+    const cookieLocale = request.cookies.get("locale")?.value;
+    let localeToSet: string | null = null;
+    
+    if (cookieLocale !== "en" && cookieLocale !== "ml") {
+        const acceptLanguage = request.headers.get("accept-language") || "";
+        localeToSet = acceptLanguage.toLowerCase().includes("ml") ? "ml" : "en";
+    }
+
     const response = NextResponse.next();
+
+    // 2. Set cookie if it needs initialization
+    if (localeToSet) {
+        response.cookies.set("locale", localeToSet, {
+            maxAge: 60 * 60 * 24 * 365, // 1 year
+            path: "/",
+        });
+    }
 
     // Remove X-Powered-By header (defense-in-depth alongside next.config poweredByHeader: false)
     response.headers.delete('X-Powered-By');
