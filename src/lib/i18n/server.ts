@@ -1,45 +1,28 @@
-import { cookies } from "next/headers";
-import { translations } from "./store";
+import { getDictionary } from "./store";
 import { defaultLocale, Locale, TranslationNamespace } from "./config";
 
 export async function getTranslations(namespace: TranslationNamespace = "common") {
-  let locale: Locale = defaultLocale;
-  
-  try {
-    const cookieStore = await cookies();
-    const localeValue = cookieStore.get("locale")?.value;
-    if (localeValue === "en" || localeValue === "ml") {
-      locale = localeValue as Locale;
-    }
-  } catch (e) {
-    // cookies() can throw if called during static generation or build phase
-  }
+  // To allow for static generation, we default to the defaultLocale.
+  // We no longer read cookies() here because it would force dynamic rendering.
+  // The client LanguageProvider will handle updating the locale if the user's cookie prefers another language.
+  const locale: Locale = defaultLocale;
+  const dict = await getDictionary(locale);
 
   const t = (key: string) => {
-    const dict = (translations[locale] as any)?.[namespace] || (translations[defaultLocale] as any)?.[namespace];
-    if (!dict) return key;
+    const namespaceDict = (dict as any)?.[namespace];
+    if (!namespaceDict) return key;
 
     const parts = key.split(".");
-    let current: any = dict;
+    let current: any = namespaceDict;
     for (const part of parts) {
       if (current && typeof current === "object" && part in current) {
         current = current[part];
       } else {
-        // Fallback to English dict:
-        const enDict = (translations[defaultLocale] as any)?.[namespace];
-        let enCurrent: any = enDict;
-        for (const enPart of parts) {
-          if (enCurrent && typeof enCurrent === "object" && enPart in enCurrent) {
-            enCurrent = enCurrent[enPart];
-          } else {
-            return key;
-          }
-        }
-        return enCurrent;
+        return key; // No fallback needed since we're using the defaultLocale anyway
       }
     }
     return typeof current === "string" ? current : key;
   };
 
-  return { t, locale };
+  return { t, locale, dict };
 }

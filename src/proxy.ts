@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export function proxy(request: NextRequest) {
+export default function proxy(request: NextRequest) {
     // 1. Detect locale from cookie or Accept-Language header
     const cookieLocale = request.cookies.get("locale")?.value;
     let localeToSet: string | null = null;

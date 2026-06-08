@@ -57,17 +57,19 @@ export function MarkedPoster({
                     maxWidth: '100%'
                 }}
             >
-                <Image
-                    src={src}
-                    alt={alt}
-                    fill
-                    unoptimized
-                    priority={priority}
-                    className={cn("object-contain", imageClassName)}
-                    onLoadingComplete={({ naturalWidth, naturalHeight }) => {
-                        setAspectRatio(naturalWidth / naturalHeight);
-                    }}
-                />
+                {src && (
+                    <Image
+                        src={src}
+                        alt={alt}
+                        fill
+                        unoptimized
+                        priority={priority}
+                        className={cn("object-contain", imageClassName)}
+                        onLoadingComplete={({ naturalWidth, naturalHeight }) => {
+                            setAspectRatio(naturalWidth / naturalHeight);
+                        }}
+                    />
+                )}
 
                 {/* Hotspot Overlays */}
                 {markedItems.map((item) => (

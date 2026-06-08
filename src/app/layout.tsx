@@ -88,21 +88,17 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  let locale: Locale = "en";
-  try {
-    const cookieStore = await cookies();
-    const cookieLocale = cookieStore.get("locale")?.value;
-    if (cookieLocale === "en" || cookieLocale === "ml") {
-      locale = cookieLocale as Locale;
-    }
-  } catch (e) {
-    // cookies() can throw if called during static generation or build phase
-  }
+  const locale: Locale = "en"; // Default for static generation
+  // We cannot read cookies() here without opting out of Static Site Generation.
+  // The LanguageProvider will handle checking cookies and loading the correct locale on the client.
+
+  const { getDictionary } = await import("@/lib/i18n/store");
+  const dictionary = await getDictionary(locale);
 
   return (
     <html lang={locale} suppressHydrationWarning>
       <body className={`${rubik.variable} ${inter.variable} ${playfair.variable} ${staatliches.variable} ${montserrat.variable} ${outfit.variable} ${quicksand.variable} ${bebasNeue.variable} antialiased`} suppressHydrationWarning>
-        <Providers locale={locale}>
+        <Providers locale={locale} dictionary={dictionary}>
           <ConditionalHeader />
           {children}
         </Providers>

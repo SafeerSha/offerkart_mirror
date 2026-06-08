@@ -38,7 +38,6 @@ export async function getAllProducts(
     cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">
 ) {
     void cacheOptions;
-
     if (!shopId || shopId === "all" || shopId === "undefined" || shopId === "null" || shopId === "") {
         try {
             const userProductsRes = await getUserProducts({ limit: 100 });

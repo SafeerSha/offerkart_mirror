@@ -264,7 +264,9 @@ export function PosterPreviewPanel({
                                 isPreparing && "cursor-not-allowed"
                             )}
                         >
-                            <Image src={p.previewUrl} alt="" fill className="object-cover" unoptimized />
+                            {p.previewUrl && (
+                                <Image src={p.previewUrl} alt="" fill className="object-cover" unoptimized />
+                            )}
                             <div className={cn(
                                 "absolute inset-0 bg-orange-500/10",
                                 i !== currentIndex && "hidden"

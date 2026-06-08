@@ -135,13 +135,15 @@ const FeaturedOffers = ({ offers, variant = "full" }: FeaturedOffersProps) => {
                       "rounded-full overflow-hidden border-2 border-primary/20 group-hover:border-primary group-hover:shadow-lg transition-all duration-300 relative bg-muted/10",
                       variant === "full" ? "w-20 h-20" : "w-14 h-14 sm:w-16 sm:h-16"
                     )}>
-                      <Image
-                        src={offer.logo}
-                        alt={offer.name}
-                        fill
-                        unoptimized
-                        className="object-cover transition-transform duration-300"
-                      />
+                      {offer.logo && (
+                        <Image
+                          src={offer.logo}
+                          alt={offer.name}
+                          fill
+                          unoptimized
+                          className="object-cover transition-transform duration-300"
+                        />
+                      )}
                     </div>
                     {variant === "full" && (
                       <Text className="text-center mt-2 font-medium group-hover:text-primary transition-colors duration-300 text-sm">

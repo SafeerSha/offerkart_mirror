@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { config } from "@/lib/config";
+import { config } from "@/lib/config.server";
 import { CACHE_TAGS } from "@/lib/api/cache-tags";
+import { checkRateLimit } from "@/lib/api/rate-limiter";
 
 
 const UPSTREAM_API_BASE_URL = config.api.upstreamBaseUrl;
@@ -61,6 +62,21 @@ async function readRequestBody(request: NextRequest) {
 }
 
 async function handleProxy(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
+    // 1. Check Rate Limit based on IP
+    const ip = request.headers.get("x-forwarded-for") || "127.0.0.1";
+    const { success, limit, remaining, reset } = await checkRateLimit(ip);
+
+    if (!success) {
+        return new NextResponse("Too Many Requests", {
+            status: 429,
+            headers: {
+                "X-RateLimit-Limit": limit.toString(),
+                "X-RateLimit-Remaining": remaining.toString(),
+                "X-RateLimit-Reset": reset.toString(),
+            },
+        });
+    }
+
     const { path } = await context.params;
     const upstreamPath = path.join("/");
     const upstreamUrl = new URL(`${UPSTREAM_API_BASE_URL}/${upstreamPath}`);
