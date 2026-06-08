@@ -50,7 +50,7 @@ export default async function HomePage() {
             offers={allOffers}
             redirectToOffers={true}
             buttonText={t("hero.exploreAllOffers")}
-            columns={4}
+            columns={5}
           />
         </div>
       </section>

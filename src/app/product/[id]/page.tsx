@@ -7,9 +7,10 @@ import { CACHE_TAGS } from "@/lib/api/cache-tags";
 export const revalidate = false;
 export const dynamicParams = true;
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-    const product = await getProductById(params.id, {
-        next: { tags: [CACHE_TAGS.PRODUCTS, CACHE_TAGS.PRODUCT(params.id)] },
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+    const resolvedParams = await params;
+    const product = await getProductById(resolvedParams.id, {
+        next: { tags: [CACHE_TAGS.PRODUCTS, CACHE_TAGS.PRODUCT(resolvedParams.id)] },
     });
 
     if (!product) {
@@ -31,10 +32,11 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
     };
 }
 
-export default async function ProductDetailPage({ params }: { params: { id: string } }) {
+export default async function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
+    const resolvedParams = await params;
     const [product, allProducts] = await Promise.all([
-        getProductById(params.id, {
-            next: { tags: [CACHE_TAGS.PRODUCTS, CACHE_TAGS.PRODUCT(params.id)] },
+        getProductById(resolvedParams.id, {
+            next: { tags: [CACHE_TAGS.PRODUCTS, CACHE_TAGS.PRODUCT(resolvedParams.id)] },
         }),
         getAllProducts(undefined, { next: { tags: [CACHE_TAGS.PRODUCTS] } })
     ]);
@@ -44,7 +46,7 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
     }
 
     const similarProducts = allProducts
-        .filter((p: any) => String(p.id) !== params.id && p.category === product.category)
+        .filter((p: any) => String(p.id) !== resolvedParams.id && p.category === product.category)
         .slice(0, 4);
 
     return (

@@ -15,7 +15,7 @@ interface OfferGridProps {
   className?: string;
   redirectToOffers?: boolean;
   buttonText?: string;
-  columns?: 3 | 4;
+  columns?: 3 | 4 | 5;
   disablePagination?: boolean;
 }
 
@@ -50,11 +50,18 @@ const OfferGrid = ({
 
   const hasMore = visibleCount < offers.length;
 
+  const gridColsClass = 
+    columns === 5
+      ? "grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+      : columns === 4
+      ? "grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+      : "grid-cols-2 sm:grid-cols-2 lg:grid-cols-3";
+
   if (isLoading) {
     return (
       <div className={cn(
-        "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6",
-        columns === 4 ? "xl:grid-cols-4" : "xl:grid-cols-3",
+        "grid gap-4 md:gap-6",
+        gridColsClass,
         className
       )}>
         {[...Array(6)].map((_, i) => (
@@ -89,8 +96,8 @@ const OfferGrid = ({
   return (
     <div className={className}>
       <div className={cn(
-        "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 auto-rows-fr",
-        columns === 4 ? "xl:grid-cols-4" : "xl:grid-cols-3"
+        "grid gap-4 md:gap-6 auto-rows-fr",
+        gridColsClass
       )}>
         {visibleOffers.map((offer, index) => {
           return (

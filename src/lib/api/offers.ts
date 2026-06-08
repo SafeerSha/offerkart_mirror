@@ -1,4 +1,4 @@
-import { Offer, OfferPayload } from "../types/offer";
+import { Offer, OfferPayload, MarkedItem } from "../types/offer";
 import { backend, BackendRequestOptions } from "./backendClient";
 import { ENDPOINTS } from "./endpoints";
 import { CACHE_TAGS } from "./cache-tags";
@@ -54,8 +54,8 @@ function normalizeOptionalQueryValue(value?: number | string | null) {
     return String(value);
 }
 
-function formatDistance(distanceKm: number | null) {
-    if (distanceKm === null || Number.isNaN(distanceKm)) {
+function formatDistance(distanceKm: number | null | undefined) {
+    if (distanceKm === null || distanceKm === undefined || typeof distanceKm !== "number" || Number.isNaN(distanceKm)) {
         return "Location unavailable";
     }
 
@@ -66,8 +66,8 @@ function formatDistance(distanceKm: number | null) {
     return `${distanceKm.toFixed(distanceKm < 10 ? 1 : 0)} km away`;
 }
 
-function formatDaysLeft(daysLeft: number | null) {
-    if (daysLeft === null || Number.isNaN(daysLeft)) {
+function formatDaysLeft(daysLeft: number | null | undefined) {
+    if (daysLeft === null || daysLeft === undefined || Number.isNaN(daysLeft)) {
         return undefined;
     }
 
@@ -307,33 +307,98 @@ export async function getAllUserOffers(query: Omit<UserOfferQuery, "page"> = {})
     };
 }
 
+function mapUserOfferDetailToOffer(detail: any, listingOffer?: Offer | null): Offer {
+    const posters = (detail.posters || []).map((bp: any) => {
+        const products = bp.products || [];
+        const markedItems: MarkedItem[] = [];
+
+        for (const prod of products) {
+            const areas = prod.areas || [];
+            for (const area of areas) {
+                markedItems.push({
+                    id: String(prod.id),
+                    name: prod.displayName || "Product",
+                    description: prod.displayDescription || "",
+                    productImage: prod.imageUrl || "",
+                    currency: "₹",
+                    oldPrice: prod.originalPrice || prod.offerPrice || 0,
+                    offerPrice: prod.offerPrice || 0,
+                    x: area.xPercent ?? 0,
+                    y: area.yPercent ?? 0,
+                    width: area.widthPercent ?? 0,
+                    height: area.heightPercent ?? 0,
+                });
+            }
+        }
+
+        return {
+            id: String(bp.id),
+            posterSrc: bp.imageUrl || "",
+            type: "just_post",
+            markedItems,
+            title: bp.title || undefined,
+        };
+    });
+
+    const primaryImage = posters[0]?.posterSrc || listingOffer?.image || DEFAULT_USER_OFFER_IMAGE;
+
+    return {
+        id: detail.id,
+        offerId: detail.id,
+        shopName: listingOffer?.shopName || "OfferKart",
+        offerName: detail.title || listingOffer?.offerName || "Untitled Offer",
+        title: detail.title || listingOffer?.offerName || "Untitled Offer",
+        image: primaryImage,
+        posterSrc: primaryImage,
+        posters: posters,
+        category: listingOffer?.category || "Offers",
+        location: listingOffer?.location || formatDistance(listingOffer?.distanceKm),
+        discount: listingOffer?.discount || formatDaysLeft(listingOffer?.daysLeft),
+        validFrom: detail.validFrom || listingOffer?.validFrom || undefined,
+        validTo: detail.validTo || listingOffer?.validTo || undefined,
+        totalPosters: posters.length,
+        numberOfPosters: posters.length,
+        daysLeft: listingOffer?.daysLeft,
+        distanceKm: listingOffer?.distanceKm,
+        shopLogo: listingOffer?.shopLogo || null,
+        description: detail.description || listingOffer?.description || `${detail.title || "Offer"} from ${listingOffer?.shopName || "OfferKart"}`,
+        isActive: true,
+        status: "active",
+        shopId: listingOffer?.shopId,
+    };
+}
+
 export async function getUserOfferById(
     id: string | number,
     cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">
 ) {
+    let detailData: any = null;
     try {
-        const response = await backend.get<UserOfferApiItem>(`${ENDPOINTS.USER_OFFER.BASE}/${id}`, {
+        const response = await backend.get<any>(`${ENDPOINTS.USER_OFFER.BASE}/${id}`, {
             next: { tags: [CACHE_TAGS.OFFERS, CACHE_TAGS.OFFER(id)] },
             ...cacheOptions,
         });
         if (response && response.success && response.data) {
-            return {
-                success: true,
-                data: mapUserOfferToOffer(response.data),
-            };
+            detailData = response.data;
         }
     } catch (err) {
         console.warn(`Direct user offer lookup for ID ${id} failed:`, err);
     }
 
     const allOffersResult = await getAllUserOffers({ limit: 100 });
+    const listingOffer = allOffersResult.data?.find((item) => String(item.id) === String(id) || String(item.offerId) === String(id)) || null;
 
-    const offer = allOffersResult.data?.find((item) => String(item.id) === String(id) || String(item.offerId) === String(id)) || null;
+    if (detailData) {
+        return {
+            success: true,
+            data: mapUserOfferDetailToOffer(detailData, listingOffer),
+        };
+    }
 
     return {
-        success: !!offer,
-        data: offer,
-        error: offer ? undefined : "Offer not found",
+        success: !!listingOffer,
+        data: listingOffer,
+        error: listingOffer ? undefined : "Offer not found",
     };
 }
 

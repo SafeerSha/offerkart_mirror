@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { MousePointerClick } from "lucide-react";
 import type { MarkedItem } from "@/lib/types/offer";
 
 interface MarkedPosterProps {
@@ -15,6 +16,7 @@ interface MarkedPosterProps {
     priority?: boolean;
     interactive?: boolean;
     onItemClick?: (item: MarkedItem) => void;
+    onAspectRatioChange?: (ratio: number) => void;
 }
 
 /**
@@ -34,14 +36,23 @@ export function MarkedPoster({
     showNames = true,
     priority = false,
     interactive = false,
-    onItemClick
+    onItemClick,
+    onAspectRatioChange
 }: MarkedPosterProps) {
     const [aspectRatio, setAspectRatio] = useState<number | null>(null);
+    const [isBlinking, setIsBlinking] = useState(interactive);
 
-    // Reset ratio when src changes to prevent stale layout shifts
+    // Reset ratio and restart blinking when src changes
     useEffect(() => {
         setAspectRatio(null);
-    }, [src]);
+        if (interactive) {
+            setIsBlinking(true);
+            const timer = setTimeout(() => {
+                setIsBlinking(false);
+            }, 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [src, interactive]);
 
     return (
         <div 
@@ -66,7 +77,11 @@ export function MarkedPoster({
                         priority={priority}
                         className={cn("object-contain", imageClassName)}
                         onLoadingComplete={({ naturalWidth, naturalHeight }) => {
-                            setAspectRatio(naturalWidth / naturalHeight);
+                            const ratio = naturalWidth / naturalHeight;
+                            setAspectRatio(ratio);
+                            if (onAspectRatioChange) {
+                                onAspectRatioChange(ratio);
+                            }
                         }}
                     />
                 )}
@@ -82,9 +97,11 @@ export function MarkedPoster({
                             }
                         }}
                         className={cn(
-                            "absolute transition-all shadow-sm z-10",
+                            "absolute transition-all duration-300 shadow-sm z-10",
                             interactive 
-                                ? "border-2 border-primary/50 bg-primary/10 hover:bg-primary/20 hover:border-primary hover:shadow-[0_0_15px_rgba(var(--primary),0.5)] cursor-pointer pointer-events-auto animate-pulse hover:animate-none" 
+                                ? (isBlinking 
+                                    ? "custom-big-dashed-border bg-black/5 cursor-pointer pointer-events-auto animate-pulse"
+                                    : "hover-custom-big-dashed-border bg-transparent hover:bg-black/5 cursor-pointer pointer-events-auto")
                                 : "border-[1.5px] border-red-500 bg-red-500/10 pointer-events-none"
                         )}
                         style={{
@@ -94,10 +111,18 @@ export function MarkedPoster({
                             height: `${item.height * 100}%`,
                         }}
                     >
-                        {showNames && item.name && item.name !== "Processing..." && (
+                        {interactive && isBlinking && (
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                <div className="bg-black/70 text-white p-1 rounded-full shadow-md animate-bounce scale-75 sm:scale-100">
+                                    <MousePointerClick className="w-3.5 h-3.5" />
+                                </div>
+                            </div>
+                        )}
+
+                        {showNames && !isBlinking && item.name && item.name !== "Processing..." && (
                             <div className={cn(
-                                "absolute top-0 left-0 px-1 py-0.5 rounded-br-sm",
-                                interactive ? "bg-primary text-primary-foreground" : "bg-red-500 text-white"
+                                "absolute top-0 left-0 px-1 py-0.5 rounded-br-sm opacity-0 group-hover:opacity-100 transition-opacity",
+                                interactive ? "bg-black text-white" : "bg-red-500 text-white"
                             )}>
                                 <span className="text-[8px] sm:text-[10px] font-bold truncate block leading-none">
                                     {item.name}
@@ -106,6 +131,19 @@ export function MarkedPoster({
                         )}
                     </div>
                 ))}
+                
+                <style>{`
+                    .custom-big-dashed-border {
+                        background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' stroke='black' stroke-width='3' stroke-dasharray='15%2c 10' stroke-dashoffset='0' stroke-linecap='square'/%3e%3c/svg%3e");
+                    }
+                    .hover-custom-big-dashed-border {
+                        background-image: none;
+                        transition: background-image 0.3s ease;
+                    }
+                    .hover-custom-big-dashed-border:hover {
+                        background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' stroke='black' stroke-width='3' stroke-dasharray='15%2c 10' stroke-dashoffset='0' stroke-linecap='square'/%3e%3c/svg%3e");
+                    }
+                `}</style>
             </div>
         </div>
     );

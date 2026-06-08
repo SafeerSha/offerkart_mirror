@@ -68,10 +68,11 @@ function mapOfferForSimilarCard(offer: Offer) {
 export async function generateMetadata({
     params
 }: {
-    params: { id: string }
+    params: Promise<{ id: string }>
 }): Promise<Metadata> {
-    const offerResult = await getUserOfferById(params.id, {
-        next: { tags: [CACHE_TAGS.OFFERS, CACHE_TAGS.OFFER(params.id)] },
+    const resolvedParams = await params;
+    const offerResult = await getUserOfferById(resolvedParams.id, {
+        next: { tags: [CACHE_TAGS.OFFERS, CACHE_TAGS.OFFER(resolvedParams.id)] },
     }).catch(() => ({ success: false, data: null }));
     const offer = offerResult?.data;
 
@@ -97,11 +98,12 @@ export async function generateMetadata({
 export default async function OfferDetailPage({
     params
 }: {
-    params: { id: string }
+    params: Promise<{ id: string }>
 }) {
+    const resolvedParams = await params;
     const [offerResult, similarOffersResult] = await Promise.all([
-        getUserOfferById(params.id, {
-            next: { tags: [CACHE_TAGS.OFFERS, CACHE_TAGS.OFFER(params.id)] },
+        getUserOfferById(resolvedParams.id, {
+            next: { tags: [CACHE_TAGS.OFFERS, CACHE_TAGS.OFFER(resolvedParams.id)] },
         }),
         getPaginatedOffers(1, 8, {}, { next: { tags: [CACHE_TAGS.OFFERS] } }),
     ]);
@@ -112,7 +114,7 @@ export default async function OfferDetailPage({
 
     const similarOffers = similarOffersResult.success ? similarOffersResult.data : [];
     const filteredSimilarOffers = similarOffers
-        .filter((o) => String(o.id) !== params.id)
+        .filter((o) => String(o.id) !== resolvedParams.id)
         .slice(0, 5)
         .map(mapOfferForSimilarCard);
 

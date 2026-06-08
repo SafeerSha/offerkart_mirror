@@ -2,188 +2,186 @@
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
-import { AppModal } from "@/components/shared/AppModal";
-import { PremiumButton } from "@/components/shared/PremiumButton";
-import { ShoppingCart, IndianRupee, Heart, Tag } from "lucide-react";
-import { Subheading, Text } from "@/components/shared/Typography";
-import { toast } from "@/hooks/use-toast";
+import {
+    Drawer,
+    DrawerClose,
+    DrawerContent,
+    DrawerTitle,
+} from "@/components/ui/drawer";
+import { IndianRupee, Tag, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Text } from "@/components/shared/Typography";
 import { useTranslation } from "@/hooks/useTranslation";
-import { getUserProducts } from "@/lib/api/products";
+import { MarkedItem } from "@/lib/types/offer";
 
 interface ConsumerProductModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    productName: string | null;
+    markedItems: MarkedItem[];
+    initialItemId: string | null;
 }
-
-// Mock image generator based on name
-const getMockImage = (name: string) => {
-    // Generate a consistent random-looking nature/product image based on name length
-    const id = name.length > 0 ? name.charCodeAt(0) % 100 : 1;
-    return `https://picsum.photos/seed/${id}/400/400`;
-};
 
 export const ConsumerProductModal = ({
     open,
     onOpenChange,
-    productName,
+    markedItems = [],
+    initialItemId,
 }: ConsumerProductModalProps) => {
     const { t } = useTranslation("common");
-    const [mockProduct, setMockProduct] = useState<any>(null);
-    const [isAddedToCart, setIsAddedToCart] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
+    const [activeIndex, setActiveIndex] = useState(0);
 
+    // Sync activeIndex with initialItemId when modal opens
     useEffect(() => {
-        if (open && productName) {
-            setIsLoading(true);
-            const fetchProductDetails = async () => {
-                try {
-                    const res = await getUserProducts({ search: productName, limit: 1 });
-                    if (res && res.success && res.data && res.data.data && res.data.data.length > 0) {
-                        const product = res.data.data[0];
-                        setMockProduct({
-                            name: product.name,
-                            description: product.description || t("catalog.mockProductDesc").replace("{productName}", productName),
-                            image: product.image || getMockImage(productName),
-                            originalPrice: product.originalPrice || product.price,
-                            price: product.price,
-                            discount: product.discount || "Sale",
-                            category: product.category || t("catalog.featuredCollection"),
-                            stock: 10,
-                        });
-                    } else {
-                        setMockProduct({
-                            notFound: true,
-                            name: productName,
-                        });
-                    }
-                } catch (error) {
-                    console.error("Failed to fetch product details for modal:", error);
-                    setMockProduct({
-                        notFound: true,
-                        name: productName,
-                    });
-                } finally {
-                    setIsLoading(false);
-                }
-            };
-            fetchProductDetails();
-            setIsAddedToCart(false);
-        } else {
-            // Optional: clear out after close animation
-            setTimeout(() => {
-                if (!open) {
-                    setMockProduct(null);
-                }
-            }, 300);
+        if (open && initialItemId && markedItems.length > 0) {
+            const index = markedItems.findIndex(item => String(item.id) === String(initialItemId));
+            if (index !== -1) {
+                setActiveIndex(index);
+            } else {
+                setActiveIndex(0);
+            }
         }
-    }, [open, productName, t]);
+    }, [open, initialItemId, markedItems]);
 
-    const handleAddToCart = () => {
-        setIsAddedToCart(true);
-        toast({
-            title: t("catalog.addedToCart"),
-            description: t("catalog.addedToCartDesc").replace("{productName}", productName || ""),
-        });
+    if (markedItems.length === 0) return null;
+
+    const activeItem = markedItems[activeIndex] || markedItems[0];
+    if (!activeItem) return null;
+
+    const handleNext = () => {
+        setActiveIndex((prev) => prev + 1);
     };
 
+    const handleBack = () => {
+        setActiveIndex((prev) => prev - 1);
+    };
+
+    const discountValue = activeItem.oldPrice && activeItem.offerPrice && activeItem.oldPrice > activeItem.offerPrice
+        ? `${Math.round(((activeItem.oldPrice - activeItem.offerPrice) / activeItem.oldPrice) * 100)}% OFF`
+        : "Sale";
+
     return (
-        <AppModal
-            open={open}
-            onOpenChange={onOpenChange}
-            title=""
-            description=""
-            className="sm:max-w-md p-0 overflow-hidden rounded-[32px] sm:rounded-3xl border-none"
-        >
-            {!mockProduct ? (
-                <div className="h-64 flex items-center justify-center">
-                    <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-                </div>
-            ) : mockProduct.notFound ? (
-                <div className="p-8 text-center bg-card">
-                    <div className="w-16 h-16 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center mb-4 mx-auto shadow-sm">
-                        <Tag className="w-8 h-8 text-slate-400" />
-                    </div>
-                    <Subheading className="text-xl font-bold mb-2 text-foreground">
-                        {mockProduct.name}
-                    </Subheading>
-                    <Text className="text-muted-foreground text-sm mb-6">
-                        Product details are not available for this item.
-                    </Text>
-                    <PremiumButton onClick={() => onOpenChange(false)} className="w-full rounded-2xl">
-                        Close
-                    </PremiumButton>
-                </div>
-            ) : (
-                <div className="flex flex-col bg-card">
-                    {/* Image Section */}
-                    <div className="relative w-full aspect-square bg-gray-100">
-                        <Image
-                            src={mockProduct.image}
-                            alt={mockProduct.name}
-                            fill
-                            className="object-cover"
-                            sizes="(max-width: 768px) 100vw, 400px"
-                        />
-                        <div className="absolute top-4 left-4">
-                            <span className="badge-futuristic bg-black/50 backdrop-blur-md border-white/20 text-white">
-                                <Tag className="w-3 h-3 mr-1" />
-                                {mockProduct.discount}
-                            </span>
-                        </div>
-                        <button className="absolute top-4 right-4 p-2.5 rounded-full bg-white/80 backdrop-blur-md text-gray-600 hover:text-rose-500 hover:bg-white transition-all">
-                            <Heart className="w-5 h-5" />
-                        </button>
-                    </div>
+        <Drawer open={open} onOpenChange={onOpenChange}>
+            <DrawerContent className="max-h-[92vh] border-none bg-[var(--card)] rounded-t-[32px] overflow-hidden focus:outline-none">
+                {/* Close Button */}
+                <DrawerClose className="absolute top-4 right-4 z-50 p-2.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all focus:outline-none border-none">
+                    <X className="w-5 h-5" />
+                </DrawerClose>
 
-                    {/* Details Section */}
-                    <div className="p-6">
-                        <div className="mb-2">
-                            <span className="text-xs font-semibold text-primary uppercase tracking-wider">
-                                {mockProduct.category}
-                            </span>
+                <div className="relative w-full max-w-5xl mx-auto px-4 sm:px-10 pb-8 pt-4 flex items-center justify-between">
+                    
+                    {/* Left Navigation Arrow */}
+                    <button 
+                        onClick={handleBack}
+                        disabled={activeIndex === 0}
+                        className="hidden md:flex p-3 rounded-full bg-orange-500 hover:bg-orange-600 text-white transition-all shadow-md focus:outline-none mr-4 cursor-pointer disabled:bg-orange-200 disabled:text-white/60 disabled:cursor-not-allowed border-none"
+                    >
+                        <ChevronLeft className="w-6 h-6" />
+                    </button>
+
+                    {/* Main Content Area */}
+                    <div className="flex-1 flex flex-col md:flex-row gap-6 md:gap-8 items-stretch w-full max-h-[75vh] overflow-y-auto pr-2">
+                        {/* Image Section */}
+                        <div className="relative w-full md:w-[45%] aspect-square md:aspect-auto md:min-h-[350px] rounded-2xl overflow-hidden bg-slate-50 border border-slate-100 flex-shrink-0">
+                            {activeItem.productImage ? (
+                                <Image
+                                    src={activeItem.productImage}
+                                    alt={activeItem.name}
+                                    fill
+                                    className="object-contain p-4"
+                                    sizes="(max-width: 768px) 100vw, 400px"
+                                    unoptimized
+                                />
+                            ) : (
+                                <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-400">
+                                    No Image Available
+                                </div>
+                            )}
+                            
+                            {activeItem.oldPrice > activeItem.offerPrice && (
+                                <div className="absolute top-4 left-4">
+                                    <span className="badge-futuristic bg-orange-500 border-none text-white font-bold py-1.5 px-3">
+                                        <Tag className="w-3.5 h-3.5 mr-1" />
+                                        {discountValue}
+                                    </span>
+                                </div>
+                            )}
                         </div>
-                        <Subheading className="text-2xl font-bold mb-2 text-foreground">
-                            {mockProduct.name}
-                        </Subheading>
-                        
-                        <div className="flex items-end gap-3 mb-4">
-                            <div className="flex items-center text-3xl font-bold text-foreground">
-                                <IndianRupee className="w-6 h-6 stroke-[2.5]" />
-                                {mockProduct.price.toLocaleString()}
+
+                        {/* Details Section */}
+                        <div className="flex-1 flex flex-col justify-between py-2">
+                            <div>
+                                <div className="flex items-center justify-between gap-4 mb-2">
+                                    <span className="text-xs font-bold text-orange-500 uppercase tracking-wider">
+                                        {activeItem.mainCategory || t("catalog.featuredCollection")}
+                                    </span>
+                                    {markedItems.length > 1 && (
+                                        <span className="text-xs font-semibold text-slate-400">
+                                            {activeIndex + 1} / {markedItems.length}
+                                        </span>
+                                    )}
+                                </div>
+                                
+                                <DrawerTitle className="text-2xl md:text-3xl font-extrabold text-foreground mb-3 leading-tight">
+                                    {activeItem.name}
+                                </DrawerTitle>
+
+                                <div className="flex items-end gap-3 mb-5">
+                                    <div className="flex items-center text-3xl font-extrabold text-foreground">
+                                        <IndianRupee className="w-6 h-6 stroke-[2.5]" />
+                                        {activeItem.offerPrice.toLocaleString()}
+                                    </div>
+                                    {activeItem.oldPrice > activeItem.offerPrice && (
+                                        <div className="flex items-center text-lg font-semibold text-muted-foreground line-through mb-1">
+                                            <IndianRupee className="w-4 h-4" />
+                                            {activeItem.oldPrice.toLocaleString()}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="mb-6">
+                                    <Text className="text-muted-foreground text-sm md:text-base leading-relaxed">
+                                        {activeItem.description || "No description available for this item."}
+                                    </Text>
+                                </div>
                             </div>
-                            <div className="flex items-center text-lg font-medium text-muted-foreground line-through mb-1">
-                                <IndianRupee className="w-4 h-4" />
-                                {mockProduct.originalPrice.toLocaleString()}
+
+                            <div className="space-y-4">
+                                {/* Mobile-only Navigation Controls */}
+                                <div className="flex md:hidden gap-3 w-full justify-between items-center bg-slate-50 p-2 rounded-xl border border-slate-100">
+                                    <button 
+                                        onClick={handleBack}
+                                        disabled={activeIndex === 0}
+                                        className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg bg-orange-500 border-none text-white hover:bg-orange-600 text-sm font-semibold transition-all cursor-pointer disabled:bg-orange-200 disabled:text-white/60 disabled:cursor-not-allowed"
+                                    >
+                                        <ChevronLeft className="w-4 h-4" />
+                                        Back
+                                    </button>
+                                    <span className="text-xs font-bold text-slate-500 px-3">
+                                        {activeIndex + 1} of {markedItems.length}
+                                    </span>
+                                    <button 
+                                        onClick={handleNext}
+                                        disabled={activeIndex === markedItems.length - 1}
+                                        className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg bg-orange-500 border-none text-white hover:bg-orange-600 text-sm font-semibold transition-all cursor-pointer disabled:bg-orange-200 disabled:text-white/60 disabled:cursor-not-allowed"
+                                    >
+                                        Next
+                                        <ChevronRight className="w-4 h-4" />
+                                    </button>
+                                </div>
                             </div>
                         </div>
-
-                        <div className="mb-6">
-                            <Text className="text-muted-foreground text-sm leading-relaxed">
-                                {mockProduct.description}
-                            </Text>
-                        </div>
-
-                        <div className="flex gap-3">
-                            <PremiumButton
-                                onClick={handleAddToCart}
-                                disabled={isAddedToCart}
-                                className="flex-1 py-6 text-base font-bold rounded-2xl"
-                                glow={!isAddedToCart}
-                            >
-                                {isAddedToCart ? (
-                                    t("catalog.addedToCart")
-                               ) : (
-                                   <>
-                                       <ShoppingCart className="w-5 h-5 mr-2" />
-                                       {t("catalog.addToCart")}
-                                   </>
-                               )}
-                            </PremiumButton>
-                        </div>
                     </div>
+
+                    {/* Right Navigation Arrow */}
+                    <button 
+                        onClick={handleNext}
+                        disabled={activeIndex === markedItems.length - 1}
+                        className="hidden md:flex p-3 rounded-full bg-orange-500 hover:bg-orange-600 text-white transition-all shadow-md focus:outline-none ml-4 cursor-pointer disabled:bg-orange-200 disabled:text-white/60 disabled:cursor-not-allowed border-none"
+                    >
+                        <ChevronRight className="w-6 h-6" />
+                    </button>
+
                 </div>
-            )}
-        </AppModal>
+            </DrawerContent>
+        </Drawer>
     );
 };
