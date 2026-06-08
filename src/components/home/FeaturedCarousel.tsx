@@ -132,13 +132,15 @@ const FeaturedCarousel = ({ shops }: FeaturedCarouselProps) => {
                   <div className="absolute inset-1 rounded-xl border border-primary/10 group-hover:border-primary/30 transition-colors duration-300" />
 
                   <div className="absolute inset-0 overflow-hidden rounded-2xl bg-muted/20">
-                    <Image
-                      src={offer.image}
-                      alt={offer.name}
-                      fill
-                      unoptimized
-                      className="object-cover transition-transform duration-700 group-hover:scale-110"
-                    />
+                    {offer.image && (
+                      <Image
+                        src={offer.image}
+                        alt={offer.name}
+                        fill
+                        unoptimized
+                        className="object-cover transition-transform duration-700 group-hover:scale-110"
+                      />
+                    )}
                     <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 via-foreground/20 to-transparent group-hover:from-foreground/60" />
 
                     {/* Floating Particles Effect */}

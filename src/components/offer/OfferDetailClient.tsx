@@ -55,7 +55,7 @@ export default function OfferDetailClient({ offer, similarOffers }: OfferDetailC
     const [posterIndex, setPosterIndex] = useState(0);
     const [similarCarouselIndex, setSimilarCarouselIndex] = useState(0);
     const [isProductModalOpen, setIsProductModalOpen] = useState(false);
-    const [selectedProductName, setSelectedProductName] = useState<string | null>(null);
+    const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 
     const [breadcrumbItems, setBreadcrumbItems] = useState([
         { label: t("nav.offers"), href: "/offers" },
@@ -79,7 +79,8 @@ export default function OfferDetailClient({ offer, similarOffers }: OfferDetailC
                 ]);
             }
         }
-    }, [offer.offerName, t]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [offer.offerName]);
 
     const nextPoster = () => {
         setPosterIndex((prev) => (prev + 1) % offer.images.length);
@@ -126,7 +127,7 @@ export default function OfferDetailClient({ offer, similarOffers }: OfferDetailC
                             interactive={true}
                             onItemClick={(item: MarkedItem) => {
                                 if (item.name && item.name !== "Processing...") {
-                                    setSelectedProductName(item.name);
+                                    setSelectedItemId(item.id);
                                     setIsProductModalOpen(true);
                                 }
                             }}
@@ -219,7 +220,8 @@ export default function OfferDetailClient({ offer, similarOffers }: OfferDetailC
             <ConsumerProductModal
                 open={isProductModalOpen}
                 onOpenChange={setIsProductModalOpen}
-                productName={selectedProductName}
+                markedItems={offer.posters?.[posterIndex]?.markedItems || []}
+                initialItemId={selectedItemId}
             />
         </div>
     );

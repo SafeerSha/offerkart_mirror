@@ -296,7 +296,7 @@ export default function OffersClient({
                             </div>
                         </div>
 
-                        <OfferGrid isLoading={isLoading} offers={offers} disablePagination={true} />
+                        <OfferGrid isLoading={isLoading} offers={offers} disablePagination={true} columns={5} />
 
                         <div id="scroll-trigger" className="w-full py-12 flex items-center justify-center">
                             {isFetchingNextPage && (

@@ -110,7 +110,9 @@ export const PosterOrderGrid = ({
                             onClick={() => handleThumbnailClick(posterIdx)}
                             className="relative w-12 h-12 rounded-lg overflow-hidden border border-border/50 shrink-0 cursor-pointer"
                         >
-                            <Image src={poster.previewUrl} alt="" fill className="object-cover" unoptimized />
+                            {poster.previewUrl && (
+                                <Image src={poster.previewUrl} alt="" fill className="object-cover" unoptimized />
+                            )}
                             <div className="absolute top-0.5 left-0.5 bg-black/60 text-white text-[8px] font-bold px-1 py-0.5 rounded backdrop-blur-md">
                                 {posterIdx + 1}
                             </div>

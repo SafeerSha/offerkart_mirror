@@ -9,7 +9,7 @@ import { SessionProvider } from "next-auth/react";
 import { LanguageProvider } from "@/components/i18n/LanguageProvider";
 import { Locale } from "@/lib/i18n/config";
 
-export function Providers({ children, locale = "en" }: { children: React.ReactNode; locale?: Locale }) {
+export function Providers({ children, locale = "en", dictionary }: { children: React.ReactNode; locale?: Locale; dictionary: Record<string, any> }) {
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {
@@ -24,7 +24,7 @@ export function Providers({ children, locale = "en" }: { children: React.ReactNo
   return (
     <QueryClientProvider client={queryClient}>
       <SessionProvider>
-        <LanguageProvider locale={locale}>
+        <LanguageProvider locale={locale} dictionary={dictionary}>
           <ThemeProvider
             attribute="class"
             defaultTheme="light"

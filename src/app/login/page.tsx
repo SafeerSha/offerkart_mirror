@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { hasSuspiciousPattern } from "@/lib/security";
 import { useTranslation } from "@/hooks/useTranslation";
+import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 
 export default function LoginPage() {
     const { t } = useTranslation("login");
@@ -107,10 +108,11 @@ export default function LoginPage() {
             {/* Right Panel - Login Form */}
             <div className="w-full lg:w-1/2 flex flex-col min-h-screen bg-white">
                 {/* Back to Home */}
-                <div className="p-6 lg:p-8">
+                <div className="p-6 lg:p-8 flex items-center justify-between">
                     <Breadcrumbs
                         items={[{ label: t("form.title") }]}
                     />
+                    <LanguageSwitcher />
                 </div>
 
                 {/* Form Container */}

@@ -1,31 +1,38 @@
-import enCommon from "./locales/en/common.json";
-import enHome from "./locales/en/home.json";
-import enLogin from "./locales/en/login.json";
-import enShopManager from "./locales/en/shop-manager.json";
-
-import mlCommon from "./locales/ml/common.json";
-import mlHome from "./locales/ml/home.json";
-import mlLogin from "./locales/ml/login.json";
-import mlShopManager from "./locales/ml/shop-manager.json";
-
 import { Locale, TranslationNamespace } from "./config";
 
-export const translations = {
+const translationModules = {
   en: {
-    common: enCommon,
-    home: enHome,
-    login: enLogin,
-    "shop-manager": enShopManager,
+    common: () => import("./locales/en/common.json").then(m => m.default || m),
+    home: () => import("./locales/en/home.json").then(m => m.default || m),
+    login: () => import("./locales/en/login.json").then(m => m.default || m),
+    "shop-manager": () => import("./locales/en/shop-manager.json").then(m => m.default || m),
   },
   ml: {
-    common: mlCommon,
-    home: mlHome,
-    login: mlLogin,
-    "shop-manager": mlShopManager,
+    common: () => import("./locales/ml/common.json").then(m => m.default || m),
+    home: () => import("./locales/ml/home.json").then(m => m.default || m),
+    login: () => import("./locales/ml/login.json").then(m => m.default || m),
+    "shop-manager": () => import("./locales/ml/shop-manager.json").then(m => m.default || m),
   },
-} as const;
+};
 
-export function getTranslationsForLocale(locale: Locale, namespace: TranslationNamespace) {
-  const dict = (translations[locale] || translations["en"])[namespace];
-  return dict;
+export async function getTranslationsForLocale(locale: Locale, namespace: TranslationNamespace) {
+  const localeModules = translationModules[locale] || translationModules["en"];
+  const module = await localeModules[namespace]();
+  return module;
+}
+
+export async function getDictionary(locale: Locale) {
+  const [common, home, login, shopManager] = await Promise.all([
+    getTranslationsForLocale(locale, "common"),
+    getTranslationsForLocale(locale, "home"),
+    getTranslationsForLocale(locale, "login"),
+    getTranslationsForLocale(locale, "shop-manager"),
+  ]);
+  
+  return {
+    common,
+    home,
+    login,
+    "shop-manager": shopManager,
+  };
 }

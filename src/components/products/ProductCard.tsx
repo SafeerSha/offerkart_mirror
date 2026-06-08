@@ -102,15 +102,13 @@ const ProductCard = ({
                     </button>
                 </div>
 
-                {/* Bottom Hover Action */}
                 <div className={cn(
-                    "absolute bottom-4 left-4 right-4 transition-all duration-500 transform",
-                    isHovered ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
+                    "absolute inset-0 flex items-center justify-center transition-all duration-500",
+                    isHovered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
                 )}>
-                    <button className="w-full py-3 bg-white text-gray-900 rounded-xl font-bold flex items-center justify-center gap-2 shadow-xl">
-                        <ShoppingCart className="w-4 h-4 text-orange-500" />
-                        {t("catalog.quickView")}
-                    </button>
+                    <span className="px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider bg-white/95 text-orange-600 shadow-xl backdrop-blur-md border border-white/20 transform hover:scale-105 transition-transform duration-300">
+                        view details
+                    </span>
                 </div>
             </div>
 
@@ -149,9 +147,6 @@ const ProductCard = ({
                         </span>
                     </div>
 
-                    <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center group-hover:bg-orange-500 group-hover:text-white transition-all duration-300">
-                        <ShoppingCart className="w-5 h-5" />
-                    </div>
                 </div>
             </div>
         </PremiumCard>

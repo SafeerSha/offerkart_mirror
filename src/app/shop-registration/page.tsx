@@ -2,6 +2,7 @@ import ShopRegistrationForm from "@/components/shop-registration/ShopRegistratio
 import Link from "next/link";
 import { Rocket, BarChart3, Gem, Store } from "lucide-react";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
+import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 
 export default function ShopRegistrationPage() {
     return (
@@ -51,10 +52,11 @@ export default function ShopRegistrationPage() {
             {/* Right Panel - Registration Form */}
             <div className="w-full lg:w-3/5 flex flex-col min-h-screen bg-white">
                 {/* Back to Home */}
-                <div className="p-6 lg:p-8">
+                <div className="p-6 lg:p-8 flex items-center justify-between">
                     <Breadcrumbs
                         items={[{ label: "Shop Registration" }]}
                     />
+                    <LanguageSwitcher />
                 </div>
 
                 {/* Form Container */}

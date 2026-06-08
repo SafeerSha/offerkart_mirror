@@ -334,7 +334,7 @@ const Header = () => {
                     <span>Products</span>
                     {pathname.startsWith("/products") && <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />}
                 </Link>
-                
+
                 <div className="h-px bg-primary/10 my-1 opacity-50" />
 
                 <div className={cn(
@@ -354,15 +354,15 @@ const Header = () => {
                         </button>
                     ) : (
                         <>
-                            <Link 
-                                href="/profile" 
+                            <Link
+                                href="/profile"
                                 onClick={() => setMobileMenuOpen(false)}
                                 className={cn(
                                     "px-4 py-3 rounded-xl transition-all duration-300 border flex items-center justify-between",
                                     pathname === "/profile"
                                         ? "bg-orange-500/10 border-orange-500/20 text-orange-500 font-bold shadow-sm"
                                         : "hover:bg-orange-500/5 hover:text-orange-500 border-transparent hover:border-orange-500/20"
-                                    )}
+                                )}
                             >
                                 <div className="flex items-center">
                                     <User className={cn("w-4 h-4 mr-3", pathname === "/profile" ? "text-orange-500" : "text-muted-foreground")} />
@@ -416,7 +416,7 @@ const Header = () => {
                             </button>
                         </>
                     )}
-                    
+
                     {!isRegistered && (
                         <PremiumButton
                             asChild
@@ -455,11 +455,11 @@ const Header = () => {
             <div
                 className={cn(
                     "pointer-events-auto w-full transition-all duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] transform-gpu origin-top",
-                    scrolled 
+                    scrolled
                         ? cn(
-                            "absolute top-0 left-0 right-0 glass-header py-4", 
+                            "absolute top-0 left-0 right-0 glass-header py-4",
                             islandExpanded ? "translate-y-0 scale-100" : "-translate-y-[150%] scale-[0.95] pointer-events-none"
-                        ) 
+                        )
                         : "relative bg-transparent py-4 translate-y-0 scale-100"
                 )}
                 onMouseEnter={() => scrolled && setIslandExpanded(true)}
@@ -509,9 +509,9 @@ const Header = () => {
                                 )}>
                                     <span className="relative z-10">Products</span>
                                 </Link>
-                                 <DropdownMenu modal={false} open={desktopLocationOpen} onOpenChange={(open) => setDesktopLocationOpen(open)}>
+                                <DropdownMenu modal={false} open={desktopLocationOpen} onOpenChange={(open) => setDesktopLocationOpen(open)}>
                                     <DropdownMenuTrigger asChild>
-                                        <button 
+                                        <button
                                             className="relative text-foreground hover:text-primary transition-all font-medium flex items-center gap-2 group border-0 outline-none select-none"
                                         >
                                             <MapPin className="w-4 h-4 text-orange-500 group-hover:scale-110 transition-transform" />
@@ -540,7 +540,7 @@ const Header = () => {
                             <div className="lg:hidden">
                                 <DropdownMenu modal={false} open={mobileLocationOpen} onOpenChange={(open) => setMobileLocationOpen(open)}>
                                     <DropdownMenuTrigger asChild>
-                                        <button 
+                                        <button
                                             className="relative text-foreground hover:text-primary transition-all font-medium flex items-center gap-2 group border-0 outline-none focus:ring-0 focus:ring-offset-0 focus:outline-none select-none"
                                         >
                                             <MapPin className="w-4 h-4 text-orange-500 group-hover:scale-110 transition-transform" />
@@ -592,7 +592,7 @@ const Header = () => {
                                             size="sm"
                                             className={cn(
                                                 "rounded-2xl px-3 sm:px-4 lg:px-6 shadow-lg shadow-primary/20 transition-all duration-300",
-                                                (pathname.startsWith("/shop-manager") || pathname === "/profile") && "ring-2 ring-primary ring-offset-2 scale-105"
+                                                (pathname.startsWith("/shop-manager") || pathname === "/profile") && "ring-2 ring-primary ring-offset-2 scale-95"
                                             )}
                                         >
                                             {user?.business_name ? (
@@ -710,11 +710,11 @@ const Header = () => {
             </div>
 
             {/* Collapsed dynamic island pill (glass) */}
-            <div 
+            <div
                 className={cn(
                     "fixed top-4 left-1/2 -translate-x-1/2 w-[min(520px,calc(100vw-1.5rem))] z-50 transition-all duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] transform-gpu origin-top",
-                    scrolled && !islandExpanded 
-                        ? "translate-y-0 scale-100 pointer-events-auto" 
+                    scrolled && !islandExpanded
+                        ? "translate-y-0 scale-100 pointer-events-auto"
                         : "-translate-y-32 scale-[0.90] pointer-events-none"
                 )}
                 onMouseEnter={() => scrolled && setIslandExpanded(true)}
@@ -732,7 +732,7 @@ const Header = () => {
                                 OfferKart
                             </span>
                         </div>
-                        <div 
+                        <div
                             className="flex justify-center min-w-0 cursor-pointer"
                             onClick={(e) => {
                                 e.preventDefault();

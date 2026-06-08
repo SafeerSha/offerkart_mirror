@@ -15,7 +15,7 @@ vi.mock("next/cache", () => ({
   revalidateTag: revalidateTagMock,
 }));
 
-vi.mock("@/lib/config", () => ({
+vi.mock("@/lib/config.server", () => ({
   config: {
     api: { upstreamBaseUrl: "https://api.example.com" },
     auth: { secret: "test-secret" },
