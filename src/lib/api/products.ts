@@ -10,21 +10,28 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 export function mapUserProductToProduct(item: any): any {
     if (!item) return null;
     const primaryImage = item.imageUrl || item.image || null;
+    const finalOriginalPrice = item.originalPrice !== undefined ? item.originalPrice : (item.price !== undefined ? item.price : 0);
+    const finalOfferPrice = item.offerPrice !== undefined ? item.offerPrice : (item.price !== undefined ? item.price : 0);
+    const finalSavingPercentage = item.savingPercentage !== undefined 
+        ? item.savingPercentage 
+        : (finalOriginalPrice && finalOfferPrice && finalOriginalPrice > finalOfferPrice 
+            ? Math.round(((finalOriginalPrice - finalOfferPrice) / finalOriginalPrice) * 100) 
+            : 0);
+
     return {
         id: item.id,
         name: item.displayName || item.name || "Unnamed Product",
-        shopName: item.shopName || "Store Partner",
-        price: item.offerPrice !== undefined ? item.offerPrice : item.price,
-        originalPrice: item.originalPrice !== undefined ? item.originalPrice : item.price,
+        shopName: item.shop?.shop_name || item.shopName || "Store Partner",
+        price: finalOfferPrice,
+        originalPrice: finalOriginalPrice,
+        savingPercentage: finalSavingPercentage,
         image: primaryImage,
         description: item.displayDescription || item.description || "",
         category: item.category?.name || item.category || String(item.categoryId || 1),
         categoryId: item.categoryId,
         rating: item.rating || 5,
         reviews: item.reviews || 0,
-        discount: item.discount || (item.originalPrice && item.offerPrice && item.originalPrice > item.offerPrice 
-            ? `${Math.round(((item.originalPrice - item.offerPrice) / item.originalPrice) * 100)}% OFF` 
-            : undefined),
+        discount: item.discount || (finalSavingPercentage > 0 ? `${finalSavingPercentage}% OFF` : undefined),
         specifications: [
             { label: "Category", value: item.category?.name || item.category || String(item.categoryId || 1) },
             { label: "Availability", value: "In Stock" }
@@ -65,38 +72,48 @@ export async function getAllProducts(
                     ? (rawData as any).value
                     : [];
 
-            const backendProducts = items.map((item: any) => ({
-                id: item.id,
-                name: item.displayName || item.name,
-                shopName: item.shopName || "Store Partner",
-                price: item.offerPrice || item.price,
-                originalPrice: item.originalPrice,
-                image: item.imageUrl || null,
-                // Use nested category name if available, else fallback to categoryId string
-                category: item.category?.name || String(item.categoryId),
-                categoryId: item.categoryId,
-                // Support both legacy object structures and new api structure {id, parentId, level}
-                parentCategoryId: item.category?.parentId ?? item.category?.categoryId ?? null,
-                subcategoryId: (item.category?.level === 2 ? item.category?.id : item.subcategoryId) ?? null,
-                categoryObject: item.category,
-                description: item.displayDescription || "",
-                specifications: [
-                    { label: "Category", value: item.category?.name || String(item.categoryId) },
-                    { label: "Status", value: item.isHighlighted ? "Featured" : "Standard" },
-                    { label: "Availability", value: "In Stock" }
-                ],
-                images: [item.imageUrl],
-                rating: 5,
-                reviews: 0,
-                // Backend returns offerBranches: [{ branchId, branch: {...} }]
-                branchIds: item.offerBranches?.map((ob: any) => String(ob.branchId)) ?? [],
-                isHighlighted: item.isHighlighted,
-                isActive: item.isActive,
-                status: item.isActive ? "active" : "inactive",
-                currencyId: item.currencyId,
-                validFrom: item.validFrom ?? null,
-                validTo: item.validTo ?? null,
-            }));
+            const backendProducts = items.map((item: any) => {
+                const finalOriginalPrice = item.originalPrice !== undefined ? item.originalPrice : (item.price !== undefined ? item.price : 0);
+                const finalOfferPrice = item.offerPrice !== undefined ? item.offerPrice : (item.price !== undefined ? item.price : 0);
+                const finalSavingPercentage = item.savingPercentage !== undefined 
+                    ? item.savingPercentage 
+                    : (finalOriginalPrice && finalOfferPrice && finalOriginalPrice > finalOfferPrice 
+                        ? Math.round(((finalOriginalPrice - finalOfferPrice) / finalOriginalPrice) * 100) 
+                        : 0);
+                return {
+                    id: item.id,
+                    name: item.displayName || item.name,
+                    shopName: item.shop?.shop_name || item.shopName || "Store Partner",
+                    price: finalOfferPrice,
+                    originalPrice: finalOriginalPrice,
+                    savingPercentage: finalSavingPercentage,
+                    image: item.imageUrl || null,
+                    // Use nested category name if available, else fallback to categoryId string
+                    category: item.category?.name || String(item.categoryId),
+                    categoryId: item.categoryId,
+                    // Support both legacy object structures and new api structure {id, parentId, level}
+                    parentCategoryId: item.category?.parentId ?? item.category?.categoryId ?? null,
+                    subcategoryId: (item.category?.level === 2 ? item.category?.id : item.subcategoryId) ?? null,
+                    categoryObject: item.category,
+                    description: item.displayDescription || "",
+                    specifications: [
+                        { label: "Category", value: item.category?.name || String(item.categoryId) },
+                        { label: "Status", value: item.isHighlighted ? "Featured" : "Standard" },
+                        { label: "Availability", value: "In Stock" }
+                    ],
+                    images: [item.imageUrl],
+                    rating: 5,
+                    reviews: 0,
+                    // Backend returns offerBranches: [{ branchId, branch: {...} }]
+                    branchIds: item.offerBranches?.map((ob: any) => String(ob.branchId)) ?? [],
+                    isHighlighted: item.isHighlighted,
+                    isActive: item.isActive,
+                    status: item.isActive ? "active" : "inactive",
+                    currencyId: item.currencyId,
+                    validFrom: item.validFrom ?? null,
+                    validTo: item.validTo ?? null,
+                };
+            });
             return backendProducts;
         } else if (!backendRes.success) {
             console.warn(`[API] Backend products fetch failed for shopId: ${shopId}. Error: ${backendRes.error}`);
@@ -174,12 +191,20 @@ export async function getProductById(
         if (res.success && res.data) {
             const data = res.data;
             // Map backend payload format back to application Product format
+            const finalOriginalPrice = data.originalPrice !== undefined ? data.originalPrice : (data.price !== undefined ? data.price : 0);
+            const finalOfferPrice = data.offerPrice !== undefined ? data.offerPrice : (data.price !== undefined ? data.price : 0);
+            const finalSavingPercentage = data.savingPercentage !== undefined 
+                ? data.savingPercentage 
+                : (finalOriginalPrice && finalOfferPrice && finalOriginalPrice > finalOfferPrice 
+                    ? Math.round(((finalOriginalPrice - finalOfferPrice) / finalOriginalPrice) * 100) 
+                    : 0);
             return {
                 id: data.id,
                 name: data.displayName,
-                shopName: data.shopName || "Store Partner",
-                price: data.offerPrice,
-                originalPrice: data.originalPrice,
+                shopName: data.shop?.shop_name || data.shopName || "Store Partner",
+                price: finalOfferPrice,
+                originalPrice: finalOriginalPrice,
+                savingPercentage: finalSavingPercentage,
                 image: data.imageUrl,
                 category: data.category?.name || String(data.categoryId),
                 categoryId: data.categoryId,

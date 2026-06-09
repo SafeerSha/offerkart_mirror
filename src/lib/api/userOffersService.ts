@@ -320,7 +320,12 @@ export async function getUserOffersList(query: {
         const res = await fetch(upstreamUrl, { cache: "no-store" });
         if (res.ok) {
             const json = await res.json();
-            if (json && json.success && json.data && json.data.length > 0) {
+            const offersArray = json && json.success && (
+                Array.isArray(json.data) 
+                    ? json.data 
+                    : (json.data && Array.isArray(json.data.data) ? json.data.data : null)
+            );
+            if (offersArray && offersArray.length > 0) {
                 return json;
             }
         }

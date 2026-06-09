@@ -9,6 +9,7 @@ interface Product {
     shopName: string;
     price: number;
     originalPrice?: number;
+    savingPercentage?: number;
     image: string | StaticImageData;
     category: string;
     rating?: number;

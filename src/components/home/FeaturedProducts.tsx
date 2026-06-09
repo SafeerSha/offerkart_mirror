@@ -13,6 +13,7 @@ interface Product {
     shopName: string;
     price: number;
     originalPrice?: number;
+    savingPercentage?: number;
     image: any;
     category: string;
     rating?: number;

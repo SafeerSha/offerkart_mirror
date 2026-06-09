@@ -126,12 +126,12 @@ const FeaturedCarousel = ({ shops }: FeaturedCarouselProps) => {
                         : "opacity-0 scale-90"
                   }`}
               >
-                <div className="relative h-full card-futuristic card-glow group cursor-pointer overflow-hidden">
+                <div className="relative h-full card-futuristic card-glow group cursor-pointer overflow-hidden !bg-white dark:!bg-[#1c2018]">
                   {/* Animated Border */}
                   <div className="absolute inset-0 rounded-2xl border border-primary/20 group-hover:border-primary/40 transition-colors duration-300" />
                   <div className="absolute inset-1 rounded-xl border border-primary/10 group-hover:border-primary/30 transition-colors duration-300" />
 
-                  <div className="absolute inset-0 overflow-hidden rounded-2xl bg-muted/20">
+                  <div className="absolute inset-0 overflow-hidden rounded-2xl bg-white dark:bg-slate-950/40">
                     {offer.image && (
                       <Image
                         src={offer.image}
