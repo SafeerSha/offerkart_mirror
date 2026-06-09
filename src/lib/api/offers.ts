@@ -167,16 +167,23 @@ async function fetchUserOffersPage({
     }
 
     const result = response.data;
-    const mappedOffers = (result.data || []).map(mapUserOfferToOffer);
-    const totalCount = typeof result.count === "number" ? result.count : mappedOffers.length;
+    
+    // Support both wrapped (envelope) and unwrapped api data payloads
+    const apiData = (result && typeof result === "object" && result.data && typeof result.data === "object" && !Array.isArray(result.data))
+        ? result.data
+        : result;
+
+    const offersArray = Array.isArray(apiData.data) ? apiData.data : [];
+    const mappedOffers = offersArray.map(mapUserOfferToOffer);
+    const totalCount = typeof apiData.count === "number" ? apiData.count : mappedOffers.length;
 
     return {
         success: true,
         data: mappedOffers,
-        page: result.page || page,
-        limit: result.limit || limit,
+        page: apiData.page || page,
+        limit: apiData.limit || limit,
         count: totalCount,
-        hasMore: (result.page || page) * (result.limit || limit) < totalCount,
+        hasMore: (apiData.page || page) * (apiData.limit || limit) < totalCount,
     };
 }
 
@@ -389,9 +396,13 @@ export async function getUserOfferById(
     const listingOffer = allOffersResult.data?.find((item) => String(item.id) === String(id) || String(item.offerId) === String(id)) || null;
 
     if (detailData) {
+        // Support both wrapped (envelope) and unwrapped api data payloads
+        const actualDetail = (detailData && typeof detailData === "object" && detailData.data && typeof detailData.data === "object" && !Array.isArray(detailData.data))
+            ? detailData.data
+            : detailData;
         return {
             success: true,
-            data: mapUserOfferDetailToOffer(detailData, listingOffer),
+            data: mapUserOfferDetailToOffer(actualDetail, listingOffer),
         };
     }
 
