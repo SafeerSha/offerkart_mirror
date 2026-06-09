@@ -13,7 +13,7 @@ const PUBLIC_PATHS = new Set([
 ]);
 
 function isPublicPath(pathname: string) {
-    return pathname.startsWith("user/") || PUBLIC_PATHS.has(pathname);
+    return pathname.startsWith("user/") || pathname.startsWith("business/category") || PUBLIC_PATHS.has(pathname);
 }
 
 function extractEntityId(upstreamPath: string) {
