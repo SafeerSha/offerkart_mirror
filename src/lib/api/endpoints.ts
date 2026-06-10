@@ -23,6 +23,7 @@ export const ENDPOINTS = {
     },
     USER_OFFER: {
         BASE: `user/offer`,
+        SHOPS: `user/offer/shops`,
     },
     CATEGORY: {
         BASE: `business/category`,

@@ -379,13 +379,25 @@ export const ProductModal = ({
             }
 
             // 2. Map and format payload for backend specs
+            const priceNum = Number(price);
+            const originalPriceNum = originalPrice ? Number(originalPrice) : priceNum;
+
+            if (originalPrice && priceNum >= originalPriceNum) {
+                toast({
+                    title: "Invalid Price",
+                    description: "Offer price must be less than original price",
+                    variant: "destructive"
+                });
+                return;
+            }
+
             const backendPayload = {
                 displayName: name,
                 displayDescription: description || "",
                 imageUrl: typeof uploadedImageUrl === 'string' ? uploadedImageUrl : "",
                 categoryId: Number(finalCategoryId),
-                originalPrice: originalPrice ? Number(originalPrice) : Number(price),
-                offerPrice: Number(price),
+                originalPrice: originalPriceNum,
+                offerPrice: priceNum,
                 currencyId: 1, // Hardcoded standard
                 branchIds: selectedBranchIds.map(id => Number(id)),
                 isActive: status === "active", // Map status conditionally 
@@ -414,295 +426,295 @@ export const ProductModal = ({
 
     return (
         <>
-        <AppModal
-            open={open}
-            onOpenChange={handleOpenChange}
-            title={isEditMode ? "Edit Product" : "Add New Product"}
-            description={isEditMode ? "Modify your product information." : "Create a new product listing for your shop catalog."}
-            className="sm:max-w-xl max-h-[90dvh] overflow-hidden px-4 pb-1 rounded-[32px] sm:rounded-3xl"
-        >
-            <form onSubmit={handleFormSubmit} className="flex flex-col h-full font-sans">
-                {/* Scrollable body with exact overflow control and gradient fade cues */}
-                <div className="relative flex-1 min-h-0">
-                    <div className="overflow-y-auto max-h-[50dvh] px-1 pt-1 pr-2 pb-4 space-y-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                        {/* Top row: Name & Square Image picker */}
-                        <div className="flex gap-2 items-start">
+            <AppModal
+                open={open}
+                onOpenChange={handleOpenChange}
+                title={isEditMode ? "Edit Product" : "Add New Product"}
+                description={isEditMode ? "Modify your product information." : "Create a new product listing for your shop catalog."}
+                className="sm:max-w-xl max-h-[90dvh] overflow-hidden px-4 pb-1 rounded-[32px] sm:rounded-3xl"
+            >
+                <form onSubmit={handleFormSubmit} className="flex flex-col h-full font-sans">
+                    {/* Scrollable body with exact overflow control and gradient fade cues */}
+                    <div className="relative flex-1 min-h-0">
+                        <div className="overflow-y-auto max-h-[50dvh] px-1 pt-1 pr-2 pb-4 space-y-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                            {/* Top row: Name & Square Image picker */}
+                            <div className="flex gap-2 items-start">
 
-                            <div className="shrink-0 flex flex-col items-center">
-                                <label className="text-sm font-semibold text-gray-700 leading-tight block w-full text-center">Image *</label>
-                                <div className="relative w-[52px] h-[52px] bg-gray-50/50 border border-solid border-primary/20 rounded-xl overflow-hidden flex items-center justify-center group hover:border-primary/40 transition-all cursor-pointer">
-                                    {isUploadingImage ? (
-                                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 backdrop-blur-[1px]">
-                                            <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                                            <span className="text-[8px] font-bold mt-1 text-primary">Uploading</span>
-                                        </div>
-                                    ) : image ? (
-                                        <>
-                                            <Image src={image} alt="Product preview" fill unoptimized className="object-cover" />
-                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => { e.stopPropagation(); document.getElementById("product-image-upload")?.click(); }}
-                                                    className="p-1 rounded-full bg-white/90 hover:bg-white text-primary transition-all hover:scale-105"
-                                                    title="Change image"
-                                                >
-                                                    <ImageIcon className="w-3.5 h-3.5" />
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setImage(null);
-                                                        setRawFile(null);
-                                                        setIsDirty(true);
-                                                    }}
-                                                    className="p-1 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-500 transition-all hover:scale-105"
-                                                    title="Remove image"
-                                                >
-                                                    <X className="w-3.5 h-3.5" />
-                                                </button>
+                                <div className="shrink-0 flex flex-col items-center">
+                                    <label className="text-sm font-semibold text-gray-700 leading-tight block w-full text-center">Image *</label>
+                                    <div className="relative w-[52px] h-[52px] bg-gray-50/50 border border-solid border-primary/20 rounded-xl overflow-hidden flex items-center justify-center group hover:border-primary/40 transition-all cursor-pointer">
+                                        {isUploadingImage ? (
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 backdrop-blur-[1px]">
+                                                <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                                                <span className="text-[8px] font-bold mt-1 text-primary">Uploading</span>
                                             </div>
-                                        </>
-                                    ) : (
-                                        <button
-                                            type="button"
-                                            onClick={() => document.getElementById("product-image-upload")?.click()}
-                                            className="absolute inset-0 flex flex-col items-center justify-center text-primary/40 hover:text-primary transition-colors gap-1 bg-white/50 backdrop-blur-sm"
-                                        >
-                                            <Plus className="w-4 h-4" />
-                                            <span className="text-[9px] font-bold leading-none">Add</span>
-                                        </button>
-                                    )}
-                                    <input
-                                        id="product-image-upload"
-                                        type="file"
-                                        accept="image/*"
-                                        className="hidden"
-                                        onChange={handleFileChange}
+                                        ) : image ? (
+                                            <>
+                                                <Image src={image} alt="Product preview" fill unoptimized className="object-cover" />
+                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => { e.stopPropagation(); document.getElementById("product-image-upload")?.click(); }}
+                                                        className="p-1 rounded-full bg-white/90 hover:bg-white text-primary transition-all hover:scale-105"
+                                                        title="Change image"
+                                                    >
+                                                        <ImageIcon className="w-3.5 h-3.5" />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setImage(null);
+                                                            setRawFile(null);
+                                                            setIsDirty(true);
+                                                        }}
+                                                        className="p-1 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-500 transition-all hover:scale-105"
+                                                        title="Remove image"
+                                                    >
+                                                        <X className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                onClick={() => document.getElementById("product-image-upload")?.click()}
+                                                className="absolute inset-0 flex flex-col items-center justify-center text-primary/40 hover:text-primary transition-colors gap-1 bg-white/50 backdrop-blur-sm"
+                                            >
+                                                <Plus className="w-4 h-4" />
+                                                <span className="text-[9px] font-bold leading-none">Add</span>
+                                            </button>
+                                        )}
+                                        <input
+                                            id="product-image-upload"
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={handleFileChange}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex-1">
+                                    <PremiumInput
+                                        label="Product Name *"
+                                        placeholder="Premium Cotton T-Shirt"
+                                        icon={Package}
+                                        value={name}
+                                        onChange={(e) => { setName(e.target.value); setIsDirty(true); }}
+                                        required
                                     />
                                 </div>
                             </div>
-                            <div className="flex-1">
+
+                            {/* Existing category layout */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-semibold text-gray-700 ml-1">Main Category *</label>
+                                    <SearchableSelect
+                                        options={mainCategories}
+                                        value={category}
+                                        onChange={(val) => {
+                                            setCategory(val);
+                                            setSubcategory("");
+                                            setIsDirty(true);
+                                        }}
+                                        placeholder="Select Category"
+                                        isLoading={isCategoriesLoading}
+                                        allowCustom={false}
+                                    />
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-sm font-semibold text-gray-700 ml-1">Sub Category *</label>
+                                    <SearchableSelect
+                                        options={dynamicSubcategories.map((sub: any) => sub.name)}
+                                        value={subcategory}
+                                        onChange={(val) => { setSubcategory(val); setIsDirty(true); }}
+                                        placeholder={isLoadingSubcategories ? "Loading..." : "Select Subcategory"}
+                                        disabled={!category || isLoadingSubcategories}
+                                        isLoading={isLoadingSubcategories}
+                                        allowCustom={false}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
                                 <PremiumInput
-                                    label="Product Name *"
-                                    placeholder="Premium Cotton T-Shirt"
-                                    icon={Package}
-                                    value={name}
-                                    onChange={(e) => { setName(e.target.value); setIsDirty(true); }}
+                                    label="Offer Price (₹) *"
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="499"
+                                    icon={IndianRupee}
+                                    value={price}
+                                    onChange={(e) => { setPrice(e.target.value); setIsDirty(true); }}
                                     required
                                 />
-                            </div>
-                        </div>
 
-                        {/* Existing category layout */}
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1.5">
-                                <label className="text-sm font-semibold text-gray-700 ml-1">Main Category *</label>
-                                <SearchableSelect
-                                    options={mainCategories}
-                                    value={category}
-                                    onChange={(val) => {
-                                        setCategory(val);
-                                        setSubcategory("");
-                                        setIsDirty(true);
-                                    }}
-                                    placeholder="Select Category"
-                                    isLoading={isCategoriesLoading}
-                                    allowCustom={false}
+                                <PremiumInput
+                                    label="Price (₹)"
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="799"
+                                    icon={IndianRupee}
+                                    value={originalPrice}
+                                    onChange={(e) => { setOriginalPrice(e.target.value); setIsDirty(true); }}
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <PremiumDatePicker
+                                    label="Start Date *"
+                                    date={validFrom}
+                                    setDate={(date) => { setValidFrom(date); setIsDirty(true); }}
+                                    placeholder="Valid from"
+                                    minDate={new Date()}
+                                />
+                                <PremiumDatePicker
+                                    label="End Date *"
+                                    date={validTo}
+                                    setDate={(date) => { setValidTo(date); setIsDirty(true); }}
+                                    placeholder="Valid to"
+                                    minDate={validFrom || new Date()}
                                 />
                             </div>
 
                             <div className="space-y-1.5">
-                                <label className="text-sm font-semibold text-gray-700 ml-1">Sub Category *</label>
-                                <SearchableSelect
-                                    options={dynamicSubcategories.map((sub: any) => sub.name)}
-                                    value={subcategory}
-                                    onChange={(val) => { setSubcategory(val); setIsDirty(true); }}
-                                    placeholder={isLoadingSubcategories ? "Loading..." : "Select Subcategory"}
-                                    disabled={!category || isLoadingSubcategories}
-                                    isLoading={isLoadingSubcategories}
-                                    allowCustom={false}
+                                <label className="text-sm font-semibold text-gray-700 ml-1">Applicable Branches *</label>
+                                <MultiSearchableSelect
+                                    options={branchOptions}
+                                    selectedValues={selectedBranchIds}
+                                    onChange={(val) => { setSelectedBranchIds(val); setIsDirty(true); }}
+                                    placeholder="Select branches..."
+                                    isLoading={isBranchesLoading}
+                                    emptyAction={
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                const shopId = resolvedShopId || sessionShopId;
+                                                if (shopId) {
+                                                    window.open(`/shop-manager/${shopId}/add-branch`, "_blank");
+                                                } else {
+                                                    window.open(`/shop-manager`, "_blank");
+                                                }
+                                            }}
+                                            className="text-xs font-bold text-orange-600 hover:underline mt-0.5 cursor-pointer block"
+                                        >
+                                            Add Branch +
+                                        </button>
+                                    }
                                 />
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <PremiumInput
-                                label="Price (₹) *"
-                                type="number"
-                                step="0.01"
-                                placeholder="499"
-                                icon={IndianRupee}
-                                value={price}
-                                onChange={(e) => { setPrice(e.target.value); setIsDirty(true); }}
-                                required
-                            />
-
-                            <PremiumInput
-                                label="Original Price (₹)"
-                                type="number"
-                                step="0.01"
-                                placeholder="799"
-                                icon={IndianRupee}
-                                value={originalPrice}
-                                onChange={(e) => { setOriginalPrice(e.target.value); setIsDirty(true); }}
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <PremiumDatePicker
-                                label="Start Date *"
-                                date={validFrom}
-                                setDate={(date) => { setValidFrom(date); setIsDirty(true); }}
-                                placeholder="Valid from"
-                                minDate={new Date()}
-                            />
-                            <PremiumDatePicker
-                                label="End Date *"
-                                date={validTo}
-                                setDate={(date) => { setValidTo(date); setIsDirty(true); }}
-                                placeholder="Valid to"
-                                minDate={validFrom || new Date()}
-                            />
-                        </div>
-
-                        <div className="space-y-1.5">
-                            <label className="text-sm font-semibold text-gray-700 ml-1">Applicable Branches *</label>
-                            <MultiSearchableSelect
-                                options={branchOptions}
-                                selectedValues={selectedBranchIds}
-                                onChange={(val) => { setSelectedBranchIds(val); setIsDirty(true); }}
-                                placeholder="Select branches..."
-                                isLoading={isBranchesLoading}
-                                emptyAction={
-                                    <button
-                                        type="button"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            const shopId = resolvedShopId || sessionShopId;
-                                            if (shopId) {
-                                                window.open(`/shop-manager/${shopId}/add-branch`, "_blank");
-                                            } else {
-                                                window.open(`/shop-manager`, "_blank");
-                                            }
-                                        }}
-                                        className="text-xs font-bold text-orange-600 hover:underline mt-0.5 cursor-pointer block"
-                                    >
-                                        Add Branch +
-                                    </button>
-                                }
-                            />
-                            {branches.length === 0 && !isBranchesLoading && (
-                                <div className="flex items-center justify-between p-3 mt-1.5 rounded-xl border border-dashed border-orange-500/20 bg-orange-500/5 text-[11px] text-gray-600 animate-in fade-in duration-200">
-                                    <div className="flex items-center gap-1.5 font-medium">
-                                        <AlertTriangle className="w-3.5 h-3.5 text-orange-500 shrink-0" />
-                                        <span>No branches available. You must add a branch first.</span>
+                                {branches.length === 0 && !isBranchesLoading && (
+                                    <div className="flex items-center justify-between p-3 mt-1.5 rounded-xl border border-dashed border-orange-500/20 bg-orange-500/5 text-[11px] text-gray-600 animate-in fade-in duration-200">
+                                        <div className="flex items-center gap-1.5 font-medium">
+                                            <AlertTriangle className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+                                            <span>No branches available. You must add a branch first.</span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const shopId = resolvedShopId || sessionShopId;
+                                                if (shopId) {
+                                                    window.open(`/shop-manager/${shopId}/add-branch`, "_blank");
+                                                } else {
+                                                    window.open(`/shop-manager`, "_blank");
+                                                }
+                                            }}
+                                            className="text-orange-600 font-bold hover:underline shrink-0 ml-2 cursor-pointer"
+                                        >
+                                            Add Branch +
+                                        </button>
                                     </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            const shopId = resolvedShopId || sessionShopId;
-                                            if (shopId) {
-                                                window.open(`/shop-manager/${shopId}/add-branch`, "_blank");
-                                            } else {
-                                                window.open(`/shop-manager`, "_blank");
-                                            }
-                                        }}
-                                        className="text-orange-600 font-bold hover:underline shrink-0 ml-2 cursor-pointer"
-                                    >
-                                        Add Branch +
-                                    </button>
-                                </div>
-                            )}
+                                )}
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-semibold text-gray-700 ml-1">Product Description</label>
+                                <textarea
+                                    className="w-full px-3 py-2 bg-background/40 border border-primary/10 focus:border-primary/50 focus:ring-1 focus:ring-primary/20 focus:outline-none transition-all rounded-xl text-sm min-h-[70px] bg-white/50 backdrop-blur-sm"
+                                    placeholder="Add clear product features, size, and details."
+                                    value={description}
+                                    onChange={(e) => { setDescription(e.target.value); setIsDirty(true); }}
+                                />
+                            </div>
                         </div>
 
-                        <div className="space-y-1.5">
-                            <label className="text-sm font-semibold text-gray-700 ml-1">Product Description</label>
-                            <textarea
-                                className="w-full px-3 py-2 bg-background/40 border border-primary/10 focus:border-primary/50 focus:ring-1 focus:ring-primary/20 focus:outline-none transition-all rounded-xl text-sm min-h-[70px] bg-white/50 backdrop-blur-sm"
-                                placeholder="Add clear product features, size, and details."
-                                value={description}
-                                onChange={(e) => { setDescription(e.target.value); setIsDirty(true); }}
-                            />
-                        </div>
+                        {/* Bottom fade indicator cue */}
+                        <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-white via-white/80 to-transparent pointer-events-none z-10" />
                     </div>
 
-                    {/* Bottom fade indicator cue */}
-                    <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-white via-white/80 to-transparent pointer-events-none z-10" />
-                </div>
-
-                {/* Fixed Footer with the status toggle button at the left end */}
-                <div className="flex items-center justify-between pt-3 mt-3 border-t border-primary/5 bg-white shrink-0">
-                    <div className="flex items-center gap-2">
-                        <div className="flex items-center h-8 bg-white/50 backdrop-blur-sm rounded-xl">
-                            <StatusToggleButton
-                                status={status === "active" ? "active" : "paused"}
-                                onChange={(s) => { setStatus(s === "active" ? "active" : "inactive"); setIsDirty(true); }}
-                            />
+                    {/* Fixed Footer with the status toggle button at the left end */}
+                    <div className="flex items-center justify-between pt-3 mt-3 border-t border-primary/5 bg-white shrink-0">
+                        <div className="flex items-center gap-2">
+                            <div className="flex items-center h-8 bg-white/50 backdrop-blur-sm rounded-xl">
+                                <StatusToggleButton
+                                    status={status === "active" ? "active" : "paused"}
+                                    onChange={(s) => { setStatus(s === "active" ? "active" : "inactive"); setIsDirty(true); }}
+                                />
+                            </div>
+                            <span className={status === "active" ? "text-emerald-500 font-bold text-xs" : "text-gray-400 font-bold text-xs"}>
+                                {status === "active" ? "Active" : "Inactive"}
+                            </span>
                         </div>
-                        <span className={status === "active" ? "text-emerald-500 font-bold text-xs" : "text-gray-400 font-bold text-xs"}>
-                            {status === "active" ? "Active" : "Inactive"}
-                        </span>
-                    </div>
 
-                    <div className="flex gap-2">
+                        <div className="flex gap-2">
+                            <PremiumButton
+                                type="button"
+                                variant="outline"
+                                onClick={() => handleOpenChange(false)}
+                                className="rounded-xl px-4 h-9 text-xs"
+                                disabled={isSubmitting}
+                            >
+                                Cancel
+                            </PremiumButton>
+                            <PremiumButton
+                                type="submit"
+                                className="rounded-xl px-5 h-9 text-xs min-w-[110px]"
+                                isLoading={isSubmitting}
+                                disabled={isUploadingImage}
+                            >
+                                {isEditMode ? "Save Changes" : "Create Product"}
+                            </PremiumButton>
+                        </div>
+                    </div>
+                </form>
+            </AppModal>
+
+            {/* DISCARD CONFIRMATION MODAL */}
+            <AppModal
+                open={showConfirmDiscard}
+                onOpenChange={setShowConfirmDiscard}
+                title="Discard Unsaved Changes?"
+                description="You have made edits to this product. Are you sure you want to discard them? This action cannot be undone."
+                className="sm:max-w-md p-6 rounded-[28px] sm:rounded-2xl"
+            >
+                <div className="flex flex-col gap-4 mt-2">
+                    <div className="flex justify-end gap-3">
                         <PremiumButton
                             type="button"
                             variant="outline"
-                            onClick={() => handleOpenChange(false)}
-                            className="rounded-xl px-4 h-9 text-xs"
-                            disabled={isSubmitting}
+                            onClick={() => setShowConfirmDiscard(false)}
+                            className="rounded-xl px-4 h-9 text-xs cursor-pointer font-bold"
+                            glow={false}
                         >
-                            Cancel
+                            Keep Editing
                         </PremiumButton>
                         <PremiumButton
-                            type="submit"
-                            className="rounded-xl px-5 h-9 text-xs min-w-[110px]"
-                            isLoading={isSubmitting}
-                            disabled={isUploadingImage}
+                            type="button"
+                            variant="destructive"
+                            onClick={() => {
+                                setShowConfirmDiscard(false);
+                                setIsDirty(false);
+                                onOpenChange(false);
+                            }}
+                            className="rounded-xl px-4 h-9 text-xs cursor-pointer font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-600/20"
+                            glow={false}
                         >
-                            {isEditMode ? "Save Changes" : "Create Product"}
+                            Discard Changes
                         </PremiumButton>
                     </div>
                 </div>
-            </form>
-        </AppModal>
-
-        {/* DISCARD CONFIRMATION MODAL */}
-        <AppModal
-            open={showConfirmDiscard}
-            onOpenChange={setShowConfirmDiscard}
-            title="Discard Unsaved Changes?"
-            description="You have made edits to this product. Are you sure you want to discard them? This action cannot be undone."
-            className="sm:max-w-md p-6 rounded-[28px] sm:rounded-2xl"
-        >
-            <div className="flex flex-col gap-4 mt-2">
-                <div className="flex justify-end gap-3">
-                    <PremiumButton
-                        type="button"
-                        variant="outline"
-                        onClick={() => setShowConfirmDiscard(false)}
-                        className="rounded-xl px-4 h-9 text-xs cursor-pointer font-bold"
-                        glow={false}
-                    >
-                        Keep Editing
-                    </PremiumButton>
-                    <PremiumButton
-                        type="button"
-                        variant="destructive"
-                        onClick={() => {
-                            setShowConfirmDiscard(false);
-                            setIsDirty(false);
-                            onOpenChange(false);
-                        }}
-                        className="rounded-xl px-4 h-9 text-xs cursor-pointer font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-600/20"
-                        glow={false}
-                    >
-                        Discard Changes
-                    </PremiumButton>
-                </div>
-            </div>
-        </AppModal>
+            </AppModal>
         </>
     );
 };

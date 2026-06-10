@@ -5,6 +5,7 @@ import Image, { StaticImageData } from "next/image";
 import { ChevronLeft, ChevronRight, Star, Zap, Rocket } from "lucide-react";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { Heading, Subheading, Text } from "@/components/shared/Typography";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface FeaturedShop {
   id: number;
@@ -20,6 +21,7 @@ interface FeaturedCarouselProps {
 }
 
 const FeaturedCarousel = ({ shops }: FeaturedCarouselProps) => {
+  const { t } = useTranslation("home");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
 
@@ -63,9 +65,9 @@ const FeaturedCarousel = ({ shops }: FeaturedCarouselProps) => {
             </div>
             <div>
               <Subheading className="text-3xl font-bold mb-0">
-                Featured Offers
+                {t("featuredOffers.title")}
               </Subheading>
-              <Text className="text-sm mt-1">Handpicked premium offers just for you</Text>
+              <Text className="text-sm mt-1">{t("featuredOffers.subtitle")}</Text>
             </div>
           </div>
 
@@ -132,15 +134,13 @@ const FeaturedCarousel = ({ shops }: FeaturedCarouselProps) => {
                   <div className="absolute inset-1 rounded-xl border border-primary/10 group-hover:border-primary/30 transition-colors duration-300" />
 
                   <div className="absolute inset-0 overflow-hidden rounded-2xl bg-white dark:bg-slate-950/40">
-                    {offer.image && (
-                      <Image
-                        src={offer.image}
-                        alt={offer.name}
-                        fill
-                        unoptimized
-                        className="object-cover transition-transform duration-700 group-hover:scale-110"
-                      />
-                    )}
+                    <Image
+                      src={offer.image || "/images/shop-registration-bg-light.png"}
+                      alt={offer.name}
+                      fill
+                      unoptimized
+                      className="object-cover transition-transform duration-700 group-hover:scale-110"
+                    />
                     <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 via-foreground/20 to-transparent group-hover:from-foreground/60" />
 
                     {/* Floating Particles Effect */}

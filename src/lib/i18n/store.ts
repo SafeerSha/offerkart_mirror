@@ -1,6 +1,6 @@
 import { Locale, TranslationNamespace } from "./config";
 
-const translationModules = {
+const translationModules: Record<Locale, Record<TranslationNamespace, () => Promise<any>>> = {
   en: {
     common: () => import("./locales/en/common.json").then(m => m.default || m),
     home: () => import("./locales/en/home.json").then(m => m.default || m),
@@ -12,6 +12,12 @@ const translationModules = {
     home: () => import("./locales/ml/home.json").then(m => m.default || m),
     login: () => import("./locales/ml/login.json").then(m => m.default || m),
     "shop-manager": () => import("./locales/ml/shop-manager.json").then(m => m.default || m),
+  },
+  hi: {
+    common: () => import("./locales/hi/common.json").then(m => m.default || m),
+    home: () => import("./locales/hi/home.json").then(m => m.default || m),
+    login: () => import("./locales/hi/login.json").then(m => m.default || m),
+    "shop-manager": () => import("./locales/hi/shop-manager.json").then(m => m.default || m),
   },
 };
 

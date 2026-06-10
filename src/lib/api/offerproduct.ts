@@ -47,6 +47,9 @@ export async function getOfferProductById(id: string): Promise<ApiResponse<any>>
  * @returns Promise<ApiResponse<any>>
  */
 export async function updateOfferProduct(id: string, payload: OfferProductPayload, shopId?: string): Promise<ApiResponse<any>> {
+    if (payload.offerPrice >= payload.originalPrice && payload.originalPrice > 0) {
+        return { success: false, error: "Offer price must be less than original price" };
+    }
     return backend.put<any>(ENDPOINTS.OFFER_PRODUCT.DETAILS(id), payload, {
         headers: shopId ? { shopId } : {}
     });

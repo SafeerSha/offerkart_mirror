@@ -2,10 +2,12 @@
 
 import React, { createContext, useEffect, useState } from "react";
 import { Locale, defaultLocale, TranslationNamespace } from "@/lib/i18n/config";
+import Cookies from "js-cookie";
 
 interface LanguageContextType {
   locale: Locale;
   t: (key: string, namespace?: TranslationNamespace) => string;
+  changeLocale: (newLocale: Locale) => Promise<void>;
 }
 
 const globalForI18n = globalThis as unknown as {
@@ -36,7 +38,7 @@ export function LanguageProvider({
     // Read locale from cookie on the client side
     const cookieMatch = document.cookie.match(/(^|;)\s*locale\s*=\s*([^;]+)/);
     const cookieLocale = cookieMatch ? cookieMatch[2] : null;
-    const activeLocale = (cookieLocale === "en" || cookieLocale === "ml") ? (cookieLocale as Locale) : defaultLocale;
+    const activeLocale = (cookieLocale === "en" || cookieLocale === "ml" || cookieLocale === "hi") ? (cookieLocale as Locale) : defaultLocale;
     
     if (activeLocale !== locale) {
       // Dynamically load the dictionary for the active locale
@@ -77,8 +79,32 @@ export function LanguageProvider({
     return typeof current === "string" ? current : key;
   };
 
+  const changeLocale = async (newLocale: Locale) => {
+    Cookies.set("locale", newLocale, { expires: 365, path: "/" });
+    
+    try {
+      const [common, home, login, shopManager] = await Promise.all([
+        import(`@/lib/i18n/locales/${newLocale}/common.json`).then(m => m.default || m),
+        import(`@/lib/i18n/locales/${newLocale}/home.json`).then(m => m.default || m),
+        import(`@/lib/i18n/locales/${newLocale}/login.json`).then(m => m.default || m),
+        import(`@/lib/i18n/locales/${newLocale}/shop-manager.json`).then(m => m.default || m),
+      ]);
+      
+      setDictionary({
+        common,
+        home,
+        login,
+        "shop-manager": shopManager,
+      });
+      setLocale(newLocale);
+    } catch (err) {
+      console.error("Failed to load dictionary for locale:", newLocale, err);
+      setLocale(newLocale);
+    }
+  };
+
   return (
-    <LanguageContext.Provider value={{ locale, t }}>
+    <LanguageContext.Provider value={{ locale, t, changeLocale }}>
       {children}
     </LanguageContext.Provider>
   );

@@ -483,6 +483,14 @@ function HotspotEditorContent() {
         if (!currentMarkedItem) return;
         const finalSubcategoryId = formData.subcategoryId || undefined;
 
+        const oldPriceNum = parseFloat(formData.oldPrice) || 0;
+        const offerPriceNum = parseFloat(formData.offerPrice) || 0;
+
+        if (offerPriceNum >= oldPriceNum && oldPriceNum > 0) {
+            toast.error("Offer price must be less than original price");
+            return;
+        }
+
         const updatedItem: MarkedItemType = {
             ...currentMarkedItem,
             name: formData.name,
@@ -491,8 +499,8 @@ function HotspotEditorContent() {
             subcategoryId: finalSubcategoryId,
             description: formData.description,
             productImage: formData.productImage,
-            oldPrice: parseFloat(formData.oldPrice) || 0,
-            offerPrice: parseFloat(formData.offerPrice) || 0
+            oldPrice: oldPriceNum,
+            offerPrice: offerPriceNum
         };
 
         setPosterData(prev => ({

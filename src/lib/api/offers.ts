@@ -238,6 +238,24 @@ export async function getFeaturedShops() {
 
 export async function getFeaturedOffers() {
     try {
+        const response = await backend.get<any>(ENDPOINTS.USER_OFFER.SHOPS, {
+            next: { tags: [CACHE_TAGS.SHOPS] }
+        });
+        if (response && response.success && Array.isArray(response.data)) {
+            return {
+                success: true,
+                data: response.data.map((shop: any) => ({
+                    id: shop.id,
+                    name: shop.shop_name,
+                    logo: shop.logo_url || null
+                }))
+            };
+        }
+    } catch (e) {
+        console.error("Failed to fetch shops from API:", e);
+    }
+
+    try {
         const result = await fetchUserOffersPage({ page: 1, limit: 100 });
         if (result.success && result.data) {
             const offersMap = new Map();
@@ -256,7 +274,7 @@ export async function getFeaturedOffers() {
             };
         }
     } catch (e) {
-        console.error("Failed to fetch featured offers:", e);
+        console.error("Failed to fetch featured offers fallback:", e);
     }
     return {
         success: true,

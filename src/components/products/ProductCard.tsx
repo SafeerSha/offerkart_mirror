@@ -7,6 +7,7 @@ import { ShoppingCart, Star, Heart, Tag, IndianRupee, ShoppingBag, ArrowRight } 
 import { PremiumCard } from "@/components/shared/PremiumCard";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
 
 interface ProductCardProps {
     id: number;
@@ -37,8 +38,12 @@ const ProductCard = ({
 }: ProductCardProps) => {
     const { t } = useTranslation("common");
     const router = useRouter();
+    const { resolveHierarchyById } = useCategoryHierarchy();
     const [isHovered, setIsHovered] = useState(false);
     const [isFavorite, setIsFavorite] = useState(false);
+
+    const resolvedCategory = resolveHierarchyById(category);
+    const displayCategoryName = resolvedCategory.sub || resolvedCategory.main || category;
 
     // Calculate display saving percentage if not explicitly provided
     const displaySaving = savingPercentage !== undefined
@@ -51,7 +56,7 @@ const ProductCard = ({
         <PremiumCard
             variant="premium"
             padding="none"
-            className="group cursor-pointer h-full flex flex-col border border-slate-100 dark:border-slate-800/80 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.02)] dark:shadow-none hover:shadow-[0_20px_40px_rgba(249,115,22,0.08)] hover:border-orange-500/20 hover:-translate-y-1 transition-all duration-500 rounded-[2rem] !bg-white dark:!bg-[#1c2018]"
+            className="group cursor-pointer h-full flex flex-col border border-slate-100 dark:border-slate-800/80 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.02)] dark:shadow-none hover:shadow-[0_20px_40px_rgba(249,115,22,0.08)] hover:border-orange-500/20 hover:-translate-y-1 transition-all duration-500  rounded-t-xl rounded-b-3xl !bg-white dark:!bg-[#1c2018]"
             onClick={() => router.push(`/product/${id}`)}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
@@ -64,10 +69,7 @@ const ProductCard = ({
                         alt={name}
                         fill
                         unoptimized
-                        className={cn(
-                            "object-cover transition-all duration-700 ease-out",
-                            isHovered ? "scale-105 rotate-1" : "scale-100"
-                        )}
+                        className="object-cover"
                     />
                 ) : (
                     <div className="absolute inset-0 flex items-center justify-center bg-slate-50 dark:bg-slate-900/20">
@@ -116,7 +118,7 @@ const ProductCard = ({
                 {/* Category tag */}
                 <div className="absolute bottom-4 left-4 pointer-events-none z-10">
                     <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-slate-950/45 backdrop-blur-md text-white border border-white/10">
-                        {category}
+                        {displayCategoryName}
                     </span>
                 </div>
 
@@ -132,7 +134,7 @@ const ProductCard = ({
             </div>
 
             {/* Content Info */}
-            <div className="p-5 flex-1 flex flex-col bg-white dark:bg-[#1c2018] rounded-b-[2rem]">
+            <div className="px-3 pb-2 pt-3 flex-1 flex flex-col bg-white dark:bg-[#1c2018] rounded-b-[2rem]">
                 <div>
                     {/* Shop details */}
                     <div className="flex items-center gap-1.5 mb-2">
@@ -154,7 +156,7 @@ const ProductCard = ({
                 <div className="flex items-center justify-between mt-auto pt-1 border-t border-slate-100/60 dark:border-slate-800/40">
                     <div className="flex flex-col">
                         <div className="flex items-baseline gap-1.5">
-                            <span className="text-xl font-black text-slate-950 dark:text-white tracking-tight">
+                            <span className="text-lg font-black text-slate-950 dark:text-white tracking-tight">
                                 ₹{price}
                             </span>
                             {originalPrice && originalPrice > price && (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Filter, Tag, TrendingUp, X, ChevronDown } from "lucide-react";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { PremiumCard } from "@/components/shared/PremiumCard";
@@ -50,6 +51,7 @@ const FilterPanel = ({
   variant = "inline",
   className
 }: FilterPanelProps) => {
+  const router = useRouter();
   const { t } = useTranslation("common");
   const { mainCategories, categoryHierarchy, getCategoryId } = useCategoryHierarchy();
   const categories = ["All", ...mainCategories];
@@ -84,6 +86,7 @@ const FilterPanel = ({
     } else {
       _setInternalCategory(val);
       _setInternalSubcategory([]);
+      router.push(`/offers?category=${val}`);
     }
     onFilterChange?.({ category: val, subcategory: [], sort: sort });
   };
@@ -102,6 +105,10 @@ const FilterPanel = ({
       onSubcategoryChange(next);
     } else {
       _setInternalSubcategory(next);
+      const params = new URLSearchParams();
+      params.set("category", category);
+      next.forEach(sub => params.append("subcategory", sub));
+      router.push(`/offers?${params.toString()}`);
     }
     onFilterChange?.({ category, subcategory: next, sort });
   };
@@ -272,7 +279,8 @@ const FilterPanel = ({
             </div>
           </div>
           {showFilters && (
-            <div className="mt-4 pt-4 border-t border-border/50 animate-in fade-in zoom-in-95 duration-200">
+            <div className="mt-4 pt-4 border-t border-border/50 animate-in fade-in zoom-in-95 duration-200 space-y-4">
+              {/* Main Categories Row */}
               <div className="flex flex-wrap gap-2">
                 {categories.map((cat) => (
                   <button
@@ -287,6 +295,52 @@ const FilterPanel = ({
                   </button>
                 ))}
               </div>
+
+              {/* Subcategories Sliding Row (Option A) */}
+              {category !== "All" && (dynamicSubcategories.length > 0 || isLoadingSubcategories) && (
+                <div className="animate-in slide-in-from-top-2 fade-in duration-300">
+                  <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide px-1 snap-x snap-mandatory">
+                    {/* All Subcategories Button */}
+                    <button
+                      onClick={() => handleSubcategoryChange("All")}
+                      className={cn(
+                        "px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer flex-shrink-0 snap-align-start",
+                        subcategory.length === 0
+                          ? "bg-orange-500/10 text-orange-600 border-orange-500/30 dark:bg-orange-500/20 dark:text-orange-400"
+                          : "bg-white text-gray-500 border-gray-100 hover:bg-gray-50 hover:text-gray-900 dark:bg-slate-900 dark:border-slate-800"
+                      )}
+                    >
+                      All {category}
+                    </button>
+
+                    {/* Loading indicator */}
+                    {isLoadingSubcategories ? (
+                      <div className="flex items-center text-xs text-gray-400 gap-1 pl-2 animate-pulse">
+                        <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-ping" />
+                        <span>Loading subcategories...</span>
+                      </div>
+                    ) : (
+                      dynamicSubcategories.map((sub: any) => {
+                        const isSubActive = subcategory.includes(sub.name);
+                        return (
+                          <button
+                            key={sub.id}
+                            onClick={() => handleSubcategoryChange(sub.name)}
+                            className={cn(
+                              "px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer flex-shrink-0 snap-align-start",
+                              isSubActive
+                                ? "bg-orange-500 text-white border-orange-500 shadow-sm shadow-orange-500/20"
+                                : "bg-white text-gray-600 border-gray-100 hover:bg-gray-50 hover:text-gray-900 dark:bg-slate-900 dark:border-slate-800"
+                            )}
+                          >
+                            {sub.name}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

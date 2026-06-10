@@ -9,6 +9,7 @@ import { PremiumButton } from "@/components/shared/PremiumButton";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import ProductCard from "./ProductCard";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
 
 interface Product {
     id: any;
@@ -34,8 +35,12 @@ interface ProductDetailClientProps {
 
 export default function ProductDetailClient({ product, similarProducts }: ProductDetailClientProps) {
     const { t } = useTranslation("common");
+    const { resolveHierarchyById } = useCategoryHierarchy();
     const [selectedImage, setSelectedImage] = useState(0);
     const [isFavorite, setIsFavorite] = useState(false);
+
+    const resolvedCategory = resolveHierarchyById(product.category);
+    const displayCategoryName = resolvedCategory.sub || resolvedCategory.main || product.category;
 
     const productImages = [
         ...(Array.isArray(product.images) ? product.images : []),
@@ -141,7 +146,7 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                         <div className="bg-white p-8 md:p-10 rounded-[2.5rem] border border-gray-100 shadow-xl shadow-gray-200/20 space-y-6">
                             <div className="space-y-2">
                                 <span className="text-xs font-black text-orange-500 uppercase tracking-widest bg-orange-50 px-3.5 py-1.5 rounded-full border border-orange-100/50">
-                                    {product.category}
+                                    {displayCategoryName}
                                 </span>
                                 <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight leading-tight pt-2">
                                     {product.name}
@@ -233,7 +238,7 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                             <div className="flex items-center gap-4">
                                 <div className="h-8 w-1.5 bg-orange-500 rounded-full" />
                                 <div>
-                                    <h2 className="text-2xl font-bold text-gray-900 tracking-tight">{t("catalog.moreInCategory").replace("{category}", product.category)}</h2>
+                                    <h2 className="text-2xl font-bold text-gray-900 tracking-tight">{t("catalog.moreInCategory").replace("{category}", displayCategoryName)}</h2>
                                     <p className="text-sm text-gray-500 font-medium">{t("catalog.explorePremiumOptions")}</p>
                                 </div>
                             </div>

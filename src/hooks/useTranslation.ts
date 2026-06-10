@@ -12,5 +12,6 @@ export function useTranslation(namespace: TranslationNamespace = "common") {
   return {
     locale: context.locale,
     t: (key: string) => context.t(key, namespace),
+    changeLocale: context.changeLocale,
   };
 }

@@ -55,7 +55,7 @@ const ProductGrid = ({ products, isLoading }: ProductGridProps) => {
     }
 
     return (
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 lg:gap-8">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 lg:gap-1">
             {products.map((product) => (
                 <div key={product.id} className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <ProductCard {...product} />
