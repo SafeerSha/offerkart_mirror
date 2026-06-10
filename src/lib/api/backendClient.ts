@@ -7,6 +7,15 @@ const IS_SERVER = typeof window === "undefined";
 const BACKEND_PROXY_PREFIX = config.api.proxyPrefix;
 const UPSTREAM_API_BASE_URL = config.api.upstreamBaseUrl;
 
+const PUBLIC_PATHS = new Set([
+    "business/auth/login",
+    "business/auth/register",
+]);
+
+function isPublicPath(pathname: string) {
+    return pathname.startsWith("user/") || pathname.startsWith("business/category") || PUBLIC_PATHS.has(pathname);
+}
+
 type NextCacheOptions = { tags?: string[]; revalidate?: number | false };
 export type BackendRequestOptions = RequestInit & {
     tags?: string[];
@@ -75,50 +84,52 @@ export const backend = {
             }
 
             // 4. Handle Server-Side and Client-Side Authentication
-            if (IS_SERVER) {
-                // On the server, we need to manually fetch the session and attach the token
-                // We import these dynamically to avoid bundling server-only code in the client
-                const { getServerSession } = await import("next-auth/next");
-                const { authOptions } = await import("@/lib/auth");
-                
-                let session: Record<string, unknown> | null = null;
-                try {
-                    // Wrap in try-catch to avoid "Dynamic server usage" errors during static build
-                    const serverSession = await getServerSession(authOptions);
-                    session = serverSession as Record<string, unknown> | null;
-                } catch (error) {
-                    // Silently fail during build/static generation phase
-                }
-
-                if (session) {
-                    const accessToken = coerceAccessToken(session);
-                    if (accessToken && !headers.has("Authorization")) {
-                        headers.set("Authorization", `Bearer ${accessToken}`);
-                    }
+            if (!isPublicPath(cleanPath)) {
+                if (IS_SERVER) {
+                    // On the server, we need to manually fetch the session and attach the token
+                    // We import these dynamically to avoid bundling server-only code in the client
+                    const { getServerSession } = await import("next-auth/next");
+                    const { authOptions } = await import("@/lib/auth");
                     
-                    const shopId = coerceShopId(session);
-                    if (shopId && !headers.has("shopId")) {
-                        headers.set("shopId", shopId);
+                    let session: Record<string, unknown> | null = null;
+                    try {
+                        // Wrap in try-catch to avoid "Dynamic server usage" errors during static build
+                        const serverSession = await getServerSession(authOptions);
+                        session = serverSession as Record<string, unknown> | null;
+                    } catch (error) {
+                        // Silently fail during build/static generation phase
                     }
-                }
-            } else {
-                // On the client, we retrieve the token from the NextAuth session
-                try {
-                    const { getSession } = await import("next-auth/react");
-                    const session = await getSession();
+
                     if (session) {
-                        const accessToken = coerceAccessToken(session as unknown as Record<string, unknown>);
+                        const accessToken = coerceAccessToken(session);
                         if (accessToken && !headers.has("Authorization")) {
                             headers.set("Authorization", `Bearer ${accessToken}`);
                         }
                         
-                        const shopId = coerceShopId(session as unknown as Record<string, unknown>);
+                        const shopId = coerceShopId(session);
                         if (shopId && !headers.has("shopId")) {
                             headers.set("shopId", shopId);
                         }
                     }
-                } catch (error) {
-                    console.error("Error fetching client session in backend client:", error);
+                } else {
+                    // On the client, we retrieve the token from the NextAuth session
+                    try {
+                        const { getSession } = await import("next-auth/react");
+                        const session = await getSession();
+                        if (session) {
+                            const accessToken = coerceAccessToken(session as unknown as Record<string, unknown>);
+                            if (accessToken && !headers.has("Authorization")) {
+                                headers.set("Authorization", `Bearer ${accessToken}`);
+                            }
+                            
+                            const shopId = coerceShopId(session as unknown as Record<string, unknown>);
+                            if (shopId && !headers.has("shopId")) {
+                                headers.set("shopId", shopId);
+                            }
+                        }
+                    } catch (error) {
+                        console.error("Error fetching client session in backend client:", error);
+                    }
                 }
             }
 
@@ -140,7 +151,7 @@ export const backend = {
 
             // 6. Handle Global Intercepts by Status (e.g. 401)
             // We do this BEFORE parsing JSON to handle empty 401 bodies
-            if (response.status === 401 && !IS_SERVER) {
+            if (response.status === 401 && !IS_SERVER && !isPublicPath(cleanPath)) {
                 const { signOut } = await import("next-auth/react");
                 signOut({ callbackUrl: "/login" });
                 return {

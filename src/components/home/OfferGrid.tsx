@@ -50,12 +50,12 @@ const OfferGrid = ({
 
   const hasMore = visibleCount < offers.length;
 
-  const gridColsClass = 
+  const gridColsClass =
     columns === 5
       ? "grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
       : columns === 4
-      ? "grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-      : "grid-cols-2 sm:grid-cols-2 lg:grid-cols-3";
+        ? "grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+        : "grid-cols-2 sm:grid-cols-2 lg:grid-cols-3";
 
   if (isLoading) {
     return (
@@ -96,7 +96,7 @@ const OfferGrid = ({
   return (
     <div className={className}>
       <div className={cn(
-        "grid gap-4 md:gap-6 auto-rows-fr",
+        "grid gap-1 md:gap-2 auto-rows-fr",
         gridColsClass
       )}>
         {visibleOffers.map((offer, index) => {

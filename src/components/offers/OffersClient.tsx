@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { getPaginatedOffers } from "@/lib/api/offers";
 import OfferGrid from "@/components/home/OfferGrid";
 import FilterPanel from "@/components/home/FilterPanel";
@@ -36,8 +36,11 @@ export default function OffersClient({
     hasMoreInitial
 }: OffersClientProps) {
     const { t } = useTranslation("common");
+    const router = useRouter();
     const searchParams = useSearchParams();
     const initialCategory = searchParams.get("category") || "All";
+    const initialShopId = searchParams.get("shopId") || undefined;
+    const initialSubcategories = searchParams.getAll("subcategory") || [];
 
     const [offers, setOffers] = useState<Offer[]>(initialOffers);
     const featuredShops = initialFeaturedShops;
@@ -52,18 +55,28 @@ export default function OffersClient({
         category: string;
         subcategory: string[];
         sort: string;
+        shopId?: string;
     }>({
         category: initialCategory,
-        subcategory: [],
-        sort: "latest"
+        subcategory: initialSubcategories,
+        sort: "latest",
+        shopId: initialShopId || undefined
     });
 
-    // Sync category from URL if it changes
+    // Sync category, subcategories, and shopId from URL if they change
     useEffect(() => {
-        const cat = searchParams.get("category");
-        if (cat) {
-            setActiveFilters(prev => ({ ...prev, category: cat, subcategory: [] }));
-        }
+        const cat = searchParams.get("category") || "All";
+        const shopId = searchParams.get("shopId") || undefined;
+        const subs = searchParams.getAll("subcategory") || [];
+        setActiveFilters(prev => ({
+            ...prev,
+            category: cat,
+            subcategory: subs,
+            shopId: shopId
+        }));
+        setPage(1);
+        setOffers([]);
+        setHasMore(true);
     }, [searchParams]);
 
 
@@ -138,6 +151,7 @@ export default function OffersClient({
                 sort: activeFilters.sort,
                 latitude: coordinates?.latitude,
                 longitude: coordinates?.longitude,
+                shopId: activeFilters.shopId,
             });
 
             if (!result.success) {
@@ -166,10 +180,15 @@ export default function OffersClient({
         }
     }, [page, hasMore, activeFilters, getUserCoordinates]);
 
-    // Initial fetch when filters change (ignoring the first mountain of initialOffers)
+    // Initial fetch when filters change (ignoring the first mountain of initialOffers if matched on mount)
     useEffect(() => {
-        // Skip calling if it's the very first mount AND filters match default
-        if (activeFilters.category === "All" && activeFilters.subcategory.length === 0 && page === 1 && offers.length === initialOffers.length) {
+        const isFirstMountWithInitialParams = 
+            activeFilters.category === (searchParams.get("category") || "All") &&
+            activeFilters.shopId === (searchParams.get("shopId") || undefined) &&
+            page === 1 &&
+            offers.length === initialOffers.length;
+
+        if (isFirstMountWithInitialParams) {
             return;
         }
         fetchMoreOffers(true);
@@ -258,7 +277,11 @@ export default function OffersClient({
 
                         {featuredShops.length > 0 && (
                             <div className="mb-3">
-                                <FeaturedOffers offers={featuredShops} variant="minimal" />
+                                <FeaturedOffers 
+                                    offers={featuredShops} 
+                                    variant="minimal" 
+                                    activeShopId={activeFilters.shopId}
+                                />
                             </div>
                         )}
 
@@ -268,7 +291,7 @@ export default function OffersClient({
                                     <span className="text-xs font-bold uppercase tracking-wider text-orange-500">
                                         {t("catalog.offersDeals")}
                                     </span>
-                                    {(activeFilters.category !== "All" || activeFilters.subcategory.length > 0) && (
+                                    {(activeFilters.category !== "All" || activeFilters.subcategory.length > 0 || activeFilters.shopId) && (
                                         <div className="flex items-center gap-2 text-xs font-medium text-gray-400">
                                             <span>/</span>
                                             <span className="text-gray-900">{activeFilters.category === "All" ? t("catalog.all") : activeFilters.category}</span>
@@ -276,6 +299,12 @@ export default function OffersClient({
                                                 <>
                                                     <span>/</span>
                                                     <span className="text-gray-900 line-clamp-1">{activeFilters.subcategory.join(", ")}</span>
+                                                </>
+                                            )}
+                                            {activeFilters.shopId && (
+                                                <>
+                                                    <span>/</span>
+                                                    <span className="text-gray-900">Shop ID: {activeFilters.shopId}</span>
                                                 </>
                                             )}
                                         </div>
@@ -293,6 +322,25 @@ export default function OffersClient({
                                     {t("catalog.showingVerifiedDeals")}
                                     {activeFilters.subcategory.length > 0 ? t("catalog.inSelectedCategories") : t("catalog.forYou")}
                                 </p>
+
+                                {activeFilters.shopId && (
+                                    <div className="flex flex-wrap items-center gap-2 mt-3">
+                                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-orange-50 text-orange-600 border border-orange-100 shadow-sm animate-in fade-in duration-300">
+                                            <span>Shop: {featuredShops.find(s => String(s.id) === String(activeFilters.shopId))?.name || `Shop #${activeFilters.shopId}`}</span>
+                                            <button 
+                                                onClick={() => {
+                                                    const params = new URLSearchParams(searchParams.toString());
+                                                    params.delete("shopId");
+                                                    router.push(`/offers?${params.toString()}`);
+                                                }}
+                                                className="w-4 h-4 rounded-full bg-orange-100 hover:bg-orange-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
+                                                title="Clear shop filter"
+                                            >
+                                                ×
+                                            </button>
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                         </div>
 

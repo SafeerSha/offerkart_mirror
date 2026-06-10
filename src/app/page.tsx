@@ -11,6 +11,7 @@ import { Store, Ticket, MapPin, Award } from "lucide-react";
 import { Heading, Subheading, Text } from "@/components/shared/Typography";
 import { cn } from "@/lib/utils";
 import { getTranslations } from "@/lib/i18n/server";
+import { Suspense } from "react";
 
 export const revalidate = false;
 
@@ -37,7 +38,9 @@ export default async function HomePage() {
       <FeaturedCarousel shops={featuredShops} />
 
       {/* Featured Offers */}
-      <FeaturedOffers offers={featuredOffers} />
+      <Suspense fallback={<div className="container mx-auto px-4 py-8 h-20 animate-pulse bg-slate-50 rounded-2xl" />}>
+        <FeaturedOffers offers={featuredOffers} />
+      </Suspense>
 
       {/* Offers Section */}
       <section className="py-12 md:py-16">

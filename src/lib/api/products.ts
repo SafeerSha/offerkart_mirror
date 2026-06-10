@@ -233,6 +233,9 @@ export async function getProductById(
  * Dispatches creation payload to the backend offer product endpoint.
  */
 export async function createProduct(payload: OfferProductPayload, shopId?: string) {
+    if (payload.offerPrice >= payload.originalPrice && payload.originalPrice > 0) {
+        return { success: false, error: "Offer price must be less than original price" };
+    }
     try {
         const response = await backend.post<any>(ENDPOINTS.OFFER_PRODUCT.BASE, payload, {
             headers: shopId ? { shopId } : {}

@@ -6,6 +6,9 @@ import { ChevronLeft, ChevronRight, Store, Plus } from "lucide-react";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { Subheading, Text } from "@/components/shared/Typography";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/hooks/useTranslation";
+
+import { useRouter, useSearchParams } from "next/navigation";
 
 interface FeaturedOffer {
   id: number;
@@ -16,9 +19,13 @@ interface FeaturedOffer {
 interface FeaturedOffersProps {
   offers: FeaturedOffer[];
   variant?: "full" | "minimal";
+  activeShopId?: string | number;
 }
 
-const FeaturedOffers = ({ offers, variant = "full" }: FeaturedOffersProps) => {
+const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffersProps) => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { t } = useTranslation("home");
   const [currentIndex, setCurrentIndex] = useState(0);
   const itemsPerView = 10; // Show 10 offers at a time
 
@@ -44,6 +51,16 @@ const FeaturedOffers = ({ offers, variant = "full" }: FeaturedOffersProps) => {
     return offers.slice(start, start + itemsPerView);
   };
 
+  const handleShopClick = (shopId: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (activeShopId !== undefined && String(shopId) === String(activeShopId)) {
+      params.delete("shopId");
+    } else {
+      params.set("shopId", String(shopId));
+    }
+    router.push(`/offers?${params.toString()}`);
+  };
+
   return (
     <section className={cn(
       "bg-background relative",
@@ -67,8 +84,8 @@ const FeaturedOffers = ({ offers, variant = "full" }: FeaturedOffersProps) => {
                 <Store className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <Subheading className="text-2xl sm:text-3xl font-bold mb-0">Featured Shops</Subheading>
-                <Text className="text-xs sm:text-sm text-muted-foreground mt-0.5">Explore premium local businesses near you</Text>
+                <Subheading className="text-2xl sm:text-3xl font-bold mb-0">{t("featuredShops.title")}</Subheading>
+                <Text className="text-xs sm:text-sm text-muted-foreground mt-0.5">{t("featuredShops.subtitle")}</Text>
               </div>
             </div>
 
@@ -124,34 +141,47 @@ const FeaturedOffers = ({ offers, variant = "full" }: FeaturedOffersProps) => {
                 )}
                 style={{ transform: `translateX(-${currentIndex * 100}%)` }}
               >
-                {offers.slice(0, variant === "minimal" && offers.length > 15 ? 15 : 16).map((offer) => (
-                  <button
-                    key={offer.id}
-                    className="flex flex-col items-center group cursor-pointer transition-all duration-300 hover:scale-105 hover:-translate-y-1 flex-shrink-0"
-                    style={{ minWidth: variant === "full" ? '80px' : '64px' }}
-                    onClick={() => {}}
-                  >
-                    <div className={cn(
-                      "rounded-full overflow-hidden border-2 border-primary/20 group-hover:border-primary group-hover:shadow-lg transition-all duration-300 relative bg-muted/10",
-                      variant === "full" ? "w-20 h-20" : "w-14 h-14 sm:w-16 sm:h-16"
-                    )}>
-                      {offer.logo && (
-                        <Image
-                          src={offer.logo}
-                          alt={offer.name}
-                          fill
-                          unoptimized
-                          className="object-cover transition-transform duration-300"
-                        />
+                {offers.slice(0, variant === "minimal" && offers.length > 15 ? 15 : 16).map((offer) => {
+                  const isActive = activeShopId !== undefined && String(offer.id) === String(activeShopId);
+                  return (
+                    <button
+                      key={offer.id}
+                      className="flex flex-col items-center group cursor-pointer transition-all duration-300 hover:scale-105 hover:-translate-y-1 flex-shrink-0"
+                      style={{ minWidth: variant === "full" ? '80px' : '64px' }}
+                      onClick={() => handleShopClick(offer.id)}
+                    >
+                      <div className={cn(
+                        "rounded-full overflow-hidden border-2 transition-all duration-300 relative bg-muted/10",
+                        isActive
+                          ? "border-orange-500 ring-4 ring-orange-500/20 scale-105 shadow-md"
+                          : "border-primary/20 group-hover:border-primary group-hover:shadow-lg",
+                        variant === "full" ? "w-20 h-20" : "w-14 h-14 sm:w-16 sm:h-16"
+                      )}>
+                        {offer.logo ? (
+                          <Image
+                            src={offer.logo}
+                            alt={offer.name}
+                            fill
+                            unoptimized
+                            className="object-cover transition-transform duration-300"
+                          />
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center bg-orange-500/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400">
+                            <Store className="w-1/2 h-1/2" />
+                          </div>
+                        )}
+                      </div>
+                      {variant === "full" && (
+                        <Text className={cn(
+                          "text-center mt-2 font-medium transition-colors duration-300 text-sm",
+                          isActive ? "text-orange-500 font-bold" : "group-hover:text-primary"
+                        )}>
+                          {offer.name}
+                        </Text>
                       )}
-                    </div>
-                    {variant === "full" && (
-                      <Text className="text-center mt-2 font-medium group-hover:text-primary transition-colors duration-300 text-sm">
-                        {offer.name}
-                      </Text>
-                    )}
-                  </button>
-                ))}
+                    </button>
+                  );
+                })}
 
                 {variant === "minimal" && offers.length > 15 && (
                   <button

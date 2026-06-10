@@ -2,6 +2,14 @@
   "hero": {
     "exploreAllOffers": "Explore All Offers"
   },
+  "featuredOffers": {
+    "title": "Featured Offers",
+    "subtitle": "Handpicked premium offers just for you"
+  },
+  "featuredShops": {
+    "title": "Featured Shops",
+    "subtitle": "Explore premium local businesses near you"
+  },
   "features": {
     "badge": "Premium Features",
     "titlePrefix": "Why Choose ",

@@ -5,9 +5,16 @@ import { CACHE_TAGS } from "@/lib/api/cache-tags";
 
 export const revalidate = false;
 
-export default async function OffersPage() {
+export default async function OffersPage(props: {
+    searchParams?: Promise<{ shopId?: string }> | { shopId?: string };
+}) {
+    const resolvedParams = props.searchParams
+        ? ("then" in props.searchParams ? await props.searchParams : props.searchParams)
+        : {};
+    const shopId = resolvedParams?.shopId ? String(resolvedParams.shopId) : undefined;
+
     const [offersResult, featuredOffersResult] = await Promise.all([
-        getPaginatedOffers(1, 8, {}, { next: { tags: [CACHE_TAGS.OFFERS] } }),
+        getPaginatedOffers(1, 8, { shopId }, { next: { tags: [CACHE_TAGS.OFFERS] } }),
         getFeaturedOffers()
     ]);
 

@@ -2,8 +2,8 @@
 
 import { useTransition, useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Cookies from "js-cookie";
 import { useTranslation } from "@/hooks/useTranslation";
+import { locales, type Locale } from "@/lib/i18n/config";
 import { cn } from "@/lib/utils";
 import { ChevronDown } from "lucide-react";
 
@@ -14,7 +14,7 @@ type LanguageSwitcherProps = {
 export const LanguageSwitcher = ({ className }: LanguageSwitcherProps) => {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const { locale } = useTranslation();
+  const { locale, changeLocale } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -22,11 +22,8 @@ export const LanguageSwitcher = ({ className }: LanguageSwitcherProps) => {
     setIsOpen(false);
     if (newLocale === locale) return;
 
-    // Set the cookie
-    Cookies.set("locale", newLocale, { expires: 365, path: "/" });
-
-    // Transition and refresh current page router state
-    startTransition(() => {
+    startTransition(async () => {
+      await changeLocale(newLocale as any);
       router.refresh();
     });
   };
@@ -42,10 +39,16 @@ export const LanguageSwitcher = ({ className }: LanguageSwitcherProps) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const languages = [
-    { code: "en", label: "EN", nativeLabel: "English" },
-    { code: "ml", label: "ML", nativeLabel: "മലയാളം" },
-  ];
+  const languageMeta: Record<Locale, { label: string; nativeLabel: string }> = {
+    en: { label: "EN", nativeLabel: "English" },
+    ml: { label: "ML", nativeLabel: "മലയാളം" },
+    hi: { label: "HI", nativeLabel: "हिन्दी" },
+  };
+
+  const languages = locales.map((code) => ({
+    code,
+    ...languageMeta[code],
+  }));
 
   const currentLanguage = languages.find((lang) => lang.code === locale) || languages[0];
 

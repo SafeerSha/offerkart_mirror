@@ -8,7 +8,7 @@ import {
     DrawerContent,
     DrawerTitle,
 } from "@/components/ui/drawer";
-import { IndianRupee, Tag, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { IndianRupee, Tag, X, ChevronLeft, ChevronRight, ShoppingBag } from "lucide-react";
 import { Text } from "@/components/shared/Typography";
 import { useTranslation } from "@/hooks/useTranslation";
 import { MarkedItem } from "@/lib/types/offer";
@@ -91,8 +91,13 @@ export const ConsumerProductModal = ({
                                     unoptimized
                                 />
                             ) : (
-                                <div className="absolute inset-0 flex items-center justify-center bg-slate-100 text-slate-400">
-                                    No Image Available
+                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900/10 text-slate-400">
+                                    <div className="w-20 h-20 rounded-full bg-white dark:bg-slate-950 flex items-center justify-center shadow-sm border border-slate-100 dark:border-slate-800/60 mb-2">
+                                        <ShoppingBag className="w-10 h-10 text-slate-300 dark:text-slate-700" />
+                                    </div>
+                                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                                        {t("catalog.noImage") || "No Image Available"}
+                                    </span>
                                 </div>
                             )}
                             
