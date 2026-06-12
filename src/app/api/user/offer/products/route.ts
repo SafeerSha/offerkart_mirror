@@ -6,6 +6,7 @@ export async function GET(request: NextRequest) {
         const searchParams = request.nextUrl.searchParams;
         const search = searchParams.get("search") || undefined;
         const categoryId = searchParams.get("categoryId") || undefined;
+        const subcategoryId = searchParams.get("subcategoryId") || undefined;
         const shopId = searchParams.get("shopId") || undefined;
         const minPriceStr = searchParams.get("minPrice");
         const maxPriceStr = searchParams.get("maxPrice");
@@ -19,6 +20,7 @@ export async function GET(request: NextRequest) {
         const result = await getUserOfferProducts({
             search,
             categoryId,
+            subcategoryId,
             shopId,
             minPrice,
             maxPrice,

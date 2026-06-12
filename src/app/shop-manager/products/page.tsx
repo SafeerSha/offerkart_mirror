@@ -8,27 +8,23 @@ import Link from "next/link";
 import Image from "next/image";
 import { toast } from "sonner";
 
-// UI Components
 import {
     Heading, Text, PremiumCard, PremiumButton, AppModal, StatusToggleButton
 } from "@/components/shared";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import { ProductModal } from "@/components/shop-manager/ProductModal";
 
-// Icons
 import {
     Clock, Eye, Package, Plus, Search, Tag, Trash2, Calendar,
     Pencil, ArrowLeft, GitBranch, ShoppingBag, Loader2, ArrowRight, AlertTriangle
 } from "@/lib/icons";
 
-// Hooks
 import {
     useMyShops, useBranches, useAllProducts, useCreateProduct, useUpdateProduct, useDeleteProduct, useToggleOfferProductStatus, useIsMobile
 } from "@/hooks";
 import { cn, getRelativeTime } from "@/lib/utils";
 import { Product } from "@/lib/types";
 
-// SwipeableCard helper identical to main dashboard for UI consistency
 interface SwipeableCardProps {
     children: React.ReactNode;
     onEdit: () => void;
@@ -57,11 +53,9 @@ function SwipeableCard({ children, onEdit, onDelete, editTitle = "Edit", deleteT
         if (startX === null || currentX === null) return;
         const diff = startX - currentX;
 
-        // If swiped left more than 50px, reveal actions
         if (diff > 50) {
             setIsSwiped(true);
         }
-        // If swiped right more than 30px, hide actions
         else if (diff < -30) {
             setIsSwiped(false);
         }
@@ -70,7 +64,6 @@ function SwipeableCard({ children, onEdit, onDelete, editTitle = "Edit", deleteT
         setCurrentX(null);
     };
 
-    // Auto-close actions if user taps on the card content when swiped
     const handleContentClick = (e: React.MouseEvent) => {
         if (isSwiped) {
             e.preventDefault();
@@ -87,7 +80,6 @@ function SwipeableCard({ children, onEdit, onDelete, editTitle = "Edit", deleteT
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
         >
-            {/* Slideable Card Content */}
             <div
                 onClick={handleContentClick}
                 className={cn(
@@ -98,7 +90,6 @@ function SwipeableCard({ children, onEdit, onDelete, editTitle = "Edit", deleteT
                 {children}
             </div>
 
-            {/* Hidden Action Panel behind the card (revealed on swipe left) */}
             <div
                 className={cn(
                     "absolute right-0 top-0 bottom-0 flex items-center gap-2 px-3 bg-gradient-to-l from-orange-500/10 to-transparent border-l border-primary/10 rounded-r-xl transition-all duration-300 z-0",
@@ -137,7 +128,6 @@ function ShopProductsContent() {
     const isMobile = useIsMobile();
     const queryClient = useQueryClient();
 
-    // Filters & Modals state
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState<"all" | "active" | "paused" | "drafted">("all");
 
@@ -146,7 +136,6 @@ function ShopProductsContent() {
     const [productToDelete, setProductToDelete] = useState<any | null>(null);
     const [previewLogo, setPreviewLogo] = useState<{ src: string; name: string } | null>(null);
 
-    // ================= API DATA HOOKS =================
     const { data: shopsResponse, isLoading: isLoadingShops } = useMyShops();
     const shops = useMemo(() => {
         if (!shopsResponse?.success || !shopsResponse?.data) return [];
@@ -161,7 +150,6 @@ function ShopProductsContent() {
         return null;
     }, [session, shops]);
 
-    // Products fetch
     const { data: productsData, isLoading: isLoadingProducts } = useAllProducts(activeShopId || undefined);
     const allProductsList = useMemo(() => {
         return (productsData || []) as Product[];
@@ -188,12 +176,10 @@ function ShopProductsContent() {
         return map;
     }, [branches]);
 
-    // Force React Query to fetch fresh data on mount
     useEffect(() => {
         queryClient.invalidateQueries({ queryKey: ["allProducts"] });
     }, [queryClient]);
 
-    // Mutations
     const { mutateAsync: createProductMutation } = useCreateProduct();
     const { mutateAsync: updateProductMutation } = useUpdateProduct();
     const { mutateAsync: deleteProductMutation } = useDeleteProduct();
@@ -285,7 +271,6 @@ function ShopProductsContent() {
         }
     };
 
-    // Filtered products
     const filteredProducts = useMemo(() => {
         return allProductsList.filter((product: any) => {
             const query = searchQuery.toLowerCase().trim();
@@ -295,7 +280,6 @@ function ShopProductsContent() {
                 const matchesName = (product.name || "").toLowerCase().includes(query);
                 const matchesCategory = (product.category || "").toLowerCase().includes(query);
 
-                // Match Branch using branchNameMap
                 let matchesBranch = false;
                 if (product.branchIds && Array.isArray(product.branchIds)) {
                     matchesBranch = product.branchIds.some((id: any) => {
@@ -304,7 +288,6 @@ function ShopProductsContent() {
                     });
                 }
 
-                // Match Dates (e.g. validFrom, validTo)
                 let matchesDate = false;
                 if (product.validFrom) {
                     const dateStr = new Date(product.validFrom).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -317,7 +300,6 @@ function ShopProductsContent() {
                     matchesDate = matchesDate || dateStr.includes(query) || dateLong.includes(query);
                 }
 
-                // Match Price / Original Price
                 let matchesPrice = false;
                 if (product.price !== undefined && product.price !== null) {
                     matchesPrice = matchesPrice || String(product.price).includes(query) || `₹${product.price}`.toLowerCase().includes(query) || `rs ${product.price}`.toLowerCase().includes(query) || `rs. ${product.price}`.toLowerCase().includes(query);
@@ -353,12 +335,9 @@ function ShopProductsContent() {
                     ]}
                 />
 
-                {/* Ultra-Minimal, Space-Efficient & Highly Responsive Filters Panel with Thin Border */}
                 <div className="mb-5 mt-4 p-1.5 rounded-xl border border-gray-100 bg-white/50 backdrop-blur-sm flex flex-col sm:flex-row gap-2.5 sm:items-center sm:justify-between shadow-sm">
-                    {/* Left: Search and Segmented Control */}
                     <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center flex-1 max-w-2xl">
                         <div className="flex items-center gap-2 w-full sm:w-auto flex-1">
-                            {/* Minimalist Search capsule */}
                             <div className="relative flex-1 sm:w-56 sm:flex-none flex items-center bg-gray-50 rounded-lg px-2 py-1 focus-within:bg-gray-100/80 transition-all border border-transparent focus-within:border-gray-200">
                                 <Search className="w-3 h-3 text-gray-400 shrink-0 mr-1.5" />
                                 <input
@@ -373,7 +352,6 @@ function ShopProductsContent() {
                                 )}
                             </div>
 
-                            {/* Mobile-only Add Button (Circle) next to search bar to save vertical space */}
                             <button
                                 onClick={() => setShowAddProductModal(true)}
                                 className="bg-orange-500 hover:bg-orange-600 text-white rounded-lg w-8 h-8 flex sm:hidden items-center justify-center shadow-sm shadow-orange-500/10 active:scale-95 transition-all cursor-pointer border-0 shrink-0"
@@ -383,7 +361,6 @@ function ShopProductsContent() {
                             </button>
                         </div>
 
-                        {/* Flat segmented filter tabs */}
                         <div className="flex bg-gray-55 p-0.5 rounded-lg gap-0.5 self-start sm:self-auto shrink-0 border border-gray-100 bg-gray-50/50">
                             {(["all", "active", "paused", "drafted"] as const).map((filter) => (
                                 <button
@@ -402,7 +379,6 @@ function ShopProductsContent() {
                         </div>
                     </div>
 
-                    {/* Desktop/Tablet-only Add Button (Pill) */}
                     <button
                         onClick={() => setShowAddProductModal(true)}
                         className="hidden sm:flex bg-orange-500 hover:bg-orange-600 text-white rounded-lg h-7 px-3 text-[10px] font-bold uppercase tracking-wider items-center justify-center gap-1 shadow-sm shadow-orange-500/10 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer border-0 shrink-0 self-start sm:self-auto"
@@ -411,7 +387,6 @@ function ShopProductsContent() {
                     </button>
                 </div>
 
-                {/* Products Listing */}
                 {isLoadingProducts ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -577,7 +552,6 @@ function ShopProductsContent() {
                 )}
             </div>
 
-            {/* ADD PRODUCT MODAL */}
             {showAddProductModal && (
                 <ProductModal
                     open={showAddProductModal}
@@ -587,7 +561,6 @@ function ShopProductsContent() {
                 />
             )}
 
-            {/* EDIT PRODUCT MODAL */}
             {productToEdit && (
                 <ProductModal
                     open={!!productToEdit}
@@ -597,7 +570,6 @@ function ShopProductsContent() {
                 />
             )}
 
-            {/* DELETE MODAL */}
             <AppModal
                 open={!!productToDelete}
                 onOpenChange={(open) => { if (!open) setProductToDelete(null); }}
@@ -621,7 +593,6 @@ function ShopProductsContent() {
                 </div>
             </AppModal>
 
-            {/* IMAGE PREVIEW MODAL */}
             {previewLogo && (
                 <AppModal
                     open={!!previewLogo}

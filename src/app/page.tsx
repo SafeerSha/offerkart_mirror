@@ -1,7 +1,6 @@
 import FeaturedCarousel from "@/components/home/FeaturedCarousel";
 import FeaturedOffers from "@/components/home/FeaturedOffers";
-import FilterPanel from "@/components/home/FilterPanel";
-import OfferGrid from "@/components/home/OfferGrid";
+import FilterableOffers from "@/components/home/FilterableOffers";
 import FeaturedProducts from "@/components/home/FeaturedProducts";
 import ShopRegistrationSection from "@/components/home/ShopRegistrationSection";
 import { getFeaturedShops, getFeaturedOffers, getPaginatedOffers } from "@/lib/api/offers";
@@ -19,7 +18,7 @@ export default async function HomePage() {
   const [featuredShopsRes, featuredOffersRes, allOffersRes, allProducts] = await Promise.all([
     getFeaturedShops(),
     getFeaturedOffers(),
-    getPaginatedOffers(1, 8, {}, { next: { tags: [CACHE_TAGS.HOME, CACHE_TAGS.OFFERS] } }),
+    getPaginatedOffers(1, 10, {}, { next: { tags: [CACHE_TAGS.HOME, CACHE_TAGS.OFFERS] } }),
     getAllProducts(undefined, { next: { tags: [CACHE_TAGS.PRODUCTS] } }),
   ]);
 
@@ -45,15 +44,9 @@ export default async function HomePage() {
       {/* Offers Section */}
       <section className="py-12 md:py-16">
         <div className="container mx-auto px-4">
-          {/* Filter & Sorting Panel */}
-          <FilterPanel />
-
-          {/* Main Offer Grid */}
-          <OfferGrid
-            offers={allOffers}
-            redirectToOffers={true}
+          <FilterableOffers
+            initialOffers={allOffers}
             buttonText={t("hero.exploreAllOffers")}
-            columns={5}
           />
         </div>
       </section>

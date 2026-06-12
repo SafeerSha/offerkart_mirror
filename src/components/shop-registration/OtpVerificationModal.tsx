@@ -157,7 +157,6 @@ export default function OtpVerificationModal({
     const [phoneError, setPhoneError] = useState("");
     const [isVerifying, setIsVerifying] = useState(false);
 
-    // Reset state when modal opens
     useEffect(() => {
         if (open) {
             setEmailOtp("");
@@ -176,7 +175,6 @@ export default function OtpVerificationModal({
         setIsVerifying(true);
 
         try {
-            // Verify email OTP
             if (!emailVerified) {
                 const emailResult = await mockVerifyOtp(emailOtp);
                 if (!emailResult.success) {
@@ -187,7 +185,6 @@ export default function OtpVerificationModal({
                 setEmailVerified(true);
             }
 
-            // Verify phone OTP
             if (!phoneVerified) {
                 const phoneResult = await mockVerifyOtp(phoneOtp);
                 if (!phoneResult.success) {
@@ -198,7 +195,6 @@ export default function OtpVerificationModal({
                 setPhoneVerified(true);
             }
 
-            // Both verified — proceed
             onVerified();
         } catch {
             setEmailError("Verification failed. Please try again.");
@@ -213,7 +209,6 @@ export default function OtpVerificationModal({
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[520px] p-0 overflow-hidden border-0 shadow-2xl rounded-2xl bg-white">
-                {/* Header */}
                 <div className="bg-orange-500 px-8 py-6 text-white">
                     <DialogHeader>
                         <div className="flex items-center gap-3">
@@ -232,9 +227,7 @@ export default function OtpVerificationModal({
                     </DialogHeader>
                 </div>
 
-                {/* Body */}
                 <div className="px-8 py-6 space-y-6 bg-white">
-                    {/* Email OTP */}
                     <div className="space-y-3">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -250,7 +243,7 @@ export default function OtpVerificationModal({
                                 </div>
                             </div>
                             {emailVerified ? (
-                                <span className="text-xs font-bold text-green-600 bg-green-50 px-2.5 py-1 rounded-full">Verified ✓</span>
+                                <span className="text-xs font-bold text-green-600 bg-green-50 px-2.5 py-1 rounded-full">Verified âœ“</span>
                             ) : (
                                 <ResendTimer onResend={() => setEmailError("")} />
                             )}
@@ -271,7 +264,6 @@ export default function OtpVerificationModal({
 
                     <div className="border-t border-gray-100" />
 
-                    {/* Phone OTP */}
                     <div className="space-y-3">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -287,7 +279,7 @@ export default function OtpVerificationModal({
                                 </div>
                             </div>
                             {phoneVerified ? (
-                                <span className="text-xs font-bold text-green-600 bg-green-50 px-2.5 py-1 rounded-full">Verified ✓</span>
+                                <span className="text-xs font-bold text-green-600 bg-green-50 px-2.5 py-1 rounded-full">Verified âœ“</span>
                             ) : (
                                 <ResendTimer onResend={() => setPhoneError("")} />
                             )}
@@ -307,7 +299,6 @@ export default function OtpVerificationModal({
                     </div>
                 </div>
 
-                {/* Footer */}
                 <div className="px-8 pb-6 bg-white">
                     <button
                         type="button"

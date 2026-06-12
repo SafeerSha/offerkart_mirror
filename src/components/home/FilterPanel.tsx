@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Filter, Tag, TrendingUp, X, ChevronDown } from "lucide-react";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { PremiumCard } from "@/components/shared/PremiumCard";
@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/select";
 
 import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
-import { useSubcategories } from "@/hooks/useApi";
+// useSubcategories removed to avoid separate API calls
 import { useTranslation } from "@/hooks/useTranslation";
 
 const sortOptions = [
@@ -52,8 +52,9 @@ const FilterPanel = ({
   className
 }: FilterPanelProps) => {
   const router = useRouter();
+  const pathname = usePathname();
   const { t } = useTranslation("common");
-  const { mainCategories, categoryHierarchy, getCategoryId } = useCategoryHierarchy();
+  const { mainCategories, categoryHierarchy, categoryLookup, getCategoryId } = useCategoryHierarchy();
   const categories = ["All", ...mainCategories];
 
   const sortOptions = [
@@ -74,11 +75,10 @@ const FilterPanel = ({
   const subcategory = propsSubcategory ?? _internalSubcategory;
   const sort = propsSort ?? propsSort ?? _internalSort;
 
-  const activeCategoryId = category !== "All" ? getCategoryId(category) : null;
-  const { data: subcategoriesRes, isLoading: isLoadingSubcategories } = useSubcategories(activeCategoryId);
-  const dynamicSubcategories = subcategoriesRes?.success && subcategoriesRes.data 
-        ? subcategoriesRes.data 
-        : [];
+  const dynamicSubcategories = category !== "All" && categoryLookup && categoryLookup[category]
+    ? Object.values(categoryLookup[category].subcategories)
+    : [];
+  const isLoadingSubcategories = false;
 
   const handleCategoryChange = (val: string) => {
     if (onCategoryChange) {
@@ -96,9 +96,7 @@ const FilterPanel = ({
     if (val === "All") {
       next = [];
     } else {
-      next = subcategory.includes(val)
-        ? subcategory.filter(item => item !== val)
-        : [...subcategory, val];
+      next = subcategory.includes(val) ? [] : [val];
     }
 
     if (onSubcategoryChange) {
@@ -145,7 +143,7 @@ const FilterPanel = ({
           <div className="flex items-center gap-2 text-gray-900 font-semibold">
             <TrendingUp className="w-5 h-5 text-orange-500" />
             <span>
-              {typeof window !== "undefined" && window.location.pathname.includes("/products")
+              {pathname.includes("/products")
                 ? t("catalog.sortProducts")
                 : t("catalog.sortOffers")}
             </span>

@@ -65,7 +65,7 @@ const FeaturedProducts = ({ products }: FeaturedProductsProps) => {
 
                 {/* Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-1 md:gap-2">
-                    {products.slice(0, 5).map((product, index) => (
+                    {products.slice(0, 10).map((product, index) => (
                         <div
                             key={product.id}
                             className="animate-in fade-in slide-in-from-bottom-4 duration-500 fill-mode-both"

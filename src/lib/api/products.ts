@@ -259,6 +259,7 @@ export async function deleteProduct(id: string) {
 export async function getUserProducts(query: {
     search?: string;
     categoryId?: string;
+    subcategoryId?: string;
     shopId?: string;
     minPrice?: number;
     maxPrice?: number;
@@ -269,7 +270,7 @@ export async function getUserProducts(query: {
     const page = query.page || 1;
     const limit = query.limit || 20;
     const sort = query.sort || "newest";
-    const { search, categoryId, shopId, minPrice, maxPrice } = query;
+    const { search, categoryId, subcategoryId, shopId, minPrice, maxPrice } = query;
 
     const params = new URLSearchParams({
         page: String(page),
@@ -278,6 +279,7 @@ export async function getUserProducts(query: {
     });
     if (search) params.set("search", search);
     if (categoryId) params.set("categoryId", categoryId);
+    if (subcategoryId) params.set("subcategoryId", subcategoryId);
     if (shopId) params.set("shopId", shopId);
     if (minPrice !== undefined) params.set("minPrice", String(minPrice));
     if (maxPrice !== undefined) params.set("maxPrice", String(maxPrice));
