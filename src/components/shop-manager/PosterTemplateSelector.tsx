@@ -19,16 +19,13 @@ export function PosterTemplateSelector({ onSelect, shopName }: PosterTemplateSel
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-
-            {/* ── Page header ── */}
             <div className="space-y-1">
                 <h2 className="text-3xl font-black tracking-tight text-gradient">Choose a Template</h2>
                 <p className="text-muted-foreground text-sm">
-                    {POSTER_TEMPLATES.length} templates available · No downloads required
+                    {POSTER_TEMPLATES.length} templates available Â· No downloads required
                 </p>
             </div>
 
-            {/* ── Category tabs ── */}
             <div className="relative -mx-4 px-4 sm:mx-0 sm:px-0">
                 <div className="flex overflow-x-auto gap-2 pb-1 scrollbar-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     {TEMPLATE_CATEGORIES.map((cat) => (
@@ -51,11 +48,9 @@ export function PosterTemplateSelector({ onSelect, shopName }: PosterTemplateSel
                         </button>
                     ))}
                 </div>
-                {/* Right fade indicator to show more content */}
                 <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-background via-background/70 to-transparent pointer-events-none sm:hidden" />
             </div>
 
-            {/* ── Template grid ── */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
                 {templates.map((template) => (
                     <div
@@ -63,14 +58,12 @@ export function PosterTemplateSelector({ onSelect, shopName }: PosterTemplateSel
                         className="group relative bg-card border rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-1 border-border/50 cursor-pointer"
                         onClick={() => onSelect(template)}
                     >
-                        {/* Live thumbnail */}
                         <div className="relative overflow-hidden">
                             <TemplateThumbnail
                                 config={template}
                                 shopName={shopName?.toUpperCase() ?? "YOUR SHOP"}
                             />
 
-                            {/* Hover overlay */}
                             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-6">
                                 <PremiumButton
                                     onClick={(e) => { e.stopPropagation(); onSelect(template); }}
@@ -81,30 +74,27 @@ export function PosterTemplateSelector({ onSelect, shopName }: PosterTemplateSel
                                 </PremiumButton>
                             </div>
 
-                            {/* Category badge */}
                             <div className="absolute top-2 left-2">
                                 <span className={cn(
                                     "px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider",
-                                    template.category === 'blank'
+                                    template.category === "blank"
                                         ? "bg-white/90 text-gray-700"
                                         : "bg-black/50 text-white backdrop-blur-sm"
                                 )}>
-                                    {template.category === 'blank' ? 'FREESTYLE' : template.category}
+                                    {template.category === "blank" ? "FREESTYLE" : template.category}
                                 </span>
                             </div>
                         </div>
 
-                        {/* Card footer */}
                         <div className="px-3 py-2.5 border-t border-border/40">
                             <p className="text-sm font-bold text-foreground leading-tight truncate">
                                 {template.name}
                             </p>
                             <p className="text-[11px] text-muted-foreground mt-0.5">
-                                {template.itemGrid.columns} × {template.itemGrid.rows} grid
+                                {template.itemGrid.columns} Ã— {template.itemGrid.rows} grid
                             </p>
                         </div>
 
-                        {/* Mobile tap overlay */}
                         <button
                             onClick={() => onSelect(template)}
                             className="absolute inset-0 z-10 md:hidden"

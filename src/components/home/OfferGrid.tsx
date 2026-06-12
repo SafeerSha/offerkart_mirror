@@ -29,7 +29,7 @@ const OfferGrid = ({
   disablePagination = false
 }: OfferGridProps) => {
   const router = useRouter();
-  const [visibleCount, setVisibleCount] = useState(8);
+  const [visibleCount, setVisibleCount] = useState(10);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const visibleOffers = disablePagination ? offers : offers.slice(0, visibleCount);

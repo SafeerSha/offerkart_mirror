@@ -212,6 +212,7 @@ export function getMockUserOfferDetails(id: string | number) {
 export function getMockUserProducts(query: {
     search?: string;
     categoryId?: string;
+    subcategoryId?: string;
     shopId?: string;
     minPrice?: number;
     maxPrice?: number;
@@ -219,7 +220,7 @@ export function getMockUserProducts(query: {
     page: number;
     limit: number;
 }) {
-    const { search, categoryId, shopId, minPrice, maxPrice, sort, page, limit } = query;
+    const { search, categoryId, subcategoryId, shopId, minPrice, maxPrice, sort, page, limit } = query;
     let filtered = ALL_PRODUCTS.map((item: any) => {
         const shopIdMapped = getShopIdFromShopName(item.shopName);
         return {
@@ -248,6 +249,11 @@ export function getMockUserProducts(query: {
     // 2. CategoryId
     if (categoryId) {
         filtered = filtered.filter(item => item.categoryId === Number(categoryId));
+    }
+
+    // 2.5. SubcategoryId
+    if (subcategoryId) {
+        filtered = filtered.filter(item => (item as any).subcategoryId === Number(subcategoryId));
     }
 
     // 3. ShopId
@@ -366,6 +372,7 @@ export async function getUserOfferDetails(id: string | number) {
 export async function getUserOfferProducts(query: {
     search?: string;
     categoryId?: string;
+    subcategoryId?: string;
     shopId?: string;
     minPrice?: number;
     maxPrice?: number;
@@ -376,7 +383,7 @@ export async function getUserOfferProducts(query: {
     const page = Number(query.page) || 1;
     const limit = Number(query.limit) || 20;
     const sort = query.sort || "newest";
-    const { search, categoryId, shopId, minPrice, maxPrice } = query;
+    const { search, categoryId, subcategoryId, shopId, minPrice, maxPrice } = query;
 
     try {
         const params = new URLSearchParams({
@@ -386,6 +393,7 @@ export async function getUserOfferProducts(query: {
         });
         if (search) params.set("search", search);
         if (categoryId) params.set("categoryId", categoryId);
+        if (subcategoryId) params.set("subcategoryId", subcategoryId);
         if (shopId) params.set("shopId", shopId);
         if (minPrice !== undefined) params.set("minPrice", String(minPrice));
         if (maxPrice !== undefined) params.set("maxPrice", String(maxPrice));

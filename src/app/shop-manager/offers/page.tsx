@@ -8,25 +8,21 @@ import Link from "next/link";
 import Image from "next/image";
 import { toast } from "sonner";
 
-// UI Components
 import {
     Heading, Text, PremiumCard, PremiumButton, AppModal, StatusToggleButton
 } from "@/components/shared";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 
-// Icons
 import {
     Clock, Eye, Package, Plus, Search, Tag, Trash2, Calendar,
     Pencil, ArrowLeft, GitBranch, ShoppingBag, Loader2, ArrowRight, AlertTriangle
 } from "@/lib/icons";
 
-// Hooks
 import {
     useMyShops, useBranches, useAllOffers, useDeleteOffer, useToggleOfferStatus, useIsMobile
 } from "@/hooks";
 import { cn, getRelativeTime } from "@/lib/utils";
 
-// SwipeableCard helper identical to main dashboard for UI consistency
 interface SwipeableCardProps {
     children: React.ReactNode;
     onEdit: () => void;
@@ -55,11 +51,9 @@ function SwipeableCard({ children, onEdit, onDelete, editTitle = "Edit", deleteT
         if (startX === null || currentX === null) return;
         const diff = startX - currentX;
 
-        // If swiped left more than 50px, reveal actions
         if (diff > 50) {
             setIsSwiped(true);
         }
-        // If swiped right more than 30px, hide actions
         else if (diff < -30) {
             setIsSwiped(false);
         }
@@ -68,7 +62,6 @@ function SwipeableCard({ children, onEdit, onDelete, editTitle = "Edit", deleteT
         setCurrentX(null);
     };
 
-    // Auto-close actions if user taps on the card content when swiped
     const handleContentClick = (e: React.MouseEvent) => {
         if (isSwiped) {
             e.preventDefault();
@@ -85,7 +78,6 @@ function SwipeableCard({ children, onEdit, onDelete, editTitle = "Edit", deleteT
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
         >
-            {/* Slideable Card Content */}
             <div
                 onClick={handleContentClick}
                 className={cn(
@@ -96,7 +88,6 @@ function SwipeableCard({ children, onEdit, onDelete, editTitle = "Edit", deleteT
                 {children}
             </div>
 
-            {/* Hidden Action Panel behind the card (revealed on swipe left) */}
             <div
                 className={cn(
                     "absolute right-0 top-0 bottom-0 flex items-center gap-2 px-3 bg-gradient-to-l from-orange-500/10 to-transparent border-l border-primary/10 rounded-r-xl transition-all duration-300 z-0",
@@ -136,13 +127,11 @@ function ShopOffersContent() {
     const isMobile = useIsMobile();
     const queryClient = useQueryClient();
 
-    // Filters state
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState<"all" | "active" | "paused" | "drafted">("all");
     const [offerToDelete, setOfferToDelete] = useState<any | null>(null);
     const [previewLogo, setPreviewLogo] = useState<{ src: string; name: string } | null>(null);
 
-    // ================= API DATA HOOKS =================
     const { data: shopsResponse, isLoading: isLoadingShops } = useMyShops();
     const shops = useMemo(() => {
         if (!shopsResponse?.success || !shopsResponse?.data) return [];
@@ -175,12 +164,10 @@ function ShopOffersContent() {
         return Array.isArray(result) ? result : (result.data || []);
     }, [branchesResponse]);
 
-    // Force React Query to fetch fresh data on mount
     useEffect(() => {
         queryClient.invalidateQueries({ queryKey: ["allOffers"] });
     }, [queryClient]);
 
-    // Mutations
     const { mutateAsync: deleteOfferMutation } = useDeleteOffer();
     const { mutateAsync: toggleStatusMutation } = useToggleOfferStatus();
 
@@ -225,7 +212,6 @@ function ShopOffersContent() {
         }
     };
 
-    // Filtered offers
     const filteredOffers = useMemo(() => {
         return allOffersList.filter((offer: any) => {
             const query = searchQuery.toLowerCase().trim();
@@ -236,7 +222,6 @@ function ShopOffersContent() {
                 const matchesType = (offer.type || "").toLowerCase().includes(query);
                 const matchesCategory = (offer.category || "").toLowerCase().includes(query);
 
-                // Match Branch
                 let matchesBranch = false;
                 if (offer.branches && Array.isArray(offer.branches)) {
                     matchesBranch = offer.branches.some((b: any) => (b.branchName || "").toLowerCase().includes(query));
@@ -248,7 +233,6 @@ function ShopOffersContent() {
                     matchesBranch = matchesBranch || offer.branchName.toLowerCase().includes(query);
                 }
 
-                // Match Dates (e.g., "30/05", "May", "June")
                 let matchesDate = false;
                 if (offer.validFrom) {
                     const dateStr = new Date(offer.validFrom).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -261,7 +245,6 @@ function ShopOffersContent() {
                     matchesDate = matchesDate || dateStr.includes(query) || dateLong.includes(query);
                 }
 
-                // Match Price or discount value
                 let matchesPrice = false;
                 if (offer.price !== undefined && offer.price !== null) {
                     matchesPrice = matchesPrice || String(offer.price).includes(query) || `₹${offer.price}`.toLowerCase().includes(query) || `rs ${offer.price}`.toLowerCase().includes(query);
@@ -301,12 +284,9 @@ function ShopOffersContent() {
                 />
 
 
-                {/* Ultra-Minimal, Space-Efficient & Highly Responsive Filters Panel with Thin Border */}
                 <div className="mb-5 mt-4 p-1.5 rounded-xl border border-gray-100 bg-white/50 backdrop-blur-sm flex flex-col sm:flex-row gap-2.5 sm:items-center sm:justify-between shadow-sm">
-                    {/* Left: Search and Segmented Control */}
                     <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center flex-1 max-w-2xl">
                         <div className="flex items-center gap-2 w-full sm:w-auto flex-1">
-                            {/* Minimalist Search capsule */}
                             <div className="relative flex-1 sm:w-56 sm:flex-none flex items-center bg-gray-55 rounded-lg px-2 py-1 focus-within:bg-gray-100/80 transition-all border border-transparent focus-within:border-gray-200">
                                 <Search className="w-3 h-3 text-gray-400 shrink-0 mr-1.5" />
                                 <input
@@ -321,7 +301,6 @@ function ShopOffersContent() {
                                 )}
                             </div>
 
-                            {/* Mobile-only Add Button (Circle) next to search bar to save vertical space */}
                             <Link href="/shop-manager/create-offer" className="flex sm:hidden shrink-0">
                                 <button
                                     className="bg-orange-500 hover:bg-orange-600 text-white rounded-lg w-8 h-8 flex items-center justify-center shadow-sm shadow-orange-500/10 active:scale-95 transition-all cursor-pointer border-0 shrink-0"
@@ -332,7 +311,6 @@ function ShopOffersContent() {
                             </Link>
                         </div>
 
-                        {/* Flat segmented filter tabs */}
                         <div className="flex bg-gray-55 p-0.5 rounded-lg gap-0.5 self-start sm:self-auto shrink-0 border border-gray-100 bg-gray-50/50">
                             {(["all", "active", "paused", "drafted"] as const).map((filter) => (
                                 <button
@@ -351,7 +329,6 @@ function ShopOffersContent() {
                         </div>
                     </div>
 
-                    {/* Desktop/Tablet-only Add Button (Pill) */}
                     <Link href="/shop-manager/create-offer" className="hidden sm:flex shrink-0">
                         <button
                             className="bg-orange-500 hover:bg-orange-600 text-white rounded-lg h-7 px-3 text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1 shadow-sm shadow-orange-500/10 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer border-0 shrink-0 self-start sm:self-auto"
@@ -361,7 +338,6 @@ function ShopOffersContent() {
                     </Link>
                 </div>
 
-                {/* Offers Listing */}
                 {isLoadingOffers ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -531,7 +507,6 @@ function ShopOffersContent() {
                 )}
             </div>
 
-            {/* DELETE MODAL */}
             <AppModal
                 open={!!offerToDelete}
                 onOpenChange={(open) => { if (!open) setOfferToDelete(null); }}
@@ -555,7 +530,6 @@ function ShopOffersContent() {
                 </div>
             </AppModal>
 
-            {/* IMAGE PREVIEW MODAL */}
             {previewLogo && (
                 <AppModal
                     open={!!previewLogo}

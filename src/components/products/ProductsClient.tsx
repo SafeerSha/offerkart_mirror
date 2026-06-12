@@ -54,14 +54,21 @@ export default function ProductsClient({ initialProducts = [] }: ProductsClientP
     const fetchFilteredProducts = useCallback(async () => {
         setIsLoading(true);
         try {
-            const catId = activeFilters.category !== "All"
-                ? getCategoryId(activeFilters.category, activeFilters.subcategory[0])
-                : undefined;
+            let mainCatId: number | null = null;
+            let subCatId: number | null = null;
+
+            if (activeFilters.category !== "All") {
+                mainCatId = getCategoryId(activeFilters.category);
+                if (activeFilters.subcategory.length > 0) {
+                    subCatId = getCategoryId(activeFilters.category, activeFilters.subcategory[0]);
+                }
+            }
 
             const mappedSort = activeFilters.sort === "latest" ? "newest" : "newest";
 
             const res = await getUserProducts({
-                categoryId: catId ? String(catId) : undefined,
+                categoryId: mainCatId ? String(mainCatId) : undefined,
+                subcategoryId: subCatId ? String(subCatId) : undefined,
                 sort: mappedSort,
                 limit: 100
             });

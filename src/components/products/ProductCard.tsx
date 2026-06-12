@@ -54,9 +54,9 @@ const ProductCard = ({
 
     return (
         <PremiumCard
-            variant="premium"
+            variant="default"
             padding="none"
-            className="group cursor-pointer h-full flex flex-col border border-slate-100 dark:border-slate-800/80 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.02)] dark:shadow-none hover:shadow-[0_20px_40px_rgba(249,115,22,0.08)] hover:border-orange-500/20 hover:-translate-y-1 transition-all duration-500  rounded-t-xl rounded-b-3xl !bg-white dark:!bg-[#1c2018]"
+            className="group cursor-pointer h-full flex flex-col border border-slate-100 dark:border-slate-800/80 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.02)] dark:shadow-none hover:shadow-[0_20px_40px_rgba(249,115,22,0.08)] hover:border-orange-500/20 transition-all duration-500  rounded-t-xl rounded-b-xl !bg-white dark:!bg-[#1c2018]"
             onClick={() => router.push(`/product/${id}`)}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}

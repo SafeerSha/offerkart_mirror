@@ -6,7 +6,6 @@ import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { Form, FormField } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { registerShop } from "@/lib/api/shop";
@@ -39,7 +38,6 @@ export default function ShopRegistrationForm() {
         },
     });
 
-    // Step 1: Validate form and show OTP modal
     async function onSubmit(values: z.infer<typeof formSchema>) {
         const payloadValues = Object.values(values);
         if (payloadValues.some(val => hasSuspiciousPattern(val))) {
@@ -50,7 +48,6 @@ export default function ShopRegistrationForm() {
         setShowOtpModal(true);
     }
 
-    // Step 2: After OTP verification, complete registration
     async function handleOtpVerified() {
         if (!pendingValues) return;
 
@@ -71,7 +68,6 @@ export default function ShopRegistrationForm() {
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                {/* Basic Information */}
                 <div className="space-y-4">
                     <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
                         <User className="w-4 h-4" /> Basic Information
@@ -116,7 +112,6 @@ export default function ShopRegistrationForm() {
                     </div>
                 </div>
 
-                {/* Contact Details */}
                 <div className="space-y-4">
                     <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
                         <Phone className="w-4 h-4" /> Contact Details
@@ -162,7 +157,6 @@ export default function ShopRegistrationForm() {
                     </div>
                 </div>
 
-                {/* Security */}
                 <div className="space-y-4">
                     <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
                         <Lock className="w-4 h-4" /> Security
@@ -203,7 +197,6 @@ export default function ShopRegistrationForm() {
                     )}
                 </button>
 
-                {/* OTP Verification Modal */}
                 <OtpVerificationModal
                     open={showOtpModal}
                     onOpenChange={setShowOtpModal}

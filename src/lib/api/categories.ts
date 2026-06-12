@@ -49,9 +49,27 @@ export async function getCategories() {
     } else if (rawData && typeof rawData === 'object' && Array.isArray(rawData.data)) {
         normalizedData = rawData.data;
     } else if (rawData && typeof rawData === 'object') {
-        // Sometimes nested under a custom key or returned as directly as the object? 
-        // Let's log it just in case, but fallback safely.
+        // Sometimes nested under a custom key or returned directly as the object?
         console.warn("[Categories API] Unrecognized shape in payload:", rawData);
+    }
+
+    // Preload all subcategories in parallel so they are ready on page load
+    try {
+        const categoriesWithSubcategories = await Promise.all(
+            normalizedData.map(async (category) => {
+                if (category.subcategories && category.subcategories.length > 0) {
+                    return category;
+                }
+                const subRes = await getSubCategories(category.id);
+                return {
+                    ...category,
+                    subcategories: subRes.success && subRes.data ? subRes.data : [],
+                };
+            })
+        );
+        normalizedData = categoriesWithSubcategories;
+    } catch (err) {
+        console.error("Failed to preload subcategories in parallel:", err);
     }
 
     return {
