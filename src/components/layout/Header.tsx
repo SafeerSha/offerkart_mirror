@@ -291,7 +291,7 @@ const Header = () => {
                         className="w-full pl-12 pr-4 py-3 bg-secondary/30 border border-primary/10 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium"
                     />
                 </div>
-                <LanguageSwitcher />
+                <LanguageSwitcher className="[&>button]:py-3 [&>button]:rounded-xl" />
             </div>
 
             <nav className="flex flex-col gap-0">
@@ -354,7 +354,7 @@ const Header = () => {
                         </button>
                     ) : (
                         <>
-                            <Link
+                            {/* <Link
                                 href="/profile"
                                 onClick={() => setMobileMenuOpen(false)}
                                 className={cn(
@@ -368,7 +368,7 @@ const Header = () => {
                                     <User className={cn("w-4 h-4 mr-3", pathname === "/profile" ? "text-orange-500" : "text-muted-foreground")} />
                                     Profile
                                 </div>
-                            </Link>
+                            </Link> */}
 
                             <PremiumButton
                                 asChild
@@ -387,7 +387,7 @@ const Header = () => {
                                         </>
                                     ) : (
                                         <>
-                                            <Plus className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
+                                            <PlusCircle className="w-4 h-4 mr-2" />
                                             <span className="font-bold">Add your shop</span>
                                         </>
                                     )}
@@ -428,7 +428,7 @@ const Header = () => {
                                 onClick={() => setMobileMenuOpen(false)}
                                 className="flex items-center justify-center p-6"
                             >
-                                <Plus className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
+                                <PlusCircle className="w-4 h-4 mr-2" />
                                 <span className="font-bold">Add your shop</span>
                             </Link>
                         </PremiumButton>
@@ -609,7 +609,7 @@ const Header = () => {
                                                 </Link>
                                             )}
                                         </PremiumButton>
-                                        <LanguageSwitcher />
+                                        <LanguageSwitcher className="[&>button]:h-9 [&>button]:rounded-2xl" />
                                     </div>
                                 )}
 

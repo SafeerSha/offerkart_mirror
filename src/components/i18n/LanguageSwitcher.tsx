@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition, useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "@/hooks/useTranslation";
 import { locales, type Locale } from "@/lib/i18n/config";
@@ -13,19 +13,21 @@ type LanguageSwitcherProps = {
 
 export const LanguageSwitcher = ({ className }: LanguageSwitcherProps) => {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const [isLoading, setIsLoading] = useState(false);
   const { locale, changeLocale } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const handleLanguageChange = (newLocale: string) => {
+  const handleLanguageChange = async (newLocale: string) => {
     setIsOpen(false);
     if (newLocale === locale) return;
 
-    startTransition(async () => {
+    setIsLoading(true);
+    try {
       await changeLocale(newLocale as any);
-      router.refresh();
-    });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Close dropdown on click outside
@@ -60,13 +62,13 @@ export const LanguageSwitcher = ({ className }: LanguageSwitcherProps) => {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        disabled={isPending}
+        disabled={isLoading}
         className={cn(
           "flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all duration-200 outline-none select-none",
           "bg-orange-50/80 dark:bg-orange-950/20 border-orange-200/60 dark:border-orange-900/40 text-orange-800 dark:text-orange-300",
           "hover:bg-orange-100/80 dark:hover:bg-orange-950/45 hover:border-orange-300/80 dark:hover:border-orange-800/60",
           "shadow-[0_1px_2px_rgba(249,115,22,0.05)] active:scale-[0.98]",
-          isPending && "opacity-70 pointer-events-none",
+          isLoading && "opacity-70 pointer-events-none",
           isOpen && "border-orange-500 dark:border-orange-400 ring-2 ring-orange-500/20"
         )}
       >
