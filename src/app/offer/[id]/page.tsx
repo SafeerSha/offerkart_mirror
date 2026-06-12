@@ -101,11 +101,12 @@ export default async function OfferDetailPage({
     params: Promise<{ id: string }>
 }) {
     const resolvedParams = await params;
-    const [offerResult, similarOffersResult] = await Promise.all([
+    const [offerResult, similarOffersResult, allOffersResult] = await Promise.all([
         getUserOfferById(resolvedParams.id, {
             next: { tags: [CACHE_TAGS.OFFERS, CACHE_TAGS.OFFER(resolvedParams.id)] },
         }),
         getPaginatedOffers(1, 8, {}, { next: { tags: [CACHE_TAGS.OFFERS] } }),
+        getAllUserOffers({ limit: 100 }),
     ]);
 
     if (!offerResult.data) {
@@ -118,5 +119,27 @@ export default async function OfferDetailPage({
         .slice(0, 5)
         .map(mapOfferForSimilarCard);
 
-    return <OfferDetailClient offer={mapOfferForDetail(offerResult.data)} similarOffers={filteredSimilarOffers} />;
+    const allOffers = allOffersResult.success ? allOffersResult.data : [];
+    const currentIndex = allOffers.findIndex(o => String(o.id) === resolvedParams.id);
+    let prevOfferId = null;
+    let nextOfferId = null;
+    
+    if (currentIndex !== -1 && allOffers.length > 1) {
+        // Loop around if at the ends
+        prevOfferId = allOffers[(currentIndex - 1 + allOffers.length) % allOffers.length].id;
+        nextOfferId = allOffers[(currentIndex + 1) % allOffers.length].id;
+    } else if (allOffers.length > 1) {
+        // Fallback if current not found in top 100
+        prevOfferId = allOffers[allOffers.length - 1].id;
+        nextOfferId = allOffers[0].id;
+    }
+
+    return (
+        <OfferDetailClient 
+            offer={mapOfferForDetail(offerResult.data)} 
+            similarOffers={filteredSimilarOffers} 
+            prevOfferId={prevOfferId}
+            nextOfferId={nextOfferId}
+        />
+    );
 }
