@@ -352,6 +352,7 @@ function mapUserOfferDetailToOffer(detail: any, listingOffer?: Offer | null): Of
                     y: area.yPercent ?? 0,
                     width: area.widthPercent ?? 0,
                     height: area.heightPercent ?? 0,
+                    mainCategory: prod.mainCategory || prod.main_category || prod.category || "",
                 });
             }
         }

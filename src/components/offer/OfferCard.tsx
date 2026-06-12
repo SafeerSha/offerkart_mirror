@@ -131,30 +131,34 @@ const OfferCard = ({
       </div>
 
       {/* Content Info with white background */}
-      <div className="bg-white dark:bg-[#1c2018] px-2 pb-2 pt-2 sm:px-3 sm:pb-2 sm:pt-2 flex justify-between items-end gap-2">
-        <div className="flex-1 min-w-0">
-          <h4 className="text-sm sm:text-base md:text-md font-bold text-slate-800 dark:text-slate-800 leading-snug group-hover:text-orange-500 transition-colors">
-            {offerDisplayName}
-          </h4>
-          <p className="text-slate-500 dark:text-slate-500 text-[8px] sm:text-xs font-semibold  tracking-wider mb-1 truncate">
-            {shopName || "OfferKart"}
-          </p>
-          {showDiscount && (
-            <div className="mt-1 flex">
+      <div className="bg-white dark:bg-[#1c2018] px-2 pb-2 pt-2 sm:px-3 sm:pb-3 sm:pt-3 flex flex-col items-start gap-1">
+        <h4 className="w-full text-sm sm:text-base md:text-md font-bold text-slate-800 dark:text-slate-800 leading-snug group-hover:text-orange-500 transition-colors truncate">
+          {offerDisplayName}
+        </h4>
+
+        <div className="w-full flex items-end justify-between gap-2">
+          <div className="flex flex-col min-w-0 flex-1">
+            <p className="w-full text-slate-500 dark:text-slate-500 text-[8px] sm:text-xs font-semibold tracking-wider truncate">
+              {shopName || "OfferKart"}
+            </p>
+            {showDiscount && (
               <span className={cn(
-                "inline-flex items-start py-1 text-red-600 dark:text-red-400  text-[8px] sm:text-xs",
+                "inline-flex items-start text-red-600 dark:text-red-400 text-[8px] sm:text-xs mt-0.5",
               )}>
                 {discount}
               </span>
-            </div>
+            )}
+          </div>
+
+          {postersCount > 0 && (
+            <span className="shrink-0 flex items-center gap-1 text-[10px] sm:text-xs font-medium text-orange-500/80 dark:text-orange-400/80 transition-colors group-hover:text-orange-600 dark:group-hover:text-orange-400">
+              <ImageIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              <span className="flex items-center gap-1">
+                <span className="text-[9px] sm:text-[11px]">{postersCount}</span><span className="text-[8px] sm:text-[10px] tracking-wider opacity-80">{postersCount === 1 ? 'Page' : 'Pages'}</span>
+              </span>
+            </span>
           )}
         </div>
-        {postersCount > 0 && (
-          <span className="shrink-0 flex items-center gap-1 px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-xs font-bold bg-orange-500/10 text-orange-600 dark:text-orange-600 border border-orange-500/20 shadow-[0_0_10px_rgba(249,115,22,0.05)]">
-            <ImageIcon className="w-3.5 h-3.5 mr-0.5" />
-            <span>{postersCount}</span>
-          </span>
-        )}
       </div>
     </PremiumCard>
   );

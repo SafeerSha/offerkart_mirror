@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Image, { StaticImageData } from "next/image";
-import { Tag, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { StaticImageData } from "next/image";
+import { Tag, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { PremiumButton } from "@/components/shared/PremiumButton";
-import { Subheading, Text } from "@/components/shared/Typography";
+import { Subheading } from "@/components/shared/Typography";
 import { MarkedPoster } from "@/components/shared/MarkedPoster";
 import { Poster, MarkedItem } from "@/lib/types/offer";
 
@@ -48,62 +48,173 @@ interface SimilarOffer {
 interface OfferDetailClientProps {
     offer: OfferDetail;
     similarOffers: SimilarOffer[];
+    prevOfferId?: number | string | null;
+    nextOfferId?: number | string | null;
 }
 
-export default function OfferDetailClient({ offer, similarOffers }: OfferDetailClientProps) {
+/** Map the Offer object (returned by getUserOfferById / the API route) to OfferDetail shape */
+function mapApiOfferToDetail(raw: any): OfferDetail {
+    const DEFAULT_IMAGE = "/images/shop-registration-bg-light.png";
+
+    // The API now returns a fully enriched Offer object (same as what mapOfferForDetail
+    // in page.tsx uses). Posters already have markedItems pre-mapped.
+    const finalPosters: Poster[] = (raw.posters || []).map((p: any) => {
+        const posterSrc = typeof p.posterSrc === "object" ? (p.posterSrc as any)?.src ?? DEFAULT_IMAGE : p.posterSrc || DEFAULT_IMAGE;
+        return {
+            id: String(p.id ?? ""),
+            posterSrc,
+            type: ("just_post" as const),
+            markedItems: (p.markedItems || []).map((item: any) => ({
+                id: String(item.id ?? ""),
+                name: item.name || "",
+                description: item.description || "",
+                productImage: item.productImage || "",
+                currency: item.currency || "₹",
+                oldPrice: item.oldPrice ?? 0,
+                offerPrice: item.offerPrice ?? 0,
+                x: item.x ?? 0,
+                y: item.y ?? 0,
+                width: item.width ?? 0,
+                height: item.height ?? 0,
+                mainCategory: item.mainCategory || "",
+            })),
+            title: p.title,
+        };
+    });
+
+    const primaryImage = finalPosters[0]?.posterSrc || (typeof raw.image === "string" ? raw.image : null) || raw.posterSrc || DEFAULT_IMAGE;
+
+    return {
+        id: raw.id,
+        shopName: raw.shopName || "OfferKart",
+        offerName: raw.offerName || raw.title || "Untitled Offer",
+        images: [primaryImage],
+        posters: finalPosters,
+        category: raw.category || "Offers",
+        location: raw.location || "Location unavailable",
+        validFrom: raw.validFrom || "",
+        validTo: raw.validTo || "",
+        discount: raw.discount || "Live now",
+        rating: 0,
+        reviews: 0,
+        price: "",
+        originalPrice: "",
+        branchName: raw.branchNames?.[0] ?? raw.branchName,
+    };
+}
+
+export default function OfferDetailClient({ offer: initialOffer, similarOffers, prevOfferId: initialPrevId, nextOfferId: initialNextId }: OfferDetailClientProps) {
     const { t } = useTranslation("common");
+
+    // --- Current offer state (can be changed client-side without page reload) ---
+    const [offer, setOffer] = useState(initialOffer);
+    const [prevOfferId, setPrevOfferId] = useState(initialPrevId);
+    const [nextOfferId, setNextOfferId] = useState(initialNextId);
+    const [allOfferIds, setAllOfferIds] = useState<(number | string)[]>([]);
+    const [isNavigating, setIsNavigating] = useState(false);
+
+    // --- Poster / carousel state ---
     const [posterIndex, setPosterIndex] = useState(0);
     const [similarCarouselIndex, setSimilarCarouselIndex] = useState(0);
     const [isProductModalOpen, setIsProductModalOpen] = useState(false);
     const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 
-    const [breadcrumbItems, setBreadcrumbItems] = useState([
+    // Keep breadcrumbs in sync with current offer name using useMemo instead of useEffect state sync
+    const breadcrumbItems = useMemo(() => [
         { label: t("nav.offers"), href: "/offers" },
-        { label: offer.offerName }
-    ]);
+        { label: offer.offerName },
+    ], [offer.offerName, t]);
 
+    // On mount: fetch all offer IDs for client-side prev/next calculation
     useEffect(() => {
-        if (typeof window !== "undefined") {
-            const referrer = document.referrer;
-            const origin = window.location.origin;
+        fetch("/api/user/offer/ids")
+            .then((r) => r.json())
+            .then((json) => {
+                if (json.success && Array.isArray(json.ids) && json.ids.length > 0) {
+                    setAllOfferIds(json.ids);
+                }
+            })
+            .catch(() => {/* silently ignore */});
+    }, []);
 
-            if (referrer === origin || referrer === origin + "/") {
-                // If coming from Home, show simple Home > [Offer] path
-                setBreadcrumbItems([{ label: offer.offerName }]);
-            } else if (referrer.includes("/offers")) {
-                // If coming from Offers list, preserve filters in the breadcrumb link
-                const path = referrer.replace(origin, "");
-                setBreadcrumbItems([
-                    { label: t("nav.offers"), href: path },
-                    { label: offer.offerName }
-                ]);
+    // Recompute prev/next from the ID list when current offer or list changes
+    useEffect(() => {
+        if (allOfferIds.length < 2) return;
+        const idx = allOfferIds.findIndex((id) => String(id) === String(offer.id));
+        if (idx === -1) return;
+        const prev = allOfferIds[(idx - 1 + allOfferIds.length) % allOfferIds.length];
+        const next = allOfferIds[(idx + 1) % allOfferIds.length];
+        setPrevOfferId(prev);
+        setNextOfferId(next);
+    }, [offer.id, allOfferIds]);
+
+    // Reset poster index when offer changes
+    useEffect(() => {
+        setPosterIndex(0);
+    }, [offer.id]);
+
+    const totalPosters = offer.posters?.length || offer.images.length || 1;
+
+    const allMarkedItems = useMemo(() => {
+        return offer.posters?.flatMap((poster, pIdx) =>
+            (poster.markedItems || []).map((item) => ({ ...item, posterIndex: pIdx }))
+        ) || [];
+    }, [offer.posters]);
+
+    /** Load a new offer client-side (no page reload) */
+    const navigateToOffer = useCallback(async (targetId: number | string) => {
+        if (isNavigating) return;
+        setIsNavigating(true);
+        try {
+            const res = await fetch(`/api/user/offer/${targetId}`);
+            const json = await res.json();
+            if (json.success && json.data) {
+                const raw = json.data?.data ?? json.data;
+                const newOffer = mapApiOfferToDetail(raw);
+                setOffer(newOffer);
+                // Update the browser URL without causing a navigation / full reload
+                window.history.pushState(null, "", `/offer/${targetId}`);
             }
+        } catch (e) {
+            console.error("Failed to navigate to offer:", e);
+        } finally {
+            setIsNavigating(false);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [offer.offerName]);
+    }, [isNavigating]);
 
-    const nextPoster = () => {
-        setPosterIndex((prev) => (prev + 1) % offer.images.length);
+    const handleNext = () => {
+        if (totalPosters > 1 && posterIndex < totalPosters - 1) {
+            setPosterIndex((prev) => prev + 1);
+        } else if (nextOfferId) {
+            navigateToOffer(nextOfferId);
+        }
     };
 
-    const prevPoster = () => {
-        setPosterIndex((prev) => (prev - 1 + offer.images.length) % offer.images.length);
+    const handlePrev = () => {
+        if (totalPosters > 1 && posterIndex > 0) {
+            setPosterIndex((prev) => prev - 1);
+        } else if (prevOfferId) {
+            navigateToOffer(prevOfferId);
+        }
     };
 
     const itemsPerSlide = 3;
     const totalSlides = Math.ceil(similarOffers.length / itemsPerSlide);
 
-    const nextSimilarSlide = () => {
-        setSimilarCarouselIndex((prev) => (prev + 1) % totalSlides);
-    };
+    const nextSimilarSlide = () => setSimilarCarouselIndex((prev) => (prev + 1) % totalSlides);
+    const prevSimilarSlide = () => setSimilarCarouselIndex((prev) => (prev - 1 + totalSlides) % totalSlides);
 
-    const prevSimilarSlide = () => {
-        setSimilarCarouselIndex((prev) => (prev - 1 + totalSlides) % totalSlides);
-    };
+    const prevLabel = totalPosters === 1 || posterIndex === 0 ? "Prev Offer" : "Prev Poster";
+    const nextLabel = totalPosters === 1 || posterIndex === totalPosters - 1 ? "Next Offer" : "Next Poster";
+
+    const handleActiveItemChange = useCallback((item: any) => {
+        if (item && typeof item.posterIndex === "number") {
+            setPosterIndex((prev) => (prev !== item.posterIndex ? item.posterIndex : prev));
+        }
+    }, []);
 
     return (
         <div className="min-h-screen bg-background">
-
 
             {/* Hero Spacer */}
             <div className="h-40 lg:h-36" />
@@ -114,10 +225,33 @@ export default function OfferDetailClient({ offer, similarOffers }: OfferDetailC
             </div>
 
             <div className="container mx-auto px-4 pb-16">
-                {/* Main Poster Carousel */}
-                <div className="max-w-lg mx-auto mb-16">
-                    <div className="relative aspect-[3/4] overflow-hidden rounded-2xl border border-primary/20">
-                        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-secondary/10" />
+                {/* Main Poster Section */}
+                <div className="flex flex-col md:flex-row items-center justify-center gap-4 max-w-4xl mx-auto mb-16">
+                    {/* Left Desktop Navigation */}
+                    <button
+                        onClick={handlePrev}
+                        disabled={isNavigating || (!prevOfferId && (totalPosters === 1 || posterIndex === 0))}
+                        className="hidden md:flex w-44 items-center justify-center gap-2 px-4 py-3 rounded-xl border border-orange-500/30 dark:border-orange-500/20 hover:border-orange-500 text-orange-600 dark:text-orange-400 hover:bg-orange-500/5 transition-all text-xs font-bold uppercase tracking-wider shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                        {isNavigating ? (
+                            <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                        ) : (
+                            <ChevronLeft className="w-4 h-4 shrink-0" />
+                        )}
+                        <span className="truncate">{prevLabel}</span>
+                    </button>
+
+                    {/* Poster Container */}
+                    <div className="w-full max-w-lg relative aspect-[3/4] overflow-hidden rounded-2xl border border-primary/20">
+                        {/* Loading overlay when navigating */}
+                        {isNavigating && (
+                            <div className="absolute inset-0 z-20 bg-background/60 backdrop-blur-sm flex items-center justify-center rounded-2xl">
+                                <div className="flex flex-col items-center gap-2">
+                                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest animate-pulse">Loading Offer...</span>
+                                </div>
+                            </div>
+                        )}
                         <MarkedPoster
                             src={offer.posters?.[posterIndex]?.posterSrc || (offer.images[posterIndex] as string)}
                             alt={offer.shopName}
@@ -132,51 +266,83 @@ export default function OfferDetailClient({ offer, similarOffers }: OfferDetailC
                                 }
                             }}
                         />
-                        <div className="absolute top-4 left-4">
+                        <div className="absolute top-4 left-4 z-10">
                             <span className="badge-futuristic">
                                 <Tag className="w-3 h-3 mr-1" />
                                 {offer.discount}
                             </span>
                         </div>
 
-                        {/* Carousel Navigation */}
-                        {offer.images.length > 1 && (
-                            <>
-                                <PremiumButton
-                                    variant="secondary"
-                                    size="icon"
-                                    onClick={prevPoster}
-                                    className="absolute left-4 top-1/2 -translate-y-1/2 backdrop-blur-sm h-10 w-10 rounded-full"
-                                >
-                                    <ChevronLeft className="w-4 h-4" />
-                                </PremiumButton>
-                                <PremiumButton
-                                    variant="secondary"
-                                    size="icon"
-                                    onClick={nextPoster}
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 backdrop-blur-sm h-10 w-10 rounded-full"
-                                >
-                                    <ChevronRight className="w-4 h-4" />
-                                </PremiumButton>
-
-                                {/* Dots Indicator */}
-                                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-                                    {offer.images.map((_, index) => (
-                                        <button
-                                            key={index}
-                                            onClick={() => setPosterIndex(index)}
-                                            className={`w-2 h-2 rounded-full transition-all ${index === posterIndex ? "bg-primary" : "bg-white/50"
-                                                }`}
-                                        />
-                                    ))}
-                                </div>
-                            </>
+                        {/* Poster Count Badge */}
+                        {totalPosters > 1 && (
+                            <div className="absolute top-4 right-4 z-10">
+                                <span className="bg-black/75 dark:bg-zinc-900/95 text-white text-[10px] font-bold px-2.5 py-1 rounded-full backdrop-blur-sm shadow-sm tracking-wider">
+                                    Poster {posterIndex + 1} of {totalPosters}
+                                </span>
+                            </div>
                         )}
+
+                        {/* Dots Indicator */}
+                        {totalPosters > 1 && (
+                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+                                {Array.from({ length: totalPosters }).map((_, index) => (
+                                    <button
+                                        key={index}
+                                        onClick={() => setPosterIndex(index)}
+                                        className={`w-2 h-2 rounded-full transition-all ${index === posterIndex ? "bg-primary" : "bg-white/50"}`}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Right Desktop Navigation */}
+                    <button
+                        onClick={handleNext}
+                        disabled={isNavigating || (!nextOfferId && (totalPosters === 1 || posterIndex === totalPosters - 1))}
+                        className="hidden md:flex w-44 items-center justify-center gap-2 px-4 py-3 rounded-xl border border-orange-500/30 dark:border-orange-500/20 hover:border-orange-500 text-orange-600 dark:text-orange-400 hover:bg-orange-500/5 transition-all text-xs font-bold uppercase tracking-wider shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                        <span className="truncate">{nextLabel}</span>
+                        {isNavigating ? (
+                            <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                        ) : (
+                            <ChevronRight className="w-4 h-4 shrink-0" />
+                        )}
+                    </button>
+
+                    {/* Mobile Carousel Navigation */}
+                    <div className="flex md:hidden w-full justify-between items-center gap-3 mt-6 relative z-10">
+                        <button
+                            onClick={handlePrev}
+                            disabled={isNavigating || (!prevOfferId && (totalPosters === 1 || posterIndex === 0))}
+                            className="flex-1 flex items-center justify-center gap-1.5 px-2 py-3 rounded-2xl bg-gradient-to-br from-orange-500/20 to-orange-500/5 dark:from-orange-500/10 dark:to-orange-500/5 backdrop-blur-xl border border-white/50 dark:border-white/10 ring-1 ring-inset ring-white/40 dark:ring-white/5 text-orange-600 dark:text-orange-400 transition-all active:scale-95 text-[10px] sm:text-xs font-bold uppercase tracking-wider relative overflow-hidden disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                            <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent dark:from-white/5 opacity-50 pointer-events-none" />
+                            {isNavigating ? (
+                                <Loader2 className="w-4 h-4 animate-spin shrink-0 relative z-10" />
+                            ) : (
+                                <ChevronLeft className="w-4 h-4 shrink-0 relative z-10" />
+                            )}
+                            <span className="truncate relative z-10">{prevLabel}</span>
+                        </button>
+                        <button
+                            onClick={handleNext}
+                            disabled={isNavigating || (!nextOfferId && (totalPosters === 1 || posterIndex === totalPosters - 1))}
+                            className="flex-1 flex items-center justify-center gap-1.5 px-2 py-3 rounded-2xl bg-gradient-to-br from-orange-500/20 to-orange-500/5 dark:from-orange-500/10 dark:to-orange-500/5 backdrop-blur-xl border border-white/50 dark:border-white/10 ring-1 ring-inset ring-white/40 dark:ring-white/5 text-orange-600 dark:text-orange-400 transition-all active:scale-95 text-[10px] sm:text-xs font-bold uppercase tracking-wider relative overflow-hidden disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                            <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent dark:from-white/5 opacity-50 pointer-events-none" />
+                            <span className="truncate relative z-10">{nextLabel}</span>
+                            {isNavigating ? (
+                                <Loader2 className="w-4 h-4 animate-spin shrink-0 relative z-10" />
+                            ) : (
+                                <ChevronRight className="w-4 h-4 shrink-0 relative z-10" />
+                            )}
+                        </button>
                     </div>
                 </div>
 
                 {/* Similar Offers Carousel */}
-                <div className="mt-16">
+                <div className="mt-10">
                     <div className="flex items-center justify-between mb-8">
                         <Subheading className="text-2xl font-bold">{t("catalog.similarOffers")}</Subheading>
                         <div className="flex items-center gap-2">
@@ -206,9 +372,9 @@ export default function OfferDetailClient({ offer, similarOffers }: OfferDetailC
                         >
                             {Array.from({ length: totalSlides }, (_, slideIndex) => (
                                 <div key={slideIndex} className="flex-shrink-0 w-full flex gap-6">
-                                    {similarOffers.slice(slideIndex * itemsPerSlide, (slideIndex + 1) * itemsPerSlide).map((offer, idx) => (
-                                        <div key={`${offer.id || 'similar'}-${slideIndex}-${idx}`} className="flex-1">
-                                            <OfferCard {...offer} />
+                                    {similarOffers.slice(slideIndex * itemsPerSlide, (slideIndex + 1) * itemsPerSlide).map((o, idx) => (
+                                        <div key={`${o.id || 'similar'}-${slideIndex}-${idx}`} className="flex-1">
+                                            <OfferCard {...o} />
                                         </div>
                                     ))}
                                 </div>
@@ -220,8 +386,13 @@ export default function OfferDetailClient({ offer, similarOffers }: OfferDetailC
             <ConsumerProductModal
                 open={isProductModalOpen}
                 onOpenChange={setIsProductModalOpen}
-                markedItems={offer.posters?.[posterIndex]?.markedItems || []}
+                markedItems={allMarkedItems}
                 initialItemId={selectedItemId}
+                offerCategory={offer.category}
+                prevOfferId={prevOfferId}
+                nextOfferId={nextOfferId}
+                onActiveItemChange={handleActiveItemChange}
+                onNavigateToOffer={navigateToOffer}
             />
         </div>
     );
