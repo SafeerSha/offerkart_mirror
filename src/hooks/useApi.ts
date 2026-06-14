@@ -20,7 +20,6 @@ export const queryKeys = {
   branchDetails: (shopId: string, branchId: string) => ["branchDetails", shopId, branchId] as const,
   
   // Offer keys
-  offers: ["offers"] as const,
   allOffers: (shopId?: string) => ["allOffers", shopId] as const,
   offerDetails: (id: string) => ["offerDetails", id] as const,
   featuredShops: ["featuredShops"] as const,
@@ -28,7 +27,6 @@ export const queryKeys = {
   paginatedOffers: (page: number, limit: number) => ["paginatedOffers", page, limit] as const,
 
   // Product keys
-  products: ["products"] as const,
   allProducts: (shopId?: string) => ["allProducts", shopId] as const,
   productDetails: (id: string) => ["productDetails", id] as const,
 
@@ -188,7 +186,6 @@ export function useCreateOffer() {
   return useMutation({
     mutationFn: ({ payload, shopId }: { payload: any; shopId: string }) => createOffer(payload, shopId),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.offers });
       queryClient.invalidateQueries({ queryKey: queryKeys.allOffers(variables?.shopId) });
     },
   });
@@ -200,7 +197,6 @@ export function useUpdateOffer() {
     mutationFn: ({ id, payload, shopId }: { id: string; payload: any; shopId: string }) => 
       updateOffer(id, payload, shopId),
     onSuccess: (_, { id, shopId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.offers });
       queryClient.invalidateQueries({ queryKey: queryKeys.allOffers(shopId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.offerDetails(id) });
     },
@@ -212,7 +208,6 @@ export function useDeleteOffer() {
   return useMutation({
     mutationFn: ({ id, shopId }: { id: string; shopId?: string }) => deleteOffer(id, shopId),
     onSuccess: (_, { shopId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.offers });
       queryClient.invalidateQueries({ queryKey: queryKeys.allOffers(shopId) });
     },
   });
@@ -249,8 +244,6 @@ export function useToggleOfferStatus() {
       }
     },
     onSettled: (_, __, { shopId }) => {
-      // Always re-sync with server
-      queryClient.invalidateQueries({ queryKey: queryKeys.offers });
       queryClient.invalidateQueries({ queryKey: queryKeys.allOffers(shopId) });
     },
   });
@@ -303,7 +296,6 @@ export function useCreateProduct() {
   return useMutation({
     mutationFn: ({ payload, shopId }: { payload: any; shopId?: string }) => createProduct(payload, shopId),
     onSuccess: (_, { shopId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.products });
       queryClient.invalidateQueries({ queryKey: queryKeys.allProducts(shopId) });
     },
   });
@@ -314,7 +306,6 @@ export function useUpdateProduct() {
   return useMutation({
     mutationFn: ({ id, payload, shopId }: { id: string; payload: any; shopId?: string }) => updateProduct(id, payload, shopId),
     onSuccess: (_, { id, shopId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.products });
       queryClient.invalidateQueries({ queryKey: queryKeys.allProducts(shopId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.productDetails(id) });
     },
@@ -326,7 +317,6 @@ export function useDeleteProduct() {
   return useMutation({
     mutationFn: ({ id, shopId }: { id: string; shopId?: string }) => deleteProduct(id),
     onSuccess: (_, { shopId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.products });
       queryClient.invalidateQueries({ queryKey: queryKeys.allProducts(shopId) });
     },
   });
@@ -362,8 +352,6 @@ export function useToggleOfferProductStatus() {
       }
     },
     onSettled: (_, __, { shopId }) => {
-      // Always sync with server after mutation completes
-      queryClient.invalidateQueries({ queryKey: queryKeys.products });
       queryClient.invalidateQueries({ queryKey: queryKeys.allProducts(shopId) });
     },
   });

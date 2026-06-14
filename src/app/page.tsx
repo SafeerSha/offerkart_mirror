@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { getTranslations } from "@/lib/i18n/server";
 import { Suspense } from "react";
 
+export const dynamic = "force-static";
 export const revalidate = false;
 
 export default async function HomePage() {

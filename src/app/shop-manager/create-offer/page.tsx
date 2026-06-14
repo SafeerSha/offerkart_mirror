@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 // Core React imports
 import { useState, useEffect, Suspense } from "react";
 

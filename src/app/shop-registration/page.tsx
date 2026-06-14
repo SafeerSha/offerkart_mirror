@@ -4,6 +4,8 @@ import { Rocket, BarChart3, Gem, Store } from "lucide-react";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 
+export const dynamic = "force-dynamic";
+
 export default function ShopRegistrationPage() {
     return (
         <main className="min-h-screen w-full flex">

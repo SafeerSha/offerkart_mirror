@@ -23,6 +23,9 @@ export const ENDPOINTS = {
     },
     USER_OFFER: {
         BASE: `user/offer`,
+        DETAILS: (id: string | number) => `user/offer/${id}`,
+        IDS: `user/offer/ids`,
+        PRODUCTS: `user/offer/products`,
         SHOPS: `user/offer/shops`,
     },
     CATEGORY: {

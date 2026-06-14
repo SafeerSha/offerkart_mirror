@@ -1,5 +1,7 @@
 import AddBranchForm from "@/components/shop-manager/AddBranchForm";
 
+export const dynamic = "force-dynamic";
+
 interface AddBranchPageProps {
     params: Promise<{ shopId: string }>;
 }

@@ -5,6 +5,7 @@ import { getAllUserOffers, getUserOfferById, getPaginatedOffers } from "@/lib/ap
 import { Offer } from "@/lib/types/offer";
 import { CACHE_TAGS } from "@/lib/api/cache-tags";
 
+export const dynamic = "force-static";
 export const revalidate = false;
 
 // Enable dynamic params for new offers

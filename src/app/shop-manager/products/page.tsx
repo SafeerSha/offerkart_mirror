@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect, useMemo, Suspense, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -19,6 +21,7 @@ import {
     Pencil, ArrowLeft, GitBranch, ShoppingBag, Loader2, ArrowRight, AlertTriangle
 } from "@/lib/icons";
 
+import { queryKeys } from "@/hooks/useApi";
 import {
     useMyShops, useBranches, useAllProducts, useCreateProduct, useUpdateProduct, useDeleteProduct, useToggleOfferProductStatus, useIsMobile
 } from "@/hooks";
@@ -177,8 +180,10 @@ function ShopProductsContent() {
     }, [branches]);
 
     useEffect(() => {
-        queryClient.invalidateQueries({ queryKey: ["allProducts"] });
-    }, [queryClient]);
+        if (!activeShopId) return;
+        queryClient.invalidateQueries({ queryKey: queryKeys.allProducts(activeShopId) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.branches(activeShopId) });
+    }, [activeShopId, queryClient]);
 
     const { mutateAsync: createProductMutation } = useCreateProduct();
     const { mutateAsync: updateProductMutation } = useUpdateProduct();

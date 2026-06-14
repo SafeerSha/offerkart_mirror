@@ -1,5 +1,7 @@
 import BranchListPage from "@/components/shop-manager/BranchListPage";
 
+export const dynamic = "force-dynamic";
+
 interface BranchesPageProps {
     params: Promise<{ shopId: string }>;
 }

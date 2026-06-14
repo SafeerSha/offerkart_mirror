@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 // Core React imports
 import { useState, useEffect, useRef, Suspense, useMemo } from "react";
 
@@ -45,6 +47,7 @@ import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import { ProductModal } from "@/components/shop-manager/ProductModal";
 
 // Hooks (barrel import)
+import { queryKeys } from "@/hooks/useApi";
 import {
     useMyShops, useBranches, useAllOffers, useAllProducts,
     useDeleteOffer, useToggleOfferStatus, useCreateProduct,
@@ -168,13 +171,6 @@ function DashboardContent() {
 
     const queryClient = useQueryClient();
 
-    // Force React Query to fetch the latest data on dashboard mount
-    useEffect(() => {
-        queryClient.invalidateQueries({ queryKey: ["allOffers"] });
-        queryClient.invalidateQueries({ queryKey: ["myShops"] });
-        queryClient.invalidateQueries({ queryKey: ["allProducts"] });
-    }, [queryClient]);
-
     // ================= API DATA HOOKS =================
 
     // 1. Fetch Shops
@@ -192,6 +188,14 @@ function DashboardContent() {
         if (shops.length > 0) return String(shops[0].id);
         return null;
     }, [session, shops]);
+
+    useEffect(() => {
+        if (!activeShopId) return;
+        queryClient.invalidateQueries({ queryKey: queryKeys.allOffers(activeShopId) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.myShops });
+        queryClient.invalidateQueries({ queryKey: queryKeys.allProducts(activeShopId) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.branches(activeShopId) });
+    }, [activeShopId, queryClient]);
 
     // 2. Fetch Offers for current shop
     const { data: offersResponse, isLoading: isLoadingOffers } = useAllOffers(activeShopId || undefined);

@@ -1,4 +1,4 @@
-import { backend } from "./backendClient";
+import { backend, type BackendRequestOptions } from "./backendClient";
 import { ENDPOINTS } from "./endpoints";
 import { CACHE_TAGS } from "./cache-tags";
 import { OfferProductPayload } from "../types/product";
@@ -21,10 +21,11 @@ export async function createOfferProduct(payload: OfferProductPayload, shopId: s
  * @param shopId - The optional shop ID to restrict fetch to
  * @returns Promise<ApiResponse<any[]>>
  */
-export async function getAllOfferProducts(shopId?: string): Promise<ApiResponse<any[]>> {
+export async function getAllOfferProducts(shopId?: string, cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">): Promise<ApiResponse<any[]>> {
     return backend.get<any[]>(ENDPOINTS.OFFER_PRODUCT.BASE, {
         headers: shopId ? { shopId } : {},
         next: { tags: [CACHE_TAGS.PRODUCTS] },
+        ...cacheOptions,
     });
 }
 
