@@ -4,6 +4,7 @@ import { getProductById, getAllProducts } from "@/lib/api/products";
 import ProductDetailClient from "@/components/products/ProductDetailClient";
 import { CACHE_TAGS } from "@/lib/api/cache-tags";
 
+export const dynamic = "force-static";
 export const revalidate = false;
 export const dynamicParams = true;
 

@@ -2,6 +2,7 @@ import { getAllProducts } from "@/lib/api/products";
 import ProductsClient from "@/components/products/ProductsClient";
 import { CACHE_TAGS } from "@/lib/api/cache-tags";
 
+export const dynamic = "force-static";
 export const revalidate = false;
 
 export default async function ProductsPage() {

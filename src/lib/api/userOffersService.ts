@@ -1,7 +1,7 @@
 import { ALL_OFFERS, ALL_PRODUCTS, FEATURED_OFFERS } from "./mockData";
-import { config } from "@/lib/config";
-
-const UPSTREAM_API_BASE_URL = config.api.upstreamBaseUrl;
+import { backend } from "./backendClient";
+import { ENDPOINTS } from "./endpoints";
+import { CACHE_TAGS } from "./cache-tags";
 
 // Map shop names to a stable mock shopId (1-indexed based on their index in ALL_OFFERS or predefined)
 export function getShopIdFromShopName(shopName: string): number {
@@ -312,61 +312,47 @@ export async function getUserOffersList(query: {
     const latitude = query.latitude;
     const longitude = query.longitude;
 
-    try {
-        const params = new URLSearchParams({
-            page: String(page),
-            limit: String(limit),
-            sort,
-        });
-        if (shopId) params.set("shopId", shopId);
-        if (latitude !== undefined) params.set("latitude", String(latitude));
-        if (longitude !== undefined) params.set("longitude", String(longitude));
+    const params = new URLSearchParams({
+        page: String(page),
+        limit: String(limit),
+        sort,
+    });
+    if (shopId) params.set("shopId", shopId);
+    if (latitude !== undefined) params.set("latitude", String(latitude));
+    if (longitude !== undefined) params.set("longitude", String(longitude));
 
-        const upstreamUrl = `${UPSTREAM_API_BASE_URL}/user/offer?${params.toString()}`;
-        const res = await fetch(upstreamUrl, { cache: "no-store" });
-        if (res.ok) {
-            const json = await res.json();
-            const offersArray = json && json.success && (
-                Array.isArray(json.data) 
-                    ? json.data 
-                    : (json.data && Array.isArray(json.data.data) ? json.data.data : null)
-            );
-            if (offersArray && offersArray.length > 0) {
-                return json;
-            }
-        }
-    } catch (e) {
-        console.error("Upstream user/offer request failed:", e);
+    const response = await backend.get<any>(`${ENDPOINTS.USER_OFFER.BASE}?${params.toString()}`, {
+        next: { tags: [CACHE_TAGS.OFFERS] },
+    });
+
+    if (!response.success || !response.data) {
+        return {
+            success: false,
+            page,
+            limit,
+            sort,
+            count: 0,
+            data: [],
+            error: response.error || "Failed to fetch offers",
+        };
     }
 
-    return {
-        success: false,
-        page,
-        limit,
-        sort,
-        count: 0,
-        data: []
-    };
+    return response;
 }
 
 export async function getUserOfferDetails(id: string | number) {
-    try {
-        const upstreamUrl = `${UPSTREAM_API_BASE_URL}/user/offer/${id}`;
-        const res = await fetch(upstreamUrl, { cache: "no-store" });
-        if (res.ok) {
-            const json = await res.json();
-            if (json && json.success && json.data) {
-                return json;
-            }
-        }
-    } catch (e) {
-        console.error(`Upstream user/offer/${id} request failed:`, e);
+    const response = await backend.get<any>(ENDPOINTS.USER_OFFER.DETAILS(id), {
+        next: { tags: [CACHE_TAGS.OFFERS, CACHE_TAGS.OFFER(String(id))] },
+    });
+
+    if (!response.success || !response.data) {
+        return {
+            success: false,
+            error: "Offer not found",
+        };
     }
 
-    return {
-        success: false,
-        error: "Offer not found"
-    };
+    return response;
 }
 
 export async function getUserOfferProducts(query: {
@@ -385,41 +371,37 @@ export async function getUserOfferProducts(query: {
     const sort = query.sort || "newest";
     const { search, categoryId, subcategoryId, shopId, minPrice, maxPrice } = query;
 
-    try {
-        const params = new URLSearchParams({
-            page: String(page),
-            limit: String(limit),
-            sort,
-        });
-        if (search) params.set("search", search);
-        if (categoryId) params.set("categoryId", categoryId);
-        if (subcategoryId) params.set("subcategoryId", subcategoryId);
-        if (shopId) params.set("shopId", shopId);
-        if (minPrice !== undefined) params.set("minPrice", String(minPrice));
-        if (maxPrice !== undefined) params.set("maxPrice", String(maxPrice));
+    const params = new URLSearchParams({
+        page: String(page),
+        limit: String(limit),
+        sort,
+    });
+    if (search) params.set("search", search);
+    if (categoryId) params.set("categoryId", categoryId);
+    if (subcategoryId) params.set("subcategoryId", subcategoryId);
+    if (shopId) params.set("shopId", shopId);
+    if (minPrice !== undefined) params.set("minPrice", String(minPrice));
+    if (maxPrice !== undefined) params.set("maxPrice", String(maxPrice));
 
-        const upstreamUrl = `${UPSTREAM_API_BASE_URL}/user/offer/products?${params.toString()}`;
-        const res = await fetch(upstreamUrl, { cache: "no-store" });
-        if (res.ok) {
-            const json = await res.json();
-            if (json && json.success && json.data) {
-                return json;
-            }
-        }
-    } catch (e) {
-        console.error("Upstream user/offer/products request failed:", e);
+    const response = await backend.get<any>(`${ENDPOINTS.USER_OFFER.PRODUCTS}?${params.toString()}`, {
+        next: { tags: [CACHE_TAGS.OFFERS, CACHE_TAGS.PRODUCTS] },
+    });
+
+    if (!response.success || !response.data) {
+        return {
+            success: false,
+            data: {
+                data: [],
+                pagination: {
+                    total: 0,
+                    page,
+                    limit,
+                    totalPages: 0,
+                },
+            },
+            error: response.error || "Failed to fetch products",
+        };
     }
 
-    return {
-        success: false,
-        data: {
-            data: [],
-            pagination: {
-                total: 0,
-                page,
-                limit,
-                totalPages: 0
-            }
-        }
-    };
+    return response;
 }

@@ -2,6 +2,7 @@
 // Run: npm run generate-barrels
 
 export {
+  queryKeys,
   useMyShops, useBranches, useAllOffers, useAllProducts,
   useDeleteOffer, useToggleOfferStatus, useCreateProduct,
   useUpdateProduct, useDeleteProduct, useToggleOfferProductStatus,

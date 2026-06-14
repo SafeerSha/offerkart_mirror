@@ -12,6 +12,8 @@ import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import OfferCard from "@/components/offer/OfferCard";
 import { ConsumerProductModal } from "@/components/offer/ConsumerProductModal";
 import { useTranslation } from "@/hooks/useTranslation";
+import { backend } from "@/lib/api/backendClient";
+import { ENDPOINTS } from "@/lib/api/endpoints";
 
 interface OfferDetail {
     id: number | string;
@@ -127,11 +129,10 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
 
     // On mount: fetch all offer IDs for client-side prev/next calculation
     useEffect(() => {
-        fetch("/api/user/offer/ids")
-            .then((r) => r.json())
+        backend.get<{ success: boolean; ids: (number | string)[] }>(ENDPOINTS.USER_OFFER.IDS)
             .then((json) => {
-                if (json.success && Array.isArray(json.ids) && json.ids.length > 0) {
-                    setAllOfferIds(json.ids);
+                if (json.success && Array.isArray(json.data?.ids) && json.data.ids.length > 0) {
+                    setAllOfferIds(json.data.ids);
                 }
             })
             .catch(() => {/* silently ignore */});
@@ -166,8 +167,8 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
         if (isNavigating) return;
         setIsNavigating(true);
         try {
-            const res = await fetch(`/api/user/offer/${targetId}`);
-            const json = await res.json();
+            const res = await backend.get<any>(ENDPOINTS.USER_OFFER.DETAILS(targetId));
+            const json = res;
             if (json.success && json.data) {
                 const raw = json.data?.data ?? json.data;
                 const newOffer = mapApiOfferToDetail(raw);

@@ -1,4 +1,6 @@
 import ShopSettingsForm from "@/components/shop-manager/ShopSettingsForm";
+
+export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { Settings } from "lucide-react";
 import { Heading, Text } from "@/components/shared/Typography";

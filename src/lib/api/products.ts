@@ -1,11 +1,9 @@
-import { backend, BackendRequestOptions } from './backendClient';
+import { backend, type BackendRequestOptions } from './backendClient';
 import { ENDPOINTS } from './endpoints';
 import { OfferProductPayload } from '../types/product';
 import { updateOfferProduct, getAllOfferProducts, deleteOfferProduct } from './offerproduct';
 import { CACHE_TAGS } from './cache-tags';
 import { getUserOfferProducts } from './userOffersService';
-
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export function mapUserProductToProduct(item: any): any {
     if (!item) return null;
@@ -44,10 +42,9 @@ export async function getAllProducts(
     shopId?: string,
     cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">
 ) {
-    void cacheOptions;
     if (!shopId || shopId === "all" || shopId === "undefined" || shopId === "null" || shopId === "") {
         try {
-            const userProductsRes = await getUserProducts({ limit: 100 });
+            const userProductsRes = await getUserProducts({ limit: 100 }, cacheOptions);
             if (userProductsRes && userProductsRes.success && userProductsRes.data && userProductsRes.data.data) {
                 return userProductsRes.data.data;
             }
@@ -60,7 +57,7 @@ export async function getAllProducts(
     try {
         // Try to fetch from backend API first
         console.log(`[API] Fetching products for shopId: ${shopId}`);
-        const backendRes = await getAllOfferProducts(shopId);
+        const backendRes = await getAllOfferProducts(shopId, cacheOptions);
         
         if (backendRes.success && backendRes.data) {
             console.log(`[API] Successfully fetched products. Count: ${Array.isArray(backendRes.data) ? backendRes.data.length : (backendRes.data as any).Count || 'unknown'}`);
@@ -124,26 +121,13 @@ export async function getAllProducts(
         console.error(`[API] Critical error fetching products for shopId: ${shopId}:`, error);
     }
 
-    let customProducts: any[] = [];
-    if (typeof window !== "undefined") {
-        const stored = localStorage.getItem("customProducts");
-        if (stored) {
-            try {
-                customProducts = JSON.parse(stored);
-            } catch (e) {
-                console.error(e);
-            }
-        }
-    }
-    return customProducts;
+    return [];
 }
 
 export async function getProductById(
     id: string,
     cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">
 ) {
-    await delay(100);
-
     // First try to look up in all end-user products
     try {
         const userProductsRes = await getUserProducts({ limit: 1000 });
@@ -266,7 +250,7 @@ export async function getUserProducts(query: {
     sort?: string;
     page?: number;
     limit?: number;
-}) {
+}, cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">) {
     const page = query.page || 1;
     const limit = query.limit || 20;
     const sort = query.sort || "newest";
@@ -286,7 +270,10 @@ export async function getUserProducts(query: {
 
     let response: any;
     try {
-        response = await backend.get<any>(`user/offer/products?${params.toString()}`);
+        response = await backend.get<any>(`${ENDPOINTS.USER_OFFER.PRODUCTS}?${params.toString()}`, {
+            next: { tags: [CACHE_TAGS.PRODUCTS] },
+            ...cacheOptions,
+        });
     } catch (e: any) {
         console.error("getUserProducts backend call failed:", e);
         response = { success: false };

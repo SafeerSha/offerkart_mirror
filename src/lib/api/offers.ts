@@ -400,7 +400,7 @@ export async function getUserOfferById(
 ) {
     let detailData: any = null;
     try {
-        const response = await backend.get<any>(`${ENDPOINTS.USER_OFFER.BASE}/${id}`, {
+        const response = await backend.get<any>(ENDPOINTS.USER_OFFER.DETAILS(id), {
             next: { tags: [CACHE_TAGS.OFFERS, CACHE_TAGS.OFFER(id)] },
             ...cacheOptions,
         });

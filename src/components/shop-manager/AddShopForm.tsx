@@ -35,6 +35,7 @@ import { useSession } from "next-auth/react";
 import dynamic from "next/dynamic";
 import { addShop, updateShop, getShopDetails } from "@/lib/api/shop";
 import { Shop } from "@/lib/types/shop";
+import { queryKeys } from "@/hooks/useApi";
 import { useLocation } from "@/hooks/useLocation";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { ImagePreviewModal } from "@/components/shared/ImagePreviewModal";
@@ -257,10 +258,10 @@ export default function AddShopForm() {
                 toast.success(isEditMode ? "Shop updated successfully!" : "Shop added successfully!");
 
                 // Invalidate React Query cache instantly so the dashboard and details are not stale
-                queryClient.invalidateQueries({ queryKey: ["myShops"] });
-                queryClient.invalidateQueries({ queryKey: ["shops"] });
+                queryClient.invalidateQueries({ queryKey: queryKeys.myShops });
+                queryClient.invalidateQueries({ queryKey: queryKeys.shops });
                 if (isEditMode && shopId) {
-                    queryClient.invalidateQueries({ queryKey: ["shopDetails", shopId] });
+                    queryClient.invalidateQueries({ queryKey: queryKeys.shopDetails(shopId) });
                 }
 
                 // Inject the newly created shop ID into the session so the

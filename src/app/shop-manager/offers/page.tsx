@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect, useMemo, Suspense, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -18,6 +20,7 @@ import {
     Pencil, ArrowLeft, GitBranch, ShoppingBag, Loader2, ArrowRight, AlertTriangle
 } from "@/lib/icons";
 
+import { queryKeys } from "@/hooks/useApi";
 import {
     useMyShops, useBranches, useAllOffers, useDeleteOffer, useToggleOfferStatus, useIsMobile
 } from "@/hooks";
@@ -165,8 +168,10 @@ function ShopOffersContent() {
     }, [branchesResponse]);
 
     useEffect(() => {
-        queryClient.invalidateQueries({ queryKey: ["allOffers"] });
-    }, [queryClient]);
+        if (!activeShopId) return;
+        queryClient.invalidateQueries({ queryKey: queryKeys.allOffers(activeShopId) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.branches(activeShopId) });
+    }, [activeShopId, queryClient]);
 
     const { mutateAsync: deleteOfferMutation } = useDeleteOffer();
     const { mutateAsync: toggleStatusMutation } = useToggleOfferStatus();
