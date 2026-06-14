@@ -25,14 +25,13 @@ export function mapUserProductToProduct(item: any): any {
         savingPercentage: finalSavingPercentage,
         image: primaryImage,
         description: item.displayDescription || item.description || "",
-        category: item.category?.name || item.category || String(item.categoryId || 1),
+        category: item.mainCategory || item.categoryName || item.category?.name || (typeof item.category === 'string' && !/^\d+$/.test(item.category) && item.category.trim() !== '' ? item.category : "Product"),
         categoryId: item.categoryId,
         rating: item.rating || 5,
         reviews: item.reviews || 0,
         discount: item.discount || (finalSavingPercentage > 0 ? `${finalSavingPercentage}% OFF` : undefined),
         specifications: [
-            { label: "Category", value: item.category?.name || item.category || String(item.categoryId || 1) },
-            { label: "Availability", value: "In Stock" }
+            { label: "Category", value: item.mainCategory || item.categoryName || item.category?.name || (typeof item.category === 'string' && !/^\d+$/.test(item.category) && item.category.trim() !== '' ? item.category : "Product") }
         ],
         images: [primaryImage]
     };
@@ -86,7 +85,7 @@ export async function getAllProducts(
                     savingPercentage: finalSavingPercentage,
                     image: item.imageUrl || null,
                     // Use nested category name if available, else fallback to categoryId string
-                    category: item.category?.name || String(item.categoryId),
+                    category: item.category?.name || "Product",
                     categoryId: item.categoryId,
                     // Support both legacy object structures and new api structure {id, parentId, level}
                     parentCategoryId: item.category?.parentId ?? item.category?.categoryId ?? null,
@@ -94,9 +93,8 @@ export async function getAllProducts(
                     categoryObject: item.category,
                     description: item.displayDescription || "",
                     specifications: [
-                        { label: "Category", value: item.category?.name || String(item.categoryId) },
-                        { label: "Status", value: item.isHighlighted ? "Featured" : "Standard" },
-                        { label: "Availability", value: "In Stock" }
+                        { label: "Category", value: item.category?.name || "Product" },
+                        { label: "Status", value: item.isHighlighted ? "Featured" : "Standard" }
                     ],
                     images: [item.imageUrl],
                     rating: 5,
@@ -128,45 +126,32 @@ export async function getProductById(
     id: string,
     cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">
 ) {
-    // First try to look up in all end-user products
+    // Try fetching from the new user-facing product details API
     try {
-        const userProductsRes = await getUserProducts({ limit: 1000 });
-        if (userProductsRes && userProductsRes.success && userProductsRes.data && userProductsRes.data.data) {
-            const product = userProductsRes.data.data.find((p: any) => p && p.id != null && p.id.toString() === id);
+        const { getUserOfferProductById } = await import('./offerproduct');
+        const res = await getUserOfferProductById(id);
+        if (res.success && res.data) {
+            let data = res.data;
+            // Check if nested inside a data property
+            if (data.data && typeof data.data === 'object') {
+                data = data.data;
+            }
+            const product = mapUserProductToProduct(data);
             if (product) {
                 return {
                     ...product,
-                    description: product.description || "This is a premium product available at " + product.shopName + ". Quality guaranteed.",
+                    description: product.description || "Premium quality guaranteed product.",
                     specifications: product.specifications || [
-                        { label: "Category", value: product.category },
-                        { label: "Shop", value: product.shopName },
-                        { label: "Availability", value: "In Stock" }
+                        { label: "Category", value: product.category || "Product" }
                     ],
-                    images: product.images || [product.image, product.image, product.image]
                 };
             }
         }
     } catch (e) {
-        console.error("getProductById from user API failed:", e);
+        console.error(`Error fetching product ${id} via user API:`, e);
     }
 
-    const all = await getAllProducts(undefined, cacheOptions);
-    const product = all.find((p: any) => p && p.id != null && p.id.toString() === id);
-
-    if (product) {
-        return {
-            ...product,
-            description: product.description || "This is a premium product available at " + product.shopName + ". Quality guaranteed.",
-            specifications: product.specifications || [
-                { label: "Category", value: product.category },
-                { label: "Shop", value: product.shopName },
-                { label: "Availability", value: "In Stock" }
-            ],
-            images: product.images || [product.image, product.image, product.image]
-        };
-    }
-
-    // Try fetching from actual backend API for dynamic IDs not in static mocks
+    // Fallback: try fetching from actual business backend API (legacy fallback)
     try {
         const res = await backend.get<any>(ENDPOINTS.OFFER_PRODUCT.DETAILS(id), {
             next: { tags: [CACHE_TAGS.PRODUCTS, CACHE_TAGS.PRODUCT(id)] },
@@ -174,36 +159,13 @@ export async function getProductById(
         });
         if (res.success && res.data) {
             const data = res.data;
-            // Map backend payload format back to application Product format
-            const finalOriginalPrice = data.originalPrice !== undefined ? data.originalPrice : (data.price !== undefined ? data.price : 0);
-            const finalOfferPrice = data.offerPrice !== undefined ? data.offerPrice : (data.price !== undefined ? data.price : 0);
-            const finalSavingPercentage = data.savingPercentage !== undefined 
-                ? data.savingPercentage 
-                : (finalOriginalPrice && finalOfferPrice && finalOriginalPrice > finalOfferPrice 
-                    ? Math.round(((finalOriginalPrice - finalOfferPrice) / finalOriginalPrice) * 100) 
-                    : 0);
             return {
-                id: data.id,
-                name: data.displayName,
-                shopName: data.shop?.shop_name || data.shopName || "Store Partner",
-                price: finalOfferPrice,
-                originalPrice: finalOriginalPrice,
-                savingPercentage: finalSavingPercentage,
-                image: data.imageUrl,
-                category: data.category?.name || String(data.categoryId),
-                categoryId: data.categoryId,
-                parentCategoryId: data.category?.parentId ?? data.category?.categoryId ?? null,
-                subcategoryId: (data.category?.level === 2 ? data.category?.id : data.subcategoryId) ?? null,
-                categoryObject: data.category,
+                ...mapUserProductToProduct(data),
                 description: data.displayDescription || "Premium quality guaranteed product.",
                 specifications: [
-                    { label: "Category", value: String(data.categoryId) },
-                    { label: "Status", value: data.isHighlighted ? "Featured" : "Standard" },
-                    { label: "Availability", value: "In Stock" }
+                    { label: "Category", value: data.category?.name || "Product" },
+                    { label: "Status", value: data.isHighlighted ? "Featured" : "Standard" }
                 ],
-                images: [data.imageUrl],
-                rating: 5, // Default rating placeholder for backend items
-                reviews: 0
             };
         }
     } catch (error) {
