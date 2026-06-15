@@ -18,7 +18,7 @@ import { ProductModal } from "@/components/shop-manager/ProductModal";
 
 import {
     Clock, Eye, Package, Plus, Search, Tag, Trash2, Calendar,
-    Pencil, ArrowLeft, GitBranch, ShoppingBag, Loader2, ArrowRight, AlertTriangle
+    Pencil, ArrowLeft, GitBranch, ShoppingBag, Loader2, ArrowRight, AlertTriangle, Check, ListChecks, Play, Pause
 } from "@/lib/icons";
 
 import { queryKeys } from "@/hooks/useApi";
@@ -138,6 +138,11 @@ function ShopProductsContent() {
     const [productToEdit, setProductToEdit] = useState<any | null>(null);
     const [productToDelete, setProductToDelete] = useState<any | null>(null);
     const [previewLogo, setPreviewLogo] = useState<{ src: string; name: string } | null>(null);
+    const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
+    const [bulkActionModal, setBulkActionModal] = useState<{ type: "delete" | "status" | null; targetStatus?: "active" | "inactive" } | null>(null);
+    const [isBulkMode, setIsBulkMode] = useState(false);
+
+    const isSelectMode = selectedProducts.size > 0;
 
     const { data: shopsResponse, isLoading: isLoadingShops } = useMyShops();
     const shops = useMemo(() => {
@@ -276,6 +281,94 @@ function ShopProductsContent() {
         }
     };
 
+    const handleSelectProduct = (productId: string) => {
+        const newSelected = new Set(selectedProducts);
+        if (newSelected.has(productId)) {
+            newSelected.delete(productId);
+        } else {
+            newSelected.add(productId);
+        }
+        setSelectedProducts(newSelected);
+    };
+
+    const handleSelectAll = () => {
+        const productsToSelect = filteredProducts.filter((product: any) => !product.isDraft);
+        const allSelected = productsToSelect.length > 0 && productsToSelect.every((product: any) => {
+            const id = String(product.id);
+            return selectedProducts.has(id);
+        });
+        if (allSelected) {
+            setSelectedProducts(new Set());
+        } else {
+            const allIds = new Set<string>();
+            productsToSelect.forEach((product: any) => {
+                allIds.add(String(product.id));
+            });
+            setSelectedProducts(allIds);
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        try {
+            const deletePromises = Array.from(selectedProducts).map((id) => {
+                if (activeShopId) {
+                    return deleteProductMutation({ id, shopId: activeShopId });
+                }
+                return Promise.resolve({ success: false });
+            });
+
+            const results = await Promise.all(deletePromises);
+            const successCount = results.filter((r: any) => r.success).length;
+            const failCount = results.length - successCount;
+
+            if (successCount > 0) {
+                toast.success(`${successCount} product${successCount > 1 ? 's' : ''} deleted successfully`);
+            }
+            if (failCount > 0) {
+                toast.error(`Failed to delete ${failCount} product${failCount > 1 ? 's' : ''}`);
+            }
+            setSelectedProducts(new Set());
+            setIsBulkMode(false);
+            setBulkActionModal(null);
+        } catch (err: any) {
+            console.error("Bulk delete error:", err);
+            toast.error(`Failed to delete products: ${err.message}`);
+        }
+    };
+
+    const handleBulkToggleStatus = async (status: "active" | "inactive") => {
+        try {
+            const togglePromises = Array.from(selectedProducts).map((id) => {
+                const product = filteredProducts.find((p: any) => String(p.id) === id);
+                if (product && activeShopId) {
+                    const currentStatus = product.status || 'active';
+                    const targetStatus = status === 'active' ? 'active' : 'inactive';
+                    if (currentStatus !== targetStatus) {
+                        return toggleProductStatusMutation({ id, shopId: activeShopId });
+                    }
+                }
+                return Promise.resolve({ success: true });
+            });
+
+            const results = await Promise.all(togglePromises);
+            const successCount = results.filter((r: any) => r.success).length;
+            const failCount = results.length - successCount;
+
+            if (successCount > 0) {
+                toast.success(`${successCount} product${successCount > 1 ? 's' : ''} ${status === 'active' ? 'activated' : 'paused'} successfully`);
+            }
+            if (failCount > 0) {
+                toast.error(`Failed to update ${failCount} product${failCount > 1 ? 's' : ''}`);
+            }
+            setSelectedProducts(new Set());
+            setIsBulkMode(false);
+            setBulkActionModal(null);
+        } catch (err: any) {
+            console.error("Bulk toggle error:", err);
+            toast.error(`Failed to update products: ${err.message}`);
+        }
+    };
+
     const filteredProducts = useMemo(() => {
         return allProductsList.filter((product: any) => {
             const query = searchQuery.toLowerCase().trim();
@@ -357,13 +450,32 @@ function ShopProductsContent() {
                                 )}
                             </div>
 
+                            {/* Mobile Bulk Button */}
                             <button
+                                onClick={() => {
+                                    if (isBulkMode) {
+                                        setSelectedProducts(new Set());
+                                    }
+                                    setIsBulkMode(!isBulkMode);
+                                }}
+                                className={cn(
+                                    "flex sm:hidden shrink-0 items-center justify-center gap-1 h-8 px-2.5 rounded-lg text-[9px] font-black uppercase tracking-wider border transition-all cursor-pointer",
+                                    isBulkMode
+                                        ? "bg-red-400 text-white border-red-500 shadow-sm shadow-red-400/10"
+                                        : "bg-white text-gray-650 border-gray-200 hover:bg-gray-50 hover:text-gray-900"
+                                )}
+                            >
+                                <ListChecks className="w-3.5 h-3.5 shrink-0" />
+                                <span>{isBulkMode ? "Cancel" : "Select"}</span>
+                            </button>
+
+                            <PremiumButton
                                 onClick={() => setShowAddProductModal(true)}
-                                className="bg-orange-500 hover:bg-orange-600 text-white rounded-lg w-8 h-8 flex sm:hidden items-center justify-center shadow-sm shadow-orange-500/10 active:scale-95 transition-all cursor-pointer border-0 shrink-0"
+                                className="w-8 h-8 rounded-lg flex sm:hidden items-center justify-center shrink-0 animate-none"
                                 title="Add Product"
                             >
-                                <Plus className="w-4 h-4" />
-                            </button>
+                                <Plus className="w-4 h-4 text-white" />
+                            </PremiumButton>
                         </div>
 
                         <div className="flex bg-gray-55 p-0.5 rounded-lg gap-0.5 self-start sm:self-auto shrink-0 border border-gray-100 bg-gray-50/50">
@@ -384,12 +496,31 @@ function ShopProductsContent() {
                         </div>
                     </div>
 
-                    <button
-                        onClick={() => setShowAddProductModal(true)}
-                        className="hidden sm:flex bg-orange-500 hover:bg-orange-600 text-white rounded-lg h-7 px-3 text-[10px] font-bold uppercase tracking-wider items-center justify-center gap-1 shadow-sm shadow-orange-500/10 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer border-0 shrink-0 self-start sm:self-auto"
-                    >
-                        <Plus className="w-3.5 h-3.5" /> Add Product
-                    </button>
+                    <div className="hidden sm:flex items-center gap-2 shrink-0">
+                        <button
+                            onClick={() => {
+                                if (isBulkMode) {
+                                    setSelectedProducts(new Set());
+                                }
+                                setIsBulkMode(!isBulkMode);
+                            }}
+                            className={cn(
+                                "rounded-lg h-7 px-3 text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer border",
+                                isBulkMode
+                                    ? "bg-red-500 text-white border-red-500 shadow-sm shadow-red-500/10"
+                                    : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                            )}
+                        >
+                            <ListChecks className="w-3.5 h-3.5 shrink-0" />
+                            {isBulkMode ? "Cancel" : "Select"}
+                        </button>
+                        <PremiumButton
+                            onClick={() => setShowAddProductModal(true)}
+                            className="rounded-lg h-7 px-3 text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1 shrink-0 self-start sm:self-auto"
+                        >
+                            <Plus className="w-3.5 h-3.5" /> Add Product
+                        </PremiumButton>
+                    </div>
                 </div>
 
                 {isLoadingProducts ? (
@@ -404,156 +535,269 @@ function ShopProductsContent() {
                             </div>
                         ))}
                     </div>
-                ) : filteredProducts.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {filteredProducts.map((product: any) => {
-                            const id = product.id;
-                            const productImage = product.image || product.imageUrl;
-                            return (
-                                <SwipeableCard
-                                    key={id}
-                                    onEdit={() => handleEditProduct(product)}
-                                    onDelete={() => setProductToDelete(product)}
-                                    editTitle="Edit"
-                                    deleteTitle="Delete"
-                                >
-                                    <div className="group relative flex items-start gap-3 p-3 rounded-xl bg-white border border-gray-100 hover:border-primary/20 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 overflow-hidden shadow-sm">
+                ) : (
+                    <>
+                        {isSelectMode && (
+                            <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 sm:p-4 shadow-lg z-50 animate-in slide-in-from-bottom-full pb-safe-bottom">
+                                <div className="container mx-auto max-w-6xl flex flex-col sm:flex-row items-center justify-between gap-3">
+                                    <div className="flex items-center justify-between w-full sm:w-auto gap-3 border-b border-gray-100 sm:border-0 pb-2 sm:pb-0">
+                                        <div className="flex items-center justify-between gap-2.5 w-full">
+                                            <span className="text-xs sm:text-sm font-bold text-gray-700">{selectedProducts.size} selected</span>
+                                        </div>
+                                        <button
+                                            onClick={() => setSelectedProducts(new Set())}
+                                            className="text-[11px] sm:text-xs text-red-500 hover:text-red-700 underline whitespace-nowrap"
+                                        >
+                                            Clear selection
+                                        </button>
+                                    </div>
+                                    <div className="flex items-center justify-center sm:justify-end gap-1.5 sm:gap-2 w-full sm:w-auto">
+                                        <PremiumButton
+                                            variant="outline"
+                                            onClick={() => setBulkActionModal({ type: "status", targetStatus: "active" })}
+                                            className="rounded-lg text-[10px] sm:text-xs h-8 px-2.5 sm:px-3 flex-1 sm:flex-none justify-center"
+                                        >
+                                            <Play className="w-3.5 h-3.5 mr-1" />
+                                            Activate
+                                        </PremiumButton>
+                                        <PremiumButton
+                                            variant="outline"
+                                            onClick={() => setBulkActionModal({ type: "status", targetStatus: "inactive" })}
+                                            className="rounded-lg text-[10px] sm:text-xs h-8 px-2.5 sm:px-3 flex-1 sm:flex-none justify-center"
+                                        >
+                                            <Pause className="w-3.5 h-3.5 mr-1" />
+                                            Pause
+                                        </PremiumButton>
+                                        <PremiumButton
+                                            variant="outline"
+                                            onClick={() => setBulkActionModal({ type: "delete" })}
+                                            className="rounded-lg text-[10px] sm:text-xs h-8 px-2.5 sm:px-3 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-100 flex-1 sm:flex-none justify-center"
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5 mr-1" />
+                                            Delete
+                                        </PremiumButton>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Select All / Bulk Info bar */}
+                        <div className={cn(
+                            "overflow-hidden transition-all duration-300 ease-in-out flex items-center justify-between px-1",
+                            isBulkMode && !isLoadingProducts && filteredProducts.filter((p: any) => !p.isDraft).length > 0
+                                ? "max-h-12 opacity-100 mb-4 scale-y-100 origin-top"
+                                : "max-h-0 opacity-0 mb-0 scale-y-95 origin-top pointer-events-none"
+                        )}>
+                            <span className="text-xs text-black font-medium ml-3">
+                                {selectedProducts.size} of {filteredProducts.filter((p: any) => !p.isDraft).length} selected
+                            </span>
+                            <button
+                                onClick={handleSelectAll}
+                                className="text-xs font-semibold text-gray-600 hover:text-primary transition-colors flex items-center gap-2 border-0 bg-transparent cursor-pointer"
+                            >
+                                <div className={cn(
+                                    "w-4 h-4 rounded border flex items-center justify-center transition-all",
+                                    filteredProducts.filter((p: any) => !p.isDraft).every((p: any) => selectedProducts.has(String(p.id)))
+                                        ? "bg-orange-400 border-orange-400 text-white"
+                                        : "border-gray-300 bg-white"
+                                )}>
+                                    {filteredProducts.filter((p: any) => !p.isDraft).every((p: any) => selectedProducts.has(String(p.id))) && (
+                                        <Check className="w-2.5 h-2.5" />
+                                    )}
+                                </div>
+                                Select All
+                            </button>
+                        </div>
+
+                        {filteredProducts.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {filteredProducts.map((product: any) => {
+                                    const id = String(product.id);
+                                    const productImage = product.image || product.imageUrl;
+                                    const isSelected = selectedProducts.has(id);
+                                    return (
                                         <div
-                                            className={`group/img relative w-16 h-16 rounded-lg bg-white overflow-hidden shrink-0 border border-gray-100 shadow-sm z-10 transition-all duration-300 ${productImage ? 'cursor-pointer active:scale-95' : ''}`}
+                                            key={id}
+                                            className="relative"
                                             onClick={(e) => {
-                                                if (productImage) {
+                                                if (isBulkMode && !product.isDraft) {
                                                     e.preventDefault();
                                                     e.stopPropagation();
-                                                    setPreviewLogo({ src: productImage, name: product.name || "Product Preview" });
+                                                    handleSelectProduct(id);
                                                 }
                                             }}
-                                            title={productImage ? "View large image" : undefined}
                                         >
-                                            {productImage ? (
-                                                <>
-                                                    <Image src={productImage} alt={product.name} fill unoptimized className="object-cover group-hover:scale-110 transition-transform duration-500" />
-                                                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-[1px]">
-                                                        <div className="bg-white/90 p-1.5 rounded-full shadow-lg scale-75 group-hover/img:scale-100 transition-transform duration-300">
-                                                            <Eye className="w-4 h-4 text-primary" />
+                                            <SwipeableCard
+                                                onEdit={() => handleEditProduct(product)}
+                                                onDelete={() => setProductToDelete(product)}
+                                                editTitle="Edit"
+                                                deleteTitle="Delete"
+                                            >
+                                                <div className="group relative flex items-start gap-3 p-3 rounded-xl bg-white border border-gray-100 hover:border-primary/20 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 overflow-hidden shadow-sm">
+                                                    <div
+                                                        className={`group/img relative w-16 h-16 rounded-lg bg-white overflow-hidden shrink-0 border border-gray-100 shadow-sm z-10 transition-all duration-300 ${productImage ? 'cursor-pointer active:scale-95' : ''}`}
+                                                        onClick={(e) => {
+                                                            if (productImage) {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                setPreviewLogo({ src: productImage, name: product.name || "Product Preview" });
+                                                            }
+                                                        }}
+                                                        title={productImage ? "View large image" : undefined}
+                                                    >
+                                                        {productImage ? (
+                                                            <>
+                                                                <Image src={productImage} alt={product.name} fill unoptimized className="object-cover group-hover:scale-110 transition-transform duration-500" />
+                                                                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-[1px]">
+                                                                    <div className="bg-white/90 p-1.5 rounded-full shadow-lg scale-75 group-hover/img:scale-100 transition-transform duration-300">
+                                                                        <Eye className="w-4 h-4 text-primary" />
+                                                                    </div>
+                                                                </div>
+                                                            </>
+                                                        ) : (
+                                                            <div className="absolute inset-0 flex items-center justify-center bg-gray-55">
+                                                                <ShoppingBag className="w-8 h-8 text-gray-300 group-hover:text-primary transition-colors" />
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="min-w-0 flex-1 z-10 flex flex-col justify-center gap-1 self-stretch py-0.5">
+                                                        <div>
+                                                            <h4 className="font-black text-sm text-gray-900 truncate group-hover:text-primary transition-colors leading-tight">
+                                                                {product.name || "Untitled Product"}
+                                                            </h4>
+                                                            <div className="flex items-center gap-1.5 mt-0.5">
+                                                                <span className="text-[10px] font-bold text-orange-500 uppercase tracking-widest leading-none">
+                                                                    {product.category || "General"}
+                                                                </span>
+                                                                {product.isDraft && (
+                                                                    <span className="bg-amber-50 text-amber-700 border border-amber-200 px-1 py-0.2 rounded font-bold text-[8px] uppercase tracking-wider scale-90 origin-left shrink-0">
+                                                                        Draft
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        {(product.validFrom || (product.branchIds && product.branchIds.length > 0)) && (
+                                                            <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                                                                {product.validFrom && (
+                                                                    <span className="bg-gray-50 border border-gray-100 text-gray-600 px-2 py-0.5 rounded-md flex items-center gap-1 font-bold text-[9px] uppercase tracking-wide">
+                                                                        <Calendar className="w-3 h-3 text-gray-400 shrink-0" />
+                                                                        <span>
+                                                                            {new Date(product.validFrom).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}{product.validTo ? ` - ${new Date(product.validTo).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}` : " onwards"}
+                                                                        </span>
+                                                                    </span>
+                                                                )}
+                                                                {product.branchIds && product.branchIds.length > 0 && (
+                                                                    <span className="bg-primary/5 text-primary border border-primary/10 px-2 py-0.5 rounded-md font-bold text-[9px] uppercase tracking-wide flex items-center gap-1">
+                                                                        <GitBranch className="w-3 h-3 shrink-0" />
+                                                                        <span className="truncate max-w-[120px]">
+                                                                            {product.branchIds.length > 1 ? `${product.branchIds.length} branches` : (branchNameMap[String(product.branchIds[0])] || `Branch ${product.branchIds[0]}`)}
+                                                                        </span>
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="relative z-20 flex flex-col items-end justify-between self-stretch shrink-0 py-0.5">
+                                                        <div className="scale-75 origin-right">
+                                                            <StatusToggleButton
+                                                                status={product.status || 'active'}
+                                                                onChange={() => handleToggleProductStatus(product)}
+                                                            />
+                                                        </div>
+
+                                                        <div className="flex items-baseline gap-1 my-1">
+                                                            <span className="text-sm font-black text-gray-900 tracking-tighter leading-none">
+                                                                ₹{product.price}
+                                                            </span>
+                                                            {product.originalPrice && (
+                                                                <span className="text-[10px] text-red-500 line-through font-medium">
+                                                                    ₹{product.originalPrice}
+                                                                </span>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="hidden sm:flex flex-row gap-1 items-center">
+                                                            <button onClick={() => handleEditProduct(product)} className="flex items-center justify-center p-2 rounded-xl bg-white border border-gray-100 text-gray-500 hover:text-primary hover:border-primary hover:bg-primary/5 transition-all shadow-sm cursor-pointer" title="Edit product"><Pencil className="w-3.5 h-3.5" /></button>
+                                                            <button onClick={() => setProductToDelete(product)} className="flex items-center justify-center p-2 rounded-xl bg-white border border-gray-100 text-gray-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all shadow-sm cursor-pointer" title="Delete product"><Trash2 className="w-3.5 h-3.5" /></button>
                                                         </div>
                                                     </div>
-                                                </>
-                                            ) : (
-                                                <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
-                                                    <ShoppingBag className="w-8 h-8 text-gray-300 group-hover:text-primary transition-colors" />
+                                                </div>
+                                            </SwipeableCard>
+                                            {isBulkMode && product.isDraft && (
+                                                <div
+                                                    className="absolute top-2 left-2 z-20 w-5 h-5 rounded-md bg-gray-55 border border-gray-200 flex items-center justify-center cursor-not-allowed opacity-50"
+                                                    title="Drafts cannot be selected for bulk actions"
+                                                >
+                                                    <Check className="w-3 h-3 text-gray-400" />
                                                 </div>
                                             )}
-                                        </div>
-
-                                        <div className="min-w-0 flex-1 z-10 flex flex-col justify-center gap-1 self-stretch py-0.5">
-                                            <div>
-                                                <h4 className="font-black text-sm text-gray-900 truncate group-hover:text-primary transition-colors leading-tight">
-                                                    {product.name || "Untitled Product"}
-                                                </h4>
-                                                <div className="flex items-center gap-1.5 mt-0.5">
-                                                    <span className="text-[10px] font-bold text-orange-500 uppercase tracking-widest leading-none">
-                                                        {product.category || "General"}
-                                                    </span>
-                                                    {product.isDraft && (
-                                                        <span className="bg-amber-50 text-amber-700 border border-amber-200 px-1 py-0.2 rounded font-bold text-[8px] uppercase tracking-wider scale-90 origin-left shrink-0">
-                                                            Draft
-                                                        </span>
+                                            {isBulkMode && !product.isDraft && (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleSelectProduct(id);
+                                                    }}
+                                                    className={cn(
+                                                        "absolute top-2 left-2 z-20 w-5 h-5 rounded-md border transition-all cursor-pointer flex items-center justify-center",
+                                                        isSelected
+                                                            ? "bg-orange-400 border-orange-400 animate-none"
+                                                            : "bg-white/90 backdrop-blur border-gray-255 hover:border-primary hover:bg-white shadow-sm animate-none"
                                                     )}
-                                                </div>
-                                            </div>
-
-                                            {(product.validFrom || (product.branchIds && product.branchIds.length > 0)) && (
-                                                <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                                                    {product.validFrom && (
-                                                        <span className="bg-gray-50 border border-gray-100 text-gray-600 px-2 py-0.5 rounded-md flex items-center gap-1 font-bold text-[9px] uppercase tracking-wide">
-                                                            <Calendar className="w-3 h-3 text-gray-400 shrink-0" />
-                                                            <span>
-                                                                {new Date(product.validFrom).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}{product.validTo ? ` - ${new Date(product.validTo).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}` : " onwards"}
-                                                            </span>
-                                                        </span>
-                                                    )}
-                                                    {product.branchIds && product.branchIds.length > 0 && (
-                                                        <span className="bg-primary/5 text-primary border border-primary/10 px-2 py-0.5 rounded-md font-bold text-[9px] uppercase tracking-wide flex items-center gap-1">
-                                                            <GitBranch className="w-3 h-3 shrink-0" />
-                                                            <span className="truncate max-w-[120px]">
-                                                                {product.branchIds.length > 1 ? `${product.branchIds.length} branches` : (branchNameMap[String(product.branchIds[0])] || `Branch ${product.branchIds[0]}`)}
-                                                            </span>
-                                                        </span>
-                                                    )}
-                                                </div>
+                                                    title={isSelected ? "Deselect" : "Select"}
+                                                >
+                                                    {isSelected && <Check className="w-4 h-4 text-white mx-auto" />}
+                                                </button>
                                             )}
                                         </div>
-
-                                        <div className="relative z-20 flex flex-col items-end justify-between self-stretch shrink-0 py-0.5">
-                                            <div className="scale-75 origin-right">
-                                                <StatusToggleButton
-                                                    status={product.status || 'active'}
-                                                    onChange={() => handleToggleProductStatus(product)}
-                                                />
-                                            </div>
-
-                                            <div className="flex items-baseline gap-1 my-1">
-                                                <span className="text-sm font-black text-gray-900 tracking-tighter leading-none">
-                                                    ₹{product.price}
-                                                </span>
-                                                {product.originalPrice && (
-                                                    <span className="text-[10px] text-red-500 line-through font-medium">
-                                                        ₹{product.originalPrice}
-                                                    </span>
-                                                )}
-                                            </div>
-
-                                            <div className="hidden sm:flex flex-row gap-1 items-center">
-                                                <button onClick={() => handleEditProduct(product)} className="flex items-center justify-center p-2 rounded-xl bg-white border border-gray-100 text-gray-500 hover:text-primary hover:border-primary hover:bg-primary/5 transition-all shadow-sm cursor-pointer" title="Edit product"><Pencil className="w-3.5 h-3.5" /></button>
-                                                <button onClick={() => setProductToDelete(product)} className="flex items-center justify-center p-2 rounded-xl bg-white border border-gray-100 text-gray-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all shadow-sm cursor-pointer" title="Delete product"><Trash2 className="w-3.5 h-3.5" /></button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </SwipeableCard>
-                            );
-                        })}
-                    </div>
-                ) : (
-                    <div className="p-12 flex flex-col items-center justify-center bg-white border border-gray-100 rounded-3xl text-center shadow-sm max-w-xl mx-auto">
-                        <div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center mb-4">
-                            <Package className="w-8 h-8 text-primary/20" />
-                        </div>
-                        <p className="text-lg font-black text-gray-900">
-                            {searchQuery ? (
-                                "No matching products"
-                            ) : statusFilter === "active" ? (
-                                "No active products"
-                            ) : statusFilter === "paused" ? (
-                                "No paused products"
-                            ) : statusFilter === "drafted" ? (
-                                "No drafted products"
-                            ) : (
-                                "No products found"
-                            )}
-                        </p>
-                        <p className="text-xs text-gray-500 max-w-xs mt-1 mb-6">
-                            {searchQuery ? (
-                                "Try adjusting your search terms or filters to find your product."
-                            ) : statusFilter === "active" ? (
-                                products.length > 0
-                                    ? "All of your products are currently paused."
-                                    : "Your product catalog is empty."
-                            ) : statusFilter === "paused" ? (
-                                products.length > 0
-                                    ? "All of your products are active and live."
-                                    : "Your product catalog is empty."
-                            ) : statusFilter === "drafted" ? (
-                                "You don't have any drafted products at the moment."
-                            ) : (
-                                "Your product catalog is empty. Let's add your first product now!"
-                            )}
-                        </p>
-                        {allProductsList.length === 0 && (
-                            <PremiumButton onClick={() => setShowAddProductModal(true)} className="rounded-xl shadow-lg shadow-primary/20 border-0 cursor-pointer">
-                                Add Product
-                            </PremiumButton>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="p-12 flex flex-col items-center justify-center bg-white border border-gray-100 rounded-3xl text-center shadow-sm max-w-xl mx-auto">
+                                <div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center mb-4">
+                                    <Package className="w-8 h-8 text-primary/20" />
+                                </div>
+                                <p className="text-lg font-black text-gray-900">
+                                    {searchQuery ? (
+                                        "No matching products"
+                                    ) : statusFilter === "active" ? (
+                                        "No active products"
+                                    ) : statusFilter === "paused" ? (
+                                        "No paused products"
+                                    ) : statusFilter === "drafted" ? (
+                                        "No drafted products"
+                                    ) : (
+                                        "No products found"
+                                    )}
+                                </p>
+                                <p className="text-xs text-gray-500 max-w-xs mt-1 mb-6">
+                                    {searchQuery ? (
+                                        "Try adjusting your search terms or filters to find your product."
+                                    ) : statusFilter === "active" ? (
+                                        products.length > 0
+                                            ? "All of your products are currently paused."
+                                            : "Your product catalog is empty."
+                                    ) : statusFilter === "paused" ? (
+                                        products.length > 0
+                                            ? "All of your products are active and live."
+                                            : "Your product catalog is empty."
+                                    ) : statusFilter === "drafted" ? (
+                                        "You don't have any drafted products at the moment."
+                                    ) : (
+                                        "Your product catalog is empty. Let's add your first product now!"
+                                    )}
+                                </p>
+                                {allProductsList.length === 0 && (
+                                    <PremiumButton onClick={() => setShowAddProductModal(true)} className="rounded-xl shadow-lg shadow-primary/20 border-0 cursor-pointer">
+                                        Add Product
+                                    </PremiumButton>
+                                )}
+                            </div>
                         )}
-                    </div>
+                    </>
                 )}
             </div>
 
@@ -594,6 +838,46 @@ function ShopProductsContent() {
                         <PremiumButton onClick={() => productToDelete && handleDeleteProduct(productToDelete)} className="rounded-xl px-6 bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20 border-0">
                             <Trash2 className="w-4 h-4 mr-2" />Confirm Delete
                         </PremiumButton>
+                    </div>
+                </div>
+            </AppModal>
+
+            <AppModal
+                open={!!bulkActionModal}
+                onOpenChange={(open) => { if (!open) setBulkActionModal(null); }}
+                title={bulkActionModal?.type === "delete" ? "Delete Products" : "Update Status"}
+                description={bulkActionModal?.type === "delete" ? `Are you sure you want to delete ${selectedProducts.size} selected product${selectedProducts.size > 1 ? 's' : ''}?` : `Set ${selectedProducts.size} product${selectedProducts.size > 1 ? 's' : ''} to ${bulkActionModal?.targetStatus === 'active' ? 'active' : 'paused'} status?`}
+            >
+                <div className="space-y-4">
+                    {bulkActionModal?.type === "delete" && (
+                        <div className="p-4 rounded-xl bg-orange-50 border border-orange-200 text-sm text-orange-700 flex items-start gap-3">
+                            <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+                            <div>
+                                <p className="font-semibold">Delete {selectedProducts.size} product{selectedProducts.size > 1 ? 's' : ''}</p>
+                                <p className="mt-1 text-xs opacity-80">This action will permanently delete the selected products and cannot be undone.</p>
+                            </div>
+                        </div>
+                    )}
+                    {bulkActionModal?.type === "status" && (
+                        <div className="p-4 rounded-xl bg-orange-50 border border-orange-200 text-sm text-orange-700 flex items-start gap-3">
+                            <div>
+                                <p className="font-semibold">Status change for {selectedProducts.size} product{selectedProducts.size > 1 ? 's' : ''}</p>
+                                <p className="mt-1 text-xs opacity-80">Products will be {bulkActionModal.targetStatus === 'active' ? 'activated' : 'paused'} immediately.</p>
+                            </div>
+                        </div>
+                    )}
+                    <div className="flex gap-3 justify-end flex-wrap">
+                        <PremiumButton variant="outline" onClick={() => setBulkActionModal(null)} className="rounded-xl">Cancel</PremiumButton>
+                        {bulkActionModal?.type === "delete" && (
+                            <PremiumButton onClick={handleBulkDelete} className="rounded-xl px-6 bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20 border-0">
+                                <Trash2 className="w-4 h-4 mr-2" />Confirm Delete
+                            </PremiumButton>
+                        )}
+                        {bulkActionModal?.type === "status" && (
+                            <PremiumButton onClick={() => bulkActionModal.targetStatus && handleBulkToggleStatus(bulkActionModal.targetStatus)} className="rounded-xl px-6 bg-orange-500 hover:bg-orange-600 text-white shadow-lg shadow-orange-500/20 border-0">
+                                Update Status
+                            </PremiumButton>
+                        )}
                     </div>
                 </div>
             </AppModal>

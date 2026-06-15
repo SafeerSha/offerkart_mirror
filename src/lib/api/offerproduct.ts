@@ -73,3 +73,14 @@ export async function toggleOfferProductStatus(id: string): Promise<ApiResponse<
 export async function deleteOfferProduct(id: string): Promise<ApiResponse<any>> {
     return backend.delete<any>(ENDPOINTS.OFFER_PRODUCT.DETAILS(id));
 }
+
+/**
+ * Fetches a single offer product by ID for end users.
+ * @param id - The ID of the offer product to retrieve
+ * @returns Promise<ApiResponse<any>>
+ */
+export async function getUserOfferProductById(id: string | number): Promise<ApiResponse<any>> {
+    return backend.get<any>(ENDPOINTS.USER_OFFER.PRODUCT_DETAILS(id), {
+        next: { tags: [CACHE_TAGS.PRODUCTS, CACHE_TAGS.PRODUCT(String(id))] },
+    });
+}
