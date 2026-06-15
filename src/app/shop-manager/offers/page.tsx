@@ -17,7 +17,7 @@ import Breadcrumbs from "@/components/shared/Breadcrumbs";
 
 import {
     Clock, Eye, Package, Plus, Search, Tag, Trash2, Calendar,
-    Pencil, ArrowLeft, GitBranch, ShoppingBag, Loader2, ArrowRight, AlertTriangle
+    Pencil, ArrowLeft, GitBranch, ShoppingBag, Loader2, ArrowRight, AlertTriangle, Check, Power, ListChecks, Play, Pause
 } from "@/lib/icons";
 
 import { queryKeys } from "@/hooks/useApi";
@@ -134,6 +134,11 @@ function ShopOffersContent() {
     const [statusFilter, setStatusFilter] = useState<"all" | "active" | "paused" | "drafted">("all");
     const [offerToDelete, setOfferToDelete] = useState<any | null>(null);
     const [previewLogo, setPreviewLogo] = useState<{ src: string; name: string } | null>(null);
+    const [selectedOffers, setSelectedOffers] = useState<Set<string>>(new Set());
+    const [bulkActionModal, setBulkActionModal] = useState<{ type: "delete" | "status" | null; targetStatus?: "active" | "inactive" } | null>(null);
+    const [isBulkMode, setIsBulkMode] = useState(false);
+
+    const isSelectMode = selectedOffers.size > 0;
 
     const { data: shopsResponse, isLoading: isLoadingShops } = useMyShops();
     const shops = useMemo(() => {
@@ -217,11 +222,97 @@ function ShopOffersContent() {
         }
     };
 
+    const handleSelectOffer = (offerId: string) => {
+        const newSelected = new Set(selectedOffers);
+        if (newSelected.has(offerId)) {
+            newSelected.delete(offerId);
+        } else {
+            newSelected.add(offerId);
+        }
+        // toast.info(`Select offer: ${offerId} | Set now contains: [${Array.from(newSelected).join(", ")}]`);
+        setSelectedOffers(newSelected);
+    };
+
+    const handleSelectAll = () => {
+        const offersToSelect = filteredOffers.filter((offer: any) => !offer.isDraft);
+        const allSelected = offersToSelect.length > 0 && offersToSelect.every((offer: any) => {
+            const id = String(offer.offerId || offer.id || offer.batchId);
+            return selectedOffers.has(id);
+        });
+        if (allSelected) {
+            setSelectedOffers(new Set());
+        } else {
+            const allIds = new Set<string>();
+            offersToSelect.forEach((offer: any) => {
+                allIds.add(String(offer.offerId || offer.id || offer.batchId));
+            });
+            setSelectedOffers(allIds);
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        try {
+            const deletePromises = Array.from(selectedOffers).map((id) => {
+                const offer = filteredOffers.find((o: any) => String(o.offerId || o.id || o.batchId) === id);
+                if (offer && activeShopId) {
+                    return deleteOfferMutation({ id, shopId: activeShopId });
+                }
+                return Promise.resolve({ success: false });
+            });
+
+            const results = await Promise.all(deletePromises);
+            const successCount = results.filter((r: any) => r.success).length;
+            const failCount = results.length - successCount;
+
+            if (successCount > 0) {
+                toast.success(`${successCount} offer${successCount > 1 ? 's' : ''} deleted successfully`);
+            }
+            if (failCount > 0) {
+                toast.error(`Failed to delete ${failCount} offer${failCount > 1 ? 's' : ''}`);
+            }
+            setSelectedOffers(new Set());
+            setIsBulkMode(false);
+            setBulkActionModal(null);
+        } catch (err: any) {
+            console.error("Bulk delete error:", err);
+            toast.error(`Failed to delete offers: ${err.message}`);
+        }
+    };
+
+    const handleBulkToggleStatus = async (status: "active" | "inactive") => {
+        try {
+            const togglePromises = Array.from(selectedOffers).map((id) => {
+                const offer = filteredOffers.find((o: any) => String(o.offerId || o.id || o.batchId) === id);
+                if (offer && activeShopId) {
+                    return toggleStatusMutation({ id, shopId: activeShopId });
+                }
+                return Promise.resolve({ success: false });
+            });
+
+            const results = await Promise.all(togglePromises);
+            const successCount = results.filter((r: any) => r.success).length;
+            const failCount = results.length - successCount;
+
+            if (successCount > 0) {
+                toast.success(`${successCount} offer${successCount > 1 ? 's' : ''} ${status === 'active' ? 'activated' : 'paused'} successfully`);
+            }
+            if (failCount > 0) {
+                toast.error(`Failed to update ${failCount} offer${failCount > 1 ? 's' : ''}`);
+            }
+            setSelectedOffers(new Set());
+            setIsBulkMode(false);
+            setBulkActionModal(null);
+        } catch (err: any) {
+            console.error("Bulk toggle error:", err);
+            toast.error(`Failed to update offers: ${err.message}`);
+        }
+    };
+
     const filteredOffers = useMemo(() => {
         return allOffersList.filter((offer: any) => {
             const query = searchQuery.toLowerCase().trim();
             let matchesSearch = true;
-            
+
             if (query) {
                 const matchesTitle = (offer.title || "").toLowerCase().includes(query);
                 const matchesType = (offer.type || "").toLowerCase().includes(query);
@@ -267,12 +358,12 @@ function ShopOffersContent() {
             const matchesStatus = statusFilter === "all"
                 ? !offer.isDraft
                 : statusFilter === "active"
-                ? (!offer.isDraft && offer.status === "active")
-                : statusFilter === "paused"
-                ? (!offer.isDraft && offer.status === "inactive")
-                : statusFilter === "drafted"
-                ? offer.isDraft
-                : true;
+                    ? (!offer.isDraft && offer.status === "active")
+                    : statusFilter === "paused"
+                        ? (!offer.isDraft && offer.status === "inactive")
+                        : statusFilter === "drafted"
+                            ? offer.isDraft
+                            : true;
 
             return matchesSearch && matchesStatus;
         });
@@ -284,7 +375,7 @@ function ShopOffersContent() {
                 <Breadcrumbs
                     items={[
                         { label: "Dashboard", href: "/shop-manager" },
-                        { label: "Manage Campaigns" }
+                        { label: "Manage Offers" }
                     ]}
                 />
 
@@ -305,14 +396,32 @@ function ShopOffersContent() {
                                     <button onClick={() => setSearchQuery("")} className="text-gray-400 hover:text-gray-600 text-xs font-bold cursor-pointer border-0 bg-transparent px-1">×</button>
                                 )}
                             </div>
+                            {/* Mobile Bulk Button */}
+                            <button
+                                onClick={() => {
+                                    if (isBulkMode) {
+                                        setSelectedOffers(new Set());
+                                    }
+                                    setIsBulkMode(!isBulkMode);
+                                }}
+                                className={cn(
+                                    "flex sm:hidden shrink-0 items-center justify-center gap-1 h-8 px-2.5 rounded-lg text-[9px] font-black uppercase tracking-wider border transition-all cursor-pointer",
+                                    isBulkMode
+                                        ? "bg-red-400 text-white border-red-500 shadow-sm shadow-red-400/10"
+                                        : "bg-white text-gray-650 border-gray-200 hover:bg-gray-50 hover:text-gray-900"
+                                )}
+                            >
+                                <ListChecks className="w-3.5 h-3.5 shrink-0" />
+                                <span>{isBulkMode ? "Cancel" : "Select"}</span>
+                            </button>
 
                             <Link href="/shop-manager/create-offer" className="flex sm:hidden shrink-0">
-                                <button
-                                    className="bg-orange-500 hover:bg-orange-600 text-white rounded-lg w-8 h-8 flex items-center justify-center shadow-sm shadow-orange-500/10 active:scale-95 transition-all cursor-pointer border-0 shrink-0"
+                                <PremiumButton
+                                    className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
                                     title="Add Offer"
                                 >
-                                    <Plus className="w-4 h-4" />
-                                </button>
+                                    <Plus className="w-4 h-4 text-white" />
+                                </PremiumButton>
                             </Link>
                         </div>
 
@@ -334,13 +443,32 @@ function ShopOffersContent() {
                         </div>
                     </div>
 
-                    <Link href="/shop-manager/create-offer" className="hidden sm:flex shrink-0">
+                    <div className="hidden sm:flex items-center gap-2 shrink-0">
                         <button
-                            className="bg-orange-500 hover:bg-orange-600 text-white rounded-lg h-7 px-3 text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1 shadow-sm shadow-orange-500/10 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer border-0 shrink-0 self-start sm:self-auto"
+                            onClick={() => {
+                                if (isBulkMode) {
+                                    setSelectedOffers(new Set());
+                                }
+                                setIsBulkMode(!isBulkMode);
+                            }}
+                            className={cn(
+                                "rounded-lg h-7 px-3 text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer border",
+                                isBulkMode
+                                    ? "bg-red-500 text-white border-red-500 shadow-sm shadow-red-500/10"
+                                    : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                            )}
                         >
-                            <Plus className="w-3.5 h-3.5" /> Add Offer
+                            <ListChecks className="w-3.5 h-3.5 shrink-0" />
+                            {isBulkMode ? "Cancel" : "Select"}
                         </button>
-                    </Link>
+                        <Link href="/shop-manager/create-offer">
+                            <PremiumButton
+                                className="rounded-lg h-7 px-3 text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1 shrink-0 self-start sm:self-auto"
+                            >
+                                <Plus className="w-3.5 h-3.5" /> Add Offer
+                            </PremiumButton>
+                        </Link>
+                    </div>
                 </div>
 
                 {isLoadingOffers ? (
@@ -355,160 +483,273 @@ function ShopOffersContent() {
                             </div>
                         ))}
                     </div>
-                ) : filteredOffers.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {filteredOffers.map((offer: any, idx: number) => {
-                            const id = offer.offerId || offer.batchId || idx;
-                            const offerImage = offer.posters?.[0]?.posterSrc || offer.posterSrc;
-                            return (
-                                <SwipeableCard
-                                    key={id}
-                                    onEdit={() => (offer.isDraft && offer.type === "BUILDER") ? router.push(`/shop-manager/poster-designer?draftId=${offer.batchId || offer.id}`) : openEditModal(offer)}
-                                    onDelete={() => setOfferToDelete(offer)}
-                                    editTitle="Edit"
-                                    deleteTitle="Delete"
-                                >
-                                    <div className="group relative flex items-start gap-3 p-3 rounded-xl bg-white border border-gray-100 hover:border-primary/20 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 overflow-hidden shadow-sm">
+                ) : (
+                    <>
+                        {isSelectMode && (
+                            <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 sm:p-4 shadow-lg z-50 animate-in slide-in-from-bottom-full pb-safe-bottom">
+                                <div className="container mx-auto max-w-6xl flex flex-col sm:flex-row items-center justify-between gap-3">
+                                    <div className="flex items-center justify-between w-full sm:w-auto gap-3 border-b border-gray-100 sm:border-0">
+                                        <div className="flex items-center justify-between gap-2.5 w-full">
+                                            <span className="text-xs sm:text-sm font-bold text-gray-700">{selectedOffers.size} selected</span>
+                                        </div>
+                                        <button
+                                            onClick={() => setSelectedOffers(new Set())}
+                                            className="text-[11px] sm:text-xs text-red-500 hover:text-red-700 underline whitespace-nowrap"
+                                        >
+                                            Clear selection
+                                        </button>
+                                    </div>
+                                    <div className="flex items-center justify-center sm:justify-end gap-1.5 sm:gap-2 w-full sm:w-auto">
+                                        <PremiumButton
+                                            variant="outline"
+                                            onClick={() => setBulkActionModal({ type: "status", targetStatus: "active" })}
+                                            className="rounded-lg text-[10px] sm:text-xs h-8 px-2.5 sm:px-3 flex-1 sm:flex-none justify-center"
+                                        >
+                                            <Play className="w-3.5 h-3.5 mr-1" />
+                                            Activate
+                                        </PremiumButton>
+                                        <PremiumButton
+                                            variant="outline"
+                                            onClick={() => setBulkActionModal({ type: "status", targetStatus: "inactive" })}
+                                            className="rounded-lg text-[10px] sm:text-xs h-8 px-2.5 sm:px-3 flex-1 sm:flex-none justify-center"
+                                        >
+                                            <Pause className="w-3.5 h-3.5 mr-1" />
+                                            Pause
+                                        </PremiumButton>
+                                        <PremiumButton
+                                            variant="outline"
+                                            onClick={() => setBulkActionModal({ type: "delete" })}
+                                            className="rounded-lg text-[10px] sm:text-xs h-8 px-2.5 sm:px-3 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-100 flex-1 sm:flex-none justify-center"
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5 mr-1" />
+                                            Delete
+                                        </PremiumButton>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Select All / Bulk Info bar */}
+                        <div className={cn(
+                            "overflow-hidden transition-all duration-300 ease-in-out flex items-center justify-between px-1",
+                            isBulkMode && !isLoadingOffers && filteredOffers.filter((o: any) => !o.isDraft).length > 0
+                                ? "max-h-12 opacity-100 mb-4 scale-y-100 origin-top"
+                                : "max-h-0 opacity-0 mb-0 scale-y-95 origin-top pointer-events-none"
+                        )}>
+                            <span className="text-xs text-black font-medium ml-3">
+                                {selectedOffers.size} of {filteredOffers.filter((o: any) => !o.isDraft).length} selected
+                            </span>
+                            <button
+                                onClick={handleSelectAll}
+                                className="text-xs font-semibold text-gray-600 hover:text-primary transition-colors flex items-center gap-2 border-0 bg-transparent cursor-pointer"
+                            >
+                                <div className={cn(
+                                    "w-4 h-4 rounded border flex items-center justify-center transition-all",
+                                    filteredOffers.filter((o: any) => !o.isDraft).every((o: any) => selectedOffers.has(String(o.offerId || o.id || o.batchId)))
+                                        ? "bg-orange-400 border-orange-400 text-white"
+                                        : "border-gray-300 bg-white"
+                                )}>
+                                    {filteredOffers.filter((o: any) => !o.isDraft).every((o: any) => selectedOffers.has(String(o.offerId || o.id || o.batchId))) && (
+                                        <Check className="w-2.5 h-2.5" />
+                                    )}
+                                </div>
+                                Select All
+                            </button>
+                        </div>
+
+                        {filteredOffers.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {filteredOffers.map((offer: any, idx: number) => {
+                                    const id = String(offer.offerId || offer.id || offer.batchId || idx);
+                                    const offerImage = offer.posters?.[0]?.posterSrc || offer.posterSrc;
+                                    const isSelected = selectedOffers.has(id);
+                                    console.log("Card ID:", id, "isSelected:", isSelected, "selectedSet:", Array.from(selectedOffers));
+                                    return (
                                         <div
-                                            className={`group/img relative w-16 h-16 rounded-lg bg-white overflow-hidden shrink-0 border border-gray-100 shadow-sm z-10 transition-all duration-300 ${offerImage ? 'cursor-pointer active:scale-95' : ''}`}
+                                            key={id}
+                                            className="relative"
                                             onClick={(e) => {
-                                                if (offerImage) {
+                                                if (isBulkMode && !offer.isDraft) {
                                                     e.preventDefault();
                                                     e.stopPropagation();
-                                                    setPreviewLogo({ src: offerImage, name: offer.title || "Offer Preview" });
+                                                    handleSelectOffer(id);
                                                 }
                                             }}
-                                            title={offerImage ? "View large poster" : undefined}
                                         >
-                                            {offerImage ? (
-                                                <>
-                                                    <Image src={offerImage} alt={offer.title || "Offer"} fill unoptimized className="object-cover group-hover:scale-110 transition-transform duration-500" />
-                                                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-[1px]">
-                                                        <div className="bg-white/90 p-1.5 rounded-full shadow-lg scale-75 group-hover/img:scale-100 transition-transform duration-300">
-                                                            <Eye className="w-4 h-4 text-primary" />
+                                            <SwipeableCard
+                                                onEdit={() => (offer.isDraft && offer.type === "BUILDER") ? router.push(`/shop-manager/poster-designer?draftId=${offer.batchId || offer.id}`) : openEditModal(offer)}
+                                                onDelete={() => setOfferToDelete(offer)}
+                                                editTitle="Edit"
+                                                deleteTitle="Delete"
+                                            >
+                                                <div className="group relative flex items-start gap-3 p-3 rounded-xl bg-white border border-gray-100 hover:border-primary/20 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 overflow-hidden shadow-sm">
+                                                    <div
+                                                        className="group/img relative w-16 h-16 rounded-lg bg-white overflow-hidden shrink-0 border border-gray-100 shadow-sm z-10 transition-all duration-300"
+                                                    >
+                                                        {offerImage ? (
+                                                            <>
+                                                                <Image src={offerImage} alt={offer.title || "Offer"} fill unoptimized className="object-cover group-hover:scale-110 transition-transform duration-500" />
+                                                                <div
+                                                                    className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-[1px] cursor-pointer"
+                                                                    onClick={(e) => {
+                                                                        e.preventDefault();
+                                                                        e.stopPropagation();
+                                                                        setPreviewLogo({ src: offerImage, name: offer.title || "Offer Preview" });
+                                                                    }}
+                                                                >
+                                                                    <div className="bg-white/90 p-1.5 rounded-full shadow-lg scale-75 group-hover/img:scale-100 transition-transform duration-300">
+                                                                        <Eye className="w-4 h-4 text-primary" />
+                                                                    </div>
+                                                                </div>
+                                                            </>
+                                                        ) : (
+                                                            <div className="absolute inset-0 flex items-center justify-center bg-gray-55">
+                                                                <Tag className="w-8 h-8 text-gray-300 group-hover:text-primary transition-colors rotate-12" />
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="min-w-0 flex-1 z-10 flex flex-col justify-center gap-1 self-stretch py-0.5">
+                                                        <div>
+                                                            <h4 className="font-black text-sm text-gray-900 truncate group-hover:text-primary transition-colors leading-tight">
+                                                                {offer.title || "Untitled Offer"}
+                                                            </h4>
+                                                            <div className="flex items-center gap-1.5 mt-0.5">
+                                                                <span className="text-[10px] font-bold text-orange-500 uppercase tracking-widest leading-none">
+                                                                    {offer.type ? `${offer.type}` : 'Builder'}
+                                                                </span>
+                                                                {offer.isDraft && (
+                                                                    <span className="bg-amber-50 text-amber-700 border border-amber-200 px-1 py-0.2 rounded font-bold text-[8px] uppercase tracking-wider scale-90 origin-left shrink-0">
+                                                                        Draft
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        {(offer.validFrom || offer.validTo || (offer.branches && offer.branches.length > 0) || offer.branchNames || offer.branchName) && (
+                                                            <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                                                                {(offer.validFrom || offer.validTo) && (
+                                                                    <span className="bg-gray-50 border border-gray-100 text-gray-600 px-2 py-0.5 rounded-md flex items-center gap-1 font-bold text-[9px] uppercase tracking-wide">
+                                                                        <Calendar className="w-3 h-3 text-gray-400 shrink-0" />
+                                                                        <span>
+                                                                            {offer.validFrom ? new Date(offer.validFrom).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' }) : "n/a"}{offer.validTo ? ` - ${new Date(offer.validTo).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}` : ""}
+                                                                        </span>
+                                                                    </span>
+                                                                )}
+                                                                {((offer.branches && offer.branches.length > 0) || offer.branchNames || offer.branchName) && (
+                                                                    <span className="bg-primary/5 text-primary border border-primary/10 px-2 py-0.5 rounded-md font-bold text-[9px] uppercase tracking-wide flex items-center gap-1">
+                                                                        <GitBranch className="w-3 h-3 shrink-0" />
+                                                                        <span className="truncate max-w-[120px]">
+                                                                            {offer.branches ? (
+                                                                                offer.branches.length > 1 ? `${offer.branches[0].branchName} +${offer.branches.length - 1}` : offer.branches[0].branchName
+                                                                            ) : (
+                                                                                offer.branchNames ? offer.branchNames[0] : offer.branchName
+                                                                            )}
+                                                                        </span>
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="relative z-20 flex flex-col items-end justify-between self-stretch shrink-0 py-0.5">
+                                                        {!offer.isDraft ? (
+                                                            <div className="scale-75 origin-right">
+                                                                <StatusToggleButton
+                                                                    status={offer.status || 'active'}
+                                                                    onChange={() => handleToggleOfferStatus(offer)}
+                                                                />
+                                                            </div>
+                                                        ) : (
+                                                            <div className="h-6" />
+                                                        )}
+
+                                                        <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400">
+                                                            <Clock className="w-3 h-3 shrink-0" />
+                                                            <span>{getRelativeTime(offer.createdAt || offer.validFrom) ? getRelativeTime(offer.createdAt || offer.validFrom) : "Active"}</span>
+                                                        </div>
+
+                                                        <div className="hidden sm:flex flex-row gap-1 items-center">
+                                                            <button onClick={() => openEditModal(offer)} className="flex items-center justify-center p-2 rounded-xl bg-white border border-gray-100 text-gray-500 hover:text-primary hover:border-primary hover:bg-primary/5 transition-all shadow-sm cursor-pointer" title="Edit offer"><Pencil className="w-3.5 h-3.5" /></button>
+                                                            <button onClick={() => setOfferToDelete(offer)} className="flex items-center justify-center p-2 rounded-xl bg-white border border-gray-100 text-gray-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all shadow-sm cursor-pointer" title="Delete offer"><Trash2 className="w-3.5 h-3.5" /></button>
                                                         </div>
                                                     </div>
-                                                </>
-                                            ) : (
-                                                <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
-                                                    <Tag className="w-8 h-8 text-gray-300 group-hover:text-primary transition-colors rotate-12" />
+                                                </div>
+                                            </SwipeableCard>
+                                            {isBulkMode && offer.isDraft && (
+                                                <div
+                                                    className="absolute top-2 left-2 z-20 w-5 h-5 rounded-md bg-gray-50 border border-gray-200 flex items-center justify-center cursor-not-allowed opacity-50"
+                                                    title="Drafts cannot be selected for bulk actions"
+                                                >
+                                                    <Check className="w-3 h-3 text-gray-400" />
                                                 </div>
                                             )}
-                                        </div>
-
-                                        <div className="min-w-0 flex-1 z-10 flex flex-col justify-center gap-1 self-stretch py-0.5">
-                                            <div>
-                                                <h4 className="font-black text-sm text-gray-900 truncate group-hover:text-primary transition-colors leading-tight">
-                                                    {offer.title || "Untitled Offer"}
-                                                </h4>
-                                                <div className="flex items-center gap-1.5 mt-0.5">
-                                                    <span className="text-[10px] font-bold text-orange-500 uppercase tracking-widest leading-none">
-                                                        {offer.type ? `${offer.type}` : 'Builder'}
-                                                    </span>
-                                                    {offer.isDraft && (
-                                                        <span className="bg-amber-50 text-amber-700 border border-amber-200 px-1 py-0.2 rounded font-bold text-[8px] uppercase tracking-wider scale-90 origin-left shrink-0">
-                                                            Draft
-                                                        </span>
+                                            {isBulkMode && !offer.isDraft && (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleSelectOffer(id);
+                                                    }}
+                                                    className={cn(
+                                                        "absolute top-2 left-2 z-20 w-5 h-5 rounded-md border transition-all cursor-pointer flex items-center justify-center",
+                                                        isSelected
+                                                            ? "bg-orange-400 border-orange-400"
+                                                            : "bg-white/90 backdrop-blur border-gray-255 hover:border-primary hover:bg-white shadow-sm"
                                                     )}
-                                                </div>
-                                            </div>
-
-                                            {(offer.validFrom || offer.validTo || (offer.branches && offer.branches.length > 0) || offer.branchNames || offer.branchName) && (
-                                                <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                                                    {(offer.validFrom || offer.validTo) && (
-                                                        <span className="bg-gray-50 border border-gray-100 text-gray-600 px-2 py-0.5 rounded-md flex items-center gap-1 font-bold text-[9px] uppercase tracking-wide">
-                                                            <Calendar className="w-3 h-3 text-gray-400 shrink-0" />
-                                                            <span>
-                                                                {offer.validFrom ? new Date(offer.validFrom).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' }) : "n/a"}{offer.validTo ? ` - ${new Date(offer.validTo).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}` : ""}
-                                                            </span>
-                                                        </span>
-                                                    )}
-                                                    {((offer.branches && offer.branches.length > 0) || offer.branchNames || offer.branchName) && (
-                                                        <span className="bg-primary/5 text-primary border border-primary/10 px-2 py-0.5 rounded-md font-bold text-[9px] uppercase tracking-wide flex items-center gap-1">
-                                                            <GitBranch className="w-3 h-3 shrink-0" />
-                                                            <span className="truncate max-w-[120px]">
-                                                                {offer.branches ? (
-                                                                    offer.branches.length > 1 ? `${offer.branches[0].branchName} +${offer.branches.length - 1}` : offer.branches[0].branchName
-                                                                ) : (
-                                                                    offer.branchNames ? offer.branchNames[0] : offer.branchName
-                                                                )}
-                                                            </span>
-                                                        </span>
-                                                    )}
-                                                </div>
+                                                    title={isSelected ? "Deselect" : "Select"}
+                                                >
+                                                    {isSelected && <Check className="w-4 h-4 text-white mx-auto" />}
+                                                </button>
                                             )}
                                         </div>
-
-                                        <div className="relative z-20 flex flex-col items-end justify-between self-stretch shrink-0 py-0.5">
-                                            {!offer.isDraft ? (
-                                                <div className="scale-75 origin-right">
-                                                    <StatusToggleButton
-                                                        status={offer.status || 'active'}
-                                                        onChange={() => handleToggleOfferStatus(offer)}
-                                                    />
-                                                </div>
-                                            ) : (
-                                                <div className="h-6" />
-                                            )}
-
-                                            <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400">
-                                                <Clock className="w-3 h-3 shrink-0" />
-                                                <span>{getRelativeTime(offer.createdAt || offer.validFrom) ? getRelativeTime(offer.createdAt || offer.validFrom) : "Active"}</span>
-                                            </div>
-
-                                            <div className="hidden sm:flex flex-row gap-1 items-center">
-                                                <button onClick={() => openEditModal(offer)} className="flex items-center justify-center p-2 rounded-xl bg-white border border-gray-100 text-gray-500 hover:text-primary hover:border-primary hover:bg-primary/5 transition-all shadow-sm cursor-pointer" title="Edit offer"><Pencil className="w-3.5 h-3.5" /></button>
-                                                <button onClick={() => setOfferToDelete(offer)} className="flex items-center justify-center p-2 rounded-xl bg-white border border-gray-100 text-gray-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all shadow-sm cursor-pointer" title="Delete offer"><Trash2 className="w-3.5 h-3.5" /></button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </SwipeableCard>
-                            );
-                        })}
-                    </div>
-                ) : (
-                    <div className="p-12 flex flex-col items-center justify-center bg-white border border-gray-100 rounded-3xl text-center shadow-sm max-w-xl mx-auto">
-                        <div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center mb-4">
-                            <Tag className="w-8 h-8 text-primary/20" />
-                        </div>
-                        <p className="text-lg font-black text-gray-900">
-                            {searchQuery ? (
-                                "No matching campaigns"
-                            ) : statusFilter === "active" ? (
-                                "No active campaigns"
-                            ) : statusFilter === "paused" ? (
-                                "No paused campaigns"
-                            ) : statusFilter === "drafted" ? (
-                                "No drafted campaigns"
-                            ) : (
-                                "No campaigns found"
-                            )}
-                        </p>
-                        <p className="text-xs text-gray-500 max-w-xs mt-1 mb-6">
-                            {searchQuery ? (
-                                "Try adjusting your search terms to find what you're looking for."
-                            ) : statusFilter === "active" ? (
-                                publishedOffers.length > 0
-                                    ? "All of your campaigns are currently paused or drafted."
-                                    : "You haven't published any campaigns yet."
-                            ) : statusFilter === "paused" ? (
-                                publishedOffers.length > 0
-                                    ? "All of your campaigns are active and running."
-                                    : "You haven't published any campaigns yet."
-                            ) : statusFilter === "drafted" ? (
-                                "You don't have any drafted campaigns at the moment."
-                            ) : (
-                                "You haven't published any campaigns yet. Let's create one now!"
-                            )}
-                        </p>
-                        {allOffersList.length === 0 && (
-                            <Link href="/shop-manager/create-offer">
-                                <PremiumButton className="rounded-xl shadow-lg shadow-primary/20 border-0 cursor-pointer">
-                                    Create New Offer
-                                </PremiumButton>
-                            </Link>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="p-12 flex flex-col items-center justify-center bg-white border border-gray-100 rounded-3xl text-center shadow-sm max-w-xl mx-auto">
+                                <div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center mb-4">
+                                    <Tag className="w-8 h-8 text-primary/20" />
+                                </div>
+                                <p className="text-lg font-black text-gray-900">
+                                    {searchQuery ? (
+                                        "No matching campaigns"
+                                    ) : statusFilter === "active" ? (
+                                        "No active campaigns"
+                                    ) : statusFilter === "paused" ? (
+                                        "No paused campaigns"
+                                    ) : statusFilter === "drafted" ? (
+                                        "No drafted campaigns"
+                                    ) : (
+                                        "No campaigns found"
+                                    )}
+                                </p>
+                                <p className="text-xs text-gray-500 max-w-xs mt-1 mb-6">
+                                    {searchQuery ? (
+                                        "Try adjusting your search terms to find what you're looking for."
+                                    ) : statusFilter === "active" ? (
+                                        publishedOffers.length > 0
+                                            ? "All of your campaigns are currently paused or drafted."
+                                            : "You haven't published any campaigns yet."
+                                    ) : statusFilter === "paused" ? (
+                                        publishedOffers.length > 0
+                                            ? "All of your campaigns are active and running."
+                                            : "You haven't published any campaigns yet."
+                                    ) : statusFilter === "drafted" ? (
+                                        "You don't have any drafted campaigns at the moment."
+                                    ) : (
+                                        "You haven't published any campaigns yet. Let's create one now!"
+                                    )}
+                                </p>
+                                {allOffersList.length === 0 && (
+                                    <Link href="/shop-manager/create-offer">
+                                        <PremiumButton className="rounded-xl shadow-lg shadow-primary/20 border-0 cursor-pointer">
+                                            Create New Offer
+                                        </PremiumButton>
+                                    </Link>
+                                )}
+                            </div>
                         )}
-                    </div>
+                    </>
                 )}
             </div>
 
@@ -546,6 +787,49 @@ function ShopOffersContent() {
                     </div>
                 </AppModal>
             )}
+
+            <AppModal
+                open={!!bulkActionModal}
+                onOpenChange={(open) => { if (!open) setBulkActionModal(null); }}
+                title={bulkActionModal?.type === "delete" ? "Delete Selected Offers" : "Update Status"}
+                description={bulkActionModal?.type === "delete"
+                    ? `Are you sure you want to delete ${selectedOffers.size} offer${selectedOffers.size > 1 ? 's' : ''}? This action cannot be undone.`
+                    : `Set ${selectedOffers.size} offer${selectedOffers.size > 1 ? 's' : ''} to ${bulkActionModal?.targetStatus === 'active' ? 'active' : 'inactive'} status?`
+                }
+            >
+                <div className="space-y-4">
+                    {bulkActionModal?.type === "delete" && (
+                        <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700 flex items-start gap-3">
+                            <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+                            <div>
+                                <p className="font-semibold">{selectedOffers.size} offer{selectedOffers.size > 1 ? 's' : ''} will be deleted</p>
+                                <p className="mt-1 text-xs opacity-80">This will permanently remove them from your catalog.</p>
+                            </div>
+                        </div>
+                    )}
+                    {bulkActionModal?.type === "status" && (
+                        <div className="p-4 rounded-xl bg-orange-50 border border-orange-200 text-sm text-orange-700 flex items-start gap-3">
+                            <div>
+                                <p className="font-semibold">Status change for {selectedOffers.size} offer{selectedOffers.size > 1 ? 's' : ''}</p>
+                                <p className="mt-1 text-xs opacity-80">Offers will be {bulkActionModal.targetStatus === 'active' ? 'activated' : 'paused'} immediately.</p>
+                            </div>
+                        </div>
+                    )}
+                    <div className="flex gap-3 justify-end flex-wrap">
+                        <PremiumButton variant="outline" onClick={() => setBulkActionModal(null)} className="rounded-xl">Cancel</PremiumButton>
+                        {bulkActionModal?.type === "delete" && (
+                            <PremiumButton onClick={handleBulkDelete} className="rounded-xl px-6 bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20 border-0">
+                                <Trash2 className="w-4 h-4 mr-2" />Delete Selected
+                            </PremiumButton>
+                        )}
+                        {bulkActionModal?.type === "status" && (
+                            <PremiumButton onClick={() => bulkActionModal.targetStatus && handleBulkToggleStatus(bulkActionModal.targetStatus)} className="rounded-xl px-6 bg-orange-500 hover:bg-orange-600 text-white shadow-lg shadow-orange-500/20 border-0">
+                                Update Status
+                            </PremiumButton>
+                        )}
+                    </div>
+                </div>
+            </AppModal>
         </main>
     );
 }
