@@ -558,31 +558,28 @@ const Header = () => {
                                                 </div>
                                             </PremiumButton>
                                         ) : (
-                                            <div className="flex items-center gap-1">
-                                                <PremiumButton
-                                                    asChild
-                                                    size="sm"
-                                                    className={cn(
-                                                        "rounded-2xl px-3 sm:px-4 lg:px-6 shadow-lg shadow-primary/20 transition-all duration-300",
-                                                        (pathname.startsWith("/shop-manager") || pathname === "/profile") && "ring-2 ring-primary ring-offset-2 scale-95"
-                                                    )}
-                                                >
-                                                    {user?.business_name ? (
-                                                        <Link href="/shop-manager" className="flex items-center">
-                                                            <LayoutDashboard className="w-4 h-4 mr-2" />
-                                                            <span className="inline">Manage Shop</span>
-                                                        </Link>
-                                                    ) : (
-                                                        <Link href="/profile" className="flex items-center">
-                                                            <User className="w-4 h-4 mr-2" />
-                                                            <span className="inline">
-                                                                {user?.full_name || "Profile"}
-                                                            </span>
-                                                        </Link>
-                                                    )}
-                                                </PremiumButton>
-                                                <LanguageSwitcher className="[&>button]:h-9 [&>button]:rounded-2xl" />
-                                            </div>
+                                            <PremiumButton
+                                                asChild
+                                                size="sm"
+                                                className={cn(
+                                                    "rounded-2xl px-3 sm:px-4 lg:px-6 shadow-lg shadow-primary/20 transition-all duration-300",
+                                                    (pathname.startsWith("/shop-manager") || pathname === "/profile") && "ring-2 ring-primary ring-offset-2 scale-95"
+                                                )}
+                                            >
+                                                {user?.business_name ? (
+                                                    <Link href="/shop-manager" className="flex items-center">
+                                                        <LayoutDashboard className="w-4 h-4 mr-2" />
+                                                        <span className="inline">Manage Shop</span>
+                                                    </Link>
+                                                ) : (
+                                                    <Link href="/profile" className="flex items-center">
+                                                        <User className="w-4 h-4 mr-2" />
+                                                        <span className="inline">
+                                                            {user?.full_name || "Profile"}
+                                                        </span>
+                                                    </Link>
+                                                )}
+                                            </PremiumButton>
                                         )}
 
                                         {(!isRegistered || !user?.business_name) && (
@@ -600,6 +597,8 @@ const Header = () => {
                                                 </Link>
                                             </PremiumButton>
                                         )}
+
+                                        <LanguageSwitcher className="[&>button]:h-9 [&>button]:rounded-2xl" />
                                     </div>
 
                                     <button
