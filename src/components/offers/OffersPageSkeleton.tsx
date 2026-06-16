@@ -1,7 +1,7 @@
 export default function OffersPageSkeleton() {
     return (
         <div className="min-h-screen bg-gray-50/50">
-            <div className="pt-28" />
+            <div className="pt-48 lg:pt-28" />
 
             <main className="container mx-auto px-4 py-8">
                 {/* Breadcrumbs Skeleton */}

@@ -9,9 +9,10 @@ import { ChevronDown } from "lucide-react";
 
 type LanguageSwitcherProps = {
   className?: string;
+  showFullWord?: boolean;
 };
 
-export const LanguageSwitcher = ({ className }: LanguageSwitcherProps) => {
+export const LanguageSwitcher = ({ className, showFullWord = false }: LanguageSwitcherProps) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const { locale, changeLocale } = useTranslation();
@@ -73,7 +74,9 @@ export const LanguageSwitcher = ({ className }: LanguageSwitcherProps) => {
         )}
       >
         {/* <Globe className="w-3.5 h-3.5 text-orange-500/70 dark:text-orange-400/70" /> */}
-        <span className="min-w-[1.25rem] text-center">{currentLanguage.label}</span>
+        <span className="min-w-[1.25rem] text-center">
+          {showFullWord ? currentLanguage.nativeLabel : currentLanguage.label}
+        </span>
         <ChevronDown className={cn("w-3 h-3 text-orange-500/60 dark:text-orange-400/60 transition-transform duration-200", isOpen && "rotate-180")} />
       </button>
 

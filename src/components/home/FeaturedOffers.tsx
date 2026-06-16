@@ -64,7 +64,7 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
   return (
     <section className={cn(
       "bg-background relative",
-      variant === "full" ? "py-16" : "py-8"
+      variant === "full" ? "py-16" : "py-3 lg:py-8"
     )}>
       {/* Scrollbar Hide Utility */}
       <style jsx global>{`
