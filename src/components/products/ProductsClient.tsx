@@ -98,9 +98,9 @@ export default function ProductsClient({ initialProducts = [] }: ProductsClientP
 
     return (
         <div className="min-h-screen bg-gray-50/50">
-            <div className="pt-28"></div>
+            <div className="pt-48 lg:pt-28"></div>
 
-            <main className="container mx-auto px-4 py-8">
+            <main className="container mx-auto px-4 pt-2 pb-8 lg:py-8">
                 <Breadcrumbs items={[{ label: t("nav.products") }]} />
 
                 <div className="flex flex-col lg:flex-row gap-10">
@@ -125,7 +125,7 @@ export default function ProductsClient({ initialProducts = [] }: ProductsClientP
                     </aside>
 
                     <div className="flex-1">
-                        <div className="lg:hidden mb-8">
+                        <div className="lg:hidden mb-4">
                             <Sheet open={mobileFilterOpen} onOpenChange={setMobileFilterOpen}>
                                 <SheetTrigger asChild>
                                     <button className="w-full h-12 bg-white border border-gray-200 rounded-xl flex items-center justify-center gap-2 font-semibold text-gray-700 hover:bg-gray-50 transition-all shadow-sm">
@@ -158,7 +158,7 @@ export default function ProductsClient({ initialProducts = [] }: ProductsClientP
                             </Sheet>
                         </div>
 
-                        <div className="flex items-center justify-between mb-8">
+                        <div className="flex items-center justify-between mb-4 lg:mb-8">
                             <div className="flex items-center gap-4">
                                 <div className="h-8 w-1.5 bg-orange-500 rounded-full" />
                                 <div>
