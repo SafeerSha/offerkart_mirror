@@ -23,6 +23,9 @@ export interface Product {
     isHighlighted?: boolean;
     isActive?: boolean;
     categoryObject?: any;
+    offerId?: number | string | null;
+    daysLeft?: number | null;
+    shopLogo?: string | null;
 }
 
 export interface OfferProductPayload {

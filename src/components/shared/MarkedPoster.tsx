@@ -18,6 +18,9 @@ interface MarkedPosterProps {
     onItemClick?: (item: MarkedItem) => void;
     onAspectRatioChange?: (ratio: number) => void;
     bgClassName?: string;
+    showTopGradient?: boolean;
+    showBottomGradient?: boolean;
+    children?: React.ReactNode;
 }
 
 /**
@@ -39,7 +42,10 @@ export function MarkedPoster({
     interactive = false,
     onItemClick,
     onAspectRatioChange,
-    bgClassName = "bg-card shadow-sm"
+    bgClassName = "bg-card shadow-sm",
+    showTopGradient = false,
+    showBottomGradient = false,
+    children
 }: MarkedPosterProps) {
     const [aspectRatio, setAspectRatio] = useState<number | null>(null);
     const [isBlinking, setIsBlinking] = useState(interactive);
@@ -99,11 +105,11 @@ export function MarkedPoster({
                             }
                         }}
                         className={cn(
-                            "absolute transition-all duration-300 z-10 group",
+                            "absolute transition-all duration-300 z-10 group rounded-lg",
                             interactive 
-                                ? (isBlinking 
-                                    ? "bg-orange-500/5 cursor-pointer pointer-events-auto"
-                                    : "bg-transparent hover:bg-orange-500/5 cursor-pointer pointer-events-auto")
+                                ? (isBlinking
+                                    ? "bg-orange-500/[0.20] border-2 border-dashed border-orange-500 animate-pulse shadow-[0_0_15px_rgba(249,115,22,0.4)] cursor-pointer pointer-events-auto"
+                                    : "bg-transparent hover:bg-orange-500/[0.25] border-2 border-dashed border-orange-500/20 hover:border-solid hover:border-orange-500 shadow-[inset_0_0_4px_rgba(249,115,22,0.02)] hover:shadow-[0_0_15px_rgba(249,115,22,0.35)] cursor-pointer pointer-events-auto")
                                 : "bg-transparent pointer-events-none"
                         )}
                         style={{
@@ -117,38 +123,38 @@ export function MarkedPoster({
                         <div className="absolute inset-0 pointer-events-none">
                             {/* Top Left */}
                             <div className={cn(
-                                "absolute top-0 left-0 w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 border-t-2 border-l-2 transition-all duration-300",
+                                "absolute top-0 left-0 w-3 h-3 sm:w-4 sm:h-4 border-t-2 border-l-2 transition-all duration-300 rounded-tl-[4px]",
                                 interactive 
-                                    ? (isBlinking 
-                                        ? "border-orange-500 animate-pulse" 
-                                        : "border-orange-500/40 group-hover:border-orange-500 group-hover:translate-x-0.5 group-hover:translate-y-0.5 group-hover:shadow-[0_0_8px_rgba(249,115,22,0.4)]")
+                                    ? (isBlinking
+                                        ? "border-orange-500 animate-pulse"
+                                        : "border-orange-500/35 group-hover:border-orange-500 group-hover:-translate-x-0.5 group-hover:-translate-y-0.5 group-hover:scale-105")
                                     : "border-red-500/50"
                             )} />
                             {/* Top Right */}
                             <div className={cn(
-                                "absolute top-0 right-0 w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 border-t-2 border-r-2 transition-all duration-300",
+                                "absolute top-0 right-0 w-3 h-3 sm:w-4 sm:h-4 border-t-2 border-r-2 transition-all duration-300 rounded-tr-[4px]",
                                 interactive 
-                                    ? (isBlinking 
-                                        ? "border-orange-500 animate-pulse" 
-                                        : "border-orange-500/40 group-hover:border-orange-500 group-hover:-translate-x-0.5 group-hover:translate-y-0.5 group-hover:shadow-[0_0_8px_rgba(249,115,22,0.4)]")
+                                    ? (isBlinking
+                                        ? "border-orange-500 animate-pulse"
+                                        : "border-orange-500/35 group-hover:border-orange-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:scale-105")
                                     : "border-red-500/50"
                             )} />
                             {/* Bottom Left */}
                             <div className={cn(
-                                "absolute bottom-0 left-0 w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 border-b-2 border-l-2 transition-all duration-300",
+                                "absolute bottom-0 left-0 w-3 h-3 sm:w-4 sm:h-4 border-b-2 border-l-2 transition-all duration-300 rounded-bl-[4px]",
                                 interactive 
-                                    ? (isBlinking 
-                                        ? "border-orange-500 animate-pulse" 
-                                        : "border-orange-500/40 group-hover:border-orange-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:shadow-[0_0_8px_rgba(249,115,22,0.4)]")
+                                    ? (isBlinking
+                                        ? "border-orange-500 animate-pulse"
+                                        : "border-orange-500/35 group-hover:border-orange-500 group-hover:-translate-x-0.5 group-hover:translate-y-0.5 group-hover:scale-105")
                                     : "border-red-500/50"
                             )} />
                             {/* Bottom Right */}
                             <div className={cn(
-                                "absolute bottom-0 right-0 w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 border-b-2 border-r-2 transition-all duration-300",
+                                "absolute bottom-0 right-0 w-3 h-3 sm:w-4 sm:h-4 border-b-2 border-r-2 transition-all duration-300 rounded-br-[4px]",
                                 interactive 
-                                    ? (isBlinking 
-                                        ? "border-orange-500 animate-pulse" 
-                                        : "border-orange-500/40 group-hover:border-orange-500 group-hover:-translate-x-0.5 group-hover:-translate-y-0.5 group-hover:shadow-[0_0_8px_rgba(249,115,22,0.4)]")
+                                    ? (isBlinking
+                                        ? "border-orange-500 animate-pulse"
+                                        : "border-orange-500/35 group-hover:border-orange-500 group-hover:translate-x-0.5 group-hover:translate-y-0.5 group-hover:scale-105")
                                     : "border-red-500/50"
                             )} />
                         </div>
@@ -173,6 +179,16 @@ export function MarkedPoster({
                         )}
                     </div>
                 ))}
+                
+                {/* Image-bound Gradient Overlays for readability */}
+                {showTopGradient && (
+                    <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/65 via-black/25 to-transparent pointer-events-none z-10" />
+                )}
+                {showBottomGradient && (
+                    <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/65 via-black/25 to-transparent pointer-events-none z-10" />
+                )}
+
+                {children}
             </div>
         </div>
     );

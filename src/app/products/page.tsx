@@ -1,14 +1,23 @@
+import { Suspense } from "react";
 import { getAllProducts } from "@/lib/api/products";
 import ProductsClient from "@/components/products/ProductsClient";
 import { CACHE_TAGS } from "@/lib/api/cache-tags";
+import { getFeaturedShops } from "@/lib/api/offers";
 
 export const dynamic = "force-static";
 export const revalidate = false;
 
 export default async function ProductsPage() {
-    const products = await getAllProducts(undefined, { next: { tags: [CACHE_TAGS.PRODUCTS] } });
+    const [products, featuredShopsRes] = await Promise.all([
+        getAllProducts(undefined, { next: { tags: [CACHE_TAGS.PRODUCTS] } }),
+        getFeaturedShops()
+    ]);
+
+    const featuredShops = (featuredShopsRes as any).success ? ((featuredShopsRes as any).data || []) : [];
 
     return (
-        <ProductsClient initialProducts={products} />
+        <Suspense fallback={<div className="min-h-screen bg-gray-50/50 pt-40 lg:pt-28 flex items-center justify-center"><div className="w-8 h-8 rounded-full border-2 border-orange-500/30 border-t-orange-500 animate-spin" /></div>}>
+            <ProductsClient initialProducts={products} initialFeaturedShops={featuredShops} />
+        </Suspense>
     );
 }

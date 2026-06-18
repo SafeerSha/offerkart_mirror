@@ -4,6 +4,7 @@ import { OfferProductPayload } from '../types/product';
 import { updateOfferProduct, getAllOfferProducts, deleteOfferProduct } from './offerproduct';
 import { CACHE_TAGS } from './cache-tags';
 import { getUserOfferProducts } from './userOffersService';
+import { FEATURED_OFFERS } from './mockData';
 
 export function mapUserProductToProduct(item: any): any {
     if (!item) return null;
@@ -16,10 +17,15 @@ export function mapUserProductToProduct(item: any): any {
             ? Math.round(((finalOriginalPrice - finalOfferPrice) / finalOriginalPrice) * 100) 
             : 0);
 
+    const shopName = item.shop?.shop_name || item.shop?.name || item.shopName || "Store Partner";
+    const featuredOffer = FEATURED_OFFERS.find((fo: any) => fo.name.toLowerCase() === shopName.toLowerCase());
+    const shopLogo = item.shop?.logo_url || item.shop?.logo || item.shopLogo || item.logoUrl || (featuredOffer ? featuredOffer.logo : null);
+
     return {
         id: item.id,
         name: item.displayName || item.name || "Unnamed Product",
-        shopName: item.shop?.shop_name || item.shopName || "Store Partner",
+        shopName,
+        shopLogo,
         price: finalOfferPrice,
         originalPrice: finalOriginalPrice,
         savingPercentage: finalSavingPercentage,
@@ -33,7 +39,11 @@ export function mapUserProductToProduct(item: any): any {
         specifications: [
             { label: "Category", value: item.mainCategory || item.categoryName || item.category?.name || (typeof item.category === 'string' && !/^\d+$/.test(item.category) && item.category.trim() !== '' ? item.category : "Product") }
         ],
-        images: [primaryImage]
+        images: [primaryImage],
+        offerId: item.offerId || item.offer_id || null,
+        daysLeft: item.daysLeft !== undefined ? item.daysLeft : null,
+        validFrom: item.validFrom ?? null,
+        validTo: item.validTo ?? null,
     };
 }
 
@@ -76,10 +86,14 @@ export async function getAllProducts(
                     : (finalOriginalPrice && finalOfferPrice && finalOriginalPrice > finalOfferPrice 
                         ? Math.round(((finalOriginalPrice - finalOfferPrice) / finalOriginalPrice) * 100) 
                         : 0);
+                const shopName = item.shop?.shop_name || item.shop?.name || item.shopName || "Store Partner";
+                const featuredOffer = FEATURED_OFFERS.find((fo: any) => fo.name.toLowerCase() === shopName.toLowerCase());
+                const shopLogo = item.shop?.logo_url || item.shop?.logo || item.shopLogo || item.logoUrl || (featuredOffer ? featuredOffer.logo : null);
                 return {
                     id: item.id,
                     name: item.displayName || item.name,
-                    shopName: item.shop?.shop_name || item.shopName || "Store Partner",
+                    shopName,
+                    shopLogo,
                     price: finalOfferPrice,
                     originalPrice: finalOriginalPrice,
                     savingPercentage: finalSavingPercentage,
@@ -107,6 +121,8 @@ export async function getAllProducts(
                     currencyId: item.currencyId,
                     validFrom: item.validFrom ?? null,
                     validTo: item.validTo ?? null,
+                    offerId: item.offerId || item.offer_id || null,
+                    daysLeft: item.daysLeft !== undefined ? item.daysLeft : null,
                 };
             });
             return backendProducts;

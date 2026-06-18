@@ -532,7 +532,7 @@ function CreateOfferContent() {
 
     return (
         <div className="min-h-screen bg-background">
-            <div className="h-28 lg:h-36" />
+            <div className="h-40 lg:h-36" />
 
             <main className="w-full relative overflow-hidden bg-background min-h-screen">
                 <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-[500px] h-[500px] bg-primary/5 rounded-full blur-3xl pointer-events-none" />
