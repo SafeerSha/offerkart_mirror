@@ -50,6 +50,10 @@ const OfferCard = ({
   const primaryId = id ?? offerId ?? 0;
   const posterSrc = posters?.[0]?.posterSrc || (typeof image === "string" ? image : image?.src) || "/images/shop-registration-bg-light.png";
   const postersCount = posters?.length || totalPosters || 0;
+  
+  // Calculate total offers count from marked items
+  const totalOffersCount = posters?.reduce((acc, p) => acc + (p.markedItems?.length || 0), 0) || 0;
+
   const isUrgent = typeof daysLeft === "number" && daysLeft <= 3;
   const getDaysLeftText = () => {
     if (typeof daysLeft !== "number") return null;
@@ -83,6 +87,9 @@ const OfferCard = ({
           onAspectRatioChange={setAspectRatio}
           bgClassName="bg-white dark:bg-slate-950/40 shadow-sm"
         />
+
+        {/* Subtle top overlay gradient for badge readability */}
+        <div className="absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-black/40 to-transparent pointer-events-none z-10" />
 
         {daysLeftText && (
           <div className="absolute top-0 left-0 z-20 pointer-events-none">
@@ -150,14 +157,23 @@ const OfferCard = ({
             )}
           </div>
 
-          {postersCount > 0 && (
-            <span className="shrink-0 flex items-center gap-1 text-[10px] sm:text-xs font-medium text-orange-500/80 dark:text-orange-400/80 transition-colors group-hover:text-orange-600 dark:group-hover:text-orange-400">
-              <ImageIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              <span className="flex items-center gap-1">
-                <span className="text-[9px] sm:text-[11px]">{postersCount}</span><span className="text-[8px] sm:text-[10px] tracking-wider opacity-80">{postersCount === 1 ? 'Page' : 'Pages'}</span>
+          <div className="flex items-center gap-2 shrink-0">
+            {totalOffersCount > 0 && (
+              <span className="flex items-center gap-1 text-[9px] sm:text-[11px] font-bold text-orange-600 dark:text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/15">
+                <Tag className="w-3 h-3 text-orange-500" />
+                <span>{totalOffersCount} {totalOffersCount === 1 ? 'Offer' : 'Offers'}</span>
               </span>
-            </span>
-          )}
+            )}
+
+            {postersCount > 0 && (
+              <span className="shrink-0 flex items-center gap-1 text-[10px] sm:text-xs font-medium text-orange-500/80 dark:text-orange-400/80 transition-colors group-hover:text-orange-600 dark:group-hover:text-orange-400">
+                <ImageIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                <span className="flex items-center gap-1">
+                  <span className="text-[9px] sm:text-[11px]">{postersCount}</span><span className="text-[8px] sm:text-[10px] tracking-wider opacity-80">{postersCount === 1 ? 'Page' : 'Pages'}</span>
+                </span>
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </PremiumCard>

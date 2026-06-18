@@ -1,15 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
-import { Star, Tag, Check, ShoppingBag, ArrowLeft, Heart, Share2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Star, Tag, Check, ShoppingBag, ArrowLeft, Heart, Share2, Calendar, MapPin, AlertTriangle, Store, Maximize2, X } from "lucide-react";
 import { PremiumCard } from "@/components/shared/PremiumCard";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import ProductCard from "./ProductCard";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
+import { FEATURED_OFFERS } from "@/lib/api/mockData";
 
 interface Product {
     id: any;
@@ -26,6 +29,11 @@ interface Product {
     description?: string;
     specifications?: { label: string; value: string }[];
     images?: any[];
+    validFrom?: string;
+    validTo?: string;
+    offerId?: number | string | null;
+    daysLeft?: number | null;
+    shopLogo?: string | null;
 }
 
 interface ProductDetailClientProps {
@@ -33,24 +41,131 @@ interface ProductDetailClientProps {
     similarProducts: Product[];
 }
 
+interface LocationItem {
+    name: string;
+    latitude?: number;
+    longitude?: number;
+}
+
+function getFallbackLocations(shopName?: string): LocationItem[] {
+    if (!shopName) return [{ name: "Main Outlet" }];
+    const name = shopName.toLowerCase();
+    
+    const getCoords = (locName: string): { latitude?: number; longitude?: number } => {
+        const ln = locName.toLowerCase();
+        if (ln.includes("bandra west")) return { latitude: 19.0596, longitude: 72.8295 };
+        if (ln.includes("colaba")) return { latitude: 18.9067, longitude: 72.8147 };
+        if (ln.includes("lokhandwala") || ln.includes("andheri west")) return { latitude: 19.1363, longitude: 72.8276 };
+        if (ln.includes("andheri east")) return { latitude: 19.1179, longitude: 72.8631 };
+        if (ln.includes("palladium") || ln.includes("lower parel")) return { latitude: 18.9950, longitude: 72.8250 };
+        if (ln.includes("juhu")) return { latitude: 19.1012, longitude: 72.8258 };
+        if (ln.includes("oberoi") || ln.includes("goregaon")) return { latitude: 19.1634, longitude: 72.8412 };
+        if (ln.includes("warden road")) return { latitude: 18.9667, longitude: 72.8056 };
+        if (ln.includes("prabhadevi")) return { latitude: 19.0166, longitude: 72.8300 };
+        if (ln.includes("powai")) return { latitude: 19.1176, longitude: 72.9060 };
+        if (ln.includes("marketcity") || ln.includes("kurla")) return { latitude: 19.0728, longitude: 72.8826 };
+        if (ln.includes("fort")) return { latitude: 18.9345, longitude: 72.8371 };
+        if (ln.includes("thane")) return { latitude: 19.2183, longitude: 72.9781 };
+        if (ln.includes("malad west")) return { latitude: 19.1860, longitude: 72.8485 };
+        return {};
+    };
+
+    let names: string[] = [];
+    if (name.includes("coffee") || name.includes("artisan")) {
+        names = ["Bandra West", "Colaba", "Andheri Lokhandwala"];
+    } else if (name.includes("zara")) {
+        names = ["Phoenix Palladium (Lower Parel)", "Juhu", "Oberoi Mall (Goregaon)"];
+    } else if (name.includes("basket") || name.includes("nature")) {
+        names = ["Warden Road", "Prabhadevi", "Bandra West", "Powai"];
+    } else if (name.includes("h&m") || name.includes("h & m")) {
+        names = ["Phoenix Marketcity (Kurla)", "Oberoi Mall (Goregaon)", "Fort"];
+    } else if (name.includes("starbucks")) {
+        names = ["Horniman Circle (Fort)", "Carter Road (Bandra)", "Juhu Beach", "Hiranandani (Powai)"];
+    } else if (name.includes("roma") || name.includes("pizza")) {
+        names = ["Colaba", "Bandra West", "Andheri West"];
+    } else if (name.includes("kart") || name.includes("offer")) {
+        names = ["Andheri East", "Malad West", "Thane"];
+    } else {
+        names = [`${shopName} - Bandra West`, `${shopName} - Colaba`, `${shopName} - Andheri East`];
+    }
+
+    return names.map(n => ({
+        name: n,
+        ...getCoords(n)
+    }));
+}
+
 export default function ProductDetailClient({ product, similarProducts }: ProductDetailClientProps) {
+    const router = useRouter();
     const { t } = useTranslation("common");
     const { resolveHierarchyById } = useCategoryHierarchy();
     const [selectedImage, setSelectedImage] = useState(0);
     const [isFavorite, setIsFavorite] = useState(false);
+    const [isImageZoomed, setIsImageZoomed] = useState(false);
+    const [isNavigating, setIsNavigating] = useState(false);
+    const [isClaiming, setIsClaiming] = useState(false);
+    const [offerId, setOfferId] = useState<string | number | null>(product.offerId || null);
+
+    useEffect(() => {
+        if (!offerId && typeof window !== "undefined") {
+            const params = new URLSearchParams(window.location.search);
+            const oid = params.get("offerId");
+            if (oid) {
+                setOfferId(oid);
+            }
+        }
+    }, [offerId]);
 
     const resolvedCategory = resolveHierarchyById(product.category);
     const displayCategoryName = resolvedCategory.sub || resolvedCategory.main || product.category;
 
-    const productImages = [
-        ...(Array.isArray(product.images) ? product.images : []),
-        ...(product.image ? [product.image] : [])
-    ].filter(Boolean);
+    const primaryImage = product.image || (Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : null);
+    const productImages = primaryImage ? [primaryImage] : [];
+
+    const featuredOffer = FEATURED_OFFERS.find(fo => fo.name.toLowerCase() === product.shopName.toLowerCase());
+    const shopLogo = product.shopLogo || (featuredOffer ? featuredOffer.logo : null);
+
+    const discountPercent = product.originalPrice && product.price && product.originalPrice > product.price
+        ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+        : 0;
+
+    const savingsAmount = product.originalPrice && product.price && product.originalPrice > product.price
+        ? product.originalPrice - product.price
+        : 0;
+
+    const formatDate = (dateStr?: string) => {
+        if (!dateStr) return null;
+        try {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
+        } catch (e) {
+            return dateStr;
+        }
+    };
+    const validFromFormatted = formatDate(product.validFrom);
+    const validToFormatted = formatDate(product.validTo);
+
+    const calculateDaysLeft = (validTo?: string) => {
+        if (!validTo) return null;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const targetDate = new Date(validTo);
+        targetDate.setHours(0, 0, 0, 0);
+        const diffTime = targetDate.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays >= 0 ? diffDays : null;
+    };
+    
+    const calculatedDaysLeft = product.daysLeft !== undefined && product.daysLeft !== null
+        ? product.daysLeft
+        : calculateDaysLeft(product.validTo);
+
+    const locations = getFallbackLocations(product.shopName);
 
     return (
         <div className="min-h-screen bg-gray-50/50 pb-20">
             {/* Header spacer */}
-            <div className="h-28" />
+            <div className="h-40 lg:h-28" />
 
             <div className="container mx-auto px-4 py-4 max-w-7xl">
                 <Breadcrumbs
@@ -92,15 +207,31 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
                     {/* Left: Images */}
                     <div className="lg:col-span-6 space-y-4">
-                        <PremiumCard className="overflow-hidden border-none shadow-xl shadow-gray-100/50 bg-white rounded-[2rem] aspect-square relative">
+                        <PremiumCard 
+                            onClick={() => {
+                                if (productImages.length > 0) {
+                                    setIsImageZoomed(true);
+                                }
+                            }}
+                            className="overflow-hidden border-none shadow-xl shadow-gray-100/50 bg-white rounded-[2rem] aspect-square relative cursor-zoom-in group/img"
+                        >
                             {productImages.length > 0 ? (
-                                <Image
-                                    src={productImages[selectedImage]}
-                                    alt={product.name}
-                                    fill
-                                    unoptimized
-                                    className="object-cover group-hover:scale-105 transition-transform duration-500"
-                                />
+                                <>
+                                    <Image
+                                        src={productImages[selectedImage]}
+                                        alt={product.name}
+                                        fill
+                                        unoptimized
+                                        className="object-cover group-hover/img:scale-105 transition-transform duration-500"
+                                    />
+                                    {/* Zoom Hover Overlay */}
+                                    <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover/img:opacity-100 duration-300">
+                                        <div className="bg-white/95 dark:bg-zinc-900/95 p-2.5 rounded-full shadow-lg border border-slate-200/40 dark:border-zinc-800/40 flex items-center gap-1.5 transform translate-y-2 group-hover/img:translate-y-0 transition-all duration-300">
+                                            <Maximize2 className="w-4 h-4 text-orange-500" />
+                                            <span className="text-[10px] font-black text-slate-700 dark:text-zinc-300 uppercase tracking-wider pr-1">Click to Zoom</span>
+                                        </div>
+                                    </div>
+                                </>
                             ) : (
                                 <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
                                     <div className="flex flex-col items-center gap-3">
@@ -143,50 +274,90 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
 
                     {/* Right: Info */}
                     <div className="lg:col-span-6 space-y-6">
-                        <div className="bg-white p-8 md:p-10 rounded-[2.5rem] border border-gray-100 shadow-xl shadow-gray-200/20 space-y-6">
-                            <div className="space-y-2">
-                                <span className="text-xs font-black text-orange-500 uppercase tracking-widest bg-orange-50 px-3.5 py-1.5 rounded-full border border-orange-100/50">
-                                    {displayCategoryName}
-                                </span>
-                                <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight leading-tight pt-2">
-                                    {product.name}
-                                </h1>
-                                <p className="text-gray-500 font-medium text-sm flex items-center gap-1.5">
-                                    {t("catalog.offeredBy")} <span className="text-gray-800 font-bold hover:text-orange-600 transition-colors cursor-pointer">{product.shopName}</span>
-                                </p>
-                            </div>
-
-                            {/* Ratings & Pricing */}
-                            <div className="flex flex-wrap items-center justify-between gap-4 p-5 bg-gray-50/50 border border-gray-100 rounded-2xl">
-                                <div className="space-y-1">
-                                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">{t("catalog.premiumOfferPrice")}</span>
-                                    <div className="flex items-end gap-3">
-                                        <span className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight">
-                                            ₹{product.price}
-                                        </span>
-                                        {product.originalPrice && (
-                                            <span className="text-base text-red-500 line-through font-bold pb-1">
-                                                ₹{product.originalPrice}
-                                            </span>
+                        <div className="bg-white p-8 md:p-10 rounded-[2.5rem] border border-gray-100/80 shadow-xl shadow-gray-200/20 space-y-6">
+                            
+                            {/* Shop Header (Outlet Info) - D4D Style */}
+                            <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+                                <Link 
+                                    href={`/products?shop=${encodeURIComponent(product.shopName)}`}
+                                    className="flex items-center gap-3 group"
+                                >
+                                    <div className="w-12 h-12 rounded-full border border-gray-200 bg-white overflow-hidden flex items-center justify-center shadow-sm group-hover:border-orange-500/30 transition-all flex-shrink-0">
+                                        {shopLogo ? (
+                                            <img src={shopLogo} alt={product.shopName} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                                        ) : (
+                                            <Store className="w-5 h-5 text-orange-500" />
                                         )}
                                     </div>
-                                </div>
-                                
-                                <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-gray-100 shadow-sm">
-                                    <div className="flex text-amber-400">
-                                        {[...Array(5)].map((_, i) => (
-                                            <Star key={i} className={`w-4 h-4 ${i < Math.floor(product.rating || 4.5) ? "fill-current" : "opacity-30"}`} />
-                                        ))}
+                                    <div>
+                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Store Outlet</span>
+                                        <span className="text-base font-black text-gray-800 group-hover:text-orange-600 transition-colors flex items-center gap-1">
+                                            {product.shopName}
+                                        </span>
                                     </div>
-                                    <span className="text-xs font-bold text-gray-700">
-                                        {product.rating || 4.5}
+                                </Link>
+                            </div>
+
+                            {/* Category & Title */}
+                            <div className="space-y-2.5">
+                                <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest bg-orange-50 px-3 py-1 rounded-md border border-orange-100/50">
+                                    {displayCategoryName}
+                                </span>
+                                <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight leading-tight pt-1">
+                                    {product.name}
+                                </h1>
+                            </div>
+
+                            {/* Pricing & Savings Breakdown */}
+                            <div className="space-y-3 p-5 bg-gray-50 border border-gray-100 rounded-3xl">
+                                <div className="flex flex-wrap items-center justify-between gap-4">
+                                    <div className="space-y-1">
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">{t("catalog.premiumOfferPrice")}</span>
+                                        <div className="flex items-baseline gap-2">
+                                            <span className="text-3xl md:text-4xl font-black text-orange-600 tracking-tight">
+                                                ₹{product.price.toLocaleString()}
+                                            </span>
+                                            {product.originalPrice && product.originalPrice > product.price && (
+                                                <span className="text-sm text-gray-400 line-through font-bold">
+                                                    was ₹{product.originalPrice.toLocaleString()}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Savings indicator */}
+                                {product.originalPrice && product.originalPrice > product.price && (
+                                    <div className="flex items-center gap-2 pt-2 border-t border-gray-200/60">
+                                        <span className="px-2.5 py-1 bg-green-500 text-white font-black text-[9px] uppercase tracking-wider rounded-md shadow-sm">
+                                            SAVE {discountPercent}%
+                                        </span>
+                                        <span className="text-xs font-bold text-green-700">
+                                            You save ₹{savingsAmount.toLocaleString()} on this purchase!
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+
+
+                            {/* Offer Validity / Dates */}
+                            <div className="flex items-center gap-3 p-4 bg-slate-50/60 border border-slate-100/60 rounded-2xl">
+                                <Calendar className="w-5 h-5 text-orange-500 shrink-0" />
+                                <div className="text-xs">
+                                    <span className="text-gray-400 font-bold uppercase tracking-wider block">Validity Period</span>
+                                    <span className="font-black text-gray-800">
+                                        {calculatedDaysLeft !== null ? (
+                                            calculatedDaysLeft === 0 ? "Offer ends today" : `Offer ends in ${calculatedDaysLeft} ${calculatedDaysLeft === 1 ? 'day' : 'days'}`
+                                        ) : (
+                                            "Valid while stock lasts"
+                                        )}
                                     </span>
                                 </div>
                             </div>
 
                             {/* Description */}
                             <div className="space-y-2">
-                                <h3 className="text-sm font-extrabold text-gray-900 uppercase tracking-wide flex items-center gap-2">
+                                <h3 className="text-xs font-black text-gray-400 uppercase tracking-wider">
                                     {t("catalog.descQualityAssurance")}
                                 </h3>
                                 <p className="text-gray-600 font-medium leading-relaxed text-sm">
@@ -194,38 +365,72 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                                 </p>
                             </div>
 
-                            {/* Specifications */}
-                            {product.specifications && product.specifications.length > 0 && (
+                            {/* Available branches with Map Links */}
+                            {locations.length > 0 && (
                                 <div className="space-y-3 pt-2">
-                                    <h3 className="text-sm font-extrabold text-gray-900 uppercase tracking-wide">{t("catalog.keyInformation")}</h3>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        {product.specifications.map((spec, index) => (
-                                            <div key={index} className="flex items-center justify-between p-3.5 bg-gray-50 border border-gray-100 rounded-xl hover:bg-orange-50/20 hover:border-orange-100/50 transition-all">
-                                                <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">{spec.label}</span>
-                                                <span className="text-sm font-black text-gray-800">{spec.value}</span>
-                                            </div>
-                                        ))}
+                                    <div className="flex items-center gap-2 text-gray-800">
+                                        <MapPin className="w-4 h-4 text-orange-500 shrink-0" />
+                                        <h4 className="text-xs font-black uppercase tracking-wider text-gray-400">
+                                            {t("catalog.availableAt") || "Available Store Locations"}
+                                        </h4>
+                                    </div>
+                                    
+                                    <div className="flex flex-row flex-wrap gap-2">
+                                        {locations.map((loc, idx) => {
+                                            const query = loc.latitude && loc.longitude
+                                                ? `${loc.latitude},${loc.longitude}`
+                                                : encodeURIComponent(`${product.shopName} ${loc.name}`);
+                                            const mapUrl = `https://www.google.com/maps/search/?api=1&query=${query}`;
+                                            return (
+                                                <a 
+                                                    key={idx} 
+                                                    href={mapUrl}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-center gap-1.5 py-1.5 px-3 rounded-full bg-gray-50 border border-gray-100 hover:bg-orange-50 hover:border-orange-500/30 text-gray-700 hover:text-orange-500 transition-all shrink-0 cursor-pointer decoration-none"
+                                                >
+                                                    <MapPin className="w-3 h-3 text-orange-500/80 shrink-0" />
+                                                    <span className="text-xs font-semibold leading-none">
+                                                        {loc.name}
+                                                    </span>
+                                                </a>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             )}
 
-                            {/* Checkout / Inquire button */}
-                            <div className="pt-4 flex flex-col sm:flex-row gap-4">
-                                <PremiumButton 
-                                    className="flex-1 h-14 rounded-2xl bg-orange-600 hover:bg-orange-700 shadow-xl shadow-orange-500/20 text-base"
-                                    leftIcon={ShoppingBag}
-                                    onClick={() => alert(t("catalog.addedToCartAlert"))}
-                                >
-                                    {t("catalog.claimOffer")}
-                                </PremiumButton>
-                                <PremiumButton 
-                                    variant="outline"
-                                    className="h-14 px-6 rounded-2xl border-gray-200 hover:bg-gray-50 text-gray-700"
-                                    leftIcon={Check}
-                                    onClick={() => alert(t("catalog.checkingAvailabilityAlert").replace("{shopName}", product.shopName))}
-                                >
-                                    {t("catalog.checkInStock")}
-                                </PremiumButton>
+
+
+                            {/* Checkout / Claim Offer CTA buttons */}
+                            <div className="pt-4 flex gap-4 w-full">
+                                {!offerId ? (
+                                    <PremiumButton 
+                                        className="flex-1 h-14 rounded-2xl bg-orange-600 hover:bg-orange-700 shadow-xl shadow-orange-500/20 text-base font-bold"
+                                        leftIcon={ShoppingBag}
+                                        isLoading={isClaiming}
+                                        onClick={async () => {
+                                            setIsClaiming(true);
+                                            await new Promise((resolve) => setTimeout(resolve, 800));
+                                            setIsClaiming(false);
+                                            alert(t("catalog.addedToCartAlert"));
+                                        }}
+                                    >
+                                        {t("catalog.claimOffer")}
+                                    </PremiumButton>
+                                ) : (
+                                    <PremiumButton 
+                                        className="flex-1 h-14 rounded-2xl bg-orange-600 hover:bg-orange-700 shadow-xl shadow-orange-500/20 text-base font-bold"
+                                        leftIcon={Tag}
+                                        isLoading={isNavigating}
+                                        onClick={() => {
+                                            setIsNavigating(true);
+                                            router.push(`/offer/${offerId}`);
+                                        }}
+                                    >
+                                        Go to Offer
+                                    </PremiumButton>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -250,6 +455,36 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                             ))}
                         </div>
                     </div>
+                )}
+
+                {/* High Scale Zoom Lightbox Overlay */}
+                {isImageZoomed && productImages.length > 0 && typeof window !== "undefined" && createPortal(
+                    <div 
+                        onClick={() => setIsImageZoomed(false)}
+                        className="fixed inset-0 bg-black/95 backdrop-blur-md flex items-center justify-center cursor-zoom-out animate-in fade-in-0 duration-300"
+                        style={{ zIndex: 999999 }}
+                    >
+                        <button 
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsImageZoomed(false);
+                            }}
+                            className="absolute top-6 right-6 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all border border-white/10"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                        <div 
+                            onClick={(e) => e.stopPropagation()}
+                            className="relative max-w-[90vw] max-h-[85vh] flex items-center justify-center animate-in scale-in-95 duration-200"
+                        >
+                            <img 
+                                src={productImages[selectedImage]} 
+                                alt={product.name} 
+                                className="max-w-full max-h-[85vh] object-contain rounded-xl select-none shadow-2xl border border-white/5"
+                            />
+                        </div>
+                    </div>,
+                    document.body
                 )}
             </div>
         </div>

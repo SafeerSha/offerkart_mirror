@@ -424,7 +424,7 @@ function ShopProductsContent() {
     }, [allProductsList, searchQuery, statusFilter, branchNameMap]);
 
     return (
-        <main className="min-h-screen pt-28 lg:pt-32 pb-12 bg-[radial-gradient(circle_at_top_right,hsl(var(--color-primary)/0.05)_0%,transparent_50%)]">
+        <main className="min-h-screen pt-40 lg:pt-32 pb-12 bg-[radial-gradient(circle_at_top_right,hsl(var(--color-primary)/0.05)_0%,transparent_50%)]">
             <div className="container mx-auto px-4 max-w-6xl">
                 <Breadcrumbs
                     items={[

@@ -32,7 +32,7 @@ export default async function HomePage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Spacer for Fixed Header */}
-      <div className="h-52 lg:h-24" />
+      <div className="h-32 lg:h-16" />
 
       {/* Featured Shops Carousel */}
       <FeaturedCarousel shops={featuredShops} />
@@ -43,7 +43,7 @@ export default async function HomePage() {
       </Suspense>
 
       {/* Offers Section */}
-      <section className="py-12 md:py-16">
+      <section className="py-8 md:py-10">
         <div className="container mx-auto px-4">
           <FilterableOffers
             initialOffers={allOffers}
@@ -59,13 +59,13 @@ export default async function HomePage() {
       <ShopRegistrationSection />
 
       {/* Premium Choice Section */}
-      <section className="py-24 md:py-32 relative overflow-hidden bg-white">
+      <section className="py-16 md:py-20 relative overflow-hidden bg-white">
         {/* Decorative Background Ornaments */}
         <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] -translate-y-1/2 pointer-events-none" />
         <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-secondary/5 rounded-full blur-[100px] translate-y-1/2 pointer-events-none" />
 
         <div className="container mx-auto px-4 relative z-10">
-          <div className="text-center mb-16 md:mb-20">
+          <div className="text-center mb-8 md:mb-12">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/5 text-primary text-xs font-bold uppercase tracking-[0.2em] mb-6 animate-fade-in border border-primary/10">
               <Award className="w-4 h-4" />
               <span>{t("features.badge")}</span>

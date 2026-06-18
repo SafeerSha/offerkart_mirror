@@ -1,10 +1,13 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Filter } from "lucide-react";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import ProductGrid from "@/components/products/ProductGrid";
 import FilterPanel from "@/components/home/FilterPanel";
+import FeaturedOffers from "@/components/home/FeaturedOffers";
+import { cn } from "@/lib/utils";
 import {
     Sheet,
     SheetContent,
@@ -19,10 +22,18 @@ import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
 
 interface ProductsClientProps {
     initialProducts: any[];
+    initialFeaturedShops?: any[];
 }
 
-export default function ProductsClient({ initialProducts = [] }: ProductsClientProps) {
+export default function ProductsClient({ initialProducts = [], initialFeaturedShops = [] }: ProductsClientProps) {
     const { t } = useTranslation("common");
+    const searchParams = useSearchParams();
+    const router = useRouter();
+
+    const initialCategory = searchParams.get("category") || "All";
+    const initialSubcategories = searchParams.getAll("subcategory") || [];
+    const initialShopId = searchParams.get("shopId") || undefined;
+
     const [products, setProducts] = useState<any[]>(initialProducts || []);
     const [isLoading, setIsLoading] = useState(false);
     const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
@@ -30,22 +41,57 @@ export default function ProductsClient({ initialProducts = [] }: ProductsClientP
         category: string;
         subcategory: string[];
         sort: string;
+        shopId?: string;
     }>({
-        category: "All",
-        subcategory: [],
-        sort: "latest"
+        category: initialCategory,
+        subcategory: initialSubcategories,
+        sort: "latest",
+        shopId: initialShopId || undefined
     });
 
     const isFirstRender = useRef(true);
     const { getCategoryId } = useCategoryHierarchy();
 
+    // Sync category, subcategories, and shopId from URL if they change
+    useEffect(() => {
+        const cat = searchParams.get("category") || "All";
+        const shopId = searchParams.get("shopId") || undefined;
+        const subs = searchParams.getAll("subcategory") || [];
+        setActiveFilters(prev => {
+            const isCategorySame = prev.category === cat;
+            const isShopIdSame = prev.shopId === shopId;
+            const isSubcategorySame = prev.subcategory.length === subs.length &&
+                prev.subcategory.every((val, index) => val === subs[index]);
+
+            if (isCategorySame && isSubcategorySame && isShopIdSame) {
+                return prev;
+            }
+            return {
+                ...prev,
+                category: cat,
+                subcategory: subs,
+                shopId: shopId
+            };
+        });
+    }, [searchParams]);
+
     const handleCategoryChange = useCallback((category: string) => {
-        setActiveFilters(prev => ({ ...prev, category, subcategory: [] }));
-    }, []);
+        const params = new URLSearchParams(searchParams.toString());
+        if (category === "All") {
+            params.delete("category");
+        } else {
+            params.set("category", category);
+        }
+        params.delete("subcategory"); // Clear subcategory when category changes
+        router.push(`/products?${params.toString()}`);
+    }, [router, searchParams]);
 
     const handleSubcategoryChange = useCallback((subcategory: string[]) => {
-        setActiveFilters(prev => ({ ...prev, subcategory }));
-    }, []);
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete("subcategory");
+        subcategory.forEach(sub => params.append("subcategory", sub));
+        router.push(`/products?${params.toString()}`);
+    }, [router, searchParams]);
 
     const handleSortChange = useCallback((sort: string) => {
         setActiveFilters(prev => ({ ...prev, sort }));
@@ -69,6 +115,7 @@ export default function ProductsClient({ initialProducts = [] }: ProductsClientP
             const res = await getUserProducts({
                 categoryId: mainCatId ? String(mainCatId) : undefined,
                 subcategoryId: subCatId ? String(subCatId) : undefined,
+                shopId: activeFilters.shopId,
                 sort: mappedSort,
                 limit: 100
             });
@@ -88,7 +135,10 @@ export default function ProductsClient({ initialProducts = [] }: ProductsClientP
     useEffect(() => {
         if (isFirstRender.current) {
             isFirstRender.current = false;
-            return;
+            // If the initial filter is not "All" or if we have a shopId, we must fetch filtered products immediately on mount
+            if (activeFilters.category === "All" && activeFilters.subcategory.length === 0 && !activeFilters.shopId) {
+                return;
+            }
         }
         fetchFilteredProducts();
     }, [activeFilters, fetchFilteredProducts]);
@@ -98,7 +148,7 @@ export default function ProductsClient({ initialProducts = [] }: ProductsClientP
 
     return (
         <div className="min-h-screen bg-gray-50/50">
-            <div className="pt-48 lg:pt-28"></div>
+            <div className="pt-40 lg:pt-28"></div>
 
             <main className="container mx-auto px-4 pt-2 pb-8 lg:py-8">
                 <Breadcrumbs items={[{ label: t("nav.products") }]} />
@@ -158,7 +208,17 @@ export default function ProductsClient({ initialProducts = [] }: ProductsClientP
                             </Sheet>
                         </div>
 
-                        <div className="flex items-center justify-between mb-4 lg:mb-8">
+                        {initialFeaturedShops.length > 0 && (
+                            <div className="mb-1">
+                                <FeaturedOffers 
+                                    offers={initialFeaturedShops} 
+                                    variant="minimal" 
+                                    activeShopId={activeFilters.shopId}
+                                />
+                            </div>
+                        )}
+
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 lg:mb-8">
                             <div className="flex items-center gap-4">
                                 <div className="h-8 w-1.5 bg-orange-500 rounded-full" />
                                 <div>
@@ -168,6 +228,24 @@ export default function ProductsClient({ initialProducts = [] }: ProductsClientP
                                     <p className="text-sm text-gray-500 font-medium">
                                         {t("catalog.showingPremiumItems").replace("{count}", filteredProducts.length.toString())}
                                     </p>
+                                    {activeFilters.shopId && (
+                                        <div className="flex flex-wrap items-center gap-2 mt-3">
+                                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-orange-50 text-orange-600 border border-orange-100 shadow-sm animate-in fade-in duration-300">
+                                                <span>Shop: {initialFeaturedShops.find(s => String(s.id) === String(activeFilters.shopId))?.name || `Shop #${activeFilters.shopId}`}</span>
+                                                <button 
+                                                    onClick={() => {
+                                                        const params = new URLSearchParams(searchParams.toString());
+                                                        params.delete("shopId");
+                                                        router.push(`/products?${params.toString()}`);
+                                                    }}
+                                                    className="w-4 h-4 rounded-full bg-orange-100 hover:bg-orange-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
+                                                    title="Clear shop filter"
+                                                >
+                                                    ×
+                                                </button>
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>

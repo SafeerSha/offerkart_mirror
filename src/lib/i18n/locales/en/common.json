@@ -67,7 +67,7 @@
     "noImage": "No image available",
     "offeredBy": "Offered by",
     "premiumOfferPrice": "Premium Offer Price",
-    "descQualityAssurance": "Description & Quality Assurance",
+    "descQualityAssurance": "Description",
     "fallbackProductDesc": "Experience outstanding quality with our {productName}, available at {shopName}. All items are carefully vetted to ensure that they match the high standards of our valued customers. Limited stocks available.",
     "keyInformation": "Key Information",
     "claimOffer": "Claim This Offer",
@@ -81,6 +81,7 @@
     "addedToCart": "Added to Cart",
     "addedToCartDesc": "{productName} has been added to your cart.",
     "addToCart": "Add to Cart",
-    "mockProductDesc": "Experience the premium quality of our {productName}. Carefully crafted to provide the best value for your money. Don't miss out on this exclusive offer!"
+    "mockProductDesc": "Experience the premium quality of our {productName}. Carefully crafted to provide the best value for your money. Don't miss out on this exclusive offer!",
+    "availableAt": "Available At"
   }
 }

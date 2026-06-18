@@ -33,13 +33,13 @@ const FeaturedProducts = ({ products }: FeaturedProductsProps) => {
     }
 
     return (
-        <section className="py-16 md:py-24 relative bg-slate-50/50">
+        <section className="py-8 md:py-12 relative bg-slate-50/50">
             {/* Background elements */}
             <div className="absolute top-0 right-1/4 w-[400px] h-[400px] bg-orange-500/5 rounded-full blur-[100px] -translate-y-1/2 pointer-events-none" />
             
             <div className="container mx-auto px-4 relative z-10">
                 {/* Header section */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
+                <div className="flex flex-col md:flex-row md:items-end justify-between mb-6 gap-6">
                     <div>
                         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-500/10 text-orange-600 text-xs font-bold uppercase tracking-[0.15em] mb-4 border border-orange-500/15 animate-fade-in">
                             <Sparkles className="w-3.5 h-3.5" />

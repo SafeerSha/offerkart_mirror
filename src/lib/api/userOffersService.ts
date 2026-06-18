@@ -232,6 +232,7 @@ export function getMockUserProducts(query: {
             originalPrice: item.originalPrice || item.price,
             categoryId: Number(categoryId) || 1,
             shopId: shopIdMapped,
+            shopName: item.shopName,
             rating: item.rating || 4.5,
             reviews: item.reviews || 0
         };

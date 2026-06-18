@@ -8,7 +8,7 @@ import { Subheading, Text } from "@/components/shared/Typography";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/hooks/useTranslation";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 interface FeaturedOffer {
   id: number;
@@ -25,9 +25,16 @@ interface FeaturedOffersProps {
 const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffersProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const { t } = useTranslation("home");
   const [currentIndex, setCurrentIndex] = useState(0);
   const itemsPerView = 10; // Show 10 offers at a time
+
+  const navVisibilityClass = offers.length <= 4
+    ? "hidden"
+    : offers.length <= 10
+      ? "lg:hidden"
+      : "";
 
   const nextSlide = () => {
     const totalItems = variant === "minimal"
@@ -58,13 +65,13 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
     } else {
       params.set("shopId", String(shopId));
     }
-    router.push(`/offers?${params.toString()}`);
+    router.push(`${pathname}?${params.toString()}`);
   };
 
   return (
     <section className={cn(
       "bg-background relative",
-      variant === "full" ? "py-16" : "py-3 lg:py-8"
+      variant === "full" ? "py-8" : "py-2 lg:py-4"
     )}>
       {/* Scrollbar Hide Utility */}
       <style jsx global>{`
@@ -78,7 +85,7 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
       `}</style>
       <div className="container mx-auto px-4">
         {variant === "full" && (
-          <div className="flex flex-col sm:flex-row items-center justify-between mb-8 gap-4 px-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4 px-4">
             <div className="flex items-center gap-4">
               <div className="p-2.5 rounded-xl bg-primary/10 border border-primary/20 shadow-sm shadow-primary/5">
                 <Store className="w-6 h-6 text-primary" />
@@ -89,7 +96,7 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className={cn("flex items-center gap-3", navVisibilityClass)}>
               <PremiumButton
                 variant="outline"
                 size="icon"
@@ -120,13 +127,19 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
               <>
                 <button
                   onClick={prevSlide}
-                  className="absolute -left-4 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-white backdrop-blur-md shadow-lg border border-primary/20 text-primary transition-all duration-300 hover:bg-primary hover:text-white hover:scale-110 active:scale-95"
+                  className={cn(
+                    "absolute -left-4 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-white backdrop-blur-md shadow-lg border border-primary/20 text-primary transition-all duration-300 hover:bg-primary hover:text-white hover:scale-110 active:scale-95",
+                    navVisibilityClass
+                  )}
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 <button
                   onClick={nextSlide}
-                  className="absolute -right-4 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-white backdrop-blur-md shadow-lg border border-primary/20 text-primary transition-all duration-300 hover:bg-primary hover:text-white hover:scale-110 active:scale-95"
+                  className={cn(
+                    "absolute -right-4 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-white backdrop-blur-md shadow-lg border border-primary/20 text-primary transition-all duration-300 hover:bg-primary hover:text-white hover:scale-110 active:scale-95",
+                    navVisibilityClass
+                  )}
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>
@@ -171,14 +184,17 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
                           </div>
                         )}
                       </div>
-                      {variant === "full" && (
-                        <Text className={cn(
-                          "text-center mt-2 font-medium transition-colors duration-300 text-sm",
-                          isActive ? "text-orange-500 font-bold" : "group-hover:text-primary"
-                        )}>
-                          {offer.name}
-                        </Text>
-                      )}
+                      <Text className={cn(
+                        "text-center mt-1.5 transition-colors duration-300 line-clamp-1 px-0.5",
+                        variant === "full"
+                          ? "text-xs sm:text-sm font-semibold w-full"
+                          : "text-[8px] font-medium leading-tight w-14 sm:w-16 max-w-[56px] sm:max-w-[64px]",
+                        isActive
+                          ? "text-orange-500 font-bold"
+                          : "text-muted-foreground group-hover:text-orange-500"
+                      )}>
+                        {offer.name}
+                      </Text>
                     </button>
                   );
                 })}
@@ -187,7 +203,7 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
                   <button
                     className="flex flex-col items-center group cursor-pointer transition-all duration-300 hover:scale-105 hover:-translate-y-1 flex-shrink-0"
                     style={{ minWidth: '64px' }}
-                    onClick={() => {}}
+                    onClick={() => { }}
                   >
                     <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full border-2 border-dashed border-primary/30 group-hover:border-primary bg-primary/5 flex items-center justify-center transition-all duration-300 group-hover:shadow-md">
                       <Plus className="w-6 h-6 text-primary group-hover:scale-110 transition-transform" />

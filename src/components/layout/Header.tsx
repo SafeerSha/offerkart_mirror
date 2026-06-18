@@ -294,14 +294,14 @@ const Header = () => {
         )}>
             <div className="overflow-hidden min-h-0 w-full">
                 <div className="p-3 glass-card rounded-2xl border border-primary/10">
-                    <nav className="flex flex-col gap-4">
-                        <div className="flex items-center justify-between px-2 py-1 mb-2 border-b border-primary/5 pb-3">
+                    <nav className="flex flex-col gap-3">
+                        <div className="flex items-center justify-between px-2 py-1 mb-1 border-b border-primary/5 pb-2.5">
                             <span className="text-sm font-bold uppercase tracking-wider text-orange-500">{currentLanguageName}</span>
-                            <LanguageSwitcher className="[&>button]:py-2.5 [&>button]:px-4 [&>button]:rounded-xl" />
+                            <LanguageSwitcher className="[&>button]:py-1.5 [&>button]:px-3.5 [&>button]:rounded-xl" />
                         </div>
 
                         <div className={cn(
-                            "transition-opacity duration-300 w-full flex flex-col gap-3",
+                            "transition-opacity duration-300 w-full flex flex-col gap-2.5",
                             status === "loading" ? "opacity-0 pointer-events-none" : "opacity-100"
                         )}>
                             {!isRegistered ? (
@@ -310,7 +310,7 @@ const Header = () => {
                                         setMobileMenuOpen(false);
                                         signIn();
                                     }}
-                                    className="px-4 py-3.5 rounded-xl bg-primary/10 border border-primary/20 text-primary font-bold shadow-sm flex items-center justify-center transition-all duration-300 hover:bg-primary/20 w-full text-center"
+                                    className="px-4 py-3 rounded-xl bg-primary/10 border border-primary/20 text-primary font-bold shadow-sm flex items-center justify-center transition-all duration-300 hover:bg-primary/20 w-full text-center"
                                 >
                                     <LogIn className="w-4 h-4 mr-3" />
                                     Log In
@@ -320,12 +320,12 @@ const Header = () => {
                                     <PremiumButton
                                         asChild
                                         size="sm"
-                                        className="rounded-2xl px-3 sm:px-4 lg:px-6 w-full justify-center group"
+                                        className="rounded-2xl px-3 sm:px-4 lg:px-6 w-full justify-center group h-auto"
                                     >
                                         <Link
                                             href={user?.business_name ? "/shop-manager" : "/shop-registration"}
                                             onClick={() => setMobileMenuOpen(false)}
-                                            className="flex items-center justify-center p-6"
+                                            className="flex items-center justify-center py-3.5 px-4 w-full"
                                         >
                                             {user?.business_name ? (
                                                 <>
@@ -347,7 +347,7 @@ const Header = () => {
                                             signOut({ callbackUrl: "/" });
                                         }}
                                         disabled={isLoggingOut}
-                                        className="px-4 py-3.5 rounded-xl hover:bg-destructive/10 text-destructive/80 hover:text-destructive transition-all duration-300 border border-transparent hover:border-destructive/20 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="px-4 py-3 rounded-xl bg-destructive/5 hover:bg-destructive/10 text-destructive/80 hover:text-destructive transition-all duration-300 border border-destructive/20 hover:border-destructive/30 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         {isLoggingOut ? (
                                             <>
@@ -368,12 +368,12 @@ const Header = () => {
                                 <PremiumButton
                                     asChild
                                     size="sm"
-                                    className="rounded-2xl px-3 sm:px-4 lg:px-6 w-full justify-center group"
+                                    className="rounded-2xl px-3 sm:px-4 lg:px-6 w-full justify-center group h-auto"
                                 >
                                     <Link
                                         href="/shop-registration"
                                         onClick={() => setMobileMenuOpen(false)}
-                                        className="flex items-center justify-center p-6"
+                                        className="flex items-center justify-center py-3.5 px-4 w-full"
                                     >
                                         <PlusCircle className="w-4 h-4 mr-2" />
                                         <span className="font-bold">Add your shop</span>
@@ -383,10 +383,11 @@ const Header = () => {
                         </div>
 
                         {/* Close Button at bottom right */}
-                        <div className="flex justify-end mt-1">
+                        <div className="flex justify-end mt-0.5">
                             <button
                                 onClick={() => setMobileMenuOpen(false)}
-                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-primary/10 hover:border-primary/20 bg-secondary/30 text-muted-foreground hover:text-foreground text-xs font-bold transition-all duration-200 transform active:scale-95 shadow-sm"
+                                className="flex items-center justify-center p-1.5 rounded-lg border border-primary/10 hover:border-primary/20 bg-secondary/30 text-muted-foreground hover:text-foreground transition-all duration-200 transform active:scale-95 shadow-sm"
+                                aria-label="Close menu"
                             >
                                 <X className="w-3.5 h-3.5 text-orange-500" />
                             </button>
@@ -436,7 +437,7 @@ const Header = () => {
                 <div className="relative w-full z-10">
                     {/* Full Header Content */}
                     <div className={cn(
-                        "transition-all duration-300 ease-in-out origin-top py-4",
+                        "transition-all duration-300 ease-in-out origin-top py-2.5 lg:py-4",
                         (scrolled && !islandExpanded)
                             ? "opacity-0 pointer-events-none absolute inset-x-0 top-0 scale-[0.95] translate-y-2"
                             : "opacity-100 scale-100 relative translate-y-0"
@@ -677,13 +678,13 @@ const Header = () => {
                             </div>
 
                             {/* Mobile Navigation and Search */}
-                            <div className="lg:hidden mt-4 flex flex-col gap-3 px-0.5 animate-in slide-in-from-top-3 duration-300">
+                            <div className="lg:hidden mt-2.5 flex flex-col gap-2 px-0.5 animate-in slide-in-from-top-3 duration-300">
                                 {/* Three Classic Premium Button Links */}
-                                <div className="grid grid-cols-3 gap-2.5">
+                                <div className="grid grid-cols-3 gap-2">
                                     <Link
                                         href="/"
                                         className={cn(
-                                            "flex items-center justify-center gap-2 py-3 px-3 rounded-2xl border text-xs font-bold transition-all duration-300 transform active:scale-95 shadow-sm",
+                                            "flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border text-xs font-bold transition-all duration-300 transform active:scale-95 shadow-sm",
                                             pathname === "/"
                                                 ? "bg-gradient-to-r from-orange-500/10 to-amber-500/10 border-orange-500/30 text-orange-600 shadow-orange-500/5"
                                                 : "bg-white/40 dark:bg-black/20 border-primary/5 text-muted-foreground hover:bg-white/70 hover:text-foreground"
@@ -695,7 +696,7 @@ const Header = () => {
                                     <Link
                                         href="/offers"
                                         className={cn(
-                                            "flex items-center justify-center gap-2 py-3 px-3 rounded-2xl border text-xs font-bold transition-all duration-300 transform active:scale-95 shadow-sm",
+                                            "flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border text-xs font-bold transition-all duration-300 transform active:scale-95 shadow-sm",
                                             (pathname === "/offers" || pathname.startsWith('/offer/'))
                                                 ? "bg-gradient-to-r from-orange-500/10 to-amber-500/10 border-orange-500/30 text-orange-600 shadow-orange-500/5"
                                                 : "bg-white/40 dark:bg-black/20 border-primary/5 text-muted-foreground hover:bg-white/70 hover:text-foreground"
@@ -707,7 +708,7 @@ const Header = () => {
                                     <Link
                                         href="/products"
                                         className={cn(
-                                            "flex items-center justify-center gap-2 py-3 px-3 rounded-2xl border text-xs font-bold transition-all duration-300 transform active:scale-95 shadow-sm",
+                                            "flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border text-xs font-bold transition-all duration-300 transform active:scale-95 shadow-sm",
                                             pathname.startsWith("/products")
                                                 ? "bg-gradient-to-r from-orange-500/10 to-amber-500/10 border-orange-500/30 text-orange-600 shadow-orange-500/5"
                                                 : "bg-white/40 dark:bg-black/20 border-primary/5 text-muted-foreground hover:bg-white/70 hover:text-foreground"
@@ -720,15 +721,15 @@ const Header = () => {
 
                                 {/* Classic Search Bar */}
                                 <div className="relative w-full group">
-                                    <div className="absolute inset-0 bg-gradient-to-r from-orange-500/5 to-amber-500/5 rounded-2xl blur-md opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 pointer-events-none" />
-                                    <div className="relative flex items-center bg-white/50 dark:bg-black/20 border border-primary/10 group-focus-within:border-orange-500/30 group-focus-within:bg-white rounded-2xl shadow-sm transition-all duration-300 overflow-hidden">
-                                        <div className="pl-4 pr-2.5 py-3 flex items-center pointer-events-none">
+                                    <div className="absolute inset-0 bg-gradient-to-r from-orange-500/5 to-amber-500/5 rounded-xl blur-md opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                                    <div className="relative flex items-center bg-white/50 dark:bg-black/20 border border-primary/10 group-focus-within:border-orange-500/30 group-focus-within:bg-white rounded-xl shadow-sm transition-all duration-300 overflow-hidden">
+                                        <div className="pl-3 pr-2 py-2.5 flex items-center pointer-events-none">
                                             <Search className="w-4 h-4 text-muted-foreground/80 group-focus-within:text-orange-500 transition-colors" />
                                         </div>
                                         <input
                                             type="text"
                                             placeholder="Search shops, offers, products..."
-                                            className="w-full py-3 pr-4 bg-transparent border-none focus:ring-0 focus:outline-none outline-none text-xs font-medium placeholder:text-muted-foreground/50 text-foreground"
+                                            className="w-full py-2.5 pr-3.5 bg-transparent border-none focus:ring-0 focus:outline-none outline-none text-xs font-medium placeholder:text-muted-foreground/50 text-foreground"
                                         />
                                     </div>
                                 </div>

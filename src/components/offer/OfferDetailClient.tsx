@@ -32,6 +32,7 @@ interface OfferDetail {
     originalPrice: string;
     branchId?: number | string;
     branchName?: string;
+    shopLogo?: string | null;
 }
 
 interface SimilarOffer {
@@ -58,15 +59,13 @@ interface OfferDetailClientProps {
 function mapApiOfferToDetail(raw: any): OfferDetail {
     const DEFAULT_IMAGE = "/images/shop-registration-bg-light.png";
 
-    // The API now returns a fully enriched Offer object (same as what mapOfferForDetail
-    // in page.tsx uses). Posters already have markedItems pre-mapped.
     const finalPosters: Poster[] = (raw.posters || []).map((p: any) => {
-        const posterSrc = typeof p.posterSrc === "object" ? (p.posterSrc as any)?.src ?? DEFAULT_IMAGE : p.posterSrc || DEFAULT_IMAGE;
-        return {
-            id: String(p.id ?? ""),
-            posterSrc,
-            type: ("just_post" as const),
-            markedItems: (p.markedItems || []).map((item: any) => ({
+        const rawPosterSrc = p.imageUrl || p.posterSrc;
+        const posterSrc = typeof rawPosterSrc === "object" ? (rawPosterSrc as any)?.src ?? DEFAULT_IMAGE : rawPosterSrc || DEFAULT_IMAGE;
+        
+        let markedItems: MarkedItem[] = [];
+        if (Array.isArray(p.markedItems)) {
+            markedItems = p.markedItems.map((item: any) => ({
                 id: String(item.id ?? ""),
                 name: item.name || "",
                 description: item.description || "",
@@ -79,7 +78,34 @@ function mapApiOfferToDetail(raw: any): OfferDetail {
                 width: item.width ?? 0,
                 height: item.height ?? 0,
                 mainCategory: item.mainCategory || "",
-            })),
+            }));
+        } else if (Array.isArray(p.products)) {
+            for (const prod of p.products) {
+                const areas = prod.areas || [];
+                for (const area of areas) {
+                    markedItems.push({
+                        id: String(prod.id ?? ""),
+                        name: prod.displayName || prod.name || "Product",
+                        description: prod.displayDescription || prod.description || "",
+                        productImage: prod.imageUrl || prod.productImage || "",
+                        currency: "₹",
+                        oldPrice: prod.originalPrice || prod.oldPrice || prod.offerPrice || 0,
+                        offerPrice: prod.offerPrice ?? 0,
+                        x: area.xPercent ?? area.x ?? 0,
+                        y: area.yPercent ?? area.y ?? 0,
+                        width: area.widthPercent ?? area.width ?? 0,
+                        height: area.heightPercent ?? area.height ?? 0,
+                        mainCategory: prod.mainCategory || prod.category || "",
+                    });
+                }
+            }
+        }
+
+        return {
+            id: String(p.id ?? ""),
+            posterSrc,
+            type: ("just_post" as const),
+            markedItems,
             title: p.title,
         };
     });
@@ -102,6 +128,7 @@ function mapApiOfferToDetail(raw: any): OfferDetail {
         price: "",
         originalPrice: "",
         branchName: raw.branchNames?.[0] ?? raw.branchName,
+        shopLogo: raw.shopLogo || null,
     };
 }
 
@@ -266,35 +293,41 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
                                     setIsProductModalOpen(true);
                                 }
                             }}
-                        />
-                        <div className="absolute top-4 left-4 z-10">
-                            <span className="badge-futuristic">
-                                <Tag className="w-3 h-3 mr-1" />
-                                {offer.discount}
-                            </span>
-                        </div>
-
-                        {/* Poster Count Badge */}
-                        {totalPosters > 1 && (
-                            <div className="absolute top-4 right-4 z-10">
-                                <span className="bg-black/75 dark:bg-zinc-900/95 text-white text-[10px] font-bold px-2.5 py-1 rounded-full backdrop-blur-sm shadow-sm tracking-wider">
-                                    Poster {posterIndex + 1} of {totalPosters}
+                            showTopGradient={true}
+                            showBottomGradient={true}
+                        >
+                            <div className="absolute top-4 left-4 z-20">
+                                <span className="badge-futuristic">
+                                    <Tag className="w-3 h-3 mr-1" />
+                                    {offer.discount}
                                 </span>
                             </div>
-                        )}
 
-                        {/* Dots Indicator */}
-                        {totalPosters > 1 && (
-                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
-                                {Array.from({ length: totalPosters }).map((_, index) => (
-                                    <button
-                                        key={index}
-                                        onClick={() => setPosterIndex(index)}
-                                        className={`w-2 h-2 rounded-full transition-all ${index === posterIndex ? "bg-primary" : "bg-white/50"}`}
-                                    />
-                                ))}
-                            </div>
-                        )}
+                            {/* Poster Count Badge */}
+                            {totalPosters > 1 && (
+                                <div className="absolute top-4 right-4 z-20">
+                                    <span className="bg-black/75 dark:bg-zinc-900/95 text-white text-[10px] font-bold px-2.5 py-1 rounded-full backdrop-blur-sm shadow-sm tracking-wider">
+                                        Poster {posterIndex + 1} of {totalPosters}
+                                    </span>
+                                </div>
+                            )}
+
+                            {/* Dots Indicator */}
+                            {totalPosters > 1 && (
+                                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+                                    {Array.from({ length: totalPosters }).map((_, index) => (
+                                        <button
+                                            key={index}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setPosterIndex(index);
+                                            }}
+                                            className={`w-2 h-2 rounded-full transition-all ${index === posterIndex ? "bg-primary" : "bg-white/50"}`}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </MarkedPoster>
                     </div>
 
                     {/* Right Desktop Navigation */}
@@ -390,10 +423,8 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
                 markedItems={allMarkedItems}
                 initialItemId={selectedItemId}
                 offerCategory={offer.category}
-                prevOfferId={prevOfferId}
-                nextOfferId={nextOfferId}
-                onActiveItemChange={handleActiveItemChange}
-                onNavigateToOffer={navigateToOffer}
+                shopName={offer.shopName}
+                shopLogo={offer.shopLogo}
             />
         </div>
     );
