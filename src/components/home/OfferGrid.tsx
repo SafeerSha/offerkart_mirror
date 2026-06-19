@@ -15,7 +15,7 @@ interface OfferGridProps {
   className?: string;
   redirectToOffers?: boolean;
   buttonText?: string;
-  columns?: 3 | 4 | 5;
+  columns?: 3 | 4 | 5 | 6;
   disablePagination?: boolean;
 }
 
@@ -29,7 +29,7 @@ const OfferGrid = ({
   disablePagination = false
 }: OfferGridProps) => {
   const router = useRouter();
-  const [visibleCount, setVisibleCount] = useState(10);
+  const [visibleCount, setVisibleCount] = useState(columns === 6 ? 12 : 10);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const visibleOffers = disablePagination ? offers : offers.slice(0, visibleCount);
@@ -51,11 +51,13 @@ const OfferGrid = ({
   const hasMore = visibleCount < offers.length;
 
   const gridColsClass =
-    columns === 5
-      ? "grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
-      : columns === 4
-        ? "grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-        : "grid-cols-2 sm:grid-cols-2 lg:grid-cols-3";
+    columns === 6
+      ? "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+      : columns === 5
+        ? "grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+        : columns === 4
+          ? "grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+          : "grid-cols-2 sm:grid-cols-2 lg:grid-cols-3";
 
   if (isLoading) {
     return (

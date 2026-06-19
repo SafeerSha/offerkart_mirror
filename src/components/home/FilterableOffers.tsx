@@ -96,7 +96,7 @@ export default function FilterableOffers({ initialOffers = [], buttonText }: Fil
                 offers={filteredOffers}
                 redirectToOffers={true}
                 buttonText={buttonText}
-                columns={5}
+                columns={6}
             />
         </div>
     );
