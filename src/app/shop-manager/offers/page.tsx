@@ -837,7 +837,7 @@ function ShopOffersContent() {
 export default function ShopOffersPage() {
     return (
         <Suspense fallback={
-            <div className="min-h-screen bg-gray-50/50 pt-28 flex items-center justify-center">
+            <div className="min-h-screen bg-gray-50/50 pt-40 flex items-center justify-center">
                 <Loader2 className="w-8 h-8 text-primary animate-spin" />
             </div>
         }>

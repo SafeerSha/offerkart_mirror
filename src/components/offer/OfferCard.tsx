@@ -96,7 +96,7 @@ const OfferCard = ({
             <span className={cn(
               "px-3 py-1 rounded-tl-xl rounded-br-xl text-[9px] sm:text-[8px] font-black tracking-wider flex items-center shadow-sm backdrop-blur-md border-b border-r shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]",
               isUrgent
-                ? "bg-red-500/15 dark:bg-red-500/25 text-red-600 dark:text-red-400 border-red-500/30 dark:border-red-500/20"
+                ? "bg-red-500/15 dark:bg-red-500/25 text-slate-800 dark:text-slate-200 border-red-500/30 dark:border-red-500/20"
                 : "bg-white/30 dark:bg-black/30 text-slate-800 dark:text-slate-200 border-white/40 dark:border-white/15"
             )}>
               <span>{daysLeftText}</span>

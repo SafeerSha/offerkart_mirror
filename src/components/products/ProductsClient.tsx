@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Filter } from "lucide-react";
+import { Filter, SlidersHorizontal } from "lucide-react";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import ProductGrid from "@/components/products/ProductGrid";
 import FilterPanel from "@/components/home/FilterPanel";
@@ -16,6 +16,12 @@ import {
     SheetTitle,
     SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useTranslation } from "@/hooks/useTranslation";
 import { getUserProducts } from "@/lib/api/products";
 import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
@@ -51,6 +57,13 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
 
     const isFirstRender = useRef(true);
     const { getCategoryId } = useCategoryHierarchy();
+
+    const sortOptions = [
+        { value: "latest", label: t("catalog.sortLatest") },
+        { value: "popular", label: t("catalog.sortPopular") },
+        { value: "nearby", label: t("catalog.sortNearby") },
+        { value: "discount", label: t("catalog.sortDiscount") },
+    ];
 
     // Sync category, subcategories, and shopId from URL if they change
     useEffect(() => {
@@ -132,14 +145,22 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
         }
     }, [activeFilters, getCategoryId]);
 
+    const lastFetchedFilters = useRef(activeFilters);
+
     useEffect(() => {
         if (isFirstRender.current) {
             isFirstRender.current = false;
             // If the initial filter is not "All" or if we have a shopId, we must fetch filtered products immediately on mount
-            if (activeFilters.category === "All" && activeFilters.subcategory.length === 0 && !activeFilters.shopId) {
+            if (activeFilters.category === "All" && activeFilters.subcategory.length === 0 && !activeFilters.shopId && activeFilters.sort === "latest") {
+                lastFetchedFilters.current = activeFilters;
+                return;
+            }
+        } else {
+            if (lastFetchedFilters.current === activeFilters) {
                 return;
             }
         }
+        lastFetchedFilters.current = activeFilters;
         fetchFilteredProducts();
     }, [activeFilters, fetchFilteredProducts]);
 
@@ -175,37 +196,70 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
                     </aside>
 
                     <div className="flex-1">
-                        <div className="lg:hidden mb-4">
-                            <Sheet open={mobileFilterOpen} onOpenChange={setMobileFilterOpen}>
-                                <SheetTrigger asChild>
-                                    <button className="w-full h-12 bg-white border border-gray-200 rounded-xl flex items-center justify-center gap-2 font-semibold text-gray-700 hover:bg-gray-50 transition-all shadow-sm">
-                                        <Filter className="w-4 h-4" />
-                                        {t("catalog.filtersSorting")}
-                                    </button>
-                                </SheetTrigger>
-                                <SheetContent side="left" className="w-[300px] border-r-0 bg-white">
-                                    <SheetHeader className="mb-8">
-                                        <SheetTitle className="text-2xl font-bold flex items-center gap-2">
-                                            <Filter className="w-6 h-6 text-orange-500" />
-                                            {t("catalog.filters")}
-                                        </SheetTitle>
-                                        <SheetDescription>
-                                            {t("catalog.filtersDescProducts")}
-                                        </SheetDescription>
-                                    </SheetHeader>
-                                    <div className="pb-8">
-                                        <FilterPanel
-                                            variant="sidebar"
-                                            activeCategory={activeFilters.category}
-                                            activeSubcategory={activeFilters.subcategory}
-                                            activeSort={activeFilters.sort}
-                                            onCategoryChange={handleCategoryChange}
-                                            onSubcategoryChange={handleSubcategoryChange}
-                                            onSortChange={handleSortChange}
-                                        />
-                                    </div>
-                                </SheetContent>
-                            </Sheet>
+                        <div className="lg:hidden">
+                            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 h-12 bg-white/90 backdrop-blur-md border border-orange-500/20 rounded-full flex items-center shadow-lg shadow-orange-500/10 transition-all duration-300">
+                                {/* Left: Filter Trigger */}
+                                <Sheet open={mobileFilterOpen} onOpenChange={setMobileFilterOpen}>
+                                    <SheetTrigger asChild>
+                                        <button className="h-full px-5 flex items-center gap-2 text-gray-800 font-bold hover:text-orange-500 active:scale-95 transition-all">
+                                            <Filter className="w-3.5 h-3.5 text-orange-500 animate-pulse" />
+                                            <span className="text-[11px] font-black uppercase tracking-wider">{t("catalog.filters")}</span>
+                                        </button>
+                                    </SheetTrigger>
+                                    <SheetContent side="left" className="w-[300px] border-r-0 bg-white">
+                                        <SheetHeader className="mb-8">
+                                            <SheetTitle className="text-2xl font-bold flex items-center gap-2">
+                                                <Filter className="w-6 h-6 text-orange-500" />
+                                                {t("catalog.filters")}
+                                            </SheetTitle>
+                                            <SheetDescription>
+                                                {t("catalog.filtersDescProducts")}
+                                            </SheetDescription>
+                                        </SheetHeader>
+                                        <div className="pb-8">
+                                            <FilterPanel
+                                                variant="sidebar"
+                                                activeCategory={activeFilters.category}
+                                                activeSubcategory={activeFilters.subcategory}
+                                                activeSort={activeFilters.sort}
+                                                onCategoryChange={handleCategoryChange}
+                                                onSubcategoryChange={handleSubcategoryChange}
+                                                onSortChange={handleSortChange}
+                                            />
+                                        </div>
+                                    </SheetContent>
+                                </Sheet>
+
+                                <div className="w-[1px] h-6 bg-orange-500/20" />
+
+                                {/* Right: Sort Trigger (using DropdownMenu) */}
+                                <DropdownMenu modal={false}>
+                                    <DropdownMenuTrigger asChild>
+                                        <button className="h-full px-5 flex items-center gap-2 text-gray-800 font-bold hover:text-orange-500 active:scale-95 transition-all outline-none">
+                                            <SlidersHorizontal className="w-3.5 h-3.5 text-orange-500" />
+                                            <span className="text-[11px] font-black uppercase tracking-wider">
+                                                {sortOptions.find(o => o.value === activeFilters.sort)?.label || t("catalog.sortBy")}
+                                            </span>
+                                        </button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="bg-white/95 backdrop-blur-md border border-orange-500/10 rounded-2xl p-1.5 shadow-2xl w-48 mb-2">
+                                        {sortOptions.map((option) => (
+                                            <DropdownMenuItem
+                                                key={option.value}
+                                                onClick={() => handleSortChange(option.value)}
+                                                className={cn(
+                                                    "rounded-xl cursor-pointer py-2 px-3 text-xs font-semibold transition-all duration-200",
+                                                    activeFilters.sort === option.value
+                                                        ? "bg-orange-50 text-orange-600"
+                                                        : "hover:bg-orange-50/50"
+                                                )}
+                                            >
+                                                {option.label}
+                                            </DropdownMenuItem>
+                                        ))}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
                         </div>
 
                         {initialFeaturedShops.length > 0 && (

@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { getPaginatedOffers } from "@/lib/api/offers";
 import OfferGrid from "@/components/home/OfferGrid";
 import FilterPanel from "@/components/home/FilterPanel";
 import FeaturedOffers from "@/components/home/FeaturedOffers";
-import { Loader2, Filter } from "lucide-react";
+import { Loader2, Filter, SlidersHorizontal } from "lucide-react";
 import {
     Sheet,
     SheetContent,
@@ -15,9 +15,16 @@ import {
     SheetTitle,
     SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import { Offer } from "@/lib/types/offer";
 import { useTranslation } from "@/hooks/useTranslation";
+import { cn } from "@/lib/utils";
 
 interface OffersClientProps {
     initialOffers: Offer[];
@@ -38,6 +45,13 @@ export default function OffersClient({
     const { t } = useTranslation("common");
     const router = useRouter();
     const searchParams = useSearchParams();
+
+    const sortOptions = [
+        { value: "latest", label: t("catalog.sortLatest") },
+        { value: "popular", label: t("catalog.sortPopular") },
+        { value: "nearby", label: t("catalog.sortNearby") },
+        { value: "discount", label: t("catalog.sortDiscount") },
+    ];
     const initialCategory = searchParams.get("category") || "All";
     const initialShopId = searchParams.get("shopId") || undefined;
     const initialSubcategories = searchParams.getAll("subcategory") || [];
@@ -68,35 +82,46 @@ export default function OffersClient({
         const cat = searchParams.get("category") || "All";
         const shopId = searchParams.get("shopId") || undefined;
         const subs = searchParams.getAll("subcategory") || [];
-        setActiveFilters(prev => ({
-            ...prev,
-            category: cat,
-            subcategory: subs,
-            shopId: shopId
-        }));
-        setPage(1);
-        setOffers([]);
-        setHasMore(true);
+        setActiveFilters(prev => {
+            const isCategorySame = prev.category === cat;
+            const isShopIdSame = prev.shopId === shopId;
+            const isSubcategorySame = prev.subcategory.length === subs.length &&
+                prev.subcategory.every((val, index) => val === subs[index]);
+
+            if (isCategorySame && isSubcategorySame && isShopIdSame) {
+                return prev;
+            }
+            return {
+                ...prev,
+                category: cat,
+                subcategory: subs,
+                shopId: shopId
+            };
+        });
     }, [searchParams]);
 
 
 
     const handleCategoryChange = useCallback((category: string) => {
-        router.push(`/products?category=${encodeURIComponent(category)}`);
-    }, [router]);
+        const params = new URLSearchParams(searchParams.toString());
+        if (category === "All") {
+            params.delete("category");
+        } else {
+            params.set("category", category);
+        }
+        params.delete("subcategory"); // Clear subcategory when category changes
+        router.push(`/offers?${params.toString()}`);
+    }, [router, searchParams]);
 
     const handleSubcategoryChange = useCallback((subcategory: string[]) => {
-        setActiveFilters(prev => ({ ...prev, subcategory }));
-        setPage(1);
-        setOffers([]);
-        setHasMore(true);
-    }, []);
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete("subcategory");
+        subcategory.forEach(sub => params.append("subcategory", sub));
+        router.push(`/offers?${params.toString()}`);
+    }, [router, searchParams]);
 
     const handleSortChange = useCallback((sort: string) => {
         setActiveFilters(prev => ({ ...prev, sort }));
-        setPage(1);
-        setOffers([]);
-        setHasMore(true);
     }, []);
 
     const getUserCoordinates = useCallback(async () => {
@@ -177,19 +202,20 @@ export default function OffersClient({
         }
     }, [page, hasMore, activeFilters, getUserCoordinates]);
 
-    // Initial fetch when filters change (ignoring the first mountain of initialOffers if matched on mount)
-    useEffect(() => {
-        const isFirstMountWithInitialParams = 
-            activeFilters.category === (searchParams.get("category") || "All") &&
-            activeFilters.shopId === (searchParams.get("shopId") || undefined) &&
-            page === 1 &&
-            offers.length === initialOffers.length;
+    const lastFetchedFilters = useRef(activeFilters);
 
-        if (isFirstMountWithInitialParams) {
+    // Initial fetch when filters change
+    useEffect(() => {
+        if (lastFetchedFilters.current === activeFilters) {
             return;
         }
+        lastFetchedFilters.current = activeFilters;
+        
+        setPage(1);
+        setOffers([]);
+        setHasMore(true);
         fetchMoreOffers(true);
-    }, [activeFilters]);
+    }, [activeFilters, fetchMoreOffers]);
 
     // Infinite Scroll Observer
     useEffect(() => {
@@ -239,37 +265,70 @@ export default function OffersClient({
 
                     <div className="flex-1 w-full overflow-hidden">
                         {/* Mobile Filter Button */}
-                        <div className="lg:hidden mb-4">
-                            <Sheet open={mobileFilterOpen} onOpenChange={setMobileFilterOpen}>
-                                <SheetTrigger asChild>
-                                    <button className="w-full h-12 bg-white border border-gray-200 rounded-xl flex items-center justify-center gap-2 font-semibold text-gray-700 hover:bg-gray-50 transition-all shadow-sm">
-                                        <Filter className="w-4 h-4" />
-                                        {t("catalog.filtersSorting")}
-                                    </button>
-                                </SheetTrigger>
-                                <SheetContent side="left" className="w-[300px] border-r-0 bg-white">
-                                    <SheetHeader className="mb-8">
-                                        <SheetTitle className="text-2xl font-bold flex items-center gap-2">
-                                            <Filter className="w-6 h-6 text-orange-500" />
-                                            {t("catalog.filters")}
-                                        </SheetTitle>
-                                        <SheetDescription>
-                                            {t("catalog.filtersDescOffers")}
-                                        </SheetDescription>
-                                    </SheetHeader>
-                                    <div className="pb-8">
-                                        <FilterPanel
-                                            variant="sidebar"
-                                            activeCategory={activeFilters.category}
-                                            activeSubcategory={activeFilters.subcategory}
-                                            activeSort={activeFilters.sort}
-                                            onCategoryChange={handleCategoryChange}
-                                            onSubcategoryChange={handleSubcategoryChange}
-                                            onSortChange={handleSortChange}
-                                        />
-                                    </div>
-                                </SheetContent>
-                            </Sheet>
+                        <div className="lg:hidden">
+                            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 h-12 bg-white/90 backdrop-blur-md border border-orange-500/20 rounded-full flex items-center shadow-lg shadow-orange-500/10 transition-all duration-300">
+                                {/* Left: Filter Trigger */}
+                                <Sheet open={mobileFilterOpen} onOpenChange={setMobileFilterOpen}>
+                                    <SheetTrigger asChild>
+                                        <button className="h-full px-5 flex items-center gap-2 text-gray-800 font-bold hover:text-orange-500 active:scale-95 transition-all">
+                                            <Filter className="w-3.5 h-3.5 text-orange-500 animate-pulse" />
+                                            <span className="text-[11px] font-black uppercase tracking-wider">{t("catalog.filters")}</span>
+                                        </button>
+                                    </SheetTrigger>
+                                    <SheetContent side="left" className="w-[300px] border-r-0 bg-white">
+                                        <SheetHeader className="mb-8">
+                                            <SheetTitle className="text-2xl font-bold flex items-center gap-2">
+                                                <Filter className="w-6 h-6 text-orange-500" />
+                                                {t("catalog.filters")}
+                                            </SheetTitle>
+                                            <SheetDescription>
+                                                {t("catalog.filtersDescOffers")}
+                                            </SheetDescription>
+                                        </SheetHeader>
+                                        <div className="pb-8">
+                                            <FilterPanel
+                                                variant="sidebar"
+                                                activeCategory={activeFilters.category}
+                                                activeSubcategory={activeFilters.subcategory}
+                                                activeSort={activeFilters.sort}
+                                                onCategoryChange={handleCategoryChange}
+                                                onSubcategoryChange={handleSubcategoryChange}
+                                                onSortChange={handleSortChange}
+                                            />
+                                        </div>
+                                    </SheetContent>
+                                </Sheet>
+
+                                <div className="w-[1px] h-6 bg-orange-500/20" />
+
+                                {/* Right: Sort Trigger (using DropdownMenu) */}
+                                <DropdownMenu modal={false}>
+                                    <DropdownMenuTrigger asChild>
+                                        <button className="h-full px-5 flex items-center gap-2 text-gray-800 font-bold hover:text-orange-500 active:scale-95 transition-all outline-none">
+                                            <SlidersHorizontal className="w-3.5 h-3.5 text-orange-500" />
+                                            <span className="text-[11px] font-black uppercase tracking-wider">
+                                                {sortOptions.find(o => o.value === activeFilters.sort)?.label || t("catalog.sortBy")}
+                                            </span>
+                                        </button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="bg-white/95 backdrop-blur-md border border-orange-500/10 rounded-2xl p-1.5 shadow-2xl w-48 mb-2">
+                                        {sortOptions.map((option) => (
+                                            <DropdownMenuItem
+                                                key={option.value}
+                                                onClick={() => handleSortChange(option.value)}
+                                                className={cn(
+                                                    "rounded-xl cursor-pointer py-2 px-3 text-xs font-semibold transition-all duration-200",
+                                                    activeFilters.sort === option.value
+                                                        ? "bg-orange-50 text-orange-600"
+                                                        : "hover:bg-orange-50/50"
+                                                )}
+                                            >
+                                                {option.label}
+                                            </DropdownMenuItem>
+                                        ))}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
                         </div>
 
                         {featuredShops.length > 0 && (
@@ -288,7 +347,7 @@ export default function OffersClient({
                                     <span className="text-xs font-bold uppercase tracking-wider text-orange-500">
                                         {t("catalog.offersDeals")}
                                     </span>
-                                    {(activeFilters.category !== "All" || activeFilters.subcategory.length > 0 || activeFilters.shopId) && (
+                                    {(activeFilters.category !== "All" || activeFilters.subcategory.length > 0) && (
                                         <div className="flex items-center gap-2 text-xs font-medium text-gray-400">
                                             <span>/</span>
                                             <span className="text-gray-900">{activeFilters.category === "All" ? t("catalog.all") : activeFilters.category}</span>
@@ -296,12 +355,6 @@ export default function OffersClient({
                                                 <>
                                                     <span>/</span>
                                                     <span className="text-gray-900 line-clamp-1">{activeFilters.subcategory.join(", ")}</span>
-                                                </>
-                                            )}
-                                            {activeFilters.shopId && (
-                                                <>
-                                                    <span>/</span>
-                                                    <span className="text-gray-900">Shop ID: {activeFilters.shopId}</span>
                                                 </>
                                             )}
                                         </div>

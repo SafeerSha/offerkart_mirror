@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { StaticImageData } from "next/image";
 import { Tag, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { PremiumButton } from "@/components/shared/PremiumButton";
@@ -144,7 +144,7 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
 
     // --- Poster / carousel state ---
     const [posterIndex, setPosterIndex] = useState(0);
-    const [similarCarouselIndex, setSimilarCarouselIndex] = useState(0);
+    const similarCarouselRef = useRef<HTMLDivElement>(null);
     const [isProductModalOpen, setIsProductModalOpen] = useState(false);
     const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 
@@ -226,11 +226,15 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
         }
     };
 
-    const itemsPerSlide = 3;
-    const totalSlides = Math.ceil(similarOffers.length / itemsPerSlide);
-
-    const nextSimilarSlide = () => setSimilarCarouselIndex((prev) => (prev + 1) % totalSlides);
-    const prevSimilarSlide = () => setSimilarCarouselIndex((prev) => (prev - 1 + totalSlides) % totalSlides);
+    const scrollSimilar = (direction: "left" | "right") => {
+        if (!similarCarouselRef.current) return;
+        const container = similarCarouselRef.current;
+        const scrollAmount = container.clientWidth * 0.8;
+        container.scrollBy({
+            left: direction === "left" ? -scrollAmount : scrollAmount,
+            behavior: "smooth"
+        });
+    };
 
     const prevLabel = totalPosters === 1 || posterIndex === 0 ? "Prev Offer" : "Prev Poster";
     const nextLabel = totalPosters === 1 || posterIndex === totalPosters - 1 ? "Next Offer" : "Next Poster";
@@ -377,13 +381,13 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
 
                 {/* Similar Offers Carousel */}
                 <div className="mt-10">
-                    <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center justify-between mb-6">
                         <Subheading className="text-2xl font-bold">{t("catalog.similarOffers")}</Subheading>
                         <div className="flex items-center gap-2">
                             <PremiumButton
                                 variant="outline"
                                 size="icon"
-                                onClick={prevSimilarSlide}
+                                onClick={() => scrollSimilar("left")}
                                 className="rounded-full border-border/50 h-10 w-10"
                             >
                                 <ChevronLeft className="w-4 h-4" />
@@ -391,7 +395,7 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
                             <PremiumButton
                                 variant="outline"
                                 size="icon"
-                                onClick={nextSimilarSlide}
+                                onClick={() => scrollSimilar("right")}
                                 className="rounded-full border-border/50 h-10 w-10"
                             >
                                 <ChevronRight className="w-4 h-4" />
@@ -399,21 +403,18 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
                         </div>
                     </div>
 
-                    <div className="overflow-hidden">
-                        <div
-                            className="flex transition-transform duration-300 ease-in-out"
-                            style={{ transform: `translateX(-${similarCarouselIndex * 100}%)` }}
-                        >
-                            {Array.from({ length: totalSlides }, (_, slideIndex) => (
-                                <div key={slideIndex} className="flex-shrink-0 w-full flex gap-6">
-                                    {similarOffers.slice(slideIndex * itemsPerSlide, (slideIndex + 1) * itemsPerSlide).map((o, idx) => (
-                                        <div key={`${o.id || 'similar'}-${slideIndex}-${idx}`} className="flex-1">
-                                            <OfferCard {...o} />
-                                        </div>
-                                    ))}
-                                </div>
-                            ))}
-                        </div>
+                    <div 
+                        ref={similarCarouselRef}
+                        className="flex gap-2 sm:gap-3 md:gap-4 overflow-x-auto pb-4 scrollbar-hide px-0.5 snap-x snap-mandatory scroll-smooth"
+                    >
+                        {similarOffers.map((o) => (
+                            <div 
+                                key={o.id} 
+                                className="w-[calc((100%-1rem)/3)] sm:w-[calc((100%-1.5rem)/3)] md:w-[calc((100%-3rem)/4)] lg:w-[calc((100%-5rem)/6)] flex-shrink-0 snap-start"
+                            >
+                                <OfferCard {...o} />
+                            </div>
+                        ))}
                     </div>
                 </div>
             </div>

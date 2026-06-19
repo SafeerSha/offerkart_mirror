@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Star, Tag, Check, ShoppingBag, ArrowLeft, Heart, Share2, Calendar, MapPin, AlertTriangle, Store, Maximize2, X } from "lucide-react";
+import { Star, Tag, Check, ShoppingBag, ArrowLeft, Heart, Share2, Calendar, MapPin, AlertTriangle, Store, Maximize2, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { PremiumCard } from "@/components/shared/PremiumCard";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
@@ -98,6 +98,17 @@ function getFallbackLocations(shopName?: string): LocationItem[] {
 export default function ProductDetailClient({ product, similarProducts }: ProductDetailClientProps) {
     const router = useRouter();
     const { t } = useTranslation("common");
+    const similarProductsRef = useRef<HTMLDivElement>(null);
+
+    const scrollSimilarProducts = (direction: "left" | "right") => {
+        if (!similarProductsRef.current) return;
+        const container = similarProductsRef.current;
+        const scrollAmount = container.clientWidth * 0.8;
+        container.scrollBy({
+            left: direction === "left" ? -scrollAmount : scrollAmount,
+            behavior: "smooth"
+        });
+    };
     const { resolveHierarchyById } = useCategoryHierarchy();
     const [selectedImage, setSelectedImage] = useState(0);
     const [isFavorite, setIsFavorite] = useState(false);
@@ -404,22 +415,8 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
 
                             {/* Checkout / Claim Offer CTA buttons */}
                             <div className="pt-4 flex gap-4 w-full">
-                                {!offerId ? (
-                                    <PremiumButton 
-                                        className="flex-1 h-14 rounded-2xl bg-orange-600 hover:bg-orange-700 shadow-xl shadow-orange-500/20 text-base font-bold"
-                                        leftIcon={ShoppingBag}
-                                        isLoading={isClaiming}
-                                        onClick={async () => {
-                                            setIsClaiming(true);
-                                            await new Promise((resolve) => setTimeout(resolve, 800));
-                                            setIsClaiming(false);
-                                            alert(t("catalog.addedToCartAlert"));
-                                        }}
-                                    >
-                                        {t("catalog.claimOffer")}
-                                    </PremiumButton>
-                                ) : (
-                                    <PremiumButton 
+                                {offerId && (
+                                      <PremiumButton 
                                         className="flex-1 h-14 rounded-2xl bg-orange-600 hover:bg-orange-700 shadow-xl shadow-orange-500/20 text-base font-bold"
                                         leftIcon={Tag}
                                         isLoading={isNavigating}
@@ -447,11 +444,37 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                                     <p className="text-sm text-gray-500 font-medium">{t("catalog.explorePremiumOptions")}</p>
                                 </div>
                             </div>
+                            <div className="flex items-center gap-2">
+                                <PremiumButton
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => scrollSimilarProducts("left")}
+                                    className="rounded-full border-border/50 h-10 w-10"
+                                >
+                                    <ChevronLeft className="w-4 h-4" />
+                                </PremiumButton>
+                                <PremiumButton
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => scrollSimilarProducts("right")}
+                                    className="rounded-full border-border/50 h-10 w-10"
+                                >
+                                    <ChevronRight className="w-4 h-4" />
+                                </PremiumButton>
+                            </div>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                        <div 
+                            ref={similarProductsRef}
+                            className="flex gap-2 sm:gap-3 md:gap-4 overflow-x-auto pb-4 scrollbar-hide px-0.5 snap-x snap-mandatory scroll-smooth"
+                        >
                             {similarProducts.map((p) => (
-                                <ProductCard key={p.id} {...p} />
+                                <div 
+                                    key={p.id}
+                                    className="w-[calc((100%-1rem)/3)] sm:w-[calc((100%-1.5rem)/3)] md:w-[calc((100%-3rem)/4)] lg:w-[calc((100%-5rem)/6)] flex-shrink-0 snap-start"
+                                >
+                                    <ProductCard {...p} />
+                                </div>
                             ))}
                         </div>
                     </div>
