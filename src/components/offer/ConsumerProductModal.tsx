@@ -88,7 +88,7 @@ function extractLocations(data: any): LocationItem[] {
     const getBranchDetails = (b: any): LocationItem | null => {
         if (!b) return null;
         if (typeof b === "string") return { name: b };
-        const name = b.branchName || b.name || b.address || b.locationName || b.branch_name || null;
+        const name = b.branchName || b.branch_name || b.name || b.locationName || b.address || null;
         if (!name) return null;
         
         let latitude: number | undefined = undefined;
@@ -114,6 +114,13 @@ function extractLocations(data: any): LocationItem[] {
             longitude
         };
     };
+
+    if (Array.isArray(data.availableBranches)) {
+        data.availableBranches.forEach((ab: any) => {
+            const item = getBranchDetails(ab);
+            if (item) locations.push(item);
+        });
+    }
 
     if (Array.isArray(data.offerBranches)) {
         data.offerBranches.forEach((ob: any) => {

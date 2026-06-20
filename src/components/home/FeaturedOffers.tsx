@@ -7,6 +7,7 @@ import { PremiumButton } from "@/components/shared/PremiumButton";
 import { Subheading, Text } from "@/components/shared/Typography";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/hooks/useTranslation";
+import { InstantTooltip } from "@/components/shared/InstantTooltip";
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
@@ -65,7 +66,7 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
     } else {
       params.set("shopId", String(shopId));
     }
-    router.push(`${pathname}?${params.toString()}`);
+    router.push(`/offers?${params.toString()}`);
   };
 
   return (
@@ -83,7 +84,7 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
           scrollbar-width: none;
         }
       `}</style>
-      <div className="container mx-auto px-4">
+      <div className="container mx-auto">
         {variant === "full" && (
           <div className="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4 px-4">
             <div className="flex items-center gap-4">
@@ -92,7 +93,7 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
               </div>
               <div>
                 <Subheading className="text-2xl sm:text-3xl font-bold mb-0">{t("featuredShops.title")}</Subheading>
-                <Text className="text-xs sm:text-sm text-muted-foreground mt-0.5">{t("featuredShops.subtitle")}</Text>
+                {/* <Text className="text-xs sm:text-sm text-muted-foreground mt-0.5">{t("featuredShops.subtitle")}</Text> */}
               </div>
             </div>
 
@@ -116,12 +117,12 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
             </div>
           </div>
         )}
-        <div className="relative">
+        <div className="relative z-20">
           {/* Fading gradients */}
           <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none" />
           <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none" />
 
-          <div className="relative group/slider">
+          <div className="relative group/slider z-30">
             {/* Sliding buttons for minimal variant */}
             {variant === "minimal" && (
               <>
@@ -146,11 +147,11 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
               </>
             )}
 
-            <div className="overflow-hidden">
+            <div className="overflow-hidden pt-4 pb-12 -mt-4 -mb-12 px-2">
               <div
                 className={cn(
                   "flex transition-transform duration-500 ease-in-out",
-                  variant === "full" ? "gap-6" : "gap-5 sm:gap-8 overflow-hidden scrollbar-hide pb-4 px-2"
+                  variant === "full" ? "gap-6" : "gap-5 sm:gap-8 overflow-visible scrollbar-hide pb-4 px-2"
                 )}
                 style={{ transform: `translateX(-${currentIndex * 100}%)` }}
               >
@@ -159,14 +160,14 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
                   return (
                     <button
                       key={offer.id}
-                      className="flex flex-col items-center group cursor-pointer transition-all duration-300 hover:scale-105 hover:-translate-y-1 flex-shrink-0"
+                      className="relative flex flex-col items-center group cursor-pointer transition-all duration-300 flex-shrink-0"
                       style={{ minWidth: variant === "full" ? '80px' : '64px' }}
                       onClick={() => handleShopClick(offer.id)}
                     >
                       <div className={cn(
                         "rounded-full overflow-hidden border-2 transition-all duration-300 relative bg-muted/10",
                         isActive
-                          ? "border-orange-500 ring-4 ring-orange-500/20 scale-105 shadow-md"
+                          ? "border-orange-500 ring-4 ring-orange-500/20 shadow-md"
                           : "border-primary/20 group-hover:border-primary group-hover:shadow-lg",
                         variant === "full" ? "w-20 h-20" : "w-14 h-14 sm:w-16 sm:h-16"
                       )}>
@@ -184,30 +185,24 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
                           </div>
                         )}
                       </div>
-                      <Text className={cn(
-                        "text-center mt-1.5 transition-colors duration-300 line-clamp-1 px-0.5",
-                        variant === "full"
-                          ? "text-xs sm:text-sm font-semibold w-full"
-                          : "text-[8px] font-medium leading-tight w-14 sm:w-16 max-w-[56px] sm:max-w-[64px]",
-                        isActive
-                          ? "text-orange-500 font-bold"
-                          : "text-muted-foreground group-hover:text-orange-500"
-                      )}>
-                        {offer.name}
-                      </Text>
+
+                      {/* Instant custom tooltip with pointing arrow */}
+                      <InstantTooltip content={offer.name} />
                     </button>
                   );
                 })}
 
                 {variant === "minimal" && offers.length > 15 && (
                   <button
-                    className="flex flex-col items-center group cursor-pointer transition-all duration-300 hover:scale-105 hover:-translate-y-1 flex-shrink-0"
+                    className="relative flex flex-col items-center group cursor-pointer transition-all duration-300 flex-shrink-0"
                     style={{ minWidth: '64px' }}
                     onClick={() => { }}
                   >
                     <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full border-2 border-dashed border-primary/30 group-hover:border-primary bg-primary/5 flex items-center justify-center transition-all duration-300 group-hover:shadow-md">
                       <Plus className="w-6 h-6 text-primary group-hover:scale-110 transition-transform" />
                     </div>
+                    {/* Instant custom tooltip for View All */}
+                    <InstantTooltip content="View All" />
                   </button>
                 )}
               </div>

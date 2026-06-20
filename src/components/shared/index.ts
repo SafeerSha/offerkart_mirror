@@ -12,3 +12,4 @@ export { StatusToggleButton } from './StatusToggleButton';
 export { MultiSearchableSelect } from './MultiSearchableSelect';
 export { SearchableSelect } from './SearchableSelect';
 export { default as Breadcrumbs } from './Breadcrumbs';
+export { InstantTooltip } from './InstantTooltip';

@@ -798,7 +798,7 @@ function CreateOfferContent() {
                             </div>
                         ) : (
                             <MultiSearchableSelect
-                                options={branches.map((b) => ({ label: `${b.branch_name} — ${b.city}`, value: String(b.id) }))}
+                                options={branches.map((b) => ({ label: b.branch_name, value: String(b.id) }))}
                                 selectedValues={selectedBranchIds}
                                 onChange={(vals) => {
                                     setSelectedBranchIds(vals);

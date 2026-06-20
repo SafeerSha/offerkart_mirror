@@ -2,9 +2,7 @@ import { s3Api } from "./api/s3";
 import { extractS3Url } from "./common";
 
 /**
- * Takes an image reference (URL, base64, or null) and ensures it is an external S3 URL.
- * If the input is already an HTTP URL, returns it as is.
- * If it is a base64 data URL, uploads it to S3 first, then returns the final URL.
+ * Returns the input HTTP URL directly, or uploads a base64 image to S3 and returns the resulting S3 URL.
  */
 export const ensureS3Url = async (imageUrl: string | null | undefined, fallbackFilename: string = "product-image.png"): Promise<string | null> => {
     if (!imageUrl) return null;
@@ -46,4 +44,70 @@ export const ensureS3Url = async (imageUrl: string | null | undefined, fallbackF
     }
 
     return imageUrl;
+};
+
+export const compressImage = (file: File, maxSizeKB: number = 100): Promise<File> => {
+    return new Promise((resolve, reject) => {
+        if (file.size <= maxSizeKB * 1024) {
+            return resolve(file);
+        }
+
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target?.result as string;
+            img.onload = () => {
+                const canvas = document.createElement("canvas");
+                let width = img.width;
+                let height = img.height;
+
+                const maxDim = 1200;
+                if (width > maxDim || height > maxDim) {
+                    if (width > height) {
+                        height = Math.round((height * maxDim) / width);
+                        width = maxDim;
+                    } else {
+                        width = Math.round((width * maxDim) / height);
+                        height = maxDim;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+
+                const ctx = canvas.getContext("2d");
+                if (!ctx) {
+                    return reject(new Error("Could not get 2D context from canvas"));
+                }
+
+                ctx.drawImage(img, 0, 0, width, height);
+
+                const tryCompress = (quality: number): void => {
+                    canvas.toBlob(
+                        (blob) => {
+                            if (!blob) {
+                                return reject(new Error("Canvas toBlob returned null"));
+                            }
+
+                            if (blob.size <= maxSizeKB * 1024 || quality <= 0.1) {
+                                const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".webp", {
+                                    type: "image/webp",
+                                    lastModified: Date.now(),
+                                });
+                                resolve(compressedFile);
+                            } else {
+                                tryCompress(quality - 0.15);
+                            }
+                        },
+                        "image/webp",
+                        quality
+                    );
+                };
+                tryCompress(0.85);
+            };
+            img.onerror = (err) => reject(err);
+        };
+        reader.onerror = (err) => reject(err);
+    });
 };

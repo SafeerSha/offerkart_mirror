@@ -26,6 +26,14 @@ export interface Product {
     offerId?: number | string | null;
     daysLeft?: number | null;
     shopLogo?: string | null;
+    availableBranches?: {
+        id: number | string;
+        branch_name: string;
+        address?: string;
+        phone?: string;
+        latitude?: number;
+        longitude?: number;
+    }[];
 }
 
 export interface OfferProductPayload {

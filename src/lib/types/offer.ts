@@ -57,6 +57,7 @@ export interface Offer {
     // Branch info (legacy/creation)
     branchIds?: (number | string)[];
     branchNames?: string[];
+    branchName?: string;
     branchCity?: string;
     
     // Metadata

@@ -34,6 +34,14 @@ interface Product {
     offerId?: number | string | null;
     daysLeft?: number | null;
     shopLogo?: string | null;
+    availableBranches?: {
+        id: number | string;
+        branch_name: string;
+        address?: string;
+        phone?: string;
+        latitude?: number;
+        longitude?: number;
+    }[];
 }
 
 interface ProductDetailClientProps {
@@ -171,7 +179,13 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
         ? product.daysLeft
         : calculateDaysLeft(product.validTo);
 
-    const locations = getFallbackLocations(product.shopName);
+    const locations: LocationItem[] = product.availableBranches && product.availableBranches.length > 0
+        ? product.availableBranches.map(b => ({
+            name: b.branch_name,
+            latitude: b.latitude,
+            longitude: b.longitude
+        }))
+        : getFallbackLocations(product.shopName);
 
     return (
         <div className="min-h-screen bg-gray-50/50 pb-20">
