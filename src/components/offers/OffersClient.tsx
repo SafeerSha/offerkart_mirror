@@ -210,7 +210,7 @@ export default function OffersClient({
             return;
         }
         lastFetchedFilters.current = activeFilters;
-        
+
         setPage(1);
         setOffers([]);
         setHasMore(true);
@@ -333,9 +333,9 @@ export default function OffersClient({
 
                         {featuredShops.length > 0 && (
                             <div className="mb-1">
-                                <FeaturedOffers 
-                                    offers={featuredShops} 
-                                    variant="minimal" 
+                                <FeaturedOffers
+                                    offers={featuredShops}
+                                    variant="minimal"
                                     activeShopId={activeFilters.shopId}
                                 />
                             </div>
@@ -344,9 +344,6 @@ export default function OffersClient({
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 lg:mb-8">
                             <div>
                                 <div className="flex items-center gap-2 mb-2">
-                                    <span className="text-xs font-bold uppercase tracking-wider text-orange-500">
-                                        {t("catalog.offersDeals")}
-                                    </span>
                                     {(activeFilters.category !== "All" || activeFilters.subcategory.length > 0) && (
                                         <div className="flex items-center gap-2 text-xs font-medium text-gray-400">
                                             <span>/</span>
@@ -361,7 +358,7 @@ export default function OffersClient({
                                     )}
                                 </div>
                                 <h3 className="text-2xl font-bold text-gray-900">
-                                    {activeFilters.category === "All" ? t("catalog.latestHighlights") : activeFilters.category}
+                                    {activeFilters.category === "All" ? t("catalog.allOffers") : activeFilters.category}
                                     {activeFilters.subcategory.length > 0 && (
                                         <span className="text-gray-400 font-medium">
                                             {" — "}{activeFilters.subcategory.join(", ")}
@@ -369,7 +366,7 @@ export default function OffersClient({
                                     )}
                                 </h3>
                                 <p className="text-gray-500 text-sm mt-1">
-                                    {t("catalog.showingVerifiedDeals")}
+                                    {t("catalog.showingVerifiedDeals").replace("{count}", offers.length.toString())}
                                     {activeFilters.subcategory.length > 0 ? t("catalog.inSelectedCategories") : t("catalog.forYou")}
                                 </p>
 
@@ -377,7 +374,7 @@ export default function OffersClient({
                                     <div className="flex flex-wrap items-center gap-2 mt-3">
                                         <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-orange-50 text-orange-600 border border-orange-100 shadow-sm animate-in fade-in duration-300">
                                             <span>Shop: {featuredShops.find(s => String(s.id) === String(activeFilters.shopId))?.name || `Shop #${activeFilters.shopId}`}</span>
-                                            <button 
+                                            <button
                                                 onClick={() => {
                                                     const params = new URLSearchParams(searchParams.toString());
                                                     params.delete("shopId");

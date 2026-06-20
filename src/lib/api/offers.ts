@@ -367,6 +367,7 @@ function mapUserOfferDetailToOffer(detail: any, listingOffer?: Offer | null): Of
     });
 
     const primaryImage = posters[0]?.posterSrc || listingOffer?.image || DEFAULT_USER_OFFER_IMAGE;
+    const branchNames = (detail.offerBranches || []).map((ob: any) => ob.branch_name);
 
     return {
         id: detail.id,
@@ -391,6 +392,8 @@ function mapUserOfferDetailToOffer(detail: any, listingOffer?: Offer | null): Of
         isActive: true,
         status: "active",
         shopId: listingOffer?.shopId,
+        branchNames: branchNames,
+        branchName: branchNames[0] || undefined,
     };
 }
 

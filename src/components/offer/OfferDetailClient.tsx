@@ -156,10 +156,11 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
 
     // On mount: fetch all offer IDs for client-side prev/next calculation
     useEffect(() => {
-        backend.get<{ success: boolean; ids: (number | string)[] }>(ENDPOINTS.USER_OFFER.IDS)
+        fetch("/api/user/offer/ids")
+            .then((res) => res.json())
             .then((json) => {
-                if (json.success && Array.isArray(json.data?.ids) && json.data.ids.length > 0) {
-                    setAllOfferIds(json.data.ids);
+                if (json.success && Array.isArray(json.ids) && json.ids.length > 0) {
+                    setAllOfferIds(json.ids);
                 }
             })
             .catch(() => {/* silently ignore */});
@@ -274,64 +275,71 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
                     </button>
 
                     {/* Poster Container */}
-                    <div className="w-full max-w-lg relative aspect-[3/4] overflow-hidden rounded-2xl border border-primary/20">
-                        {/* Loading overlay when navigating */}
-                        {isNavigating && (
-                            <div className="absolute inset-0 z-20 bg-background/60 backdrop-blur-sm flex items-center justify-center rounded-2xl">
-                                <div className="flex flex-col items-center gap-2">
-                                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest animate-pulse">Loading Offer...</span>
+                    <div className="w-full max-w-lg flex flex-col gap-2 shrink-0">
+                        <div className="w-full relative aspect-[3/4] overflow-hidden rounded-2xl border border-primary/20">
+                            {/* Loading overlay when navigating */}
+                            {isNavigating && (
+                                <div className="absolute inset-0 z-20 bg-background/60 backdrop-blur-sm flex items-center justify-center rounded-2xl">
+                                    <div className="flex flex-col items-center gap-2">
+                                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest animate-pulse">Loading Offer...</span>
+                                    </div>
                                 </div>
-                            </div>
-                        )}
-                        <MarkedPoster
-                            src={offer.posters?.[posterIndex]?.posterSrc || (offer.images[posterIndex] as string)}
-                            alt={offer.shopName}
-                            markedItems={offer.posters?.[posterIndex]?.markedItems || []}
-                            className="w-full h-full"
-                            showNames={true}
-                            interactive={true}
-                            onItemClick={(item: MarkedItem) => {
-                                if (item.name && item.name !== "Processing...") {
-                                    setSelectedItemId(item.id);
-                                    setIsProductModalOpen(true);
-                                }
-                            }}
-                            showTopGradient={true}
-                            showBottomGradient={true}
-                        >
-                            <div className="absolute top-4 left-4 z-20">
-                                <span className="badge-futuristic">
-                                    <Tag className="w-3 h-3 mr-1" />
-                                    {offer.discount}
-                                </span>
-                            </div>
-
-                            {/* Poster Count Badge */}
-                            {totalPosters > 1 && (
-                                <div className="absolute top-4 right-4 z-20">
-                                    <span className="bg-black/75 dark:bg-zinc-900/95 text-white text-[10px] font-bold px-2.5 py-1 rounded-full backdrop-blur-sm shadow-sm tracking-wider">
-                                        Poster {posterIndex + 1} of {totalPosters}
+                            )}
+                            <MarkedPoster
+                                src={offer.posters?.[posterIndex]?.posterSrc || (offer.images[posterIndex] as string)}
+                                alt={offer.shopName}
+                                markedItems={offer.posters?.[posterIndex]?.markedItems || []}
+                                className="w-full h-full"
+                                showNames={true}
+                                interactive={true}
+                                onItemClick={(item: MarkedItem) => {
+                                    if (item.name && item.name !== "Processing...") {
+                                        setSelectedItemId(item.id);
+                                        setIsProductModalOpen(true);
+                                    }
+                                }}
+                                showTopGradient={true}
+                                showBottomGradient={true}
+                            >
+                                <div className="absolute top-4 left-4 z-20">
+                                    <span className="badge-futuristic">
+                                        <Tag className="w-3 h-3 mr-1" />
+                                        {offer.discount}
                                     </span>
                                 </div>
-                            )}
 
-                            {/* Dots Indicator */}
-                            {totalPosters > 1 && (
-                                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
-                                    {Array.from({ length: totalPosters }).map((_, index) => (
-                                        <button
-                                            key={index}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setPosterIndex(index);
-                                            }}
-                                            className={`w-2 h-2 rounded-full transition-all ${index === posterIndex ? "bg-primary" : "bg-white/50"}`}
-                                        />
-                                    ))}
-                                </div>
-                            )}
-                        </MarkedPoster>
+                                {/* Dots Indicator */}
+                                {totalPosters > 1 && (
+                                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+                                        {Array.from({ length: totalPosters }).map((_, index) => (
+                                            <button
+                                                key={index}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setPosterIndex(index);
+                                                }}
+                                                className={`w-2 h-2 rounded-full transition-all ${index === posterIndex ? "bg-primary" : "bg-white/50"}`}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+                            </MarkedPoster>
+                        </div>
+                        {/* Poster Info under the poster */}
+                        <div className="flex flex-row items-center justify-between gap-2 px-1">
+                            <div className="flex flex-col items-start text-left">
+                                <span className="text-xs sm:text-sm font-black text-slate-800 dark:text-zinc-200 line-clamp-1">
+                                    {offer.offerName}
+                                </span>
+                                <span className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 mt-0.5">
+                                    {totalPosters} {totalPosters === 1 ? "Poster" : "Posters"}
+                                </span>
+                            </div>
+                            <span className="bg-white dark:bg-zinc-900/95 text-slate-700 dark:text-zinc-300 text-[10px] font-bold px-3 py-1.5 rounded-2xl border border-primary/10 shadow-sm tracking-wider shrink-0">
+                                Poster {posterIndex + 1} of {totalPosters}
+                            </span>
+                        </div>
                     </div>
 
                     {/* Right Desktop Navigation */}

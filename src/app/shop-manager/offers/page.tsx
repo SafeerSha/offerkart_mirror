@@ -603,8 +603,10 @@ function ShopOffersContent() {
                                                                 </div>
                                                             </>
                                                         ) : (
-                                                            <div className="absolute inset-0 flex items-center justify-center bg-gray-55">
-                                                                <Tag className="w-8 h-8 text-gray-300 group-hover:text-primary transition-colors rotate-12" />
+                                                            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-primary/5 group-hover/img:from-orange-500/15 group-hover/img:via-amber-500/10 transition-all duration-300">
+                                                                <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-white/80 shadow-[0_4px_12px_rgba(249,115,22,0.08)] border border-orange-100/50 group-hover/img:scale-110 group-hover/img:shadow-[0_6px_16px_rgba(249,115,22,0.12)] transition-all duration-300">
+                                                                    <Tag className="w-5 h-5 text-orange-500/85 group-hover:text-primary transition-colors rotate-12 group-hover/img:rotate-0 transition-transform duration-300" />
+                                                                </div>
                                                             </div>
                                                         )}
                                                     </div>

@@ -304,7 +304,7 @@ export const ProductModal = ({
             try {
                 // Instantly upload to S3 in productsImage folder
                 const response = await s3Api.uploadImage(file, "productsImage");
-                debugger;
+
                 if (response.success && response.data?.url) {
                     setImage(response.data.url);
                     setIsDirty(true);
@@ -420,7 +420,7 @@ export const ProductModal = ({
     };
 
     const branchOptions = branches.map(b => ({
-        label: b.name || b.address || `Branch ${b.id}`,
+        label: b.branch_name || b.branchName || b.name || `Branch ${b.id}`,
         value: String(b.id)
     }));
 

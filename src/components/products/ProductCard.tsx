@@ -138,16 +138,16 @@ const ProductCard = ({
                 <div>
                     {/* Shop details */}
                     <div className="flex items-center gap-1.5 mb-2">
-                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-50 dark:bg-slate-800 text-orange-500">
+                        {/* <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-50 dark:bg-slate-800 text-orange-500">
                             <ShoppingBag className="w-2.5 h-2.5" />
-                        </span>
-                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate">
+                        </span> */}
+                        <span className="text-[8px] font-bold text-slate-500 dark:text-slate-400 tracking-wider truncate">
                             {shopName}
                         </span>
                     </div>
 
                     {/* Product Name */}
-                    <h4 className="text-base font-extrabold text-slate-800 dark:text-slate-100 tracking-tight leading-snug mb-2 line-clamp-2 group-hover:text-orange-500 transition-colors">
+                    <h4 className="text-base font-extrabold text-slate-800 dark:text-slate-100 tracking-tight leading-snug line-clamp-2 group-hover:text-orange-500 transition-colors">
                         {name}
                     </h4>
                 </div>
@@ -155,7 +155,7 @@ const ProductCard = ({
                 {/* Price and Details link */}
                 <div className="flex items-center justify-between mt-auto pt-1 border-t border-slate-100/60 dark:border-slate-800/40">
                     <div className="flex flex-col">
-                        <div className="flex items-baseline gap-1.5">
+                        <div className="flex items-baseline gap-1">
                             <span className="text-lg font-black text-slate-950 dark:text-white tracking-tight">
                                 ₹{price}
                             </span>
@@ -165,10 +165,13 @@ const ProductCard = ({
                                 </span>
                             )}
                         </div>
-                        {displaySaving > 0 && (
-                            <span className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                        {displaySaving > 0 ? (
+                            <span className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400">
                                 Save {displaySaving}%
                             </span>
+                        ) : (<span className="text-[10px] font-extrabold text-emerald-600 dark:text-slate-400">
+                            Offer price
+                        </span>
                         )}
                     </div>
 

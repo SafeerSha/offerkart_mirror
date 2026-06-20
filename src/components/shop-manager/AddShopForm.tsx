@@ -37,6 +37,7 @@ import { addShop, updateShop, getShopDetails } from "@/lib/api/shop";
 import { Shop } from "@/lib/types/shop";
 import { queryKeys } from "@/hooks/useApi";
 import { useLocation } from "@/hooks/useLocation";
+import { compressImage } from "@/lib/imageUtils";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { ImagePreviewModal } from "@/components/shared/ImagePreviewModal";
 import Image from "next/image";
@@ -192,24 +193,30 @@ export default function AddShopForm() {
         fetchShopDetails();
     }, [shopId, form, router]);
 
-    const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            // Check file size (100KB = 102400 bytes)
+            let fileToUpload = file;
             if (file.size > 102400) {
-                toast.error("Logo file size must be less than 100KB");
-                // Clear the input value so the same file doesn't trigger the event again if selected after clearing
-                e.target.value = "";
-                return;
+                const toastId = toast.loading("Compressing logo to fit size limit (100KB)...");
+                try {
+                    fileToUpload = await compressImage(file, 100);
+                    toast.success("Logo added successfully!", { id: toastId });
+                } catch (error) {
+                    console.error("Compression failed:", error);
+                    toast.error("Failed to add logo. Please upload a file under 100KB.", { id: toastId });
+                    e.target.value = "";
+                    return;
+                }
             }
 
-            setLogoFile(file);
+            setLogoFile(fileToUpload);
             setIsLogoRemoved(false);
             const reader = new FileReader();
             reader.onloadend = () => {
                 setLogoPreview(reader.result as string);
             };
-            reader.readAsDataURL(file);
+            reader.readAsDataURL(fileToUpload);
         }
     };
 
@@ -277,7 +284,7 @@ export default function AddShopForm() {
                 }
 
                 const isFromOfferPublish = returnTo?.includes("create-offer");
-                
+
                 if (!isEditMode && isFromOfferPublish) {
                     setIsSuccess(true);
                 } else {
@@ -320,15 +327,15 @@ export default function AddShopForm() {
                         </div>
 
                         <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
-                            <PremiumButton 
-                                onClick={() => window.close()} 
+                            <PremiumButton
+                                onClick={() => window.close()}
                                 className="rounded-2xl px-10 h-14 text-lg bg-green-600 hover:bg-green-700 shadow-xl shadow-green-200 w-full sm:w-auto"
                                 leftIcon={X}
                             >
                                 Close This Tab
                             </PremiumButton>
-                            
-                            <PremiumButton 
+
+                            <PremiumButton
                                 variant="outline"
                                 onClick={() => {
                                     setIsSuccess(false);

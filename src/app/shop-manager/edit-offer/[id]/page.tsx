@@ -614,7 +614,7 @@ function EditOfferContent() {
                         ) : (
                             <MultiSearchableSelect
                                 options={branches.map(b => ({
-                                    label: `${b.branch_name} — ${b.city}`,
+                                    label: b.branch_name,
                                     value: String(b.id)
                                 }))}
                                 selectedValues={selectedBranchIds}

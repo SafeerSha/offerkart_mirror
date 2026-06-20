@@ -143,7 +143,7 @@ const FeaturedCarousel = ({ shops }: FeaturedCarouselProps) => {
                       unoptimized
                       className="object-cover transition-transform duration-700 group-hover:scale-110"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 via-foreground/20 to-transparent group-hover:from-foreground/60" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent group-hover:from-black/70" />
 
                     {/* Floating Particles Effect */}
                     <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
@@ -161,10 +161,9 @@ const FeaturedCarousel = ({ shops }: FeaturedCarouselProps) => {
                   </div>
 
                   <div className="absolute bottom-0 left-0 right-0 p-6">
-                    <Subheading className="text-2xl font-bold text-white mb-2 group-hover:text-primary transition-colors">
+                    <p className="text uppercase font-bold text-white mb-0 group-hover:text-primary transition-colors">
                       {offer.name}
-                    </Subheading>
-                    <Text className="text-white/90 text-lg leading-tight">{offer.offer}</Text>
+                    </p>
                   </div>
                 </div>
               </div>

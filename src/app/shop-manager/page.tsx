@@ -171,7 +171,11 @@ function DashboardContent() {
 
     const queryClient = useQueryClient();
 
-    // ================= API DATA HOOKS =================
+    useEffect(() => {
+        if (sessionStatus === "unauthenticated") {
+            router.push("/login");
+        }
+    }, [sessionStatus, router]);
 
     // 1. Fetch Shops
     const { data: shopsResponse, isLoading: isLoadingShops } = useMyShops();
@@ -481,8 +485,20 @@ function DashboardContent() {
     };
 
     // Show skeleton while session or shops are loading
-    if (sessionStatus === "loading" || isLoadingShops) {
+    if (sessionStatus === "loading" || (sessionStatus === "authenticated" && isLoadingShops)) {
         return <DashboardSkeleton />;
+    }
+
+    if (sessionStatus === "unauthenticated") {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50/50 p-4">
+                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4 border border-primary/20">
+                    <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-1">Redirecting</h3>
+                <p className="text-sm text-gray-500">You are logged out. Redirecting to login page...</p>
+            </div>
+        );
     }
 
     return (
@@ -497,7 +513,7 @@ function DashboardContent() {
                             Welcome <span className="text-gradient">{user?.business_name || "Merchant"}</span>
                         </Heading>
                         <Text className="max-w-2xl opacity-80">
-                            Manage your shop, list new offers, and track your business performance all in one place.
+                            Manage your shop, list new offers, offer products and track your business performance all in one place.
                         </Text>
                     </div>
                     <div className="grid grid-cols-3 md:flex md:flex-wrap lg:flex-nowrap items-center gap-2 md:gap-3 w-full md:w-auto">
@@ -550,7 +566,7 @@ function DashboardContent() {
 
                 {/* Quick Stats */}
                 {shops.length > 0 && (
-                    <div className="mb-12">
+                    <div className="mb-5">
                         <div className="md:hidden">
                             <div className="flex items-center justify-between mb-3">
                                 <h3 className="text-sm font-semibold text-gray-700">Quick Stats</h3>
@@ -560,7 +576,7 @@ function DashboardContent() {
                                 </div>
                             </div>
                             <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide px-1">
-                                <div className="w-[85vw] sm:w-[240px] flex-none shrink-0 snap-center">
+                                <div className="w-[46vw] sm:w-[240px] flex-none shrink-0 snap-center">
                                     {isLoadingOffers ? (
                                         <Skeleton className="h-24 w-full rounded-2xl" />
                                     ) : (
@@ -590,7 +606,7 @@ function DashboardContent() {
                                         </PremiumCard>
                                     )}
                                 </div>
-                                <div className="w-[85vw] sm:w-[240px] flex-none shrink-0 snap-center">
+                                <div className="w-[46vw] sm:w-[240px] flex-none shrink-0 snap-center">
                                     {isLoadingProducts ? (
                                         <Skeleton className="h-24 w-full rounded-2xl" />
                                     ) : (
@@ -620,13 +636,13 @@ function DashboardContent() {
                                         </PremiumCard>
                                     )}
                                 </div>
-                                <div className="w-[85vw] sm:w-[220px] flex-none shrink-0 snap-center">
+                                <div className="w-[46vw] sm:w-[220px] flex-none shrink-0 snap-center">
                                     <StatCard icon={BarChart3} label="Total Views" value="1.2k" trend="+15%" isLoading={isLoadingOffers} />
                                 </div>
-                                <div className="w-[85vw] sm:w-[220px] flex-none shrink-0 snap-center">
+                                <div className="w-[46vw] sm:w-[220px] flex-none shrink-0 snap-center">
                                     <StatCard icon={MousePointer2} label="Engagement" value="48" trend="+8 up" isLoading={isLoadingOffers} />
                                 </div>
-                                <div className="w-[85vw] sm:w-[220px] flex-none shrink-0 snap-center">
+                                <div className="w-[46vw] sm:w-[220px] flex-none shrink-0 snap-center">
                                     <StatCard icon={Tag} label="Conv. Rate" value="4.8%" trend="+0.5%" isLoading={isLoadingOffers} />
                                 </div>
                             </div>
@@ -1009,8 +1025,10 @@ function DashboardContent() {
                                                                                         </div>
                                                                                     </>
                                                                                 ) : (
-                                                                                    <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
-                                                                                        <Tag className="w-6 h-6 text-gray-300 group-hover:text-primary transition-colors rotate-12" />
+                                                                                    <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-primary/5 group-hover/img:from-orange-500/15 group-hover/img:via-amber-500/10 transition-all duration-300">
+                                                                                        <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-white/80 shadow-[0_4px_12px_rgba(249,115,22,0.08)] border border-orange-100/50 group-hover/img:scale-110 group-hover/img:shadow-[0_6px_16px_rgba(249,115,22,0.12)] transition-all duration-300">
+                                                                                            <Tag className="w-4.5 h-4.5 text-orange-500/85 group-hover:text-primary transition-colors rotate-12 group-hover/img:rotate-0 transition-transform duration-300" />
+                                                                                        </div>
                                                                                     </div>
                                                                                 )}
                                                                                 {offer.isDraft && (
@@ -1171,8 +1189,10 @@ function DashboardContent() {
                                                                             </div>
                                                                         </>
                                                                     ) : (
-                                                                        <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
-                                                                            <ShoppingBag className="w-6 h-6 text-gray-300" />
+                                                                        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-primary/5 group-hover/img:from-orange-500/15 group-hover/img:via-amber-500/10 transition-all duration-300">
+                                                                            <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-white/80 shadow-[0_4px_12px_rgba(249,115,22,0.08)] border border-orange-100/50 group-hover/img:scale-110 group-hover/img:shadow-[0_6px_16px_rgba(249,115,22,0.12)] transition-all duration-300">
+                                                                                <ShoppingBag className="w-4.5 h-4.5 text-orange-500/85 group-hover:text-primary transition-colors group-hover/img:scale-110 transition-transform duration-300" />
+                                                                            </div>
                                                                         </div>
                                                                     )}
                                                                 </div>

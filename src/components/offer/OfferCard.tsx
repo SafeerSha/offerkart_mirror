@@ -50,7 +50,7 @@ const OfferCard = ({
   const primaryId = id ?? offerId ?? 0;
   const posterSrc = posters?.[0]?.posterSrc || (typeof image === "string" ? image : image?.src) || "/images/shop-registration-bg-light.png";
   const postersCount = posters?.length || totalPosters || 0;
-  
+  debugger;
   // Calculate total offers count from marked items
   const totalOffersCount = posters?.reduce((acc, p) => acc + (p.markedItems?.length || 0), 0) || 0;
 

@@ -44,6 +44,7 @@ export function mapUserProductToProduct(item: any): any {
         daysLeft: item.daysLeft !== undefined ? item.daysLeft : null,
         validFrom: item.validFrom ?? null,
         validTo: item.validTo ?? null,
+        availableBranches: item.availableBranches || null,
     };
 }
 

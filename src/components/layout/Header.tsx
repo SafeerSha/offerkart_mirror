@@ -613,7 +613,7 @@ const Header = () => {
                                 </div>
                             </div>
 
-                            <div className="mt-4 flex justify-end hidden md:flex">
+                            <div className="mt-4 flex justify-end hidden lg:flex">
                                 <div
                                     className={cn(
                                         "relative h-11 flex items-center transition-all duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] w-full",

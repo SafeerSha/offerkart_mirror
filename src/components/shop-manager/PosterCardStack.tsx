@@ -748,6 +748,20 @@ export const PosterCardStack = ({
                                 </button>
                             );
                         })}
+                        {posters.length < maxPosters && (
+                            <button
+                                onClick={() => {
+                                    setIsAddingMore(true);
+                                    setTimeout(() => {
+                                        fileInputRef.current?.click();
+                                    }, 50);
+                                }}
+                                className="relative w-16 h-20 sm:w-20 sm:h-24 rounded-2xl border border-dashed border-primary/40 hover:border-primary bg-primary/5 hover:bg-primary/10 transition-all duration-300 shrink-0 flex flex-col items-center justify-center gap-1 group cursor-pointer"
+                            >
+                                <Plus className="w-5 h-5 text-primary group-hover:scale-110 transition-transform" />
+                                <span className="text-[9px] font-bold text-primary">Add Poster</span>
+                            </button>
+                        )}
                     </div>
                 </div>
 
