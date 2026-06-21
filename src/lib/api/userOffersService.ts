@@ -2,6 +2,7 @@ import { ALL_OFFERS, ALL_PRODUCTS, FEATURED_OFFERS } from "./mockData";
 import { backend } from "./backendClient";
 import { ENDPOINTS } from "./endpoints";
 import { CACHE_TAGS } from "./cache-tags";
+import { SearchResponse } from "../types/search";
 
 // Map shop names to a stable mock shopId (1-indexed based on their index in ALL_OFFERS or predefined)
 export function getShopIdFromShopName(shopName: string): number {
@@ -409,3 +410,106 @@ export async function getUserOfferProducts(query: {
 
     return response;
 }
+
+export function getMockSearchDetails(search: string): SearchResponse {
+    if (!search || search.trim() === "") {
+        return {
+            success: true,
+            message: "search details fetched successfully",
+            data: {
+                products: [],
+                offers: []
+            }
+        };
+    }
+
+    const term = search.toLowerCase().trim();
+
+    // 1. Search products from ALL_PRODUCTS
+    const matchedProducts = ALL_PRODUCTS.filter(p => 
+        p.name.toLowerCase().includes(term)
+    );
+
+    const productGroups: Record<string, {
+        name: string;
+        category: string;
+        totalOfferProducts: number;
+        shops: Set<string>;
+        minPrice: number;
+    }> = {};
+
+    matchedProducts.forEach(p => {
+        const key = `${p.name.toLowerCase()}::${p.category.toLowerCase()}`;
+        if (!productGroups[key]) {
+            productGroups[key] = {
+                name: p.name,
+                category: p.category,
+                totalOfferProducts: 0,
+                shops: new Set<string>(),
+                minPrice: p.price
+            };
+        }
+        const group = productGroups[key];
+        group.totalOfferProducts += 1;
+        group.shops.add(p.shopName);
+        if (p.price < group.minPrice) {
+            group.minPrice = p.price;
+        }
+    });
+
+    const productsResult = Object.values(productGroups).map(g => ({
+        name: g.name,
+        category: g.category,
+        totalOfferProducts: g.totalOfferProducts,
+        shopCount: g.shops.size,
+        minPrice: g.minPrice
+    }));
+
+    // 2. Search offers from ALL_OFFERS
+    const matchedOffers = ALL_OFFERS.filter(o => 
+        o.offerName.toLowerCase().includes(term)
+    );
+
+    const offersResult = matchedOffers.map(o => ({
+        offerId: o.id,
+        offerName: o.offerName
+    }));
+
+    return {
+        success: true,
+        message: "search details fetched successfully",
+        data: {
+            products: productsResult,
+            offers: offersResult
+        }
+    };
+}
+
+export async function getGlobalSearch(search: string): Promise<SearchResponse> {
+    const params = new URLSearchParams({ search });
+    
+    try {
+        const response = await backend.get<any>(`user/offer/search?${params.toString()}`);
+        if (response && response.success && response.data) {
+            const apiData = response.data;
+            const searchData = (apiData && typeof apiData === "object" && apiData.data && typeof apiData.data === "object" && !Array.isArray(apiData.data))
+                ? apiData.data
+                : apiData;
+
+            return {
+                success: true,
+                message: apiData.message || "search details fetched successfully",
+                data: {
+                    products: searchData.products || [],
+                    offers: searchData.offers || []
+                }
+            };
+        }
+    } catch (e) {
+        console.warn("Real user offer search failed, using mock fallback:", e);
+    }
+    
+    return getMockSearchDetails(search);
+}
+
+

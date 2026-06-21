@@ -84,7 +84,7 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
           scrollbar-width: none;
         }
       `}</style>
-      <div className="mx-auto">
+      <div className={cn("mx-auto", variant === "full" && "container px-4")}>
         {variant === "full" && (
           <div className="flex sm:flex-row items-center justify-between mb-4 gap-1">
             <div className="flex items-center gap-4">
