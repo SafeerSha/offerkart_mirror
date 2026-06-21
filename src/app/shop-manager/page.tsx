@@ -588,10 +588,10 @@ function DashboardContent() {
                                                 <div className="min-w-0 flex-1">
                                                     <div className="flex items-center justify-between gap-2 mb-0.5">
                                                         <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate">Offers</h3>
-                                                        <div className="flex items-center gap-1 text-[9px] text-emerald-500 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded-lg whitespace-nowrap">
+                                                        {/* <div className="flex items-center gap-1 text-[9px] text-emerald-500 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded-lg whitespace-nowrap">
                                                             <Calendar className="w-2.5 h-2.5" />
                                                             Active
-                                                        </div>
+                                                        </div> */}
                                                     </div>
                                                     <div className="flex items-baseline gap-2">
                                                         <div className="text-xl font-black text-gray-900 tracking-tight">
@@ -618,10 +618,10 @@ function DashboardContent() {
                                                 <div className="min-w-0 flex-1">
                                                     <div className="flex items-center justify-between gap-2 mb-0.5">
                                                         <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate">Products</h3>
-                                                        <div className="flex items-center gap-1 text-[9px] text-emerald-500 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded-lg whitespace-nowrap">
+                                                        {/* <div className="flex items-center gap-1 text-[9px] text-emerald-500 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded-lg whitespace-nowrap">
                                                             <Calendar className="w-2.5 h-2.5" />
                                                             Active
-                                                        </div>
+                                                        </div> */}
                                                     </div>
                                                     <div className="flex items-baseline gap-2">
                                                         <div className="text-xl font-black text-gray-900 tracking-tight">
@@ -661,10 +661,10 @@ function DashboardContent() {
                                         <div className="min-w-0 flex-1">
                                             <div className="flex items-center justify-between gap-2 mb-0.5">
                                                 <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate">Offers</h3>
-                                                <div className="flex items-center gap-1 text-[10px] text-emerald-500 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-lg whitespace-nowrap">
+                                                {/* <div className="flex items-center gap-1 text-[10px] text-emerald-500 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-lg whitespace-nowrap">
                                                     <Calendar className="w-3 h-3" />
                                                     Live
-                                                </div>
+                                                </div> */}
                                             </div>
                                             <div className="flex items-baseline gap-2">
                                                 <div className="text-2xl font-black text-gray-900 tracking-tighter">
@@ -689,10 +689,10 @@ function DashboardContent() {
                                         <div className="min-w-0 flex-1">
                                             <div className="flex items-center justify-between gap-2 mb-0.5">
                                                 <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate">Products</h3>
-                                                <div className="flex items-center gap-1 text-[10px] text-emerald-500 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-lg whitespace-nowrap">
+                                                {/* <div className="flex items-center gap-1 text-[10px] text-emerald-500 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-lg whitespace-nowrap">
                                                     <Calendar className="w-3 h-3" />
                                                     Live
-                                                </div>
+                                                </div> */}
                                             </div>
                                             <div className="flex items-baseline gap-2">
                                                 <div className="text-2xl font-black text-gray-900 tracking-tighter">

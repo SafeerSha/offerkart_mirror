@@ -353,6 +353,7 @@ function mapUserOfferDetailToOffer(detail: any, listingOffer?: Offer | null): Of
                     width: area.widthPercent ?? 0,
                     height: area.heightPercent ?? 0,
                     mainCategory: prod.mainCategory || prod.main_category || prod.category || "",
+                    subcategories: prod.subcategories || (typeof prod.subcategory === "string" ? [prod.subcategory] : (prod.subcategory?.name ? [prod.subcategory.name] : (prod.category?.level === 2 && prod.category?.name ? [prod.category.name] : []))),
                 });
             }
         }

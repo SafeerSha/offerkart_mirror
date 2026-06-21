@@ -17,6 +17,7 @@ interface ProductCardProps {
     originalPrice?: number;
     image?: string | StaticImageData | null;
     category: string;
+    subcategory?: string;
     rating?: number;
     reviews?: number;
     discount?: string;
@@ -31,6 +32,7 @@ const ProductCard = ({
     originalPrice,
     image,
     category,
+    subcategory,
     rating = 4.5,
     reviews = 0,
     discount,
@@ -43,7 +45,7 @@ const ProductCard = ({
     const [isFavorite, setIsFavorite] = useState(false);
 
     const resolvedCategory = resolveHierarchyById(category);
-    const displayCategoryName = resolvedCategory.sub || resolvedCategory.main || category;
+    const displayCategoryName = subcategory || resolvedCategory.sub || resolvedCategory.main || category;
 
     // Calculate display saving percentage if not explicitly provided
     const displaySaving = savingPercentage !== undefined
@@ -116,11 +118,13 @@ const ProductCard = ({
                 </div> */}
 
                 {/* Category tag */}
-                <div className="absolute bottom-4 left-4 pointer-events-none z-10">
-                    <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-slate-950/45 backdrop-blur-md text-white border border-white/10">
-                        {displayCategoryName}
-                    </span>
-                </div>
+                {displayCategoryName.toLowerCase() !== "product" && (
+                    <div className="absolute top-3 left-3 pointer-events-none z-10">
+                        <span className="px-2 py-0.5 rounded-md text-[8px] sm:text-[9px] font-black uppercase tracking-wider bg-black/60 dark:bg-black/80 text-white backdrop-blur-sm border border-white/10">
+                            {displayCategoryName}
+                        </span>
+                    </div>
+                )}
 
                 {/* Action Hover Text */}
                 <div className={cn(

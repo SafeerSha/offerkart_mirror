@@ -32,6 +32,7 @@ export function mapUserProductToProduct(item: any): any {
         image: primaryImage,
         description: item.displayDescription || item.description || "",
         category: item.mainCategory || item.categoryName || item.category?.name || (typeof item.category === 'string' && !/^\d+$/.test(item.category) && item.category.trim() !== '' ? item.category : "Product"),
+        subcategory: item.subcategory || (Array.isArray(item.subcategories) ? item.subcategories[0] : item.subcategories) || (item.category?.level === 2 ? item.category?.name : null) || null,
         categoryId: item.categoryId,
         rating: item.rating || 5,
         reviews: item.reviews || 0,

@@ -316,7 +316,7 @@ export const ConsumerProductModal = ({
 
                                 <div className="flex items-center gap-2 pt-1">
                                     <span className="text-[10px] font-black text-orange-500 uppercase tracking-widest bg-orange-500/10 px-2.5 py-1 rounded-md">
-                                        {activeItem.mainCategory || offerCategory || "Product"}
+                                        {(activeItem as any).subcategory || activeItem.subcategories?.[0] || activeItem.mainCategory || offerCategory || "Product"}
                                     </span>
                                     {activeItem.oldPrice > activeItem.offerPrice && (
                                         <span className="bg-orange-500 text-white font-black text-[9px] uppercase tracking-wider py-0.5 px-2 rounded-full flex items-center shadow-sm">
