@@ -344,7 +344,7 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                                             </span>
                                             {product.originalPrice && product.originalPrice > product.price && (
                                                 <span className="text-sm text-gray-400 line-through font-bold">
-                                                    was ₹{product.originalPrice.toLocaleString()}
+                                                    ₹{product.originalPrice.toLocaleString()}
                                                 </span>
                                             )}
                                         </div>

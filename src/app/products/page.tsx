@@ -4,8 +4,7 @@ import ProductsClient from "@/components/products/ProductsClient";
 import { CACHE_TAGS } from "@/lib/api/cache-tags";
 import { getFeaturedOffers } from "@/lib/api/offers";
 
-export const dynamic = "force-static";
-export const revalidate = false;
+
 
 export default async function ProductsPage() {
     const [products, featuredOffersRes] = await Promise.all([

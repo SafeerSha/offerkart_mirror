@@ -29,7 +29,7 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
   const pathname = usePathname();
   const { t } = useTranslation("home");
   const [currentIndex, setCurrentIndex] = useState(0);
-  const itemsPerView = 10; // Show 10 offers at a time
+  const itemsPerView = 10;
 
   const navVisibilityClass = offers.length <= 4
     ? "hidden"
@@ -66,7 +66,7 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
     } else {
       params.set("shopId", String(shopId));
     }
-    router.push(`/offers?${params.toString()}`);
+    router.push(`${pathname}?${params.toString()}`);
   };
 
   return (
@@ -84,9 +84,9 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
           scrollbar-width: none;
         }
       `}</style>
-      <div className="container mx-auto">
+      <div className="mx-auto">
         {variant === "full" && (
-          <div className="flex sm:flex-row items-center justify-between mb-4 gap-4">
+          <div className="flex sm:flex-row items-center justify-between mb-4 gap-1">
             <div className="flex items-center gap-4">
               <div className="p-2.5 rounded-xl bg-primary/10 border border-primary/20 shadow-sm shadow-primary/5">
                 <Store className="w-6 h-6 text-primary" />
@@ -117,7 +117,10 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
             </div>
           </div>
         )}
-        <div className="relative z-20">
+        <div className={cn(
+          "relative z-20 border border-orange-500/25 bg-orange-500/[0.02] rounded-3xl pt-4 shadow-sm",
+          variant === "minimal" ? "shadow-[0_2px_12px_rgba(249,115,22,0.04)] border-orange-500/30" : "border-orange-500/20"
+        )}>
           {/* Fading gradients */}
           <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none" />
           <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none" />
@@ -150,7 +153,7 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
             <div className="overflow-hidden pt-2 pb-8 -mt-2 -mb-8 px-2">
               <div
                 className={cn(
-                  "flex transition-transform duration-500 ease-in-out gap-2 overflow-visible scrollbar-hide pb-4 px-2"
+                  "flex transition-transform duration-500 ease-in-out gap-1 overflow-visible scrollbar-hide pb-4 px-2"
                 )}
                 style={{ transform: `translateX(-${currentIndex * 100}%)` }}
               >
@@ -160,11 +163,11 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
                     <button
                       key={offer.id}
                       className="relative flex flex-col items-center group cursor-pointer transition-all duration-300 flex-shrink-0"
-                      style={{ minWidth: variant === "full" ? '80px' : '58px' }}
+                      // style={{ minWidth: variant === "full" ? '80px' : '58px' }}
                       onClick={() => handleShopClick(offer.id)}
                     >
                       <div className={cn(
-                        "rounded-full overflow-hidden border-2 transition-all duration-300 relative bg-muted/10",
+                        "rounded-2xl overflow-hidden border-2 transition-all duration-300 relative bg-muted/10",
                         isActive
                           ? "border-orange-500 ring-4 ring-orange-500/20 shadow-md"
                           : "border-primary/20 group-hover:border-primary group-hover:shadow-lg",
@@ -197,7 +200,7 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
                     style={{ minWidth: '58px' }}
                     onClick={() => { }}
                   >
-                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full border-2 border-dashed border-primary/30 group-hover:border-primary bg-primary/5 flex items-center justify-center transition-all duration-300 group-hover:shadow-md">
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl border-2 border-dashed border-primary/30 group-hover:border-primary bg-primary/5 flex items-center justify-center transition-all duration-300 group-hover:shadow-md">
                       <Plus className="w-5 h-5 text-primary group-hover:scale-110 transition-transform" />
                     </div>
                     {/* Instant custom tooltip for View All */}
