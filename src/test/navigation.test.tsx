@@ -86,7 +86,7 @@ describe('Category Click Navigation Tests', () => {
   });
 
   describe('OffersClient', () => {
-    it('should navigate to products page with category query param when a category is selected', async () => {
+    it('should update the URL with category query param when a category is selected', async () => {
       render(
         <OffersClient
           initialOffers={[]}
@@ -103,7 +103,7 @@ describe('Category Click Navigation Tests', () => {
         fireEvent.click(categoryButton);
       });
 
-      expect(mockPush).toHaveBeenCalledWith('/products?category=Electronics');
+      expect(mockPush).toHaveBeenCalledWith('/offers?category=Electronics');
     });
   });
 

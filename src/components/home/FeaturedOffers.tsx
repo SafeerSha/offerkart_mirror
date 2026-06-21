@@ -72,7 +72,7 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
   return (
     <section className={cn(
       "bg-background relative",
-      variant === "full" ? "py-8" : "py-2 lg:py-4"
+      variant === "full" ? "py-8" : "pt-1 pb-3"
     )}>
       {/* Scrollbar Hide Utility */}
       <style jsx global>{`
@@ -86,7 +86,7 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
       `}</style>
       <div className="container mx-auto">
         {variant === "full" && (
-          <div className="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4 px-4">
+          <div className="flex sm:flex-row items-center justify-between mb-4 gap-4">
             <div className="flex items-center gap-4">
               <div className="p-2.5 rounded-xl bg-primary/10 border border-primary/20 shadow-sm shadow-primary/5">
                 <Store className="w-6 h-6 text-primary" />
@@ -147,11 +147,10 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
               </>
             )}
 
-            <div className="overflow-hidden pt-4 pb-12 -mt-4 -mb-12 px-2">
+            <div className="overflow-hidden pt-2 pb-8 -mt-2 -mb-8 px-2">
               <div
                 className={cn(
-                  "flex transition-transform duration-500 ease-in-out",
-                  variant === "full" ? "gap-6" : "gap-5 sm:gap-8 overflow-visible scrollbar-hide pb-4 px-2"
+                  "flex transition-transform duration-500 ease-in-out gap-2 overflow-visible scrollbar-hide pb-4 px-2"
                 )}
                 style={{ transform: `translateX(-${currentIndex * 100}%)` }}
               >
@@ -161,7 +160,7 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
                     <button
                       key={offer.id}
                       className="relative flex flex-col items-center group cursor-pointer transition-all duration-300 flex-shrink-0"
-                      style={{ minWidth: variant === "full" ? '80px' : '64px' }}
+                      style={{ minWidth: variant === "full" ? '80px' : '58px' }}
                       onClick={() => handleShopClick(offer.id)}
                     >
                       <div className={cn(
@@ -169,7 +168,7 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
                         isActive
                           ? "border-orange-500 ring-4 ring-orange-500/20 shadow-md"
                           : "border-primary/20 group-hover:border-primary group-hover:shadow-lg",
-                        variant === "full" ? "w-20 h-20" : "w-14 h-14 sm:w-16 sm:h-16"
+                        variant === "full" ? "w-20 h-20" : "w-12 h-12 sm:w-14 sm:h-14"
                       )}>
                         {offer.logo ? (
                           <Image
@@ -195,11 +194,11 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
                 {variant === "minimal" && offers.length > 15 && (
                   <button
                     className="relative flex flex-col items-center group cursor-pointer transition-all duration-300 flex-shrink-0"
-                    style={{ minWidth: '64px' }}
+                    style={{ minWidth: '58px' }}
                     onClick={() => { }}
                   >
-                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full border-2 border-dashed border-primary/30 group-hover:border-primary bg-primary/5 flex items-center justify-center transition-all duration-300 group-hover:shadow-md">
-                      <Plus className="w-6 h-6 text-primary group-hover:scale-110 transition-transform" />
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full border-2 border-dashed border-primary/30 group-hover:border-primary bg-primary/5 flex items-center justify-center transition-all duration-300 group-hover:shadow-md">
+                      <Plus className="w-5 h-5 text-primary group-hover:scale-110 transition-transform" />
                     </div>
                     {/* Instant custom tooltip for View All */}
                     <InstantTooltip content="View All" />

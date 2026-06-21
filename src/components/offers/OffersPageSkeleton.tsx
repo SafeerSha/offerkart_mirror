@@ -22,7 +22,7 @@ export default function OffersPageSkeleton() {
 
                 <div className="flex flex-col lg:flex-row gap-10">
                     {/* Left Sidebar Skeleton — Desktop */}
-                    <aside className="hidden lg:block w-72 flex-shrink-0">
+                    <aside className="hidden lg:block w-60 flex-shrink-0">
                         <div className="sticky top-32">
                             {/* Sidebar Title */}
                             <div className="flex items-center gap-2 mb-6">

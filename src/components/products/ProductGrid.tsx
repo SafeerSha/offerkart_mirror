@@ -25,7 +25,7 @@ interface ProductGridProps {
 const ProductGrid = ({ products, isLoading }: ProductGridProps) => {
     if (isLoading) {
         return (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-6">
                 {[...Array(12)].map((_, i) => (
                     <div key={i} className="bg-white rounded-[2rem] aspect-[4/5] animate-pulse flex flex-col">
                         <div className="flex-1 bg-gray-100 rounded-t-[2rem]" />
@@ -55,7 +55,7 @@ const ProductGrid = ({ products, isLoading }: ProductGridProps) => {
     }
 
     return (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-1">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-1">
             {products.map((product) => (
                 <div key={product.id} className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <ProductCard {...product} />

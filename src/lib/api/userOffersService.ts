@@ -234,7 +234,10 @@ export function getMockUserProducts(query: {
             shopId: shopIdMapped,
             shopName: item.shopName,
             rating: item.rating || 4.5,
-            reviews: item.reviews || 0
+            reviews: item.reviews || 0,
+            category: item.category || "Product",
+            mainCategory: item.category || "Product",
+            subcategory: item.subcategory || null
         };
     });
 

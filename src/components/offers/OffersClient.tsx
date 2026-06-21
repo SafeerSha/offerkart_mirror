@@ -243,7 +243,7 @@ export default function OffersClient({
 
                 <div className="flex flex-col lg:flex-row gap-10">
                     {/* Left Sidebar - Desktop */}
-                    <aside className="hidden lg:block w-72 flex-shrink-0">
+                    <aside className="hidden lg:block w-60 flex-shrink-0">
                         <div className="sticky top-32">
                             <h2 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
                                 <Filter className="w-5 h-5 text-orange-500" />

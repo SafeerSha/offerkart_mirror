@@ -49,8 +49,7 @@ const OfferCard = ({
   const offerDisplayName = offerName || title || t("catalog.untitledOffer");
   const primaryId = id ?? offerId ?? 0;
   const posterSrc = posters?.[0]?.posterSrc || (typeof image === "string" ? image : image?.src) || "/images/shop-registration-bg-light.png";
-  const postersCount = posters?.length || totalPosters || 0;
-  debugger;
+  const postersCount = totalPosters || posters?.length || 0;
   // Calculate total offers count from marked items
   const totalOffersCount = posters?.reduce((acc, p) => acc + (p.markedItems?.length || 0), 0) || 0;
 
@@ -145,16 +144,16 @@ const OfferCard = ({
 
         <div className="w-full flex items-end justify-between gap-2">
           <div className="flex flex-col min-w-0 flex-1">
-            <p className="w-full text-slate-500 dark:text-slate-500 text-[8px] sm:text-xs font-semibold tracking-wider truncate">
+            <p className="w-full text-slate-500 dark:text-slate-500 text-[10px] font-semibold tracking-wider truncate">
               {shopName || "OfferKart"}
             </p>
-            {showDiscount && (
+            {/* {showDiscount && (
               <span className={cn(
                 "inline-flex items-start text-red-600 dark:text-red-400 text-[8px] sm:text-xs mt-0.5",
               )}>
                 {discount}
               </span>
-            )}
+            )} */}
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
@@ -167,9 +166,9 @@ const OfferCard = ({
 
             {postersCount > 0 && (
               <span className="shrink-0 flex items-center gap-1 text-[10px] sm:text-xs font-medium text-orange-500/80 dark:text-orange-400/80 transition-colors group-hover:text-orange-600 dark:group-hover:text-orange-400">
-                <ImageIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                <ImageIcon className="w-3 h-3" />
                 <span className="flex items-center gap-1">
-                  <span className="text-[9px] sm:text-[11px]">{postersCount}</span><span className="text-[8px] sm:text-[10px] tracking-wider opacity-80">{postersCount === 1 ? 'Page' : 'Pages'}</span>
+                  <span className="text-[9px] sm:text-[10px]">{postersCount}</span><span className="text-[8px] sm:text-[9px] tracking-wider">{postersCount === 1 ? 'Page' : 'Pages'}</span>
                 </span>
               </span>
             )}
