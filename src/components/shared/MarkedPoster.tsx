@@ -84,7 +84,8 @@ export function MarkedPoster({
                         unoptimized
                         priority={priority}
                         className={cn("object-contain", imageClassName)}
-                        onLoadingComplete={({ naturalWidth, naturalHeight }) => {
+                        onLoad={(e) => {
+                            const { naturalWidth, naturalHeight } = e.currentTarget;
                             const ratio = naturalWidth / naturalHeight;
                             setAspectRatio(ratio);
                             if (onAspectRatioChange) {

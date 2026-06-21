@@ -9,7 +9,7 @@ import {
     DrawerContent,
     DrawerTitle,
 } from "@/components/ui/drawer";
-import { IndianRupee, Tag, X, ShoppingBag, MapPin, Loader2, Store, Maximize2 } from "lucide-react";
+import { IndianRupee, Tag, X, ShoppingBag, MapPin, Loader2, Store, Maximize2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Text } from "@/components/shared/Typography";
 import { useTranslation } from "@/hooks/useTranslation";
 import { MarkedItem } from "@/lib/types/offer";
@@ -183,12 +183,51 @@ export const ConsumerProductModal = ({
     const [isLoadingLocations, setIsLoadingLocations] = useState(false);
     const [isImageZoomed, setIsImageZoomed] = useState(false);
     const [mounted, setMounted] = useState(false);
+    const [activeItemId, setActiveItemId] = useState<string | null>(initialItemId);
 
     useEffect(() => {
         setMounted(true);
     }, []);
 
-    const activeItem = markedItems.find(item => String(item.id) === String(initialItemId)) || markedItems[0];
+    // Keep activeItemId in sync when modal opens or initialItemId changes
+    useEffect(() => {
+        if (open) {
+            setActiveItemId(initialItemId);
+        }
+    }, [open, initialItemId]);
+
+    const activeItem = markedItems.find(item => String(item.id) === String(activeItemId)) || markedItems[0];
+    const currentIndex = markedItems.findIndex(item => String(item.id) === String(activeItem?.id));
+
+    const handlePrev = () => {
+        if (markedItems.length <= 1) return;
+        const prevIndex = (currentIndex - 1 + markedItems.length) % markedItems.length;
+        setActiveItemId(markedItems[prevIndex].id);
+    };
+
+    const handleNext = () => {
+        if (markedItems.length <= 1) return;
+        const nextIndex = (currentIndex + 1) % markedItems.length;
+        setActiveItemId(markedItems[nextIndex].id);
+    };
+
+    // Support keyboard arrow keys navigation
+    useEffect(() => {
+        if (!open || markedItems.length <= 1) return;
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "ArrowLeft") {
+                handlePrev();
+            } else if (e.key === "ArrowRight") {
+                handleNext();
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [open, currentIndex, markedItems]);
 
     useEffect(() => {
         if (!open || !activeItem?.id) {
@@ -290,6 +329,40 @@ export const ConsumerProductModal = ({
                                         {t("catalog.noImage") || "No Image Available"}
                                     </span>
                                 </div>
+                            )}
+
+                            {/* Product Navigation Overlay */}
+                            {markedItems.length > 1 && (
+                                <>
+                                    {/* Left Arrow */}
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handlePrev();
+                                        }}
+                                        className="absolute left-3 top-1/2 -translate-y-1/2 z-20 p-2.5 rounded-full bg-white/90 hover:bg-white dark:bg-zinc-900/90 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300 shadow-md hover:scale-110 active:scale-95 transition-all focus:outline-none border border-slate-200/40 dark:border-zinc-800/40 flex items-center justify-center cursor-pointer"
+                                        aria-label="Previous product"
+                                    >
+                                        <ChevronLeft className="w-5 h-5 stroke-[2.5] text-orange-500" />
+                                    </button>
+
+                                    {/* Right Arrow */}
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleNext();
+                                        }}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 z-20 p-2.5 rounded-full bg-white/90 hover:bg-white dark:bg-zinc-900/90 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300 shadow-md hover:scale-110 active:scale-95 transition-all focus:outline-none border border-slate-200/40 dark:border-zinc-800/40 flex items-center justify-center cursor-pointer"
+                                        aria-label="Next product"
+                                    >
+                                        <ChevronRight className="w-5 h-5 stroke-[2.5] text-orange-500" />
+                                    </button>
+
+                                    {/* Index Badge */}
+                                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 px-3 py-1 rounded-full bg-black/60 dark:bg-zinc-900/75 backdrop-blur-sm text-white text-[10px] font-black tracking-widest uppercase border border-white/10 select-none">
+                                        {currentIndex + 1} / {markedItems.length}
+                                    </div>
+                                </>
                             )}
                         </div>
 
