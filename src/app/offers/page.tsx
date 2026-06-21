@@ -2,8 +2,7 @@ import { Suspense } from "react";
 import OffersLoader from "@/components/offers/OffersLoader";
 import OffersPageSkeleton from "@/components/offers/OffersPageSkeleton";
 
-export const dynamic = "force-static";
-export const revalidate = false;
+
 
 export default function OffersPage(props: {
     searchParams?: Promise<{ shopId?: string }> | { shopId?: string };

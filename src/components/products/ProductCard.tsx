@@ -160,11 +160,11 @@ const ProductCard = ({
                 <div className="flex items-center justify-between mt-auto pt-1 border-t border-slate-100/60 dark:border-slate-800/40">
                     <div className="flex flex-col">
                         <div className="flex items-baseline gap-1">
-                            <span className="text-lg font-black text-slate-950 dark:text-white tracking-tight">
+                            <span className="text-md font-black text-slate-950 dark:text-white tracking-tight">
                                 ₹{price}
                             </span>
                             {originalPrice && originalPrice > price && (
-                                <span className="text-xs text-slate-400 dark:text-slate-500 line-through font-bold">
+                                <span className="text-[10px] text-slate-400 dark:text-slate-500 line-through font-bold">
                                     ₹{originalPrice}
                                 </span>
                             )}
