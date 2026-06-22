@@ -17,6 +17,7 @@ import { getPlacesByPin } from "indian_places";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { useTranslation } from "@/hooks/useTranslation";
 import { SearchResultData } from "@/lib/types/search";
+import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
 
 const locations = [
     "All",
@@ -169,6 +170,14 @@ const LocationDropdownContent = ({
 );
 
 const Header = () => {
+    const { resolveHierarchyById } = useCategoryHierarchy();
+    const getProductHref = (p: any) => {
+        const resolvedCategory = resolveHierarchyById(p.category);
+        const categoryParam = resolvedCategory.main ? resolvedCategory.main : (p.category || "All");
+        const subcategoryParam = resolvedCategory.sub ? `&subcategory=${encodeURIComponent(resolvedCategory.sub)}` : "";
+        return `/products?search=${encodeURIComponent(p.name)}&category=${encodeURIComponent(categoryParam)}${subcategoryParam}`;
+    };
+
     const [scrolled, setScrolled] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [searchOpen, setSearchOpen] = useState(false);
@@ -716,7 +725,7 @@ const Header = () => {
 
                                     {/* Desktop Search Results Dropdown */}
                                     {searchOpen && searchQuery && (
-                                        <div 
+                                        <div
                                             onMouseDown={(e) => e.preventDefault()}
                                             className="absolute top-full left-0 right-0 mt-3 bg-white dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-[0_16px_48px_-12px_rgba(0,0,0,0.12)] dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.5)] z-50 overflow-hidden max-h-[420px] overflow-y-auto animate-in fade-in slide-in-from-top-3 duration-300"
                                         >
@@ -736,64 +745,34 @@ const Header = () => {
                                             ) : (
                                                 <div>
                                                     {/* Products Section */}
-                                                    {searchResults.products && searchResults.products.length > 0 && (() => {
-                                                        const productsByCategory = searchResults.products.reduce((acc, product) => {
-                                                            const cat = product.category || "General";
-                                                            if (!acc[cat]) {
-                                                                acc[cat] = [];
-                                                            }
-                                                            acc[cat].push(product);
-                                                            return acc;
-                                                        }, {} as Record<string, typeof searchResults.products>);
-
-                                                        return (
-                                                            <div className="px-2 pt-3 pb-1">
-                                                                <div className="flex items-center gap-2 px-3 mb-2.5">
-                                                                    <ShoppingBag className="w-3.5 h-3.5 text-orange-500" />
-                                                                    <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">Products</span>
-                                                                </div>
-                                                                <div className="space-y-0.5">
-                                                                    {Object.entries(productsByCategory).map(([category, products]) => (
-                                                                        <div key={category}>
-                                                                            <div className="px-3 py-1.5">
-                                                                                <span className="text-[10px] font-bold uppercase tracking-widest text-orange-500/70">{category}</span>
+                                                    {searchResults.products && searchResults.products.length > 0 && (
+                                                        <div className="px-2 pt-2 pb-1">
+                                                            <div className="max-h-[240px] overflow-y-auto pr-1">
+                                                                {searchResults.products.map((p, idx) => (
+                                                                    <Link
+                                                                        key={idx}
+                                                                        href={getProductHref(p)}
+                                                                        onClick={() => {
+                                                                            setSearchOpen(false);
+                                                                            setSearchQuery("");
+                                                                        }}
+                                                                        className="group/item flex items-center justify-between mx-1 px-2 py-2 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-900 transition-all duration-200 text-left"
+                                                                    >
+                                                                        <div className="flex flex-col gap-0.5 min-w-0">
+                                                                            <div className="font-semibold text-[14px] text-slate-800 dark:text-slate-200 truncate leading-tight tracking-wide">
+                                                                                {p.name} <span className="text-slate-400 font-normal mx-1 tracking-normal">in</span> <span className="text-orange-500 dark:text-orange-400">{p.category || "General"}</span>
                                                                             </div>
-                                                                            {products.map((p, idx) => (
-                                                                                <Link
-                                                                                    key={idx}
-                                                                                    href={`/products?search=${encodeURIComponent(p.name)}`}
-                                                                                    onClick={() => {
-                                                                                        setSearchOpen(false);
-                                                                                        setSearchQuery("");
-                                                                                    }}
-                                                                                    className="group/item flex items-center gap-3 mx-1 px-3 py-2.5 rounded-xl hover:bg-orange-50/60 dark:hover:bg-orange-950/20 transition-all duration-200 text-left"
-                                                                                >
-                                                                                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-100 to-amber-50 dark:from-orange-950/40 dark:to-amber-950/20 flex items-center justify-center shrink-0 group-hover/item:from-orange-200 group-hover/item:to-amber-100 dark:group-hover/item:from-orange-900/40 dark:group-hover/item:to-amber-900/20 transition-all duration-200">
-                                                                                        <ShoppingBag className="w-3.5 h-3.5 text-orange-600/70 dark:text-orange-400/70" />
-                                                                                    </div>
-                                                                                    <div className="min-w-0 flex-1">
-                                                                                        <div className="font-semibold text-[13px] text-slate-800 dark:text-slate-200 truncate leading-tight">{p.name}</div>
-                                                                                        <div className="flex items-center gap-1.5 mt-0.5">
-                                                                                            <span className="text-[11px] text-slate-400 dark:text-slate-500">{p.totalOfferProducts} {p.totalOfferProducts === 1 ? 'item' : 'items'}</span>
-                                                                                            <span className="text-[11px] text-slate-300 dark:text-slate-600">·</span>
-                                                                                            <span className="text-[11px] text-slate-400 dark:text-slate-500">{p.shopCount} {p.shopCount === 1 ? 'shop' : 'shops'}</span>
-                                                                                            {p.minPrice !== undefined && (
-                                                                                                <>
-                                                                                                    <span className="text-[11px] text-slate-300 dark:text-slate-600">·</span>
-                                                                                                    <span className="text-[11px] font-semibold text-orange-600 dark:text-orange-400">₹{p.minPrice.toFixed(0)}+</span>
-                                                                                                </>
-                                                                                            )}
-                                                                                        </div>
-                                                                                    </div>
-                                                                                    <ChevronDown className="w-4 h-4 -rotate-90 text-slate-300 dark:text-slate-600 group-hover/item:text-orange-500 transition-colors shrink-0" />
-                                                                                </Link>
-                                                                            ))}
+                                                                            <div className="flex items-center gap-2">
+                                                                                <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 tracking-wide">{p.totalOfferProducts} Products,</span>
+                                                                                <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 tracking-wide">{p.shopCount} {p.shopCount === 1 ? 'Shop' : 'Shops'}</span>
+                                                                            </div>
                                                                         </div>
-                                                                    ))}
-                                                                </div>
+                                                                        <ChevronDown className="w-4 h-4 -rotate-90 text-slate-300 dark:text-slate-600 group-hover/item:text-slate-400 transition-colors shrink-0" />
+                                                                    </Link>
+                                                                ))}
                                                             </div>
-                                                        );
-                                                    })()}
+                                                        </div>
+                                                    )}
 
                                                     {/* Divider */}
                                                     {searchResults.products && searchResults.products.length > 0 && searchResults.offers && searchResults.offers.length > 0 && (
@@ -803,11 +782,11 @@ const Header = () => {
                                                     {/* Offers Section */}
                                                     {searchResults.offers && searchResults.offers.length > 0 && (
                                                         <div className="px-2 pt-2.5 pb-2">
-                                                            <div className="flex items-center gap-2 px-3 mb-2">
+                                                            <div className="flex items-center gap-2 px-3">
                                                                 <Percent className="w-3.5 h-3.5 text-orange-500" />
-                                                                <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">Offers</span>
+                                                                <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">Offers</span>
                                                             </div>
-                                                            <div className="space-y-0.5">
+                                                            <div className="space-y-0.5 max-h-[240px] overflow-y-auto pr-1">
                                                                 {searchResults.offers.map((o) => (
                                                                     <Link
                                                                         key={o.offerId}
@@ -816,13 +795,13 @@ const Header = () => {
                                                                             setSearchOpen(false);
                                                                             setSearchQuery("");
                                                                         }}
-                                                                        className="group/item flex items-center gap-3 mx-1 px-3 py-2.5 rounded-xl hover:bg-orange-50/60 dark:hover:bg-orange-950/20 transition-all duration-200 text-left"
+                                                                        className="group/item flex items-center justify-between mx-1 px-4 py-2 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-900 transition-all duration-200 text-left"
                                                                     >
-                                                                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-100 to-amber-50 dark:from-orange-950/40 dark:to-amber-950/20 flex items-center justify-center shrink-0 group-hover/item:from-orange-200 group-hover/item:to-amber-100 dark:group-hover/item:from-orange-900/40 dark:group-hover/item:to-amber-900/20 transition-all duration-200">
-                                                                            <Percent className="w-3.5 h-3.5 text-orange-600/70 dark:text-orange-400/70" />
+                                                                        <div className="flex items-center gap-3">
+                                                                            <div className="w-1.5 h-1.5 rounded-full bg-orange-500/70 group-hover/item:bg-orange-500 group-hover/item:scale-110 transition-all duration-200 shrink-0 shadow-sm shadow-orange-500/20" />
+                                                                            <div className="font-semibold text-[14px] text-slate-800 dark:text-slate-200 truncate leading-tight tracking-wide">{o.offerName}</div>
                                                                         </div>
-                                                                        <div className="font-semibold text-[13px] text-slate-800 dark:text-slate-200 truncate flex-1">{o.offerName}</div>
-                                                                        <ChevronDown className="w-4 h-4 -rotate-90 text-slate-300 dark:text-slate-600 group-hover/item:text-orange-500 transition-colors shrink-0" />
+                                                                        <ChevronDown className="w-4 h-4 -rotate-90 text-slate-300 dark:text-slate-600 group-hover/item:text-slate-400 transition-colors shrink-0" />
                                                                     </Link>
                                                                 ))}
                                                             </div>
@@ -906,7 +885,7 @@ const Header = () => {
 
                                     {/* Mobile Search Results Dropdown */}
                                     {searchQuery && (
-                                        <div 
+                                        <div
                                             onMouseDown={(e) => e.preventDefault()}
                                             className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-[0_12px_36px_-8px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_36px_-8px_rgba(0,0,0,0.5)] z-50 overflow-hidden max-h-80 overflow-y-auto animate-in fade-in slide-in-from-top-3 duration-300"
                                         >
@@ -926,63 +905,33 @@ const Header = () => {
                                             ) : (
                                                 <div>
                                                     {/* Products */}
-                                                    {searchResults.products && searchResults.products.length > 0 && (() => {
-                                                        const productsByCategory = searchResults.products.reduce((acc, product) => {
-                                                            const cat = product.category || "General";
-                                                            if (!acc[cat]) {
-                                                                acc[cat] = [];
-                                                            }
-                                                            acc[cat].push(product);
-                                                            return acc;
-                                                        }, {} as Record<string, typeof searchResults.products>);
-
-                                                        return (
-                                                            <div className="px-1.5 pt-2.5 pb-1">
-                                                                <div className="flex items-center gap-1.5 px-2.5 mb-2">
-                                                                    <ShoppingBag className="w-3 h-3 text-orange-500" />
-                                                                    <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">Products</span>
-                                                                </div>
-                                                                <div className="space-y-0.5">
-                                                                    {Object.entries(productsByCategory).map(([category, products]) => (
-                                                                        <div key={category}>
-                                                                            <div className="px-2.5 py-1">
-                                                                                <span className="text-[9px] font-bold uppercase tracking-widest text-orange-500/70">{category}</span>
+                                                    {searchResults.products && searchResults.products.length > 0 && (
+                                                        <div className="px-1 pt-2 pb-1">
+                                                            <div className="max-h-[200px] overflow-y-auto pr-1">
+                                                                {searchResults.products.map((p, idx) => (
+                                                                    <Link
+                                                                        key={idx}
+                                                                        href={getProductHref(p)}
+                                                                        onClick={() => {
+                                                                            setSearchQuery("");
+                                                                        }}
+                                                                        className="group/item flex items-center justify-between mx-0.5 px-1.5 py-1.5 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-900 transition-all duration-200 text-left"
+                                                                    >
+                                                                        <div className="flex flex-col gap-1 min-w-0">
+                                                                            <div className="font-semibold text-[13px] text-slate-800 dark:text-slate-200 truncate leading-tight tracking-wide">
+                                                                                {p.name} <span className="text-slate-400 font-normal mx-1 tracking-normal">in</span> <span className="text-orange-500 dark:text-orange-400">{p.category || "General"}</span>
                                                                             </div>
-                                                                            {products.map((p, idx) => (
-                                                                                <Link
-                                                                                    key={idx}
-                                                                                    href={`/products?search=${encodeURIComponent(p.name)}`}
-                                                                                    onClick={() => {
-                                                                                        setSearchQuery("");
-                                                                                    }}
-                                                                                    className="group/item flex items-center gap-2.5 mx-0.5 px-2.5 py-2 rounded-xl hover:bg-orange-50/60 dark:hover:bg-orange-950/20 transition-all duration-200 text-left"
-                                                                                >
-                                                                                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-orange-100 to-amber-50 dark:from-orange-950/40 dark:to-amber-950/20 flex items-center justify-center shrink-0 group-hover/item:from-orange-200 group-hover/item:to-amber-100 dark:group-hover/item:from-orange-900/40 dark:group-hover/item:to-amber-900/20 transition-all duration-200">
-                                                                                        <ShoppingBag className="w-3 h-3 text-orange-600/70 dark:text-orange-400/70" />
-                                                                                    </div>
-                                                                                    <div className="min-w-0 flex-1">
-                                                                                        <div className="font-semibold text-xs text-slate-800 dark:text-slate-200 truncate leading-tight">{p.name}</div>
-                                                                                        <div className="flex items-center gap-1 mt-0.5">
-                                                                                            <span className="text-[10px] text-slate-400 dark:text-slate-500">{p.totalOfferProducts} {p.totalOfferProducts === 1 ? 'item' : 'items'}</span>
-                                                                                            <span className="text-[10px] text-slate-300 dark:text-slate-600">·</span>
-                                                                                            <span className="text-[10px] text-slate-400 dark:text-slate-500">{p.shopCount} {p.shopCount === 1 ? 'shop' : 'shops'}</span>
-                                                                                            {p.minPrice !== undefined && (
-                                                                                                <>
-                                                                                                    <span className="text-[10px] text-slate-300 dark:text-slate-600">·</span>
-                                                                                                    <span className="text-[10px] font-semibold text-orange-600 dark:text-orange-400">₹{p.minPrice.toFixed(0)}+</span>
-                                                                                                </>
-                                                                                            )}
-                                                                                        </div>
-                                                                                    </div>
-                                                                                    <ChevronDown className="w-3.5 h-3.5 -rotate-90 text-slate-300 dark:text-slate-600 group-hover/item:text-orange-500 transition-colors shrink-0" />
-                                                                                </Link>
-                                                                            ))}
+                                                                            <div className="flex items-center gap-1">
+                                                                                <span className="text-[8px] font-bold text-slate-600 dark:text-slate-300 tracking-wide">{p.totalOfferProducts} Products,</span>
+                                                                                <span className="text-[8px] font-bold text-slate-600 dark:text-slate-300 tracking-wide">{p.shopCount} {p.shopCount === 1 ? 'Shop' : 'Shops'}</span>
+                                                                            </div>
                                                                         </div>
-                                                                    ))}
-                                                                </div>
+                                                                        <ChevronDown className="w-3.5 h-3.5 -rotate-90 text-slate-300 dark:text-slate-600 group-hover/item:text-slate-400 transition-colors shrink-0" />
+                                                                    </Link>
+                                                                ))}
                                                             </div>
-                                                        );
-                                                    })()}
+                                                        </div>
+                                                    )}
 
                                                     {/* Divider */}
                                                     {searchResults.products && searchResults.products.length > 0 && searchResults.offers && searchResults.offers.length > 0 && (
@@ -992,11 +941,11 @@ const Header = () => {
                                                     {/* Offers */}
                                                     {searchResults.offers && searchResults.offers.length > 0 && (
                                                         <div className="px-1.5 pt-2 pb-2">
-                                                            <div className="flex items-center gap-1.5 px-2.5 mb-1.5">
+                                                            <div className="flex items-center gap-1.5">
                                                                 <Percent className="w-3 h-3 text-orange-500" />
                                                                 <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">Offers</span>
                                                             </div>
-                                                            <div className="space-y-0.5">
+                                                            <div className="space-y-0.5 max-h-[200px] overflow-y-auto pr-1">
                                                                 {searchResults.offers.map((o) => (
                                                                     <Link
                                                                         key={o.offerId}
@@ -1004,13 +953,13 @@ const Header = () => {
                                                                         onClick={() => {
                                                                             setSearchQuery("");
                                                                         }}
-                                                                        className="group/item flex items-center gap-2.5 mx-0.5 px-2.5 py-2 rounded-xl hover:bg-orange-50/60 dark:hover:bg-orange-950/20 transition-all duration-200 text-left"
+                                                                        className="group/item flex items-center justify-between mx-0.5 px-3 py-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900 transition-all duration-200 text-left"
                                                                     >
-                                                                        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-orange-100 to-amber-50 dark:from-orange-950/40 dark:to-amber-950/20 flex items-center justify-center shrink-0 group-hover/item:from-orange-200 group-hover/item:to-amber-100 dark:group-hover/item:from-orange-900/40 dark:group-hover/item:to-amber-900/20 transition-all duration-200">
-                                                                            <Percent className="w-3 h-3 text-orange-600/70 dark:text-orange-400/70" />
+                                                                        <div className="flex items-center gap-2.5">
+                                                                            <div className="w-1 h-1 rounded-full bg-orange-500/70 group-hover/item:bg-orange-500 group-hover/item:scale-110 transition-all duration-200 shrink-0 shadow-sm shadow-orange-500/20" />
+                                                                            <div className="font-semibold text-[13px] text-slate-800 dark:text-slate-200 truncate leading-tight tracking-wide">{o.offerName}</div>
                                                                         </div>
-                                                                        <div className="font-semibold text-xs text-slate-800 dark:text-slate-200 truncate flex-1">{o.offerName}</div>
-                                                                        <ChevronDown className="w-3.5 h-3.5 -rotate-90 text-slate-300 dark:text-slate-600 group-hover/item:text-orange-500 transition-colors shrink-0" />
+                                                                        <ChevronDown className="w-3.5 h-3.5 -rotate-90 text-slate-300 dark:text-slate-600 group-hover/item:text-slate-400 transition-colors shrink-0" />
                                                                     </Link>
                                                                 ))}
                                                             </div>

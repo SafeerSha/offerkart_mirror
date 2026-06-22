@@ -39,16 +39,19 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
     const initialCategory = searchParams.get("category") || "All";
     const initialSubcategories = searchParams.getAll("subcategory") || [];
     const initialShopId = searchParams.get("shopId") || undefined;
+    const initialSearch = searchParams.get("search") || undefined;
 
     const [products, setProducts] = useState<any[]>(initialProducts || []);
     const [isLoading, setIsLoading] = useState(false);
     const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
     const [activeFilters, setActiveFilters] = useState<{
+        search?: string;
         category: string;
         subcategory: string[];
         sort: string;
         shopId?: string;
     }>({
+        search: initialSearch,
         category: initialCategory,
         subcategory: initialSubcategories,
         sort: "latest",
@@ -56,7 +59,21 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
     });
 
     const isFirstRender = useRef(true);
-    const { getCategoryId } = useCategoryHierarchy();
+    const { getCategoryId, resolveHierarchyById, categoryLookup } = useCategoryHierarchy();
+
+    // Auto-fix URL if a subcategory was passed as the main category (e.g. from search results)
+    useEffect(() => {
+        if (activeFilters.category !== "All" && Object.keys(categoryLookup).length > 0) {
+            const resolved = resolveHierarchyById(activeFilters.category);
+            if (resolved.main && resolved.sub && resolved.sub === activeFilters.category) {
+                const params = new URLSearchParams(searchParams.toString());
+                params.set("category", resolved.main);
+                params.delete("subcategory");
+                params.append("subcategory", resolved.sub);
+                router.replace(`/products?${params.toString()}`);
+            }
+        }
+    }, [activeFilters.category, categoryLookup, resolveHierarchyById, router, searchParams]);
 
     const sortOptions = [
         { value: "latest", label: t("catalog.sortLatest") },
@@ -67,20 +84,23 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
 
     // Sync category, subcategories, and shopId from URL if they change
     useEffect(() => {
+        const search = searchParams.get("search") || undefined;
         const cat = searchParams.get("category") || "All";
         const shopId = searchParams.get("shopId") || undefined;
         const subs = searchParams.getAll("subcategory") || [];
         setActiveFilters(prev => {
+            const isSearchSame = prev.search === search;
             const isCategorySame = prev.category === cat;
             const isShopIdSame = prev.shopId === shopId;
             const isSubcategorySame = prev.subcategory.length === subs.length &&
                 prev.subcategory.every((val, index) => val === subs[index]);
 
-            if (isCategorySame && isSubcategorySame && isShopIdSame) {
+            if (isSearchSame && isCategorySame && isSubcategorySame && isShopIdSame) {
                 return prev;
             }
             return {
                 ...prev,
+                search,
                 category: cat,
                 subcategory: subs,
                 shopId: shopId
@@ -134,6 +154,7 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
             const mappedSort = activeFilters.sort === "latest" ? "newest" : "newest";
 
             const res = await getUserProducts({
+                search: activeFilters.search,
                 categoryId: mainCatId ? String(mainCatId) : undefined,
                 subcategoryId: subCatId ? String(subCatId) : undefined,
                 shopId: activeFilters.shopId,
@@ -159,7 +180,7 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
         if (isFirstRender.current) {
             isFirstRender.current = false;
             // If the initial filter is not "All" or if we have a shopId, we must fetch filtered products immediately on mount
-            if (activeFilters.category === "All" && activeFilters.subcategory.length === 0 && !activeFilters.shopId && activeFilters.sort === "latest") {
+            if (!activeFilters.search && activeFilters.category === "All" && activeFilters.subcategory.length === 0 && !activeFilters.shopId && activeFilters.sort === "latest") {
                 lastFetchedFilters.current = activeFilters;
                 return;
             }
@@ -287,29 +308,47 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
                                 <div className="h-8 w-1.5 bg-orange-500 rounded-full" />
                                 <div>
                                     <h2 className="text-2xl font-bold text-gray-900">
-                                        {activeFilters.category === "All" ? t("catalog.allProducts") : activeFilters.category}
+                                        {activeFilters.search 
+                                            ? `Search: ${activeFilters.search}` 
+                                            : (activeFilters.category === "All" ? t("catalog.allProducts") : activeFilters.category)}
                                     </h2>
                                     <p className="text-sm text-gray-500 font-medium">
                                         {t("catalog.showingPremiumItems").replace("{count}", filteredProducts.length.toString())}
                                     </p>
-                                    {activeFilters.shopId && (
                                         <div className="flex flex-wrap items-center gap-2 mt-3">
-                                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-orange-50 text-orange-600 border border-orange-100 shadow-sm animate-in fade-in duration-300">
-                                                <span>Shop: {initialFeaturedShops.find(s => String(s.id) === String(activeFilters.shopId))?.name || `Shop #${activeFilters.shopId}`}</span>
-                                                <button 
-                                                    onClick={() => {
-                                                        const params = new URLSearchParams(searchParams.toString());
-                                                        params.delete("shopId");
-                                                        router.push(`/products?${params.toString()}`);
-                                                    }}
-                                                    className="w-4 h-4 rounded-full bg-orange-100 hover:bg-orange-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
-                                                    title="Clear shop filter"
-                                                >
-                                                    ×
-                                                </button>
-                                            </span>
+                                            {activeFilters.shopId && (
+                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-orange-50 text-orange-600 border border-orange-100 shadow-sm animate-in fade-in duration-300">
+                                                    <span>Shop: {initialFeaturedShops.find(s => String(s.id) === String(activeFilters.shopId))?.name || `Shop #${activeFilters.shopId}`}</span>
+                                                    <button 
+                                                        onClick={() => {
+                                                            const params = new URLSearchParams(searchParams.toString());
+                                                            params.delete("shopId");
+                                                            router.push(`/products?${params.toString()}`);
+                                                        }}
+                                                        className="w-4 h-4 rounded-full bg-orange-100 hover:bg-orange-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
+                                                        title="Clear shop filter"
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </span>
+                                            )}
+                                            {activeFilters.search && (
+                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-orange-50 text-orange-600 border border-orange-100 shadow-sm animate-in fade-in duration-300">
+                                                    <span>Search: "{activeFilters.search}"</span>
+                                                    <button 
+                                                        onClick={() => {
+                                                            const params = new URLSearchParams(searchParams.toString());
+                                                            params.delete("search");
+                                                            router.push(`/products?${params.toString()}`);
+                                                        }}
+                                                        className="w-4 h-4 rounded-full bg-orange-100 hover:bg-orange-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
+                                                        title="Clear search filter"
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </span>
+                                            )}
                                         </div>
-                                    )}
                                 </div>
                             </div>
                         </div>
