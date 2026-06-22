@@ -27,6 +27,7 @@ import { ArrowRight, X, Clock, FileEdit, Trash2, LayoutGrid, Send, Type, GitBran
 // Local components
 import { PosterCardStack } from "@/components/shop-manager/PosterCardStack";
 import { PosterPreviewPanel } from "@/components/shop-manager/PosterPreviewPanel";
+import { SocialLinksEditor, type SocialLink } from "@/components/offer/SocialLinksEditor";
 
 // Utils and API
 import { storage } from "@/lib/storage";
@@ -70,6 +71,7 @@ function CreateOfferContent() {
     const [validTo, setValidTo] = useState<Date>();
     const [classifiedPosters, setClassifiedPosters] = useState<PosterItem[]>([]);
     const [publishErrors, setPublishErrors] = useState<{ title?: string; validFrom?: string; validTo?: string; branch?: string }>({});
+    const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
 
     const searchParams = useSearchParams();
     const editBatchId = searchParams.get('edit');
@@ -131,6 +133,7 @@ function CreateOfferContent() {
                     setOfferStatus(target.status || "active");
                     setIsActive(target.status === 'active');
                     setExistingPosters(target.posters || []);
+                    setSocialLinks(target.socialLinks || []);
                 }
             });
         }
@@ -340,6 +343,7 @@ function CreateOfferContent() {
                 status: isActive ? 'active' : 'paused',
                 isActive: isActive,
                 posters: finalPosters,
+                socialLinks: socialLinks,
                 type: "UPLOAD",
                 isDraft: false,
             };
@@ -447,6 +451,7 @@ function CreateOfferContent() {
                 status: 'draft',
                 isActive: false,
                 posters: finalPosters,
+                socialLinks: socialLinks,
                 type: "UPLOAD",
                 isDraft: true,
             };
@@ -725,6 +730,51 @@ function CreateOfferContent() {
                 onOpenChange={setShowPublishModal}
                 title={isUpdateMode ? "Update Offer" : "Publish Offer"}
                 description={isUpdateMode ? "Review and update your campaign details." : "Give your campaign a name before publishing."}
+                footer={
+                    <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center sm:justify-between w-full">
+                        <div className="flex items-center justify-between sm:justify-start gap-3">
+                            <div className="flex items-center gap-1.5">
+                                <div className={cn(
+                                    "w-2 h-2 rounded-full",
+                                    isActive ? "bg-[#1cc080]" : "bg-gray-400"
+                                )} />
+                                <span className={cn(
+                                    "text-[13px] font-bold uppercase tracking-wider",
+                                    isActive ? "text-slate-800" : "text-gray-500"
+                                )}>
+                                    {isActive ? "Online" : "Paused"}
+                                </span>
+                            </div>
+                            <StatusToggleButton status={isActive ? "active" : "paused"} onChange={(newStatus) => setIsActive(newStatus === "active")} />
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-2.5 sm:justify-end">
+                            <PremiumButton
+                                variant="outline"
+                                onClick={() => setShowPublishModal(false)}
+                                className="rounded-xl w-full sm:w-auto order-3 sm:order-1"
+                            >
+                                Cancel
+                            </PremiumButton>
+                            <PremiumButton
+                                onClick={() => handleSaveDraftSubmit()}
+                                isLoading={isPublishing}
+                                className="rounded-xl bg-none bg-yellow-600 hover:bg-yellow-700 text-white shadow-lg shadow-yellow-600/20 border-0 w-full sm:w-auto order-2 sm:order-2"
+                                disabled={isPublishing}
+                            >
+                                Save Draft
+                            </PremiumButton>
+                            <PremiumButton
+                                onClick={handlePublishSubmit}
+                                isLoading={isPublishing}
+                                leftIcon={Send}
+                                className="rounded-xl w-full sm:w-auto order-1 sm:order-3"
+                                disabled={isPublishing}
+                            >
+                                {isUpdateMode ? "Update" : "Publish"}
+                            </PremiumButton>
+                        </div>
+                    </div>
+                }
             >
                 <div className="space-y-5">
                     <PremiumInput
@@ -816,56 +866,14 @@ function CreateOfferContent() {
                         )}
                     </div>
 
-                    <div className="p-4 rounded-xl bg-muted/50 border border-border/50 text-sm">
+                    <SocialLinksEditor socialLinks={socialLinks} onChange={setSocialLinks} />
+
+                    <div className="p-2 rounded-xl bg-muted/50 border border-border/50 text-sm">
                         <div className="flex justify-between">
                             <span className="opacity-60">Total posters</span>
                             <span className="font-bold">
                                 {isUpdateMode ? existingPosters.length + classifiedPosters.length : classifiedPosters.length}
                             </span>
-                        </div>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center sm:justify-between pt-4 border-t border-primary/10">
-                        <div className="flex items-center justify-between sm:justify-start gap-3">
-                            <div className="flex items-center gap-1.5">
-                                <div className={cn(
-                                    "w-2 h-2 rounded-full",
-                                    isActive ? "bg-[#1cc080]" : "bg-gray-400"
-                                )} />
-                                <span className={cn(
-                                    "text-[13px] font-bold uppercase tracking-wider",
-                                    isActive ? "text-slate-800" : "text-gray-500"
-                                )}>
-                                    {isActive ? "Online" : "Paused"}
-                                </span>
-                            </div>
-                            <StatusToggleButton status={isActive ? "active" : "paused"} onChange={(newStatus) => setIsActive(newStatus === "active")} />
-                        </div>
-                        <div className="flex flex-col sm:flex-row gap-2.5 sm:justify-end">
-                            <PremiumButton
-                                variant="outline"
-                                onClick={() => setShowPublishModal(false)}
-                                className="rounded-xl w-full sm:w-auto order-3 sm:order-1"
-                            >
-                                Cancel
-                            </PremiumButton>
-                            <PremiumButton
-                                onClick={() => handleSaveDraftSubmit()}
-                                isLoading={isPublishing}
-                                className="rounded-xl bg-none bg-yellow-600 hover:bg-yellow-700 text-white shadow-lg shadow-yellow-600/20 border-0 w-full sm:w-auto order-2 sm:order-2"
-                                disabled={isPublishing}
-                            >
-                                Save Draft
-                            </PremiumButton>
-                            <PremiumButton
-                                onClick={handlePublishSubmit}
-                                isLoading={isPublishing}
-                                leftIcon={Send}
-                                className="rounded-xl w-full sm:w-auto order-1 sm:order-3"
-                                disabled={isPublishing}
-                            >
-                                {isUpdateMode ? "Update" : "Publish"}
-                            </PremiumButton>
                         </div>
                     </div>
                 </div>

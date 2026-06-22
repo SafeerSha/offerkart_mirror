@@ -184,7 +184,7 @@ const FilterPanel = ({
               </button>
             )}
           </div>
-          <div className="flex flex-col gap-1 max-h-[320px] overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth">
+          <div className="flex flex-col gap-1 max-h-[calc(100dvh-280px)] lg:max-h-[calc(100vh-400px)] overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth">
             {categories.map((cat) => (
               <div key={cat} className="space-y-1">
                 <button

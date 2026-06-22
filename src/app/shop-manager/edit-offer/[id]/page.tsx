@@ -38,6 +38,7 @@ import { storage } from "@/lib/storage";
 import { PosterCardStack, PosterItem } from "@/components/shop-manager/PosterCardStack";
 import type { PosterPreviewState } from "@/components/shop-manager/PosterCardStack";
 import { PosterPreviewPanel } from "@/components/shop-manager/PosterPreviewPanel";
+import { SocialLinksEditor, type SocialLink } from "@/components/offer/SocialLinksEditor";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 // Local type for API data before mapping to PosterItem
@@ -82,6 +83,7 @@ function EditOfferContent() {
     const [selectedBranchIds, setSelectedBranchIds] = useState<string[]>([]);
     const [isActive, setIsActive] = useState(true);
     const [posters, setPosters] = useState<PosterItem[]>([]);
+    const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
 
     // Branch data
     const [branches, setBranches] = useState<Branch[]>([]);
@@ -189,6 +191,7 @@ function EditOfferContent() {
                     setValidTo(toDate ? new Date(toDate) : undefined);
 
                     setIsActive(offer.status === "active" || offer.isActive || offer.is_active || false);
+                    setSocialLinks(offer.socialLinks || offer.social_links || []);
 
                     // Ultra-resilient branch ID extraction
                     let bIdsRaw = offer.branchIds || offer.branch_ids || offer.branches || offer.offerBranches || offer.offer_branches || offer.offer_branch_links || [];
@@ -218,7 +221,7 @@ function EditOfferContent() {
 
                     // Ultra-resilient poster extraction
                     let postersRaw = offer.posters || offer.poster_links || offer.offer_posters;
-                    
+
                     if (typeof postersRaw === 'string') {
                         try {
                             postersRaw = JSON.parse(postersRaw);
@@ -394,6 +397,7 @@ function EditOfferContent() {
                 branchNames: selectedBranches.map(b => b.branch_name),
                 branchCity: selectedBranches[0]?.city ?? "",
                 posters: posterData,
+                socialLinks: socialLinks,
             };
 
             // Try to update on the server if possible (or fallback if it fails for local drafts)
@@ -563,6 +567,43 @@ function EditOfferContent() {
                 onOpenChange={setShowDetailsModal}
                 title="Update Offer"
                 description="Review and update your campaign details."
+                footer={
+                    <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-1.5 hidden sm:flex">
+                                <div className={cn(
+                                    "w-2 h-2 rounded-full",
+                                    isActive ? "bg-[#1cc080]" : "bg-gray-400"
+                                )} />
+                                <span className={cn(
+                                    "text-[13px] font-bold uppercase tracking-wider",
+                                    isActive ? "text-slate-800" : "text-gray-500"
+                                )}>
+                                    {isActive ? "Active" : "Paused"}
+                                </span>
+                            </div>
+                            <StatusToggleButton status={isActive ? "active" : "paused"} onChange={(newStatus) => setIsActive(newStatus === "active")} />
+                        </div>
+                        <div className="flex gap-3">
+                            <PremiumButton
+                                variant="outline"
+                                onClick={() => setShowDetailsModal(false)}
+                                className="rounded-xl"
+                            >
+                                Cancel
+                            </PremiumButton>
+                            <PremiumButton
+                                onClick={handleSave}
+                                isLoading={isSaving}
+                                leftIcon={Send}
+                                className="rounded-xl"
+                                disabled={isSaving || isLoading || isBranchesLoading}
+                            >
+                                {isSaving ? "Updating Offer..." : (isLoading || isBranchesLoading) ? "Synchronizing... ⏳" : "Update"}
+                            </PremiumButton>
+                        </div>
+                    </div>
+                }
             >
                 <div className="space-y-5">
                     <PremiumInput
@@ -628,46 +669,12 @@ function EditOfferContent() {
                         {errors.branch && <p className="text-xs font-medium text-destructive ml-1">{errors.branch}</p>}
                     </div>
 
-                    <div className="p-4 rounded-xl bg-muted/50 border border-border/50 text-sm">
+                    <SocialLinksEditor socialLinks={socialLinks} onChange={setSocialLinks} />
+
+                    <div className="py-2 px-4 rounded-xl bg-muted/50 border border-border/50 text-sm">
                         <div className="flex justify-between">
                             <span className="opacity-60">Total posters</span>
                             <span className="font-bold">{posters.length}</span>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-4 border-t border-primary/10">
-                        <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-1.5 hidden sm:flex">
-                                <div className={cn(
-                                    "w-2 h-2 rounded-full",
-                                    isActive ? "bg-[#1cc080]" : "bg-gray-400"
-                                )} />
-                                <span className={cn(
-                                    "text-[13px] font-bold uppercase tracking-wider",
-                                    isActive ? "text-slate-800" : "text-gray-500"
-                                )}>
-                                    {isActive ? "Active" : "Paused"}
-                                </span>
-                            </div>
-                            <StatusToggleButton status={isActive ? "active" : "paused"} onChange={(newStatus) => setIsActive(newStatus === "active")} />
-                        </div>
-                        <div className="flex gap-3">
-                            <PremiumButton
-                                variant="outline"
-                                onClick={() => setShowDetailsModal(false)}
-                                className="rounded-xl"
-                            >
-                                Cancel
-                            </PremiumButton>
-                            <PremiumButton
-                                onClick={handleSave}
-                                isLoading={isSaving}
-                                leftIcon={Send}
-                                className="rounded-xl"
-                                disabled={isSaving || isLoading || isBranchesLoading}
-                            >
-                                {isSaving ? "Updating Offer..." : (isLoading || isBranchesLoading) ? "Synchronizing... ⏳" : "Update"}
-                            </PremiumButton>
                         </div>
                     </div>
                 </div>
