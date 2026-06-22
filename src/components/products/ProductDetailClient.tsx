@@ -58,7 +58,7 @@ interface LocationItem {
 function getFallbackLocations(shopName?: string): LocationItem[] {
     if (!shopName) return [{ name: "Main Outlet" }];
     const name = shopName.toLowerCase();
-    
+
     const getCoords = (locName: string): { latitude?: number; longitude?: number } => {
         const ln = locName.toLowerCase();
         if (ln.includes("bandra west")) return { latitude: 19.0596, longitude: 72.8295 };
@@ -174,7 +174,7 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         return diffDays >= 0 ? diffDays : null;
     };
-    
+
     const calculatedDaysLeft = product.daysLeft !== undefined && product.daysLeft !== null
         ? product.daysLeft
         : calculateDaysLeft(product.validTo);
@@ -206,17 +206,16 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                         {t("catalog.backToProducts")}
                     </Link>
                     <div className="flex items-center gap-2">
-                        <button 
+                        <button
                             onClick={() => setIsFavorite(!isFavorite)}
-                            className={`p-3 rounded-full border transition-all ${
-                                isFavorite 
-                                    ? "bg-rose-50 text-rose-500 border-rose-100" 
-                                    : "bg-white text-gray-400 border-gray-100 hover:text-rose-500"
-                            } shadow-sm`}
+                            className={`p-3 rounded-full border transition-all ${isFavorite
+                                ? "bg-rose-50 text-rose-500 border-rose-100"
+                                : "bg-white text-gray-400 border-gray-100 hover:text-rose-500"
+                                } shadow-sm`}
                         >
                             <Heart className={`w-5 h-5 ${isFavorite ? "fill-current" : ""}`} />
                         </button>
-                        <button 
+                        <button
                             onClick={() => {
                                 navigator.clipboard.writeText(window.location.href);
                                 alert(t("catalog.linkCopied"));
@@ -229,10 +228,10 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                 </div>
 
                 {/* Product Detail Section */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
                     {/* Left: Images */}
                     <div className="lg:col-span-6 space-y-4">
-                        <PremiumCard 
+                        <PremiumCard
                             onClick={() => {
                                 if (productImages.length > 0) {
                                     setIsImageZoomed(true);
@@ -284,11 +283,10 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                                     <button
                                         key={idx}
                                         onClick={() => setSelectedImage(idx)}
-                                        className={`relative w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 border-2 transition-all ${
-                                            selectedImage === idx 
-                                                ? "border-orange-500 bg-orange-50/30 scale-105 shadow-md shadow-orange-500/10" 
-                                                : "border-transparent bg-white hover:border-gray-200"
-                                        }`}
+                                        className={`relative w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 border-2 transition-all ${selectedImage === idx
+                                            ? "border-orange-500 bg-orange-50/30 scale-105 shadow-md shadow-orange-500/10"
+                                            : "border-transparent bg-white hover:border-gray-200"
+                                            }`}
                                     >
                                         <Image src={img} alt={`${product.name} preview ${idx + 1}`} fill unoptimized className="object-cover" />
                                     </button>
@@ -300,10 +298,10 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                     {/* Right: Info */}
                     <div className="lg:col-span-6 space-y-6">
                         <div className="bg-white p-8 md:p-10 rounded-[2.5rem] border border-gray-100/80 shadow-xl shadow-gray-200/20 space-y-6">
-                            
+
                             {/* Shop Header (Outlet Info) - D4D Style */}
                             <div className="flex items-center justify-between pb-4 border-b border-gray-100">
-                                <Link 
+                                <Link
                                     href={`/products?shop=${encodeURIComponent(product.shopName)}`}
                                     className="flex items-center gap-3 group"
                                 >
@@ -399,7 +397,7 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                                             {t("catalog.availableAt") || "Available Store Locations"}
                                         </h4>
                                     </div>
-                                    
+
                                     <div className="flex flex-row flex-wrap gap-2">
                                         {locations.map((loc, idx) => {
                                             const query = loc.latitude && loc.longitude
@@ -407,8 +405,8 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                                                 : encodeURIComponent(`${product.shopName} ${loc.name}`);
                                             const mapUrl = `https://www.google.com/maps/search/?api=1&query=${query}`;
                                             return (
-                                                <a 
-                                                    key={idx} 
+                                                <a
+                                                    key={idx}
                                                     href={mapUrl}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
@@ -425,12 +423,10 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                                 </div>
                             )}
 
-
-
                             {/* Checkout / Claim Offer CTA buttons */}
                             <div className="pt-4 flex gap-4 w-full">
                                 {offerId && (
-                                      <PremiumButton 
+                                    <PremiumButton
                                         className="flex-1 h-14 rounded-2xl bg-orange-600 hover:bg-orange-700 shadow-xl shadow-orange-500/20 text-base font-bold"
                                         leftIcon={Tag}
                                         isLoading={isNavigating}
@@ -478,14 +474,14 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                             </div>
                         </div>
 
-                        <div 
+                        <div
                             ref={similarProductsRef}
-                            className="flex gap-2 sm:gap-3 md:gap-4 overflow-x-auto pb-4 scrollbar-hide px-0.5 snap-x snap-mandatory scroll-smooth"
+                            className="flex gap-1 overflow-x-auto pb-4 scrollbar-hide px-0.5 snap-x snap-mandatory scroll-smooth"
                         >
                             {similarProducts.map((p) => (
-                                <div 
+                                <div
                                     key={p.id}
-                                    className="w-[calc((100%-1rem)/3)] sm:w-[calc((100%-1.5rem)/3)] md:w-[calc((100%-3rem)/4)] lg:w-[calc((100%-5rem)/6)] flex-shrink-0 snap-start"
+                                    className="w-[calc((100%-0.5rem)/2)] sm:w-[calc((100%-0.75rem)/2)] md:w-[calc((100%-1rem)/5)] lg:w-[calc((100%-1rem)/5)] flex-shrink-0 snap-start"
                                 >
                                     <ProductCard {...p} />
                                 </div>
@@ -496,12 +492,12 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
 
                 {/* High Scale Zoom Lightbox Overlay */}
                 {isImageZoomed && productImages.length > 0 && typeof window !== "undefined" && createPortal(
-                    <div 
+                    <div
                         onClick={() => setIsImageZoomed(false)}
                         className="fixed inset-0 bg-black/95 backdrop-blur-md flex items-center justify-center cursor-zoom-out animate-in fade-in-0 duration-300"
                         style={{ zIndex: 999999 }}
                     >
-                        <button 
+                        <button
                             onClick={(e) => {
                                 e.stopPropagation();
                                 setIsImageZoomed(false);
@@ -510,13 +506,13 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                         >
                             <X className="w-5 h-5" />
                         </button>
-                        <div 
+                        <div
                             onClick={(e) => e.stopPropagation()}
                             className="relative max-w-[90vw] max-h-[85vh] flex items-center justify-center animate-in scale-in-95 duration-200"
                         >
-                            <img 
-                                src={productImages[selectedImage]} 
-                                alt={product.name} 
+                            <img
+                                src={productImages[selectedImage]}
+                                alt={product.name}
                                 className="max-w-full max-h-[85vh] object-contain rounded-xl select-none shadow-2xl border border-white/5"
                             />
                         </div>
