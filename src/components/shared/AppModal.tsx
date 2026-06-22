@@ -22,6 +22,7 @@ interface AppModalProps {
     title: React.ReactNode;
     description?: React.ReactNode;
     children: React.ReactNode;
+    footer?: React.ReactNode;
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
     className?: string;
@@ -50,6 +51,7 @@ export const AppModal = ({
     title,
     description,
     children,
+    footer,
     open,
     onOpenChange,
     className,
@@ -60,8 +62,8 @@ export const AppModal = ({
         return (
             <Drawer open={open} onOpenChange={onOpenChange}>
                 {trigger && <DrawerTrigger asChild>{trigger}</DrawerTrigger>}
-                <DrawerContent className={cn("px-4 pb-8 bg-white border-t border-gray-200 rounded-t-[32px]", className)}>
-                    <DrawerHeader className="text-left mt-2">
+                <DrawerContent className={cn("px-4 pb-8 bg-white border-t border-gray-200 rounded-t-[32px] flex flex-col max-h-[95vh]", className)}>
+                    <DrawerHeader className="text-left mt-2 shrink-0">
                         <DrawerTitle className="font-sans font-black text-2xl uppercase tracking-wider text-orange-600">{title}</DrawerTitle>
                         {description && (
                             <DrawerDescription className="font-sans text-sm font-medium text-gray-500">
@@ -69,9 +71,14 @@ export const AppModal = ({
                             </DrawerDescription>
                         )}
                     </DrawerHeader>
-                    <div className="py-4 font-sans min-w-0 w-full">
+                    <div className="py-4 font-sans min-w-0 w-full overflow-y-auto flex-1">
                         {children}
                     </div>
+                    {footer && (
+                        <div className="pt-4 border-t border-gray-100 shrink-0">
+                            {footer}
+                        </div>
+                    )}
                 </DrawerContent>
             </Drawer>
         );
@@ -80,8 +87,8 @@ export const AppModal = ({
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-            <DialogContent className={cn("glass-card border-primary/20 sm:max-w-[525px]", className)}>
-                <DialogHeader>
+            <DialogContent className={cn("glass-card border-primary/20 sm:max-w-[525px] flex flex-col max-h-[90vh]", className)}>
+                <DialogHeader className="shrink-0">
                     <DialogTitle className="font-serif text-3xl text-gradient">{title}</DialogTitle>
                     {description && (
                         <DialogDescription className="font-sans text-base">
@@ -89,10 +96,16 @@ export const AppModal = ({
                         </DialogDescription>
                     )}
                 </DialogHeader>
-                <div className="py-4 font-sans min-w-0 w-full">
+                <div className="py-4 font-sans min-w-0 w-full overflow-y-auto custom-scrollbar flex-1">
                     {children}
                 </div>
+                {footer && (
+                    <div className="pt-4 border-t border-primary/10 shrink-0 bg-transparent">
+                        {footer}
+                    </div>
+                )}
             </DialogContent>
         </Dialog>
     );
 };
+

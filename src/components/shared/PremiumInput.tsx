@@ -1,12 +1,11 @@
-import React from "react";
+import * as React from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/shared/Typography";
 import { cn } from "@/lib/utils";
-import { LucideIcon } from "lucide-react";
 
 interface PremiumInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
     label?: string;
-    icon?: LucideIcon;
+    icon?: React.ElementType;
     error?: string;
     containerClassName?: string;
 }

@@ -25,6 +25,7 @@ import { extractS3Url } from "@/lib/common";
 import { toast } from "sonner";
 import type { MarkedItem } from "@/lib/types/offer";
 import { storage } from "@/lib/storage";
+import { SocialLinksEditor, type SocialLink } from "@/components/offer/SocialLinksEditor";
 
 type PosterPageDraft = {
     id: string;
@@ -125,6 +126,7 @@ function PosterDesignerInner() {
                         if (offer.branches) {
                             setSelectedBranchIds(offer.branches.map((b: any) => String(b.id || b.branchId || b.branch_id)));
                         }
+                        setSocialLinks(offer.socialLinks || []);
                         toast.success("Draft design loaded from API successfully");
                     }
                     setIsDraftLoaded(true);
@@ -145,6 +147,7 @@ function PosterDesignerInner() {
     const [validFrom, setValidFrom] = useState<Date | undefined>(undefined);
     const [validTo, setValidTo] = useState<Date | undefined>(undefined);
     const [selectedBranchIds, setSelectedBranchIds] = useState<string[]>([]);
+    const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
     const [isActive, setIsActive] = useState(true);
     const [isPublishing, setIsPublishing] = useState(false);
     const [publishErrors, setPublishErrors] = useState<{ title?: string; validFrom?: string; validTo?: string; branch?: string }>({});
@@ -287,6 +290,7 @@ function PosterDesignerInner() {
                 status: 'draft',
                 isActive: false,
                 posters: posterData,
+                socialLinks: socialLinks,
                 isDraft: true,
                 type: "BUILDER",
                 rawDesigner: JSON.stringify(posterPages),
@@ -515,6 +519,7 @@ function PosterDesignerInner() {
                 status: isActive ? 'active' : 'paused',
                 isActive: isActive,
                 posters: posterData,
+                socialLinks: socialLinks,
                 isDraft: false,
                 type: "BUILDER",
                 rawDesigner: JSON.stringify(posterPages),
@@ -695,6 +700,51 @@ function PosterDesignerInner() {
                 onOpenChange={setShowPublishModal}
                 title="Publish Offer"
                 description="Give your campaign a name before publishing."
+                footer={
+                    <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center sm:justify-between w-full">
+                        <div className="flex items-center justify-between sm:justify-start gap-3">
+                            <div className="flex items-center gap-1.5">
+                                <div className={cn(
+                                    "w-2 h-2 rounded-full",
+                                    isActive ? "bg-[#1cc080]" : "bg-gray-400"
+                                )} />
+                                <span className={cn(
+                                    "text-[11px] font-bold uppercase tracking-wider",
+                                    isActive ? "text-slate-800" : "text-gray-500"
+                                )}>
+                                    {isActive ? "Active" : "Paused"}
+                                </span>
+                            </div>
+                            <StatusToggleButton status={isActive ? "active" : "paused"} onChange={(newStatus) => setIsActive(newStatus === "active")} />
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-2.5 sm:justify-end">
+                            <PremiumButton
+                                variant="outline"
+                                onClick={() => setShowPublishModal(false)}
+                                className="rounded-xl w-full sm:w-auto order-3 sm:order-1"
+                            >
+                                Cancel
+                            </PremiumButton>
+                            <PremiumButton
+                                onClick={handleSaveDraft}
+                                isLoading={isPublishing}
+                                className="rounded-xl bg-none bg-yellow-600 hover:bg-yellow-700 text-white shadow-lg shadow-yellow-600/20 border-0 w-full sm:w-auto order-2 sm:order-2"
+                                disabled={isPublishing}
+                            >
+                                Save Draft
+                            </PremiumButton>
+                            <PremiumButton
+                                onClick={handlePublishSubmit}
+                                isLoading={isPublishing}
+                                leftIcon={Send}
+                                className="rounded-xl w-full sm:w-auto order-1 sm:order-3"
+                                disabled={isPublishing}
+                            >
+                                {isPublishing ? "Publishing..." : "Publish"}
+                            </PremiumButton>
+                        </div>
+                    </div>
+                }
             >
                 <div className="space-y-5">
                     <PremiumInput
@@ -782,54 +832,12 @@ function PosterDesignerInner() {
                         )}
                     </div>
 
+                    <SocialLinksEditor socialLinks={socialLinks} onChange={setSocialLinks} />
+
                     <div className="p-4 rounded-xl bg-muted/50 border border-border/50 text-sm">
                         <div className="flex justify-between">
                             <span className="opacity-60">Total posters</span>
                             <span className="font-bold">{capturedPosters.length}</span>
-                        </div>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center sm:justify-between pt-4 border-t border-primary/10">
-                        <div className="flex items-center justify-between sm:justify-start gap-3">
-                            <div className="flex items-center gap-1.5">
-                                <div className={cn(
-                                    "w-2 h-2 rounded-full",
-                                    isActive ? "bg-[#1cc080]" : "bg-gray-400"
-                                )} />
-                                <span className={cn(
-                                    "text-[11px] font-bold uppercase tracking-wider",
-                                    isActive ? "text-slate-800" : "text-gray-500"
-                                )}>
-                                    {isActive ? "Active" : "Paused"}
-                                </span>
-                            </div>
-                            <StatusToggleButton status={isActive ? "active" : "paused"} onChange={(newStatus) => setIsActive(newStatus === "active")} />
-                        </div>
-                        <div className="flex flex-col sm:flex-row gap-2.5 sm:justify-end">
-                            <PremiumButton
-                                variant="outline"
-                                onClick={() => setShowPublishModal(false)}
-                                className="rounded-xl w-full sm:w-auto order-3 sm:order-1"
-                            >
-                                Cancel
-                            </PremiumButton>
-                            <PremiumButton
-                                onClick={handleSaveDraft}
-                                isLoading={isPublishing}
-                                className="rounded-xl bg-none bg-yellow-600 hover:bg-yellow-700 text-white shadow-lg shadow-yellow-600/20 border-0 w-full sm:w-auto order-2 sm:order-2"
-                                disabled={isPublishing}
-                            >
-                                Save Draft
-                            </PremiumButton>
-                            <PremiumButton
-                                onClick={handlePublishSubmit}
-                                isLoading={isPublishing}
-                                leftIcon={Send}
-                                className="rounded-xl w-full sm:w-auto order-1 sm:order-3"
-                                disabled={isPublishing}
-                            >
-                                {isPublishing ? "Publishing..." : "Publish"}
-                            </PremiumButton>
                         </div>
                     </div>
                 </div>
