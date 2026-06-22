@@ -413,12 +413,12 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
 
                     <div 
                         ref={similarCarouselRef}
-                        className="flex gap-2 sm:gap-3 md:gap-4 overflow-x-auto pb-4 scrollbar-hide px-0.5 snap-x snap-mandatory scroll-smooth"
+                        className="flex gap-1 overflow-x-auto pb-4 scrollbar-hide px-0.5 snap-x snap-mandatory scroll-smooth"
                     >
                         {similarOffers.map((o) => (
                             <div 
                                 key={o.id} 
-                                className="w-[calc((100%-1rem)/3)] sm:w-[calc((100%-1.5rem)/3)] md:w-[calc((100%-3rem)/4)] lg:w-[calc((100%-5rem)/6)] flex-shrink-0 snap-start"
+                                className="w-[calc((100%-0.5rem)/2)] sm:w-[calc((100%-0.75rem)/2)] md:w-[calc((100%-4rem)/5)] lg:w-[calc((100%-4rem)/5)] flex-shrink-0 snap-start"
                             >
                                 <OfferCard {...o} />
                             </div>

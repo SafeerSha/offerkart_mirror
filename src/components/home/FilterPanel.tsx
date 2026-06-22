@@ -35,6 +35,7 @@ interface FilterPanelProps {
   onSubcategoryChange?: (subcategories: string[]) => void;
   onSortChange?: (sort: string) => void;
   onFilterChange?: (filters: { category: string; subcategory: string[]; sort: string }) => void;
+  onClearFilters?: () => void;
 
   variant?: "inline" | "sidebar";
   className?: string;
@@ -48,6 +49,7 @@ const FilterPanel = ({
   onSubcategoryChange,
   onSortChange,
   onFilterChange,
+  onClearFilters,
   variant = "inline",
   className
 }: FilterPanelProps) => {
@@ -121,6 +123,10 @@ const FilterPanel = ({
   };
 
   const clearFilters = () => {
+    if (onClearFilters) {
+      onClearFilters();
+      return;
+    }
     if (onCategoryChange && onSubcategoryChange && onSortChange) {
       onCategoryChange("All");
       onSubcategoryChange([]);
@@ -178,7 +184,7 @@ const FilterPanel = ({
               </button>
             )}
           </div>
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 max-h-[320px] overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden scroll-smooth">
             {categories.map((cat) => (
               <div key={cat} className="space-y-1">
                 <button

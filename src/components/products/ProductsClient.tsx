@@ -110,6 +110,14 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
         setActiveFilters(prev => ({ ...prev, sort }));
     }, []);
 
+    const handleClearFilters = useCallback(() => {
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete("category");
+        params.delete("subcategory");
+        setActiveFilters(prev => ({ ...prev, sort: "latest" }));
+        router.push(`/products?${params.toString()}`);
+    }, [router, searchParams]);
+
     const fetchFilteredProducts = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -190,6 +198,7 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
                                     onCategoryChange={handleCategoryChange}
                                     onSubcategoryChange={handleSubcategoryChange}
                                     onSortChange={handleSortChange}
+                                    onClearFilters={handleClearFilters}
                                 />
                             </div>
                         </div>
@@ -225,6 +234,7 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
                                                 onCategoryChange={handleCategoryChange}
                                                 onSubcategoryChange={handleSubcategoryChange}
                                                 onSortChange={handleSortChange}
+                                                onClearFilters={handleClearFilters}
                                             />
                                         </div>
                                     </SheetContent>

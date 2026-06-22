@@ -124,6 +124,14 @@ export default function OffersClient({
         setActiveFilters(prev => ({ ...prev, sort }));
     }, []);
 
+    const handleClearFilters = useCallback(() => {
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete("category");
+        params.delete("subcategory");
+        setActiveFilters(prev => ({ ...prev, sort: "latest" }));
+        router.push(`/offers?${params.toString()}`);
+    }, [router, searchParams]);
+
     const getUserCoordinates = useCallback(async () => {
         if (userCoordinates) {
             return userCoordinates;
@@ -258,6 +266,7 @@ export default function OffersClient({
                                     onCategoryChange={handleCategoryChange}
                                     onSubcategoryChange={handleSubcategoryChange}
                                     onSortChange={handleSortChange}
+                                    onClearFilters={handleClearFilters}
                                 />
                             </div>
                         </div>
@@ -294,6 +303,7 @@ export default function OffersClient({
                                                 onCategoryChange={handleCategoryChange}
                                                 onSubcategoryChange={handleSubcategoryChange}
                                                 onSortChange={handleSortChange}
+                                                onClearFilters={handleClearFilters}
                                             />
                                         </div>
                                     </SheetContent>
