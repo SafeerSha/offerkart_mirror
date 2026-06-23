@@ -14,7 +14,6 @@ import {
     Heading, Text, PremiumCard, PremiumButton, AppModal, StatusToggleButton
 } from "@/components/shared";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
-import { ProductModal } from "@/components/shop-manager/ProductModal";
 
 import {
     Clock, Eye, Package, Plus, Search, Tag, Trash2, Calendar,
@@ -127,6 +126,7 @@ function SwipeableCard({ children, onEdit, onDelete, editTitle = "Edit", deleteT
 }
 
 function ShopProductsContent() {
+    const router = useRouter();
     const { data: session } = useSession();
     const isMobile = useIsMobile();
     const queryClient = useQueryClient();
@@ -134,8 +134,6 @@ function ShopProductsContent() {
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState<"all" | "active" | "paused" | "drafted">("all");
 
-    const [showAddProductModal, setShowAddProductModal] = useState(false);
-    const [productToEdit, setProductToEdit] = useState<any | null>(null);
     const [productToDelete, setProductToDelete] = useState<any | null>(null);
     const [previewLogo, setPreviewLogo] = useState<{ src: string; name: string } | null>(null);
     const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
@@ -195,60 +193,8 @@ function ShopProductsContent() {
     const { mutateAsync: deleteProductMutation } = useDeleteProduct();
     const { mutateAsync: toggleProductStatusMutation } = useToggleOfferProductStatus();
 
-    const handleCreateProduct = async (payload: any) => {
-        try {
-            const res = await createProductMutation({ payload, shopId: activeShopId || undefined });
-            if (res.success) {
-                toast.success("Product created successfully");
-                setShowAddProductModal(false);
-            } else {
-                throw new Error("Failed to create product");
-            }
-        } catch (err: any) {
-            console.error("Create product error:", err);
-            toast.error(`Failed to create product: ${err.message}`);
-        }
-    };
-
     const handleEditProduct = (product: any) => {
-        setProductToEdit({
-            id: product.id,
-            name: product.name || product.displayName || "",
-            categoryId: product.categoryId || null,
-            parentCategoryId: product.parentCategoryId ?? null,
-            subcategoryId: product.subcategoryId ?? null,
-            categoryObject: product.categoryObject ?? null,
-            category: product.category || null,
-            price: product.price ?? product.offerPrice ?? "",
-            originalPrice: product.originalPrice ?? "",
-            image: product.image || product.imageUrl || null,
-            description: product.description || product.displayDescription || "",
-            validFrom: product.validFrom ?? null,
-            validTo: product.validTo ?? null,
-            branchIds: product.branchIds || [],
-            status: product.status || (product.isActive ? "active" : "inactive"),
-            isHighlighted: product.isHighlighted,
-        });
-    };
-
-    const handleUpdateProduct = async (payload: any) => {
-        try {
-            if (!productToEdit) return;
-            const res = await updateProductMutation({
-                id: productToEdit.id,
-                payload,
-                shopId: activeShopId || undefined
-            });
-            if (res.success) {
-                toast.success("Product updated successfully");
-                setProductToEdit(null);
-            } else {
-                throw new Error("Failed to update product");
-            }
-        } catch (err: any) {
-            console.error("Update product error:", err);
-            toast.error(`Failed to update product: ${err.message}`);
-        }
+        router.push(`/shop-manager/products/edit/${product.id}`);
     };
 
     const handleDeleteProduct = async (product: any) => {
@@ -470,7 +416,7 @@ function ShopProductsContent() {
                             </button>
 
                             <PremiumButton
-                                onClick={() => setShowAddProductModal(true)}
+                                onClick={() => router.push("/shop-manager/products/add")}
                                 className="w-8 h-8 rounded-lg flex sm:hidden items-center justify-center shrink-0 animate-none"
                                 title="Add Product"
                             >
@@ -515,7 +461,7 @@ function ShopProductsContent() {
                             {isBulkMode ? "Cancel" : "Select"}
                         </button>
                         <PremiumButton
-                            onClick={() => setShowAddProductModal(true)}
+                            onClick={() => router.push("/shop-manager/products/add")}
                             className="rounded-lg h-7 px-3 text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1 shrink-0 self-start sm:self-auto"
                         >
                             <Plus className="w-3.5 h-3.5" /> Add Product
@@ -793,7 +739,7 @@ function ShopProductsContent() {
                                     )}
                                 </p>
                                 {allProductsList.length === 0 && (
-                                    <PremiumButton onClick={() => setShowAddProductModal(true)} className="rounded-xl shadow-lg shadow-primary/20 border-0 cursor-pointer">
+                                    <PremiumButton onClick={() => router.push("/shop-manager/products/add")} className="rounded-xl shadow-lg shadow-primary/20 border-0 cursor-pointer">
                                         Add Product
                                     </PremiumButton>
                                 )}
@@ -803,23 +749,7 @@ function ShopProductsContent() {
                 )}
             </div>
 
-            {showAddProductModal && (
-                <ProductModal
-                    open={showAddProductModal}
-                    onOpenChange={setShowAddProductModal}
-                    product={null}
-                    onSubmit={handleCreateProduct}
-                />
-            )}
 
-            {productToEdit && (
-                <ProductModal
-                    open={!!productToEdit}
-                    onOpenChange={(open) => !open && setProductToEdit(null)}
-                    product={productToEdit}
-                    onSubmit={handleUpdateProduct}
-                />
-            )}
 
             <AppModal
                 open={!!productToDelete}

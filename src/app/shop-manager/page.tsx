@@ -44,7 +44,6 @@ import { toast } from "sonner";
 
 // Local components
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
-import { ProductModal } from "@/components/shop-manager/ProductModal";
 
 // Hooks (barrel import)
 import { queryKeys } from "@/hooks/useApi";
@@ -263,8 +262,6 @@ function DashboardContent() {
     const { mutateAsync: toggleProductStatusMutation } = useToggleOfferProductStatus();
 
     // ================= LOCAL UI STATE =================
-    const [showAddProductModal, setShowAddProductModal] = useState(false);
-    const [productToEdit, setProductToEdit] = useState<any | null>(null);
     const [productToDelete, setProductToDelete] = useState<any | null>(null);
     const [dateFrom, setDateFrom] = useState<Date>(() => {
         const now = new Date();
@@ -374,62 +371,8 @@ function DashboardContent() {
         }
     };
 
-    const handleCreateProduct = async (payload: any) => {
-        try {
-            const res = await createProductMutation({ payload, shopId: activeShopId || undefined });
-            if (res.success) {
-                toast.success("Product created successfully");
-                setShowAddProductModal(false);
-            } else {
-                throw new Error("Failed to create product");
-            }
-        } catch (err: any) {
-            console.error("Create product error:", err);
-            toast.error(`Failed to create product: ${err.message}`);
-        }
-    };
-
     const handleEditProduct = (product: any) => {
-        // Use the already-fetched product data from useAllProducts — no extra API call needed
-        setProductToEdit({
-            id: product.id,
-            name: product.name || product.displayName || "",
-            categoryId: product.categoryId || null,
-            parentCategoryId: product.parentCategoryId ?? null,
-            subcategoryId: product.subcategoryId ?? null,
-            categoryObject: product.categoryObject ?? null,
-            category: product.category || null,
-            price: product.price ?? product.offerPrice ?? "",
-            originalPrice: product.originalPrice ?? "",
-            image: product.image || product.imageUrl || null,
-            description: product.description || product.displayDescription || "",
-            validFrom: product.validFrom ?? null,
-            validTo: product.validTo ?? null,
-            branchIds: product.branchIds || [],
-            status: product.status || (product.isActive ? "active" : "inactive"),
-            isHighlighted: product.isHighlighted,
-        });
-    };
-
-
-    const handleUpdateProduct = async (payload: any) => {
-        try {
-            if (!productToEdit) return;
-            const res = await updateProductMutation({
-                id: productToEdit.id,
-                payload,
-                shopId: activeShopId || undefined
-            });
-            if (res.success) {
-                toast.success("Product updated successfully");
-                setProductToEdit(null);
-            } else {
-                throw new Error("Failed to update product");
-            }
-        } catch (err: any) {
-            console.error("Update product error:", err);
-            toast.error(`Failed to update product: ${err.message}`);
-        }
+        router.push(`/shop-manager/products/edit/${product.id}`);
     };
 
     const handleDeleteProduct = async (product: any) => {
@@ -545,7 +488,7 @@ function DashboardContent() {
                         <PremiumButton
                             onClick={() => {
                                 if (shops.length > 0) {
-                                    setShowAddProductModal(true);
+                                    router.push("/shop-manager/products/add");
                                 } else {
                                     toast.error("Please create a shop profile first to add offers or products.");
                                 }
@@ -1283,7 +1226,7 @@ function DashboardContent() {
                                                         </SwipeableCard>
                                                     ))
                                                 ) : (
-                                                    <div className="col-span-full p-6 flex flex-col items-center justify-center bg-gray-50/50 rounded-2xl border-2 border-dashed border-gray-100 text-center"><div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center mb-4"><Package className="w-8 h-8 text-primary/20" /></div><p className="text-base font-bold text-gray-900">Your Catalog is Empty</p><p className="text-sm text-gray-500 max-w-xs mt-1 mb-4">Start adding products to showcase them to your customers.</p><PremiumButton onClick={() => setShowAddProductModal(true)} className="rounded-xl shadow-lg shadow-primary/20">Add Product<Plus className="w-4 h-4" /></PremiumButton></div>
+                                                    <div className="col-span-full p-6 flex flex-col items-center justify-center bg-gray-50/50 rounded-2xl border-2 border-dashed border-gray-100 text-center"><div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center mb-4"><Package className="w-8 h-8 text-primary/20" /></div><p className="text-base font-bold text-gray-900">Your Catalog is Empty</p><p className="text-sm text-gray-500 max-w-xs mt-1 mb-4">Start adding products to showcase them to your customers.</p><PremiumButton onClick={() => router.push("/shop-manager/products/add")} className="rounded-xl shadow-lg shadow-primary/20">Add Product<Plus className="w-4 h-4" /></PremiumButton></div>
                                                 )}
                                             </div>
 
@@ -1440,23 +1383,7 @@ function DashboardContent() {
                 </div>
             </AppModal>
 
-            {/* Product Add Modal */}
-            <ProductModal
-                open={showAddProductModal}
-                onOpenChange={setShowAddProductModal}
-                product={null}
-                onSubmit={handleCreateProduct}
-                availableBranches={branches}
-            />
 
-            {/* Product Edit Modal */}
-            <ProductModal
-                open={!!productToEdit}
-                onOpenChange={(open) => { if (!open) setProductToEdit(null); }}
-                product={productToEdit}
-                onSubmit={handleUpdateProduct}
-                availableBranches={branches}
-            />
 
             {/* Product Delete Modal */}
             <AppModal

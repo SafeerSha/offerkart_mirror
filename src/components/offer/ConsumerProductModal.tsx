@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import {
@@ -281,7 +281,19 @@ export const ConsumerProductModal = ({
 
     return (
         <Drawer open={open} onOpenChange={onOpenChange}>
-            <DrawerContent className="max-h-[92vh] border-none bg-white/90 dark:bg-zinc-950/90 backdrop-blur-xl rounded-t-[32px] overflow-hidden focus:outline-none">
+            <DrawerContent 
+                onPointerDownOutside={(e) => {
+                    if (isImageZoomed) {
+                        e.preventDefault();
+                    }
+                }}
+                onInteractOutside={(e) => {
+                    if (isImageZoomed) {
+                        e.preventDefault();
+                    }
+                }}
+                className="max-h-[92vh] border-none bg-white/90 dark:bg-zinc-950/90 backdrop-blur-xl rounded-t-[32px] overflow-hidden focus:outline-none"
+            >
                 {/* Drag Handle for Mobile */}
                 <div className="mx-auto my-3 h-1 w-12 rounded-full bg-zinc-300 dark:bg-zinc-800 md:hidden" />
 
@@ -304,14 +316,16 @@ export const ConsumerProductModal = ({
                         >
                             {activeItem.productImage ? (
                                 <>
-                                    <Image
-                                        src={activeItem.productImage}
-                                        alt={activeItem.name}
-                                        fill
-                                        className="object-contain p-6 transition-transform duration-500 group-hover/img:scale-105"
-                                        sizes="(max-width: 768px) 100vw, 400px"
-                                        unoptimized
-                                    />
+                                    <div className="absolute inset-2 md:inset-4">
+                                        <Image
+                                            src={activeItem.productImage}
+                                            alt={activeItem.name}
+                                            fill
+                                            className="object-contain transition-transform duration-500 group-hover/img:scale-105"
+                                            sizes="(max-width: 768px) 100vw, 400px"
+                                            unoptimized
+                                        />
+                                    </div>
                                     {/* Zoom Hover Overlay */}
                                     <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover/img:opacity-100 duration-300">
                                         <div className="bg-white/95 dark:bg-zinc-900/95 p-2.5 rounded-full shadow-lg border border-slate-200/40 dark:border-zinc-800/40 flex items-center gap-1.5 transform translate-y-2 group-hover/img:translate-y-0 transition-all duration-300">
@@ -471,31 +485,47 @@ export const ConsumerProductModal = ({
                 </div>
             </DrawerContent>
 
-            {/* High Scale Zoom Lightbox Overlay */}
+            {/* Right Slide-out Image Drawer */}
             {isImageZoomed && activeItem.productImage && mounted && typeof window !== "undefined" && createPortal(
-                <div 
-                    onClick={() => setIsImageZoomed(false)}
-                    className="fixed inset-0 bg-black/95 backdrop-blur-md flex items-center justify-center cursor-zoom-out animate-in fade-in-0 duration-300"
-                    style={{ zIndex: 999999 }}
-                >
-                    <button 
+                <div className="fixed inset-0 z-[999999] overflow-hidden flex justify-end pointer-events-auto">
+                    {/* Backdrop overlay */}
+                    <div
+                        className="absolute inset-0 bg-black/40 backdrop-blur-[1px] transition-opacity duration-300"
                         onClick={(e) => {
                             e.stopPropagation();
-                            setIsImageZoomed(false);
+                            setTimeout(() => {
+                                setIsImageZoomed(false);
+                            }, 0);
                         }}
-                        className="absolute top-6 right-6 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all border border-white/10"
-                    >
-                        <X className="w-5 h-5" />
-                    </button>
-                    <div 
-                        onClick={(e) => e.stopPropagation()}
-                        className="relative max-w-[90vw] max-h-[85vh] flex items-center justify-center animate-in scale-in-95 duration-200"
-                    >
-                        <img 
-                            src={activeItem.productImage} 
-                            alt={activeItem.name} 
-                            className="max-w-full max-h-[85vh] object-contain rounded-xl select-none shadow-2xl border border-white/5"
-                        />
+                        onPointerDown={(e) => e.stopPropagation()}
+                    />
+
+                    {/* Slide-out Drawer Panel */}
+                    <div className="relative h-full w-full max-w-md bg-white dark:bg-zinc-950 border-l border-slate-100 dark:border-zinc-800 shadow-2xl flex flex-col justify-center p-6 animate-in slide-in-from-right duration-300 ease-out">
+                        {/* Image Container */}
+                        <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800/40 p-4 flex items-center justify-center">
+                            <img
+                                src={activeItem.productImage}
+                                alt={activeItem.name}
+                                className="max-w-full max-h-full object-contain"
+                            />
+                        </div>
+
+                        {/* Close button at the bottom-right of the drawer */}
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setTimeout(() => {
+                                    setIsImageZoomed(false);
+                                }, 0);
+                            }}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            className="absolute bottom-6 right-6 p-3 rounded-full bg-slate-100 dark:bg-zinc-900 hover:bg-slate-200 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300 transition-all active:scale-95 duration-150 shadow-md"
+                            title="Close preview"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
                     </div>
                 </div>,
                 document.body
