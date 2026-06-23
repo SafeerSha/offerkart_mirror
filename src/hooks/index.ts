@@ -6,7 +6,7 @@ export {
   useMyShops, useBranches, useAllOffers, useAllProducts,
   useDeleteOffer, useToggleOfferStatus, useCreateProduct,
   useUpdateProduct, useDeleteProduct, useToggleOfferProductStatus,
-  useCategories, useSubcategories
+  useCategories, useSubcategories, useProductDetails
 } from './useApi';
 export { useIsMobile } from './use-mobile';
 export { useCategoryHierarchy } from './useCategoryHierarchy';
