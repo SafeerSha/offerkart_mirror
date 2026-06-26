@@ -1,10 +1,8 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 
-// Check if Upstash is configured
 const hasUpstashConfig = !!process.env.UPSTASH_REDIS_REST_URL && !!process.env.UPSTASH_REDIS_REST_TOKEN;
 
-// Initialize Redis only if config is present, otherwise fallback to null
 export const redis = hasUpstashConfig 
   ? new Redis({
       url: process.env.UPSTASH_REDIS_REST_URL!,
@@ -12,7 +10,6 @@ export const redis = hasUpstashConfig
     })
   : null;
 
-// Create a new ratelimiter, that allows 50 requests per 10 seconds
 export const rateLimit = redis 
   ? new Ratelimit({
       redis,
@@ -22,10 +19,6 @@ export const rateLimit = redis
     })
   : null;
 
-/**
- * Helper to check rate limit for a given identifier (usually IP).
- * If Redis is not configured, it bypasses the limit with a warning.
- */
 export async function checkRateLimit(identifier: string) {
   if (!rateLimit) {
     console.warn("Upstash Redis not configured. Rate limiting is bypassed.");
