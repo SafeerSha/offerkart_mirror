@@ -215,7 +215,7 @@ function CreateOfferContent() {
             if (targetIndex !== -1) {
                 const updatedTarget = { ...allPosters[targetIndex] };
                 const newPostersList = [...(updatedTarget.posters || []), ...posterData];
-                updatedTarget.posters = newPostersList.map((p, i) => ({ ...p, order: i + 1 }));
+                updatedTarget.posters = newPostersList.map((p, i) => ({ ...p, displayOrder: i + 1 }));
 
                 try {
                     let shopId = session?.shopId ?? (session?.user as any)?.shopId;
@@ -323,7 +323,7 @@ function CreateOfferContent() {
             let allPosters = existing || [];
 
             let finalPosters = isUpdateMode ? [...existingPosters, ...posterData] : posterData;
-            finalPosters = finalPosters.map((p, i) => ({ ...p, order: i + 1 }));
+            finalPosters = finalPosters.map((p, i) => ({ ...p, displayOrder: i + 1 }));
 
             if (isUpdateMode && editBatchId) {
                 allPosters = allPosters.filter(o => o.batchId !== editBatchId);
@@ -430,7 +430,7 @@ function CreateOfferContent() {
             let allPosters = existing || [];
 
             let finalPosters = isUpdateMode ? [...existingPosters, ...posterData] : posterData;
-            finalPosters = finalPosters.map((p, i) => ({ ...p, order: i + 1 }));
+            finalPosters = finalPosters.map((p, i) => ({ ...p, displayOrder: i + 1 }));
 
             if (isUpdateMode && editBatchId) {
                 allPosters = allPosters.filter(o => o.batchId !== editBatchId);
