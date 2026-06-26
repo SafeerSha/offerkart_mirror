@@ -21,9 +21,8 @@ export interface Poster {
     id?: string;
     posterSrc: string;
     type: PosterType;
-    order?: number;
+    displayOrder?: number;
     markedItems?: MarkedItem[];
-    // Legacy fields
     title?: string;
     file?: File;
     previewUrl?: string;
@@ -31,7 +30,6 @@ export interface Poster {
 }
 
 export interface Offer {
-    // New Listing format fields
     offerId?: number;
     title?: string;
     postedAt?: number | string;
@@ -45,7 +43,6 @@ export interface Offer {
         branchName: string;
     }[];
     
-    // Core fields used in creation/editing
     description?: string;
     isFeatured?: boolean;
     batchId?: string;
@@ -54,20 +51,16 @@ export interface Offer {
     validFrom?: string;
     validTo?: string;
     
-    // Branch info (legacy/creation)
     branchIds?: (number | string)[];
     branchNames?: string[];
     branchName?: string;
     branchCity?: string;
     
-    // Metadata
     createdAt?: string;
     lastEdited?: string;
     
-    // Posters
     posters?: Poster[];
     
-    // Legacy/optional fields
     id?: number | string;
     shopName?: string;
     offerName?: string;

@@ -47,7 +47,7 @@ interface EditPoster {
     posterSrc: string;
     type: "just_post" | "marked_poster" | "unclassified";
     markedItems?: any[];
-    order?: number;
+    displayOrder?: number;
 }
 
 // ─── Page wrapper ─────────────────────────────────────────────────────────────
@@ -366,7 +366,7 @@ function EditOfferContent() {
                     return {
                         posterSrc: s3Url,
                         type: poster.type,
-                        order: i + 1,
+                        displayOrder: i + 1,
                         // STRICT WHITE-LIST: Rebuild markedItems from scratch to omit ALL DB metadata
                         markedItems: (poster.markedItems || []).map((item: any) => ({
                             name: item.name,

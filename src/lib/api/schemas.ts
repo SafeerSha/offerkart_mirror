@@ -24,7 +24,7 @@ export const PosterSchema = z.object({
   id: z.string().optional(),
   posterSrc: z.string(),
   type: z.enum([PosterType.JUST_POST, PosterType.MARKED_POSTER, PosterType.UNCLASSIFIED]),
-  order: z.number().optional(),
+  displayOrder: z.number().optional(),
   markedItems: z.array(MarkedItemSchema).optional(),
   title: z.string().optional(),
 });

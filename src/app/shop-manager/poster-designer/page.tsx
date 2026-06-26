@@ -269,7 +269,7 @@ function PosterDesignerInner() {
                     id: crypto.randomUUID(),
                     posterSrc: "", // Skip S3 upload for drafts
                     type: "marked_poster" as const,
-                    order: index + 1,
+                    displayOrder: index + 1,
                     markedItems: cp.markedItems,
                 };
             });
@@ -498,7 +498,7 @@ function PosterDesignerInner() {
                         id: crypto.randomUUID(),
                         posterSrc: uploadedUrl,
                         type: "marked_poster" as const,
-                        order: index + 1,
+                        displayOrder: index + 1,
                         markedItems: cp.markedItems,
                     };
                 })
@@ -535,7 +535,7 @@ function PosterDesignerInner() {
                     const allPosters = existing || [];
                     allPosters.push({
                         ...offerPayload,
-                        posters: offerPayload.posters.map((p, idx) => ({ ...p, order: idx + 1 })),
+                        posters: offerPayload.posters.map((p, idx) => ({ ...p, displayOrder: idx + 1 })),
                     });
                     await storage.setItem("markedPosters", allPosters);
                 } catch (storageErr) {
