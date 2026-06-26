@@ -112,7 +112,7 @@ function mapUserOfferToOffer(item: UserOfferApiItem): Offer {
         description: `${item.offerName} from ${item.shopName}`,
         isActive: true,
         status: "active",
-        shopId: item.shopId,
+        shopId: (item as any).shop?.id || item.shopId || (item as any).shop_id,
     };
 }
 
@@ -213,7 +213,7 @@ export async function getFeaturedShops() {
             for (const offer of result.data) {
                 if (offer.shopName && !shopsMap.has(offer.shopName)) {
                     shopsMap.set(offer.shopName, {
-                        id: offer.shopId || offer.id,
+                        id: (offer as any).shop?.id || offer.shopId || (offer as any).shop_id || offer.id,
                         name: offer.shopName,
                         offer: offer.offerName,
                         image: offer.image || DEFAULT_USER_OFFER_IMAGE,
@@ -239,13 +239,15 @@ export async function getFeaturedShops() {
 export async function getFeaturedOffers() {
     try {
         const response = await backend.get<any>(ENDPOINTS.USER_OFFER.SHOPS, {
-            next: { tags: [CACHE_TAGS.SHOPS] }
+            cache: "no-store",
+            next: { revalidate: 0 }
         });
         if (response && response.success && Array.isArray(response.data)) {
+            console.log("[Featured Offers Debug] Raw response:", JSON.stringify(response.data, null, 2));
             return {
                 success: true,
                 data: response.data.map((shop: any) => ({
-                    id: shop.id,
+                    id: shop.shop?.id || shop.shop_id || shop.shopId || shop.id,
                     name: shop.shop_name,
                     logo: shop.logo_url || null
                 }))
@@ -262,7 +264,7 @@ export async function getFeaturedOffers() {
             for (const offer of result.data) {
                 if (offer.shopName && !offersMap.has(offer.shopName)) {
                     offersMap.set(offer.shopName, {
-                        id: offer.shopId || offer.id,
+                        id: (offer as any).shop?.id || offer.shopId || (offer as any).shop_id || offer.id,
                         name: offer.shopName,
                         logo: offer.shopLogo || offer.image || DEFAULT_USER_OFFER_IMAGE
                     });

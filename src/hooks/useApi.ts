@@ -363,7 +363,10 @@ export function useCategories() {
   return useQuery({
     queryKey: queryKeys.categories,
     queryFn: getCategories,
-    staleTime: 30 * 60 * 1000, // 30 minutes, categories rarely change
+    staleTime: 24 * 60 * 60 * 1000, // 24 hours
+    gcTime: 24 * 60 * 60 * 1000,    // 24 hours
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 }
 
@@ -372,6 +375,9 @@ export function useSubcategories(categoryId: string | number | null) {
     queryKey: categoryId ? queryKeys.subcategories(categoryId) : ["subcategories", "none"],
     queryFn: () => getSubCategories(categoryId!),
     enabled: !!categoryId,
-    staleTime: 30 * 60 * 1000,
+    staleTime: 24 * 60 * 60 * 1000, // 24 hours
+    gcTime: 24 * 60 * 60 * 1000,    // 24 hours
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 }

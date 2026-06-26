@@ -110,14 +110,14 @@ export default function OffersClient({
             params.set("category", category);
         }
         params.delete("subcategory"); // Clear subcategory when category changes
-        router.push(`/offers?${params.toString()}`);
+        router.push(`/products?${params.toString()}`);
     }, [router, searchParams]);
 
     const handleSubcategoryChange = useCallback((subcategory: string[]) => {
         const params = new URLSearchParams(searchParams.toString());
         params.delete("subcategory");
         subcategory.forEach(sub => params.append("subcategory", sub));
-        router.push(`/offers?${params.toString()}`);
+        router.push(`/products?${params.toString()}`);
     }, [router, searchParams]);
 
     const handleSortChange = useCallback((sort: string) => {
