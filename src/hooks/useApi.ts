@@ -1,11 +1,12 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import { getMyShops, getShops, getShopDetails, addShop, updateShop } from "@/lib/api/shop";
 import { getBranches, addBranch, updateBranch, deleteBranch, getBranchDetails } from "@/lib/api/branch";
 import { createOffer, updateOffer, deleteOffer, getAllOffers, getOfferById, getFeaturedShops, getFeaturedOffers, getPaginatedOffers, toggleOfferStatus } from "@/lib/api/offers";
-import { getAllProducts, createProduct, updateProduct, deleteProduct } from "@/lib/api/products";
+import { getAllProducts, createProduct, updateProduct, deleteProduct, getUserProducts } from "@/lib/api/products";
 import { getOfferProductById, toggleOfferProductStatus } from "@/lib/api/offerproduct";
 import { s3Api } from "@/lib/api/s3";
 import { getCategories, getSubCategories } from "@/lib/api/categories";
+import { cleanupOfferImages, cleanupProductImages } from "@/lib/imageUtils";
 
 
 // Query Keys
@@ -25,10 +26,12 @@ export const queryKeys = {
   featuredShops: ["featuredShops"] as const,
   featuredOffers: ["featuredOffers"] as const,
   paginatedOffers: (page: number, limit: number) => ["paginatedOffers", page, limit] as const,
+  infiniteUserOffers: (filters: any) => ["infiniteUserOffers", filters] as const,
 
   // Product keys
   allProducts: (shopId?: string) => ["allProducts", shopId] as const,
   productDetails: (id: string) => ["productDetails", id] as const,
+  userProductsFiltered: (filters: any) => ["userProductsFiltered", filters] as const,
 
   // Category keys
   categories: ["categories"] as const,
@@ -181,6 +184,22 @@ export function usePaginatedOffers(page: number = 1, limit: number = 8) {
   });
 }
 
+export function useInfiniteUserOffers(limit: number = 8, filters: any = {}) {
+  return useInfiniteQuery({
+    queryKey: queryKeys.infiniteUserOffers(filters),
+    queryFn: async ({ pageParam = 1 }) => {
+      const result = await getPaginatedOffers(pageParam as number, limit, filters);
+      if (!result.success) throw new Error(result.error || "Failed to load offers");
+      return result;
+    },
+    getNextPageParam: (lastPage: any, pages) => {
+      return lastPage.hasMore ? (lastPage.page || pages.length) + 1 : undefined;
+    },
+    initialPageParam: 1,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useCreateOffer() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -206,9 +225,12 @@ export function useUpdateOffer() {
 export function useDeleteOffer() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, shopId }: { id: string; shopId?: string }) => deleteOffer(id, shopId),
-    onSuccess: (_, { shopId }) => {
+    mutationFn: ({ id, shopId, offer }: { id: string; shopId?: string; offer?: any }) => deleteOffer(id, shopId),
+    onSuccess: (_, { shopId, offer }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.allOffers(shopId) });
+      if (offer) {
+        cleanupOfferImages(offer).catch(err => console.error("Failed to cleanup offer images:", err));
+      }
     },
   });
 }
@@ -291,6 +313,20 @@ export function useProductDetails(id: string) {
   });
 }
 
+export function useUserProductsFiltered(filters: any) {
+  return useQuery({
+    queryKey: queryKeys.userProductsFiltered(filters),
+    queryFn: async () => {
+      const res = await getUserProducts(filters);
+      if (res && res.success && res.data && res.data.data) {
+        return res.data.data;
+      }
+      return [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useCreateProduct() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -315,9 +351,12 @@ export function useUpdateProduct() {
 export function useDeleteProduct() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, shopId }: { id: string; shopId?: string }) => deleteProduct(id),
-    onSuccess: (_, { shopId }) => {
+    mutationFn: ({ id, shopId, product }: { id: string; shopId?: string; product?: any }) => deleteProduct(id),
+    onSuccess: (_, { shopId, product }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.allProducts(shopId) });
+      if (product) {
+        cleanupProductImages(product).catch(err => console.error("Failed to cleanup product images:", err));
+      }
     },
   });
 }

@@ -66,7 +66,10 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
     } else {
       params.set("shopId", String(shopId));
     }
-    router.push(`${pathname}?${params.toString()}`);
+    
+    // If we are on the home page, redirect to the offers page with the shopId filter
+    const targetPath = pathname === "/" ? "/offers" : pathname;
+    router.push(`${targetPath}?${params.toString()}`);
   };
 
   return (

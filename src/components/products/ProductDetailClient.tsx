@@ -326,7 +326,7 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                                 <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest bg-orange-50 px-3 py-1 rounded-md border border-orange-100/50">
                                     {displayCategoryName}
                                 </span>
-                                <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight leading-tight pt-1">
+                                <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight leading-tight pt-1 break-words">
                                     {product.name}
                                 </h1>
                             </div>
@@ -356,7 +356,7 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                                             SAVE {discountPercent}%
                                         </span>
                                         <span className="text-xs font-bold text-green-700">
-                                            You save ₹{savingsAmount.toLocaleString()} on this purchase!
+                                            You save ₹{savingsAmount.toLocaleString()} on this offer
                                         </span>
                                     </div>
                                 )}

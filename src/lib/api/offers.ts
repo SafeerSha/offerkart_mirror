@@ -206,37 +206,7 @@ export async function deleteOffer(id: string, shopId?: string) {
 
 export async function getFeaturedShops() {
     try {
-        // Primary: fetch shops endpoint which already has logo_url
-        const shopsResponse = await backend.get<any>(ENDPOINTS.USER_OFFER.SHOPS, {
-            cache: "no-store",
-            next: { revalidate: 0 }
-        });
-
-        let shops: Shops[] = [];
-        if (shopsResponse && shopsResponse.success && shopsResponse.data) {
-            const apiData = shopsResponse.data;
-            shops = Array.isArray(apiData.data) ? apiData.data : (Array.isArray(apiData) ? apiData : []);
-        }
-
-        if (shops.length > 0) {
-            // Build featured shops directly from shop data — no need to cross-reference all offers
-            const featuredShops = shops.map((shop: Shops) => ({
-                id: shop.id,
-                name: shop.shop_name,
-                offer: "Special Offers Available",
-                image: shop.logo_url || DEFAULT_USER_OFFER_IMAGE,
-                badge: "Featured",
-                rating: 4.5
-            }));
-
-            return {
-                success: true,
-                data: featuredShops.slice(0, 10),
-            };
-        }
-
-        // Fallback: if shops endpoint returned empty, aggregate from a small offers fetch
-        const offersResult = await fetchUserOffersPage({ page: 1, limit: 10 });
+        const offersResult = await fetchUserOffersPage({ page: 1, limit: 100 });
         const offers = (offersResult && offersResult.success && Array.isArray(offersResult.data))
             ? offersResult.data
             : [];
