@@ -34,3 +34,9 @@ export interface Shop {
     created_at: string;
     updated_at: string;
 }
+
+export interface Shops {
+    id: number;
+    shop_name: string;
+    logo_url: string | null;
+}

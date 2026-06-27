@@ -6,7 +6,7 @@ import { getPaginatedOffers } from "@/lib/api/offers";
 import OfferGrid from "@/components/home/OfferGrid";
 import FilterPanel from "@/components/home/FilterPanel";
 import FeaturedOffers from "@/components/home/FeaturedOffers";
-import { Loader2, Filter, SlidersHorizontal } from "lucide-react";
+import { Loader2, Filter, SlidersHorizontal, AlertTriangle } from "lucide-react";
 import {
     Sheet,
     SheetContent,
@@ -64,6 +64,7 @@ export default function OffersClient({
     const [hasMore, setHasMore] = useState(hasMoreInitial);
     const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
     const [userCoordinates, setUserCoordinates] = useState<UserCoordinates | null>(null);
+    const [fetchError, setFetchError] = useState<string | null>(null);
 
     const [activeFilters, setActiveFilters] = useState<{
         category: string;
@@ -188,22 +189,41 @@ export default function OffersClient({
                 throw new Error(result.error || "Failed to load offers");
             }
 
-            let processedData = result.data;
-            const supportsCategoryFilter = processedData.some((offer) => offer.category && offer.category !== "Offers");
-            const supportsSubcategoryFilter = processedData.some((offer) => Boolean((offer as any).subcategory));
+            const serverData = result.data;
 
-            if (activeFilters.category !== "All" && supportsCategoryFilter) {
-                processedData = processedData.filter(o => o.category === activeFilters.category);
-            }
-            if (activeFilters.subcategory.length > 0 && supportsSubcategoryFilter) {
-                processedData = processedData.filter(o => activeFilters.subcategory.includes((o as any).subcategory || ""));
+            // TODO: Category/subcategory filtering should ideally be server-side.
+            // The user/offer API currently doesn't support these params,
+            // so we filter client-side as a temporary workaround.
+            let filteredData = serverData;
+            const hasClientFilters = activeFilters.category !== "All" || activeFilters.subcategory.length > 0;
+
+            if (hasClientFilters) {
+                if (activeFilters.category !== "All") {
+                    const hasCategoryData = serverData.some((offer) => offer.category && offer.category !== "Offers");
+                    if (hasCategoryData) {
+                        filteredData = filteredData.filter(o => o.category === activeFilters.category);
+                    }
+                }
+                if (activeFilters.subcategory.length > 0) {
+                    const hasSubcategoryData = serverData.some((offer) => Boolean((offer as any).subcategory));
+                    if (hasSubcategoryData) {
+                        filteredData = filteredData.filter(o =>
+                            activeFilters.subcategory.includes((o as any).subcategory || "")
+                        );
+                    }
+                }
             }
 
-            setOffers(prev => isInitial ? processedData : [...prev, ...processedData]);
-            setHasMore(result.hasMore);
+            setOffers(prev => isInitial ? filteredData : [...prev, ...filteredData]);
+            // When client-side filters are active, we can't reliably determine "hasMore"
+            // from the server's pagination since we're discarding items locally
+            setHasMore(hasClientFilters ? (result.hasMore && filteredData.length > 0) : result.hasMore);
             setPage(targetPage);
+            setFetchError(null);
         } catch (error) {
             console.error("Failed to fetch offers:", error);
+            if (isInitial) setOffers([]);
+            setFetchError("Failed to load offers. Please try again.");
         } finally {
             setIsLoading(false);
             setIsFetchingNextPage(false);
@@ -402,6 +422,24 @@ export default function OffersClient({
                         </div>
 
                         <OfferGrid isLoading={isLoading} offers={offers} disablePagination={true} columns={5} />
+
+                        {fetchError && !isLoading && offers.length === 0 && (
+                            <div className="flex flex-col items-center justify-center py-16 gap-4">
+                                <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center">
+                                    <AlertTriangle className="w-7 h-7 text-red-400" />
+                                </div>
+                                <div className="text-center">
+                                    <p className="text-sm font-semibold text-gray-700 mb-1">{fetchError}</p>
+                                    <p className="text-xs text-gray-400">Check your connection and try again</p>
+                                </div>
+                                <button
+                                    onClick={() => fetchMoreOffers(true)}
+                                    className="px-5 py-2 rounded-full bg-orange-500 text-white text-xs font-bold hover:bg-orange-600 active:scale-95 transition-all shadow-lg shadow-orange-500/20"
+                                >
+                                    Retry
+                                </button>
+                            </div>
+                        )}
 
                         <div id="scroll-trigger" className="w-full py-12 flex items-center justify-center">
                             {isFetchingNextPage && (

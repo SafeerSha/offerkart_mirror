@@ -1,10 +1,10 @@
-import { backend, type BackendRequestOptions } from './backendClient';
+import { backend, type BackendRequestOptions, unwrapApiEnvelope } from './backendClient';
 import { ENDPOINTS } from './endpoints';
 import { OfferProductPayload } from '../types/product';
 import { updateOfferProduct, getAllOfferProducts, deleteOfferProduct } from './offerproduct';
 import { CACHE_TAGS } from './cache-tags';
 import { getUserOfferProducts } from './userOffersService';
-import { FEATURED_OFFERS } from './mockData';
+
 
 export function mapUserProductToProduct(item: any): any {
     if (!item) return null;
@@ -18,14 +18,14 @@ export function mapUserProductToProduct(item: any): any {
             : 0);
 
     const shopName = item.shop?.shop_name || item.shop?.name || item.shopName || "Store Partner";
-    const featuredOffer = FEATURED_OFFERS.find((fo: any) => fo.name.toLowerCase() === shopName.toLowerCase());
-    const shopLogo = item.shop?.logo_url || item.shop?.logo || item.shopLogo || item.logoUrl || (featuredOffer ? featuredOffer.logo : null);
+    const shopLogo = item.shop?.logo_url || item.shop?.logo || item.shopLogo || item.logoUrl || null;
 
     return {
         id: item.id,
         name: item.displayName || item.name || "Unnamed Product",
         shopName,
         shopLogo,
+        shopId: item.shop?.id || item.shopId || item.shop_id || null,
         price: finalOfferPrice,
         originalPrice: finalOriginalPrice,
         savingPercentage: finalSavingPercentage,
@@ -67,11 +67,9 @@ export async function getAllProducts(
 
     try {
         // Try to fetch from backend API first
-        console.log(`[API] Fetching products for shopId: ${shopId}`);
         const backendRes = await getAllOfferProducts(shopId, cacheOptions);
         
         if (backendRes.success && backendRes.data) {
-            console.log(`[API] Successfully fetched products. Count: ${Array.isArray(backendRes.data) ? backendRes.data.length : (backendRes.data as any).Count || 'unknown'}`);
             // Backend returns { value: [...], Count: N } envelope
             const rawData = backendRes.data;
             const items: any[] = Array.isArray(rawData)
@@ -80,58 +78,23 @@ export async function getAllProducts(
                     ? (rawData as any).value
                     : [];
 
+            // Use shared mapper, then extend with business-specific fields
             const backendProducts = items.map((item: any) => {
-                const finalOriginalPrice = item.originalPrice !== undefined ? item.originalPrice : (item.price !== undefined ? item.price : 0);
-                const finalOfferPrice = item.offerPrice !== undefined ? item.offerPrice : (item.price !== undefined ? item.price : 0);
-                const finalSavingPercentage = item.savingPercentage !== undefined 
-                    ? item.savingPercentage 
-                    : (finalOriginalPrice && finalOfferPrice && finalOriginalPrice > finalOfferPrice 
-                        ? Math.round(((finalOriginalPrice - finalOfferPrice) / finalOriginalPrice) * 100) 
-                        : 0);
-                const shopName = item.shop?.shop_name || item.shop?.name || item.shopName || "Store Partner";
-                const featuredOffer = FEATURED_OFFERS.find((fo: any) => fo.name.toLowerCase() === shopName.toLowerCase());
-                const shopLogo = item.shop?.logo_url || item.shop?.logo || item.shopLogo || item.logoUrl || (featuredOffer ? featuredOffer.logo : null);
+                const base = mapUserProductToProduct(item);
                 return {
-                    id: item.id,
-                    name: item.displayName || item.name,
-                    shopName,
-                    shopLogo,
-                    price: finalOfferPrice,
-                    originalPrice: finalOriginalPrice,
-                    savingPercentage: finalSavingPercentage,
-                    image: item.imageUrl || null,
-                    // Use nested category name if available, else fallback to categoryId string
-                    category: item.category?.name || "Product",
-                    categoryId: item.categoryId,
-                    // Support both legacy object structures and new api structure {id, parentId, level}
+                    ...base,
+                    // Business-specific fields not in the shared mapper
                     parentCategoryId: item.category?.parentId ?? item.category?.categoryId ?? null,
                     subcategoryId: (item.category?.level === 2 ? item.category?.id : item.subcategoryId) ?? null,
                     categoryObject: item.category,
-                    description: item.displayDescription || "",
-                    specifications: [
-                        { label: "Category", value: item.category?.name || "Product" },
-                        { label: "Status", value: item.isHighlighted ? "Featured" : "Standard" }
-                    ],
-                    images: [item.imageUrl],
-                    rating: 5,
-                    reviews: 0,
-                    // Backend returns offerBranches: [{ branchId, branch: {...} }]
                     branchIds: item.offerBranches?.map((ob: any) => String(ob.branchId)) ?? [],
                     isHighlighted: item.isHighlighted,
                     isActive: item.isActive,
                     status: item.isActive ? "active" : "inactive",
                     currencyId: item.currencyId,
-                    validFrom: item.validFrom ?? null,
-                    validTo: item.validTo ?? null,
-                    offerId: item.offerId || item.offer_id || null,
-                    daysLeft: item.daysLeft !== undefined ? item.daysLeft : null,
                 };
             });
             return backendProducts;
-        } else if (!backendRes.success) {
-            console.warn(`[API] Backend products fetch failed for shopId: ${shopId}. Error: ${backendRes.error}`);
-        } else {
-            console.warn(`[API] Backend products fetch returned no data for shopId: ${shopId}`);
         }
     } catch (error) {
         console.error(`[API] Critical error fetching products for shopId: ${shopId}:`, error);
@@ -276,10 +239,7 @@ export async function getUserProducts(query: {
     }
 
     const result = response;
-    let apiData = result.data;
-    if (apiData && typeof apiData === "object" && apiData.success !== undefined) {
-        apiData = apiData.data;
-    }
+    const apiData = unwrapApiEnvelope(result.data);
 
     let productsArray: any[] = [];
     let pagination: any = null;

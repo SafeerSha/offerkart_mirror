@@ -1,5 +1,6 @@
 import { Offer, OfferPayload, MarkedItem } from "../types/offer";
-import { backend, BackendRequestOptions } from "./backendClient";
+import { Shops } from "../types/shop";
+import { backend, BackendRequestOptions, unwrapApiEnvelope } from "./backendClient";
 import { ENDPOINTS } from "./endpoints";
 import { CACHE_TAGS } from "./cache-tags";
 import { getUserOffersList, getUserOfferDetails } from "./userOffersService";
@@ -168,10 +169,8 @@ async function fetchUserOffersPage({
 
     const result = response.data;
     
-    // Support both wrapped (envelope) and unwrapped api data payloads
-    const apiData = (result && typeof result === "object" && result.data && typeof result.data === "object" && !Array.isArray(result.data))
-        ? result.data
-        : result;
+    // Unwrap doubly-nested API envelope if present
+    const apiData = unwrapApiEnvelope(result);
 
     const offersArray = Array.isArray(apiData.data) ? apiData.data : [];
     const mappedOffers = offersArray.map(mapUserOfferToOffer);
@@ -207,10 +206,44 @@ export async function deleteOffer(id: string, shopId?: string) {
 
 export async function getFeaturedShops() {
     try {
-        const result = await fetchUserOffersPage({ page: 1, limit: 100 });
-        if (result.success && result.data) {
+        // Primary: fetch shops endpoint which already has logo_url
+        const shopsResponse = await backend.get<any>(ENDPOINTS.USER_OFFER.SHOPS, {
+            cache: "no-store",
+            next: { revalidate: 0 }
+        });
+
+        let shops: Shops[] = [];
+        if (shopsResponse && shopsResponse.success && shopsResponse.data) {
+            const apiData = shopsResponse.data;
+            shops = Array.isArray(apiData.data) ? apiData.data : (Array.isArray(apiData) ? apiData : []);
+        }
+
+        if (shops.length > 0) {
+            // Build featured shops directly from shop data — no need to cross-reference all offers
+            const featuredShops = shops.map((shop: Shops) => ({
+                id: shop.id,
+                name: shop.shop_name,
+                offer: "Special Offers Available",
+                image: shop.logo_url || DEFAULT_USER_OFFER_IMAGE,
+                badge: "Featured",
+                rating: 4.5
+            }));
+
+            return {
+                success: true,
+                data: featuredShops.slice(0, 10),
+            };
+        }
+
+        // Fallback: if shops endpoint returned empty, aggregate from a small offers fetch
+        const offersResult = await fetchUserOffersPage({ page: 1, limit: 10 });
+        const offers = (offersResult && offersResult.success && Array.isArray(offersResult.data))
+            ? offersResult.data
+            : [];
+
+        if (offers.length > 0) {
             const shopsMap = new Map();
-            for (const offer of result.data) {
+            for (const offer of offers) {
                 if (offer.shopName && !shopsMap.has(offer.shopName)) {
                     shopsMap.set(offer.shopName, {
                         id: (offer as any).shop?.id || offer.shopId || (offer as any).shop_id || offer.id,
@@ -242,12 +275,13 @@ export async function getFeaturedOffers() {
             cache: "no-store",
             next: { revalidate: 0 }
         });
-        if (response && response.success && Array.isArray(response.data)) {
-            console.log("[Featured Offers Debug] Raw response:", JSON.stringify(response.data, null, 2));
+        if (response && response.success && response.data) {
+            const apiData = response.data;
+            const shops: Shops[] = Array.isArray(apiData.data) ? apiData.data : (Array.isArray(apiData) ? apiData : []);
             return {
                 success: true,
-                data: response.data.map((shop: any) => ({
-                    id: shop.shop?.id || shop.shop_id || shop.shopId || shop.id,
+                data: shops.map((shop) => ({
+                    id: shop.id,
                     name: shop.shop_name,
                     logo: shop.logo_url || null
                 }))
@@ -404,37 +438,47 @@ export async function getUserOfferById(
     id: string | number,
     cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">
 ) {
-    let detailData: any = null;
+    // Primary path: fetch the detail endpoint directly
     try {
         const response = await backend.get<any>(ENDPOINTS.USER_OFFER.DETAILS(id), {
             next: { tags: [CACHE_TAGS.OFFERS, CACHE_TAGS.OFFER(id)] },
             ...cacheOptions,
         });
         if (response && response.success && response.data) {
-            detailData = response.data;
+            const detailData = response.data;
+            // Support both wrapped (envelope) and unwrapped api data payloads
+            const actualDetail = unwrapApiEnvelope(detailData);
+            return {
+                success: true,
+                data: mapUserOfferDetailToOffer(actualDetail, null),
+            };
         }
     } catch (err) {
         console.warn(`Direct user offer lookup for ID ${id} failed:`, err);
     }
 
-    const allOffersResult = await getAllUserOffers({ limit: 100 });
-    const listingOffer = allOffersResult.data?.find((item) => String(item.id) === String(id) || String(item.offerId) === String(id)) || null;
+    // Fallback: try to find the offer in a lightweight single-page listing fetch
+    // instead of fetching ALL offers across all pages
+    try {
+        const listingResult = await fetchUserOffersPage({ page: 1, limit: 20 });
+        const listingOffer = listingResult.data?.find(
+            (item) => String(item.id) === String(id) || String(item.offerId) === String(id)
+        ) || null;
 
-    if (detailData) {
-        // Support both wrapped (envelope) and unwrapped api data payloads
-        const actualDetail = (detailData && typeof detailData === "object" && detailData.data && typeof detailData.data === "object" && !Array.isArray(detailData.data))
-            ? detailData.data
-            : detailData;
-        return {
-            success: true,
-            data: mapUserOfferDetailToOffer(actualDetail, listingOffer),
-        };
+        if (listingOffer) {
+            return {
+                success: true,
+                data: listingOffer,
+            };
+        }
+    } catch (err) {
+        console.warn(`Listing fallback for offer ID ${id} failed:`, err);
     }
 
     return {
-        success: !!listingOffer,
-        data: listingOffer,
-        error: listingOffer ? undefined : "Offer not found",
+        success: false,
+        data: null,
+        error: "Offer not found",
     };
 }
 
