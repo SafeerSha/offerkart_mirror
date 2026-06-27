@@ -111,3 +111,69 @@ export const compressImage = (file: File, maxSizeKB: number = 100): Promise<File
         reader.onerror = (err) => reject(err);
     });
 };
+
+/**
+ * A centralized utility to clean up unused images from S3.
+ * It filters out invalid, local, or placeholder URLs before sending the delete request.
+ * 
+ * @param urls Array of image URLs to delete
+ * @returns Array of promise results for each deletion
+ */
+export async function cleanupImages(urls: (string | null | undefined)[]) {
+    const validUrls = urls.filter((url): url is string => {
+        if (!url || typeof url !== 'string') return false;
+        if (url.startsWith('/images/') || url.startsWith('/')) return false;
+        if (url.includes('unsplash.com')) return false;
+        return url.startsWith('http');
+    });
+
+    const uniqueUrls = [...new Set(validUrls)];
+
+    if (uniqueUrls.length === 0) {
+        return [];
+    }
+
+    console.log(`[Image Cleanup] Deleting ${uniqueUrls.length} image(s)...`, uniqueUrls);
+
+    const results = await Promise.allSettled(
+        uniqueUrls.map(url => s3Api.deleteImage(url))
+    );
+
+    results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+            console.error(`[Image Cleanup] Failed to delete image: ${uniqueUrls[index]}`, result.reason);
+        }
+    });
+
+    return results;
+}
+
+/**
+ * Helper to safely extract all possible image URLs from an Offer object and delete them.
+ */
+export async function cleanupOfferImages(offer: any) {
+    if (!offer) return [];
+    
+    const urlsToCleanup = [
+        offer.posterSrc,
+        offer.image,
+        ...(offer.posters?.map((p: any) => p.posterSrc) || []),
+        ...(offer.posters?.map((p: any) => p.image) || [])
+    ];
+
+    return cleanupImages(urlsToCleanup);
+}
+
+/**
+ * Helper to safely extract all possible image URLs from a Product object and delete them.
+ */
+export async function cleanupProductImages(product: any) {
+    if (!product) return [];
+    
+    const urlsToCleanup = [
+        product.image,
+        ...(product.images || []) // If multiple images are supported
+    ];
+
+    return cleanupImages(urlsToCleanup);
+}

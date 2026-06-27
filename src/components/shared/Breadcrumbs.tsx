@@ -39,34 +39,35 @@ const Breadcrumbs = ({ items, className }: BreadcrumbsProps) => {
                 {items.map((item, index) => {
                     const isLast = index === items.length - 1;
                     const Icon = item.icon;
+                    const displayLabel = item.label.length > 30 ? item.label.substring(0, 30) + "..." : item.label;
 
                     return (
                         <React.Fragment key={index}>
                             <li className="flex items-center">
                                 <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 mx-0.5" />
                             </li>
-                            <li className="flex items-center min-w-0">
+                            <li className="flex items-center min-w-0" title={item.label.length > 30 ? item.label : undefined}>
                                 {isLast || !item.href ? (
                                     <span
                                         onClick={item.onClick}
                                         className={cn(
-                                            "text-xs sm:text-sm font-bold py-1",
+                                            "text-xs sm:text-sm font-bold py-1 truncate",
                                             isLast ? "text-orange-500" : "text-gray-900",
                                             item.onClick && "cursor-pointer hover:text-orange-500"
                                         )}
                                         aria-current={isLast ? "page" : undefined}
                                     >
                                         {Icon && <Icon className="w-4 h-4 sm:w-4.5 sm:h-4.5 mr-1 sm:mr-1.5 inline-block" />}
-                                        {item.label}
+                                        {displayLabel}
                                     </span>
                                 ) : (
                                     <Link
                                         href={item.href}
                                         onClick={item.onClick}
-                                        className="flex items-center text-xs sm:text-sm font-bold text-gray-900 hover:text-orange-500 transition-colors py-1"
+                                        className="flex items-center text-xs sm:text-sm font-bold text-gray-900 hover:text-orange-500 transition-colors py-1 truncate"
                                     >
                                         {Icon && <Icon className="w-4 h-4 sm:w-4.5 sm:h-4.5 mr-1 sm:mr-1.5" />}
-                                        {item.label}
+                                        {displayLabel}
                                     </Link>
                                 )}
                             </li>

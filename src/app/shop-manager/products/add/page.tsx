@@ -70,7 +70,7 @@ function AddProductContent() {
     }
 
     return (
-        <main className="min-h-screen pt-40 lg:pt-32 pb-16 bg-[radial-gradient(circle_at_top_right,hsl(var(--color-primary)/0.05)_0%,transparent_50%)]">
+        <main className="min-h-screen pt-24 lg:pt-28 pb-16 bg-[radial-gradient(circle_at_top_right,hsl(var(--color-primary)/0.05)_0%,transparent_50%)]">
             <ProductForm
                 product={null}
                 onSubmit={handleCreateProduct}
@@ -83,7 +83,7 @@ function AddProductContent() {
 export default function AddProductPage() {
     return (
         <Suspense fallback={
-            <div className="min-h-screen bg-gray-50/50 pt-40 flex items-center justify-center">
+            <div className="min-h-screen bg-gray-50/50 pt-24 flex items-center justify-center">
                 <Loader2 className="w-8 h-8 text-primary animate-spin" />
             </div>
         }>

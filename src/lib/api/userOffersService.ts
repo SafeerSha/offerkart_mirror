@@ -1,5 +1,5 @@
 import { ALL_OFFERS, ALL_PRODUCTS, FEATURED_OFFERS } from "./mockData";
-import { backend } from "./backendClient";
+import { backend, unwrapApiEnvelope } from "./backendClient";
 import { ENDPOINTS } from "./endpoints";
 import { CACHE_TAGS } from "./cache-tags";
 import { SearchResponse } from "../types/search";
@@ -492,9 +492,7 @@ export async function getGlobalSearch(search: string): Promise<SearchResponse> {
         const response = await backend.get<any>(`user/offer/search?${params.toString()}`);
         if (response && response.success && response.data) {
             const apiData = response.data;
-            const searchData = (apiData && typeof apiData === "object" && apiData.data && typeof apiData.data === "object" && !Array.isArray(apiData.data))
-                ? apiData.data
-                : apiData;
+            const searchData = unwrapApiEnvelope(apiData);
 
             return {
                 success: true,

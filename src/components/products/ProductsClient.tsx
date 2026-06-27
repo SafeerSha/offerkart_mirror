@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Filter, SlidersHorizontal } from "lucide-react";
+import { Filter, SlidersHorizontal, AlertTriangle } from "lucide-react";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import ProductGrid from "@/components/products/ProductGrid";
 import FilterPanel from "@/components/home/FilterPanel";
@@ -25,6 +25,7 @@ import {
 import { useTranslation } from "@/hooks/useTranslation";
 import { getUserProducts } from "@/lib/api/products";
 import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
+import { useUserProductsFiltered } from "@/hooks/useApi";
 
 interface ProductsClientProps {
     initialProducts: any[];
@@ -41,8 +42,7 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
     const initialShopId = searchParams.get("shopId") || undefined;
     const initialSearch = searchParams.get("search") || undefined;
 
-    const [products, setProducts] = useState<any[]>(initialProducts || []);
-    const [isLoading, setIsLoading] = useState(false);
+    const featuredShops = initialFeaturedShops;
     const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
     const [activeFilters, setActiveFilters] = useState<{
         search?: string;
@@ -138,63 +138,35 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
         router.push(`/products?${params.toString()}`);
     }, [router, searchParams]);
 
-    const fetchFilteredProducts = useCallback(async () => {
-        setIsLoading(true);
-        try {
-            let mainCatId: number | null = null;
-            let subCatId: number | null = null;
+    let mainCatId: number | null = null;
+    let subCatId: number | null = null;
 
-            if (activeFilters.category !== "All") {
-                mainCatId = getCategoryId(activeFilters.category);
-                if (activeFilters.subcategory.length > 0) {
-                    subCatId = getCategoryId(activeFilters.category, activeFilters.subcategory[0]);
-                }
-            }
-
-            const mappedSort = activeFilters.sort === "latest" ? "newest" : "newest";
-
-            const res = await getUserProducts({
-                search: activeFilters.search,
-                categoryId: mainCatId ? String(mainCatId) : undefined,
-                subcategoryId: subCatId ? String(subCatId) : undefined,
-                shopId: activeFilters.shopId,
-                sort: mappedSort,
-                limit: 100
-            });
-
-            if (res && res.success && res.data && res.data.data) {
-                setProducts(res.data.data);
-            } else {
-                setProducts([]);
-            }
-        } catch (error) {
-            console.error("Failed to fetch products:", error);
-        } finally {
-            setIsLoading(false);
+    if (activeFilters.category !== "All") {
+        mainCatId = getCategoryId(activeFilters.category);
+        if (activeFilters.subcategory.length > 0) {
+            subCatId = getCategoryId(activeFilters.category, activeFilters.subcategory[0]);
         }
-    }, [activeFilters, getCategoryId]);
+    }
 
-    const lastFetchedFilters = useRef(activeFilters);
+    const SORT_MAP: Record<string, string> = {
+        latest: "newest",
+        popular: "popular",
+        nearby: "nearest",
+        discount: "price_asc",
+    };
+    const mappedSort = SORT_MAP[activeFilters.sort] || "newest";
 
-    useEffect(() => {
-        if (isFirstRender.current) {
-            isFirstRender.current = false;
-            // If the initial filter is not "All" or if we have a shopId, we must fetch filtered products immediately on mount
-            if (!activeFilters.search && activeFilters.category === "All" && activeFilters.subcategory.length === 0 && !activeFilters.shopId && activeFilters.sort === "latest") {
-                lastFetchedFilters.current = activeFilters;
-                return;
-            }
-        } else {
-            if (lastFetchedFilters.current === activeFilters) {
-                return;
-            }
-        }
-        lastFetchedFilters.current = activeFilters;
-        fetchFilteredProducts();
-    }, [activeFilters, fetchFilteredProducts]);
+    const queryFilters = {
+        search: activeFilters.search,
+        categoryId: mainCatId ? String(mainCatId) : undefined,
+        subcategoryId: subCatId ? String(subCatId) : undefined,
+        shopId: activeFilters.shopId,
+        sort: mappedSort,
+        limit: 100
+    };
 
-    console.log("ProductsClient render products:", products, "isArray:", Array.isArray(products));
-    const filteredProducts = products || [];
+    const { data: productsData, isLoading, error, refetch } = useUserProductsFiltered(queryFilters);
+    const filteredProducts = productsData || initialProducts || [];
 
     return (
         <div className="min-h-screen bg-gray-50/50">
@@ -293,10 +265,10 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
                             </div>
                         </div>
 
-                        {initialFeaturedShops.length > 0 && (
+                        {featuredShops.length > 0 && (
                             <div className="mb-1">
                                 <FeaturedOffers 
-                                    offers={initialFeaturedShops} 
+                                    offers={featuredShops} 
                                     variant="minimal" 
                                     activeShopId={activeFilters.shopId}
                                 />
@@ -318,7 +290,7 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
                                         <div className="flex flex-wrap items-center gap-2 mt-3">
                                             {activeFilters.shopId && (
                                                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-orange-50 text-orange-600 border border-orange-100 shadow-sm animate-in fade-in duration-300">
-                                                    <span>Shop: {initialFeaturedShops.find(s => String(s.id) === String(activeFilters.shopId))?.name || `Shop #${activeFilters.shopId}`}</span>
+                                                    <span>Shop: {featuredShops.find(s => String(s.id) === String(activeFilters.shopId))?.name || `Shop #${activeFilters.shopId}`}</span>
                                                     <button 
                                                         onClick={() => {
                                                             const params = new URLSearchParams(searchParams.toString());
@@ -352,6 +324,24 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
                                 </div>
                             </div>
                         </div>
+
+                        {error && !isLoading && filteredProducts.length === 0 && (
+                            <div className="flex flex-col items-center justify-center py-16 gap-4">
+                                <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center">
+                                    <AlertTriangle className="w-7 h-7 text-red-400" />
+                                </div>
+                                <div className="text-center">
+                                    <p className="text-sm font-semibold text-gray-700 mb-1">Failed to load products.</p>
+                                    <p className="text-xs text-gray-400">{error.message || "Check your connection and try again"}</p>
+                                </div>
+                                <button
+                                    onClick={() => refetch()}
+                                    className="px-5 py-2 rounded-full bg-orange-500 text-white text-xs font-bold hover:bg-orange-600 active:scale-95 transition-all shadow-lg shadow-orange-500/20"
+                                >
+                                    Retry
+                                </button>
+                            </div>
+                        )}
 
                         <ProductGrid products={filteredProducts} isLoading={isLoading} />
                     </div>

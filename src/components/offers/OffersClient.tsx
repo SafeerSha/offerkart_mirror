@@ -6,7 +6,7 @@ import { getPaginatedOffers } from "@/lib/api/offers";
 import OfferGrid from "@/components/home/OfferGrid";
 import FilterPanel from "@/components/home/FilterPanel";
 import FeaturedOffers from "@/components/home/FeaturedOffers";
-import { Loader2, Filter, SlidersHorizontal } from "lucide-react";
+import { Loader2, Filter, SlidersHorizontal, AlertTriangle } from "lucide-react";
 import {
     Sheet,
     SheetContent,
@@ -24,6 +24,7 @@ import {
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import { Offer } from "@/lib/types/offer";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useInfiniteUserOffers } from "@/hooks/useApi";
 import { cn } from "@/lib/utils";
 
 interface OffersClientProps {
@@ -56,12 +57,7 @@ export default function OffersClient({
     const initialShopId = searchParams.get("shopId") || undefined;
     const initialSubcategories = searchParams.getAll("subcategory") || [];
 
-    const [offers, setOffers] = useState<Offer[]>(initialOffers);
     const featuredShops = initialFeaturedShops;
-    const [isLoading, setIsLoading] = useState(false);
-    const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
-    const [page, setPage] = useState(1);
-    const [hasMore, setHasMore] = useState(hasMoreInitial);
     const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
     const [userCoordinates, setUserCoordinates] = useState<UserCoordinates | null>(null);
 
@@ -164,73 +160,41 @@ export default function OffersClient({
         });
     }, [userCoordinates]);
 
-    const fetchMoreOffers = useCallback(async (isInitial: boolean = false) => {
-        if (!hasMore && !isInitial) return;
-
-        const targetPage = isInitial ? 1 : page + 1;
-
-        if (isInitial) setIsLoading(true);
-        else setIsFetchingNextPage(true);
-
-        try {
-            const coordinates = activeFilters.sort === "nearby"
-                ? await getUserCoordinates()
-                : null;
-
-            const result = await getPaginatedOffers(targetPage, 8, {
-                sort: activeFilters.sort,
-                latitude: coordinates?.latitude,
-                longitude: coordinates?.longitude,
-                shopId: activeFilters.shopId,
-            });
-
-            if (!result.success) {
-                throw new Error(result.error || "Failed to load offers");
-            }
-
-            let processedData = result.data;
-            const supportsCategoryFilter = processedData.some((offer) => offer.category && offer.category !== "Offers");
-            const supportsSubcategoryFilter = processedData.some((offer) => Boolean((offer as any).subcategory));
-
-            if (activeFilters.category !== "All" && supportsCategoryFilter) {
-                processedData = processedData.filter(o => o.category === activeFilters.category);
-            }
-            if (activeFilters.subcategory.length > 0 && supportsSubcategoryFilter) {
-                processedData = processedData.filter(o => activeFilters.subcategory.includes((o as any).subcategory || ""));
-            }
-
-            setOffers(prev => isInitial ? processedData : [...prev, ...processedData]);
-            setHasMore(result.hasMore);
-            setPage(targetPage);
-        } catch (error) {
-            console.error("Failed to fetch offers:", error);
-        } finally {
-            setIsLoading(false);
-            setIsFetchingNextPage(false);
-        }
-    }, [page, hasMore, activeFilters, getUserCoordinates]);
-
-    const lastFetchedFilters = useRef(activeFilters);
-
-    // Initial fetch when filters change
     useEffect(() => {
-        if (lastFetchedFilters.current === activeFilters) {
-            return;
+        if (activeFilters.sort === "nearby") {
+            getUserCoordinates();
         }
-        lastFetchedFilters.current = activeFilters;
+    }, [activeFilters.sort, getUserCoordinates]);
 
-        setPage(1);
-        setOffers([]);
-        setHasMore(true);
-        fetchMoreOffers(true);
-    }, [activeFilters, fetchMoreOffers]);
+    // Use React Query for infinite scrolling offers
+    // Include coordinates if sort is nearby, otherwise pass nulls to avoid triggering backend geolocation logic
+    const queryFilters = {
+        ...activeFilters,
+        latitude: activeFilters.sort === "nearby" ? userCoordinates?.latitude : undefined,
+        longitude: activeFilters.sort === "nearby" ? userCoordinates?.longitude : undefined,
+    };
+
+    const {
+        data,
+        fetchNextPage,
+        hasNextPage,
+        isFetching,
+        isFetchingNextPage,
+        status,
+        error
+    } = useInfiniteUserOffers(8, queryFilters);
+
+    // Flatten pages into a single array
+    const offers = data?.pages.flatMap(page => page.data) || initialOffers;
+    const isLoading = status === "pending";
+    const hasMore = hasNextPage;
 
     // Infinite Scroll Observer
     useEffect(() => {
         const observer = new IntersectionObserver(
             (entries) => {
-                if (entries[0].isIntersecting && hasMore && !isFetchingNextPage && !isLoading) {
-                    fetchMoreOffers();
+                if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+                    fetchNextPage();
                 }
             },
             { threshold: 0.1, rootMargin: "100px" }
@@ -240,7 +204,7 @@ export default function OffersClient({
         if (target) observer.observe(target);
 
         return () => observer.disconnect();
-    }, [fetchMoreOffers, hasMore, isFetchingNextPage, isLoading]);
+    }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
     return (
         <div className="min-h-screen bg-gray-50/50">
@@ -402,6 +366,24 @@ export default function OffersClient({
                         </div>
 
                         <OfferGrid isLoading={isLoading} offers={offers} disablePagination={true} columns={5} />
+
+                        {error && !isLoading && offers.length === 0 && (
+                            <div className="flex flex-col items-center justify-center py-16 gap-4">
+                                <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center">
+                                    <AlertTriangle className="w-7 h-7 text-red-400" />
+                                </div>
+                                <div className="text-center">
+                                    <p className="text-sm font-semibold text-gray-700 mb-1">Failed to load offers.</p>
+                                    <p className="text-xs text-gray-400">{error.message || "Check your connection and try again"}</p>
+                                </div>
+                                <button
+                                    onClick={() => fetchNextPage()}
+                                    className="px-5 py-2 rounded-full bg-orange-500 text-white text-xs font-bold hover:bg-orange-600 active:scale-95 transition-all shadow-lg shadow-orange-500/20"
+                                >
+                                    Retry
+                                </button>
+                            </div>
+                        )}
 
                         <div id="scroll-trigger" className="w-full py-12 flex items-center justify-center">
                             {isFetchingNextPage && (

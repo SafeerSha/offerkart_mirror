@@ -14,7 +14,6 @@ export default async function OffersLoader({ searchParams }: {
         getPaginatedOffers(1, 8, { shopId }, { next: { tags: [CACHE_TAGS.OFFERS] } }),
         getFeaturedOffers()
     ]);
-
     return (
         <OffersClient
             initialOffers={offersResult.data}

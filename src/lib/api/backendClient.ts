@@ -239,3 +239,31 @@ export const backend = {
         return this.request<T>(path, { ...options, method: "DELETE" });
     },
 };
+
+/**
+ * Utility to unwrap doubly-nested API envelopes.
+ * 
+ * Many backend responses come wrapped as:
+ *   { success: true, data: { success: true, data: { ...actual data } } }
+ * 
+ * This function peels one layer if it detects a nested envelope, returning
+ * the innermost data object. Safe to call on already-unwrapped data.
+ */
+export function unwrapApiEnvelope<T = any>(data: unknown): T {
+    if (
+        data &&
+        typeof data === "object" &&
+        !Array.isArray(data) &&
+        "data" in data &&
+        typeof (data as Record<string, unknown>).data === "object" &&
+        (data as Record<string, unknown>).data !== null &&
+        !Array.isArray((data as Record<string, unknown>).data)
+    ) {
+        // Check if the inner object looks like another API envelope (has success/data)
+        const inner = (data as Record<string, unknown>).data as Record<string, unknown>;
+        if ("success" in inner || "data" in inner) {
+            return inner as T;
+        }
+    }
+    return data as T;
+}

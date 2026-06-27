@@ -199,7 +199,7 @@ function ShopProductsContent() {
 
     const handleDeleteProduct = async (product: any) => {
         try {
-            const res = await deleteProductMutation({ id: product.id, shopId: activeShopId || undefined });
+            const res = await deleteProductMutation({ id: product.id, shopId: activeShopId || undefined, product });
             if (res.success) {
                 toast.success("Product deleted successfully");
             } else {
@@ -258,7 +258,8 @@ function ShopProductsContent() {
         try {
             const deletePromises = Array.from(selectedProducts).map((id) => {
                 if (activeShopId) {
-                    return deleteProductMutation({ id, shopId: activeShopId });
+                    const product = filteredProducts.find((p: any) => String(p.id) === id);
+                    return deleteProductMutation({ id, shopId: activeShopId, product });
                 }
                 return Promise.resolve({ success: false });
             });
@@ -370,7 +371,7 @@ function ShopProductsContent() {
     }, [allProductsList, searchQuery, statusFilter, branchNameMap]);
 
     return (
-        <main className="min-h-screen pt-40 lg:pt-32 pb-12 bg-[radial-gradient(circle_at_top_right,hsl(var(--color-primary)/0.05)_0%,transparent_50%)]">
+        <main className="min-h-screen pt-24 lg:pt-28 pb-12 bg-[radial-gradient(circle_at_top_right,hsl(var(--color-primary)/0.05)_0%,transparent_50%)]">
             <div className="container mx-auto px-4 max-w-6xl">
                 <Breadcrumbs
                     items={[
@@ -832,7 +833,7 @@ function ShopProductsContent() {
 export default function ShopProductsPage() {
     return (
         <Suspense fallback={
-            <div className="min-h-screen bg-gray-50/50 pt-40 flex items-center justify-center">
+            <div className="min-h-screen bg-gray-50/50 pt-24 flex items-center justify-center">
                 <Loader2 className="w-8 h-8 text-primary animate-spin" />
             </div>
         }>

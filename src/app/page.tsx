@@ -23,8 +23,8 @@ export default async function HomePage() {
     getAllProducts(undefined, { next: { tags: [CACHE_TAGS.PRODUCTS] } }),
   ]);
 
-  const featuredShops = (featuredShopsRes as any).success ? ((featuredShopsRes as any).data || []) : [];
-  const featuredOffers = (featuredOffersRes as any).success ? ((featuredOffersRes as any).data || []) : [];
+  const featuredShops = featuredShopsRes.success ? (featuredShopsRes.data || []) : [];
+  const featuredOffers = featuredOffersRes.success ? (featuredOffersRes.data || []) : [];
   const allOffers = allOffersRes.success ? allOffersRes.data : [];
 
   const { t } = await getTranslations("home");

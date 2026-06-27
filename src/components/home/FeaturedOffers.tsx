@@ -66,7 +66,10 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
     } else {
       params.set("shopId", String(shopId));
     }
-    router.push(`${pathname}?${params.toString()}`);
+    
+    // If we are on the home page, redirect to the offers page with the shopId filter
+    const targetPath = pathname === "/" ? "/offers" : pathname;
+    router.push(`${targetPath}?${params.toString()}`);
   };
 
   return (
@@ -169,7 +172,7 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
                       <div className={cn(
                         "rounded-2xl overflow-hidden border-2 transition-all duration-300 relative bg-muted/10",
                         isActive
-                          ? "border-orange-500 ring-4 ring-orange-500/20 shadow-md"
+                          ? "border-orange-500"
                           : "border-primary/20 group-hover:border-primary group-hover:shadow-lg",
                         variant === "full" ? "w-20 h-20" : "w-12 h-12 sm:w-14 sm:h-14"
                       )}>
