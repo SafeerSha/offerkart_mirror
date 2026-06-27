@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Image, { StaticImageData } from "next/image";
 import { ChevronLeft, ChevronRight, Store, Plus } from "lucide-react";
 import { PremiumButton } from "@/components/shared/PremiumButton";
-import { Subheading, Text } from "@/components/shared/Typography";
+import { Subheading } from "@/components/shared/Typography";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/hooks/useTranslation";
 import { InstantTooltip } from "@/components/shared/InstantTooltip";
@@ -28,35 +28,36 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const { t } = useTranslation("home");
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const itemsPerView = 10;
+  
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+  const [showNav, setShowNav] = useState(false);
 
-  const navVisibilityClass = offers.length <= 4
-    ? "hidden"
-    : offers.length <= 10
-      ? "lg:hidden"
-      : "";
+  const checkScroll = useCallback(() => {
+    if (scrollRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+      setShowNav(scrollWidth > clientWidth);
+      setCanScrollLeft(scrollLeft > 0);
+      setCanScrollRight(Math.ceil(scrollLeft + clientWidth) < scrollWidth);
+    }
+  }, []);
 
-  const nextSlide = () => {
-    const totalItems = variant === "minimal"
-      ? (offers.length > 15 ? 16 : offers.length)
-      : offers.length;
-    const maxIndex = Math.ceil(totalItems / itemsPerView) - 1;
-    setCurrentIndex((prev) => (prev >= maxIndex ? 0 : prev + 1));
-  };
+  useEffect(() => {
+    checkScroll();
+    window.addEventListener('resize', checkScroll);
+    return () => window.removeEventListener('resize', checkScroll);
+  }, [checkScroll, offers]);
 
-
-  const prevSlide = () => {
-    const totalItems = variant === "minimal"
-      ? (offers.length > 15 ? 16 : offers.length)
-      : offers.length;
-    const maxIndex = Math.ceil(totalItems / itemsPerView) - 1;
-    setCurrentIndex((prev) => (prev <= 0 ? maxIndex : prev - 1));
-  };
-
-  const getVisibleOffers = () => {
-    const start = currentIndex * itemsPerView;
-    return offers.slice(start, start + itemsPerView);
+  const scroll = (direction: 'left' | 'right') => {
+    if (scrollRef.current) {
+      const container = scrollRef.current;
+      const scrollAmount = container.clientWidth * 0.8;
+      container.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
   };
 
   const handleShopClick = (shopId: number) => {
@@ -71,6 +72,8 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
     const targetPath = pathname === "/" ? "/offers" : pathname;
     router.push(`${targetPath}?${params.toString()}`);
   };
+
+  const displayOffers = offers.slice(0, variant === "minimal" && offers.length > 15 ? 15 : 16);
 
   return (
     <section className={cn(
@@ -96,56 +99,69 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
               </div>
               <div>
                 <Subheading className="text-2xl sm:text-3xl font-bold mb-0">{t("featuredShops.title")}</Subheading>
-                {/* <Text className="text-xs sm:text-sm text-muted-foreground mt-0.5">{t("featuredShops.subtitle")}</Text> */}
               </div>
             </div>
 
-            <div className={cn("flex items-center gap-3", navVisibilityClass)}>
-              <PremiumButton
-                variant="outline"
-                size="icon"
-                onClick={prevSlide}
-                className="rounded-full border-primary/20 hover:border-primary/50 h-10 w-10 group bg-white/50 backdrop-blur-sm shadow-sm"
-              >
-                <ChevronLeft className="w-5 h-5 text-primary group-hover:scale-110 transition-transform" />
-              </PremiumButton>
-              <PremiumButton
-                variant="outline"
-                size="icon"
-                onClick={nextSlide}
-                className="rounded-full border-primary/20 hover:border-primary/50 h-10 w-10 group bg-white/50 backdrop-blur-sm shadow-sm"
-              >
-                <ChevronRight className="w-5 h-5 text-primary group-hover:scale-110 transition-transform" />
-              </PremiumButton>
-            </div>
+            {showNav && (
+              <div className="flex items-center gap-3 hidden lg:flex">
+                <PremiumButton
+                  variant="outline"
+                  size="icon"
+                  onClick={() => scroll('left')}
+                  disabled={!canScrollLeft}
+                  className="rounded-full border-primary/20 hover:border-primary/50 h-10 w-10 group bg-white/50 backdrop-blur-sm shadow-sm disabled:opacity-50"
+                >
+                  <ChevronLeft className="w-5 h-5 text-primary group-hover:scale-110 transition-transform" />
+                </PremiumButton>
+                <PremiumButton
+                  variant="outline"
+                  size="icon"
+                  onClick={() => scroll('right')}
+                  disabled={!canScrollRight}
+                  className="rounded-full border-primary/20 hover:border-primary/50 h-10 w-10 group bg-white/50 backdrop-blur-sm shadow-sm disabled:opacity-50"
+                >
+                  <ChevronRight className="w-5 h-5 text-primary group-hover:scale-110 transition-transform" />
+                </PremiumButton>
+              </div>
+            )}
           </div>
         )}
+
+        {/* Mobile swipe hint (Top Right Above Section) */}
+        {showNav && (
+          <div className={cn("flex justify-end lg:hidden mb-1.5", variant === "minimal" && "pr-2")}>
+            <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest flex items-center gap-1">
+              Swipe for more <ChevronRight className="w-3 h-3 -ml-0.5 text-primary/70" />
+            </span>
+          </div>
+        )}
+
         <div className={cn(
           "relative z-20 border border-orange-500/25 bg-orange-500/[0.02] rounded-3xl pt-4 shadow-sm",
           variant === "minimal" ? "shadow-[0_2px_12px_rgba(249,115,22,0.04)] border-orange-500/30" : "border-orange-500/20"
         )}>
           {/* Fading gradients */}
-          <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none" />
-          <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none" />
+          <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-background via-background/80 to-transparent z-10 pointer-events-none rounded-l-3xl" />
+          <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background via-background/80 to-transparent z-10 pointer-events-none rounded-r-3xl" />
 
           <div className="relative group/slider z-30">
-            {/* Sliding buttons for minimal variant */}
-            {variant === "minimal" && (
+            {/* Sliding buttons for minimal variant (Desktop only) */}
+            {variant === "minimal" && showNav && (
               <>
                 <button
-                  onClick={prevSlide}
+                  onClick={() => scroll('left')}
+                  disabled={!canScrollLeft}
                   className={cn(
-                    "absolute -left-4 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-white backdrop-blur-md shadow-lg border border-primary/20 text-primary transition-all duration-300 hover:bg-primary hover:text-white hover:scale-110 active:scale-95",
-                    navVisibilityClass
+                    "hidden lg:flex absolute -left-4 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-white backdrop-blur-md shadow-lg border border-primary/20 text-primary transition-all duration-300 hover:bg-primary hover:text-white hover:scale-110 active:scale-95 disabled:opacity-0 disabled:pointer-events-none"
                   )}
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 <button
-                  onClick={nextSlide}
+                  onClick={() => scroll('right')}
+                  disabled={!canScrollRight}
                   className={cn(
-                    "absolute -right-4 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-white backdrop-blur-md shadow-lg border border-primary/20 text-primary transition-all duration-300 hover:bg-primary hover:text-white hover:scale-110 active:scale-95",
-                    navVisibilityClass
+                    "hidden lg:flex absolute -right-4 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-white backdrop-blur-md shadow-lg border border-primary/20 text-primary transition-all duration-300 hover:bg-primary hover:text-white hover:scale-110 active:scale-95 disabled:opacity-0 disabled:pointer-events-none"
                   )}
                 >
                   <ChevronRight className="w-4 h-4" />
@@ -153,28 +169,30 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
               </>
             )}
 
-            <div className="overflow-hidden pt-2 pb-8 -mt-2 -mb-8 px-2">
+            <div className="overflow-hidden pt-2 pb-8 -mt-2 -mb-8 px-2 relative z-0">
               <div
+                ref={scrollRef}
+                onScroll={checkScroll}
                 className={cn(
-                  "flex transition-transform duration-500 ease-in-out gap-1 overflow-visible scrollbar-hide pb-4 px-2"
+                  "flex gap-1.5 overflow-x-auto scrollbar-hide pb-4 px-4 snap-x snap-mandatory scroll-smooth relative"
                 )}
-                style={{ transform: `translateX(-${currentIndex * 100}%)` }}
               >
-                {offers.slice(0, variant === "minimal" && offers.length > 15 ? 15 : 16).map((offer) => {
+                {displayOffers.map((offer) => {
                   const isActive = activeShopId !== undefined && String(offer.id) === String(activeShopId);
                   return (
                     <button
                       key={offer.id}
-                      className="relative flex flex-col items-center group cursor-pointer transition-all duration-300 flex-shrink-0"
-                      // style={{ minWidth: variant === "full" ? '80px' : '58px' }}
+                      className="relative flex flex-col items-center group cursor-pointer transition-all duration-300 flex-shrink-0 snap-start"
                       onClick={() => handleShopClick(offer.id)}
                     >
                       <div className={cn(
                         "rounded-2xl overflow-hidden border-2 transition-all duration-300 relative bg-muted/10",
                         isActive
-                          ? "border-orange-500"
-                          : "border-primary/20 group-hover:border-primary group-hover:shadow-lg",
-                        variant === "full" ? "w-20 h-20" : "w-12 h-12 sm:w-14 sm:h-14"
+                          ? "border-orange-500 scale-105 shadow-md shadow-orange-500/20"
+                          : "border-primary/10 group-hover:border-primary group-hover:shadow-lg group-hover:scale-105",
+                        variant === "full" 
+                          ? "w-[12.5vw] h-[12.5vw] min-w-[40px] min-h-[40px] max-w-[80px] max-h-[80px] sm:w-16 sm:h-16 lg:w-20 lg:h-20" 
+                          : "w-[12.5vw] h-[12.5vw] min-w-[40px] min-h-[40px] max-w-[56px] max-h-[56px] sm:w-12 sm:h-12 lg:w-14 lg:h-14"
                       )}>
                         {offer.logo ? (
                           <Image
@@ -199,11 +217,13 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
 
                 {variant === "minimal" && offers.length > 15 && (
                   <button
-                    className="relative flex flex-col items-center group cursor-pointer transition-all duration-300 flex-shrink-0"
-                    style={{ minWidth: '58px' }}
+                    className="relative flex flex-col items-center group cursor-pointer transition-all duration-300 flex-shrink-0 snap-start"
                     onClick={() => { }}
                   >
-                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl border-2 border-dashed border-primary/30 group-hover:border-primary bg-primary/5 flex items-center justify-center transition-all duration-300 group-hover:shadow-md">
+                    <div className={cn(
+                      "rounded-2xl border-2 border-dashed border-primary/30 group-hover:border-primary bg-primary/5 flex items-center justify-center transition-all duration-300 group-hover:shadow-md",
+                      "w-[12.5vw] h-[12.5vw] min-w-[40px] min-h-[40px] max-w-[56px] max-h-[56px] sm:w-12 sm:h-12 lg:w-14 lg:h-14"
+                    )}>
                       <Plus className="w-5 h-5 text-primary group-hover:scale-110 transition-transform" />
                     </div>
                     {/* Instant custom tooltip for View All */}

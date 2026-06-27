@@ -43,7 +43,7 @@ export default async function HomePage() {
       </Suspense>
 
       {/* Offers Section */}
-      <section className="py-8 md:py-10">
+      <section className="py-4 md:py-7">
         <div className="container mx-auto px-4">
           <FilterableOffers
             initialOffers={allOffers}

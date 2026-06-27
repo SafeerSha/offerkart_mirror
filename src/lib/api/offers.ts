@@ -366,32 +366,46 @@ function mapUserOfferDetailToOffer(detail: any, listingOffer?: Offer | null): Of
 
         return {
             id: String(bp.id),
-            posterSrc: bp.imageUrl || "",
+            posterSrc: bp.imageUrl || bp.posterSrc || bp.image_url || bp.image || "",
             type: "just_post",
             markedItems,
             title: bp.title || undefined,
         };
     });
 
-    const primaryImage = posters[0]?.posterSrc || listingOffer?.image || DEFAULT_USER_OFFER_IMAGE;
+    const primaryImage = posters[0]?.posterSrc || detail.image_url || detail.imageUrl || detail.image || detail.posterSrc || listingOffer?.image || DEFAULT_USER_OFFER_IMAGE;
+    
+    // Fallback: If no posters were returned but we have an image, create one poster so it renders properly
+    if (posters.length === 0 && primaryImage !== DEFAULT_USER_OFFER_IMAGE) {
+        posters.push({
+            id: String(detail.id),
+            posterSrc: primaryImage,
+            type: "just_post",
+            markedItems: [],
+            title: detail.title || detail.offerName || undefined,
+        });
+    }
+
     const branchNames = (detail.offerBranches || []).map((ob: any) => ob.branch_name);
+    const offerName = detail.title || detail.offerName || listingOffer?.offerName || "Untitled Offer";
+    const shopName = detail.shop_name || detail.shopName || detail.shop?.name || listingOffer?.shopName || "OfferKart";
 
     return {
         id: detail.id,
         offerId: detail.id,
-        shopName: listingOffer?.shopName || "OfferKart",
-        offerName: detail.title || listingOffer?.offerName || "Untitled Offer",
-        title: detail.title || listingOffer?.offerName || "Untitled Offer",
+        shopName: shopName,
+        offerName: offerName,
+        title: offerName,
         image: primaryImage,
         posterSrc: primaryImage,
         posters: posters,
-        category: listingOffer?.category || "Offers",
-        location: listingOffer?.location || formatDistance(listingOffer?.distanceKm),
-        discount: listingOffer?.discount || formatDaysLeft(listingOffer?.daysLeft),
+        category: detail.category || listingOffer?.category || "Offers",
+        location: detail.location || listingOffer?.location || formatDistance(listingOffer?.distanceKm),
+        discount: detail.discount || listingOffer?.discount || formatDaysLeft(listingOffer?.daysLeft),
         validFrom: detail.validFrom || listingOffer?.validFrom || undefined,
         validTo: detail.validTo || listingOffer?.validTo || undefined,
-        totalPosters: posters.length,
-        numberOfPosters: posters.length,
+        totalPosters: posters.length > 0 ? posters.length : 1,
+        numberOfPosters: posters.length > 0 ? posters.length : 1,
         daysLeft: listingOffer?.daysLeft,
         distanceKm: listingOffer?.distanceKm,
         shopLogo: listingOffer?.shopLogo || null,

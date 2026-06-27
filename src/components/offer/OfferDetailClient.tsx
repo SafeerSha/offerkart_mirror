@@ -60,7 +60,7 @@ function mapApiOfferToDetail(raw: any): OfferDetail {
     const DEFAULT_IMAGE = "/images/shop-registration-bg-light.png";
 
     const finalPosters: Poster[] = (raw.posters || []).map((p: any) => {
-        const rawPosterSrc = p.imageUrl || p.posterSrc;
+        const rawPosterSrc = p.imageUrl || p.posterSrc || p.image_url || p.image;
         const posterSrc = typeof rawPosterSrc === "object" ? (rawPosterSrc as any)?.src ?? DEFAULT_IMAGE : rawPosterSrc || DEFAULT_IMAGE;
         
         let markedItems: MarkedItem[] = [];
