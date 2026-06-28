@@ -124,7 +124,7 @@ export default async function OfferDetailPage({
     const currentIndex = allOffers.findIndex(o => String(o.id) === resolvedParams.id);
     let prevOfferId = null;
     let nextOfferId = null;
-    
+
     if (currentIndex !== -1 && allOffers.length > 1) {
         // Loop around if at the ends
         prevOfferId = allOffers[(currentIndex - 1 + allOffers.length) % allOffers.length].id;
@@ -136,9 +136,9 @@ export default async function OfferDetailPage({
     }
 
     return (
-        <OfferDetailClient 
-            offer={mapOfferForDetail(offerResult.data)} 
-            similarOffers={filteredSimilarOffers} 
+        <OfferDetailClient
+            offer={mapOfferForDetail(offerResult.data)}
+            similarOffers={filteredSimilarOffers}
             prevOfferId={prevOfferId}
             nextOfferId={nextOfferId}
         />

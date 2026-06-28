@@ -68,7 +68,11 @@ export const backend = {
             // 2. Resolve URL
             // Ensure path doesn't start with a slash to avoid double slashes
             const cleanPath = path.startsWith("/") ? path.slice(1) : path;
-            const url = IS_SERVER
+            const isPublic = isPublicPath(cleanPath);
+            
+            // For server-side OR public paths on client-side, hit upstream directly.
+            // Only use the Next.js proxy for authenticated client-side requests.
+            const url = (IS_SERVER || isPublic)
                 ? `${UPSTREAM_API_BASE_URL}/${cleanPath}`
                 : `${BACKEND_PROXY_PREFIX}/${cleanPath}`;
 

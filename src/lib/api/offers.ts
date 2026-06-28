@@ -366,32 +366,46 @@ function mapUserOfferDetailToOffer(detail: any, listingOffer?: Offer | null): Of
 
         return {
             id: String(bp.id),
-            posterSrc: bp.imageUrl || "",
+            posterSrc: bp.imageUrl || bp.posterSrc || bp.image_url || bp.image || "",
             type: "just_post",
             markedItems,
             title: bp.title || undefined,
         };
     });
 
-    const primaryImage = posters[0]?.posterSrc || listingOffer?.image || DEFAULT_USER_OFFER_IMAGE;
+    const primaryImage = posters[0]?.posterSrc || detail.image_url || detail.imageUrl || detail.image || detail.posterSrc || listingOffer?.image || DEFAULT_USER_OFFER_IMAGE;
+    
+    // Fallback: If no posters were returned but we have an image, create one poster so it renders properly
+    if (posters.length === 0 && primaryImage !== DEFAULT_USER_OFFER_IMAGE) {
+        posters.push({
+            id: String(detail.id),
+            posterSrc: primaryImage,
+            type: "just_post",
+            markedItems: [],
+            title: detail.title || detail.offerName || undefined,
+        });
+    }
+
     const branchNames = (detail.offerBranches || []).map((ob: any) => ob.branch_name);
+    const offerName = detail.title || detail.offerName || listingOffer?.offerName || "Untitled Offer";
+    const shopName = detail.shop_name || detail.shopName || detail.shop?.name || listingOffer?.shopName || "OfferKart";
 
     return {
         id: detail.id,
         offerId: detail.id,
-        shopName: listingOffer?.shopName || "OfferKart",
-        offerName: detail.title || listingOffer?.offerName || "Untitled Offer",
-        title: detail.title || listingOffer?.offerName || "Untitled Offer",
+        shopName: shopName,
+        offerName: offerName,
+        title: offerName,
         image: primaryImage,
         posterSrc: primaryImage,
         posters: posters,
-        category: listingOffer?.category || "Offers",
-        location: listingOffer?.location || formatDistance(listingOffer?.distanceKm),
-        discount: listingOffer?.discount || formatDaysLeft(listingOffer?.daysLeft),
+        category: detail.category || listingOffer?.category || "Offers",
+        location: detail.location || listingOffer?.location || formatDistance(listingOffer?.distanceKm),
+        discount: detail.discount || listingOffer?.discount || formatDaysLeft(listingOffer?.daysLeft),
         validFrom: detail.validFrom || listingOffer?.validFrom || undefined,
         validTo: detail.validTo || listingOffer?.validTo || undefined,
-        totalPosters: posters.length,
-        numberOfPosters: posters.length,
+        totalPosters: posters.length > 0 ? posters.length : 1,
+        numberOfPosters: posters.length > 0 ? posters.length : 1,
         daysLeft: listingOffer?.daysLeft,
         distanceKm: listingOffer?.distanceKm,
         shopLogo: listingOffer?.shopLogo || null,
@@ -408,41 +422,61 @@ export async function getUserOfferById(
     id: string | number,
     cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">
 ) {
-    // Primary path: fetch the detail endpoint directly
-    try {
-        const response = await backend.get<any>(ENDPOINTS.USER_OFFER.DETAILS(id), {
+    // Fetch both the detail and listing endpoints in parallel.
+    // The detail API provides posters, products, branches, etc.
+    // The listing API provides shopName, shopLogo, daysLeft, distanceKm, etc.
+    // We need both to build a complete offer representation.
+    const [detailResponse, listingResult] = await Promise.all([
+        backend.get<any>(ENDPOINTS.USER_OFFER.DETAILS(id), {
             next: { tags: [CACHE_TAGS.OFFERS, CACHE_TAGS.OFFER(id)] },
             ...cacheOptions,
-        });
-        if (response && response.success && response.data) {
-            const detailData = response.data;
-            // Support both wrapped (envelope) and unwrapped api data payloads
-            const actualDetail = unwrapApiEnvelope(detailData);
-            return {
-                success: true,
-                data: mapUserOfferDetailToOffer(actualDetail, null),
-            };
+        }).catch((err) => {
+            console.warn(`Direct user offer lookup for ID ${id} failed:`, err);
+            return null;
+        }),
+        fetchUserOffersPage({ page: 1, limit: 100 }).catch((err) => {
+            console.warn(`Listing fetch for offer ID ${id} failed:`, err);
+            return { success: false, data: [], page: 1, limit: 100, count: 0, hasMore: false } as PaginatedOffersResult;
+        }),
+    ]);
+
+    // Find matching listing offer for enrichment
+    const listingOffer = listingResult.data?.find(
+        (item) => String(item.id) === String(id) || String(item.offerId) === String(id)
+    ) || null;
+
+    // Primary path: use the detail endpoint response enriched with listing data
+    if (detailResponse && detailResponse.success && detailResponse.data) {
+        const detailData = detailResponse.data;
+        // The backend.request returns { success, data: <jsonBody> }
+        // where <jsonBody> may be { success: true, data: { ...offerDetail } }
+        // unwrapApiEnvelope peels one layer if it detects a nested envelope,
+        // but we also need to handle the case where the result still has a .data wrapper
+        let actualDetail = unwrapApiEnvelope(detailData);
+        // If after unwrapping we still have { success, data: {...} }, extract .data
+        if (
+            actualDetail &&
+            typeof actualDetail === "object" &&
+            !Array.isArray(actualDetail) &&
+            "data" in actualDetail &&
+            actualDetail.data &&
+            typeof actualDetail.data === "object" &&
+            !Array.isArray(actualDetail.data)
+        ) {
+            actualDetail = actualDetail.data;
         }
-    } catch (err) {
-        console.warn(`Direct user offer lookup for ID ${id} failed:`, err);
+        return {
+            success: true,
+            data: mapUserOfferDetailToOffer(actualDetail, listingOffer),
+        };
     }
 
-    // Fallback: try to find the offer in a lightweight single-page listing fetch
-    // instead of fetching ALL offers across all pages
-    try {
-        const listingResult = await fetchUserOffersPage({ page: 1, limit: 20 });
-        const listingOffer = listingResult.data?.find(
-            (item) => String(item.id) === String(id) || String(item.offerId) === String(id)
-        ) || null;
-
-        if (listingOffer) {
-            return {
-                success: true,
-                data: listingOffer,
-            };
-        }
-    } catch (err) {
-        console.warn(`Listing fallback for offer ID ${id} failed:`, err);
+    // Fallback: if the detail endpoint failed but we found the offer in the listing
+    if (listingOffer) {
+        return {
+            success: true,
+            data: listingOffer,
+        };
     }
 
     return {

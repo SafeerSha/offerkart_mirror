@@ -12,8 +12,6 @@ import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import OfferCard from "@/components/offer/OfferCard";
 import { ConsumerProductModal } from "@/components/offer/ConsumerProductModal";
 import { useTranslation } from "@/hooks/useTranslation";
-import { backend } from "@/lib/api/backendClient";
-import { ENDPOINTS } from "@/lib/api/endpoints";
 
 interface OfferDetail {
     id: number | string;
@@ -60,7 +58,7 @@ function mapApiOfferToDetail(raw: any): OfferDetail {
     const DEFAULT_IMAGE = "/images/shop-registration-bg-light.png";
 
     const finalPosters: Poster[] = (raw.posters || []).map((p: any) => {
-        const rawPosterSrc = p.imageUrl || p.posterSrc;
+        const rawPosterSrc = p.imageUrl || p.posterSrc || p.image_url || p.image;
         const posterSrc = typeof rawPosterSrc === "object" ? (rawPosterSrc as any)?.src ?? DEFAULT_IMAGE : rawPosterSrc || DEFAULT_IMAGE;
         
         let markedItems: MarkedItem[] = [];
@@ -195,11 +193,10 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
         if (isNavigating) return;
         setIsNavigating(true);
         try {
-            const res = await backend.get<any>(ENDPOINTS.USER_OFFER.DETAILS(targetId));
-            const json = res;
+            const res = await fetch(`/api/user/offer/${targetId}`);
+            const json = await res.json();
             if (json.success && json.data) {
-                const raw = json.data?.data ?? json.data;
-                const newOffer = mapApiOfferToDetail(raw);
+                const newOffer = mapApiOfferToDetail(json.data);
                 setOffer(newOffer);
                 // Update the browser URL without causing a navigation / full reload
                 window.history.pushState(null, "", `/offer/${targetId}`);
@@ -248,6 +245,14 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
 
     return (
         <div className="min-h-screen bg-background">
+            <div className="hidden" aria-hidden="true">
+                {offer.posters?.map((p, i) => (
+                    <img key={`preload-poster-${i}`} src={p.posterSrc} alt="" />
+                ))}
+                {offer.images?.map((img, i) => (
+                    <img key={`preload-img-${i}`} src={typeof img === 'string' ? img : (img as any).src} alt="" />
+                ))}
+            </div>
 
             {/* Hero Spacer */}
             <div className="h-40 lg:h-36" />
