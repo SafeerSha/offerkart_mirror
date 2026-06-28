@@ -103,25 +103,21 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
             </div>
 
             {showNav && (
-              <div className="flex items-center gap-3 hidden lg:flex">
-                <PremiumButton
-                  variant="outline"
-                  size="icon"
+              <div className="flex items-center gap-2">
+                <button
                   onClick={() => scroll('left')}
                   disabled={!canScrollLeft}
-                  className="rounded-full border-primary/20 hover:border-primary/50 h-10 w-10 group bg-white/50 backdrop-blur-sm shadow-sm disabled:opacity-50"
+                  className="flex items-center justify-center h-8 w-8 lg:h-9 lg:w-9 rounded-full bg-white text-orange-500 shadow-sm shadow-orange-500/20 border border-orange-500 transition-all duration-300 hover:bg-orange-50 hover:scale-110 active:scale-95 disabled:opacity-0 disabled:pointer-events-none"
                 >
-                  <ChevronLeft className="w-5 h-5 text-primary group-hover:scale-110 transition-transform" />
-                </PremiumButton>
-                <PremiumButton
-                  variant="outline"
-                  size="icon"
+                  <ChevronLeft className="w-5 h-5 lg:w-4 lg:h-4 -ml-0.5" />
+                </button>
+                <button
                   onClick={() => scroll('right')}
                   disabled={!canScrollRight}
-                  className="rounded-full border-primary/20 hover:border-primary/50 h-10 w-10 group bg-white/50 backdrop-blur-sm shadow-sm disabled:opacity-50"
+                  className="flex items-center justify-center h-8 w-8 lg:h-9 lg:w-9 rounded-full bg-white text-orange-500 shadow-sm shadow-orange-500/20 border border-orange-500 transition-all duration-300 hover:bg-orange-50 hover:scale-110 active:scale-95 disabled:opacity-0 disabled:pointer-events-none"
                 >
-                  <ChevronRight className="w-5 h-5 text-primary group-hover:scale-110 transition-transform" />
-                </PremiumButton>
+                  <ChevronRight className="w-5 h-5 lg:w-4 lg:h-4 -mr-0.5" />
+                </button>
               </div>
             )}
           </div>
@@ -129,7 +125,7 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
 
         {/* Mobile swipe hint (Top Right Above Section) */}
         {showNav && (
-          <div className={cn("flex justify-end lg:hidden mb-1.5", variant === "minimal" && "pr-2")}>
+          <div className={cn("flex justify-end lg:hidden mb-1.5", variant === "minimal" ? "pr-2" : "hidden")}>
             <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest flex items-center gap-1">
               Swipe for more <ChevronRight className="w-3 h-3 -ml-0.5 text-primary/70" />
             </span>
@@ -145,14 +141,15 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
           <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background via-background/80 to-transparent z-10 pointer-events-none rounded-r-3xl" />
 
           <div className="relative group/slider z-30">
-            {/* Sliding buttons for minimal variant (Desktop only) */}
-            {variant === "minimal" && showNav && (
+            {/* Sliding buttons for minimal variant only (Desktop only) */}
+            {showNav && (
               <>
                 <button
                   onClick={() => scroll('left')}
                   disabled={!canScrollLeft}
                   className={cn(
-                    "hidden lg:flex absolute -left-4 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-white backdrop-blur-md shadow-lg border border-primary/20 text-primary transition-all duration-300 hover:bg-primary hover:text-white hover:scale-110 active:scale-95 disabled:opacity-0 disabled:pointer-events-none"
+                    "hidden lg:flex absolute -left-4 top-[calc(50%-24px)] -translate-y-1/2 z-40 p-2 rounded-full bg-white text-orange-500 shadow-sm shadow-orange-500/20 border border-orange-500 transition-all duration-300 hover:bg-orange-50 hover:scale-110 active:scale-95 disabled:opacity-0 disabled:pointer-events-none",
+                    variant === "full" ? "hidden" : ""
                   )}
                 >
                   <ChevronLeft className="w-4 h-4" />
@@ -161,10 +158,11 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
                   onClick={() => scroll('right')}
                   disabled={!canScrollRight}
                   className={cn(
-                    "hidden lg:flex absolute -right-4 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-white backdrop-blur-md shadow-lg border border-primary/20 text-primary transition-all duration-300 hover:bg-primary hover:text-white hover:scale-110 active:scale-95 disabled:opacity-0 disabled:pointer-events-none"
+                    "hidden lg:flex absolute -right-4 top-[calc(50%-24px)] -translate-y-1/2 z-40 p-2 rounded-full bg-white text-orange-500 shadow-sm shadow-orange-500/20 border border-orange-500 transition-all duration-300 hover:bg-orange-50 hover:scale-110 active:scale-95 disabled:opacity-0 disabled:pointer-events-none",
+                    variant === "full" ? "hidden" : ""
                   )}
                 >
-                  <ChevronRight className="w-4 h-4" />
+                  <ChevronRight className="w-5 h-5 lg:w-4 lg:h-4" />
                 </button>
               </>
             )}
