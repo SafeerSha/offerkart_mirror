@@ -13,11 +13,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { cn } from "@/lib/utils";
-import { getPlacesByPin } from "indian_places";
+import { config } from "@/lib/config";
+import { getPlacesByPin, getStates } from "indian_places";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { useTranslation } from "@/hooks/useTranslation";
 import { SearchResultData } from "@/lib/types/search";
 import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
+import { getGlobalSearch } from "@/lib/api/userOffersService";
 
 const locations = [
     "All",
@@ -37,34 +39,70 @@ const locations = [
     "Kasaragod",
 ];
 
+// Flat place search cache for fast, non-blocking local search
+let placesCache: { name: string; district: string; state: string }[] | null = null;
+let isCachingInProgress = false;
+
+const warmUpPlacesCache = () => {
+    if (placesCache || isCachingInProgress) return;
+    isCachingInProgress = true;
+
+    const run = () => {
+        try {
+            const startTime = performance.now();
+            const list: { name: string; district: string; state: string }[] = [];
+            const statesList = getStates();
+            for (const state of statesList) {
+                const districtsList = state.getDistricts();
+                for (const district of districtsList) {
+                    const placesList = district.getPlaces();
+                    for (const place of placesList) {
+                        list.push({
+                            name: place.name,
+                            district: district.name,
+                            state: state.name
+                        });
+                    }
+                }
+            }
+            placesCache = list;
+            console.log(`[Location Cache] Loaded ${list.length} places in ${(performance.now() - startTime).toFixed(1)}ms`);
+        } catch (error) {
+            console.error("[Location Cache] Failed to warm up:", error);
+        } finally {
+            isCachingInProgress = false;
+        }
+    };
+
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+        (window as any).requestIdleCallback(run);
+    } else {
+        setTimeout(run, 1000);
+    }
+};
+
 interface LocationDropdownContentProps {
     align?: "start" | "center" | "end";
     isMobile?: boolean;
     loading: boolean;
-    pincode: string;
-    setPincode: (val: string) => void;
+    locationSearch: string;
+    setLocationSearch: (val: string) => void;
     dropdownLocations: string[];
-    setDropdownLocations: (locs: string[]) => void;
     selectedLocation: string;
     setSelectedLocation: (loc: string) => void;
-    fetchLocations: (pin: string) => void;
-    debounceTimer: NodeJS.Timeout | null;
-    setDebounceTimer: (timer: NodeJS.Timeout | null) => void;
+    handleSearch: (val: string) => void;
 }
 
 const LocationDropdownContent = ({
     align = "start",
     isMobile = false,
     loading,
-    pincode,
-    setPincode,
+    locationSearch,
+    setLocationSearch,
     dropdownLocations,
-    setDropdownLocations,
     selectedLocation,
     setSelectedLocation,
-    fetchLocations,
-    debounceTimer,
-    setDebounceTimer
+    handleSearch
 }: LocationDropdownContentProps) => (
     <DropdownMenuContent
         className={cn(
@@ -84,23 +122,12 @@ const LocationDropdownContent = ({
                 </div>
                 <input
                     type="text"
-                    placeholder="Enter 6-digit pincode..."
-                    value={pincode}
-                    maxLength={6}
+                    placeholder="Search location, city, or district..."
+                    value={locationSearch}
                     onChange={(e) => {
                         const value = e.target.value;
-                        if (value && !/^\d*$/.test(value)) return;
-                        setPincode(value);
-                        if (value === '') {
-                            setDropdownLocations(locations);
-                        }
-                        if (debounceTimer) clearTimeout(debounceTimer);
-                        const timer = setTimeout(() => {
-                            if (value.length === 6) {
-                                fetchLocations(value);
-                            }
-                        }, 500);
-                        setDebounceTimer(timer);
+                        setLocationSearch(value);
+                        handleSearch(value);
                     }}
                     className="w-full pl-10 pr-10 py-2.5 text-sm bg-white border border-primary/10 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none transition-all shadow-inner"
                     onKeyDown={(e) => {
@@ -108,9 +135,9 @@ const LocationDropdownContent = ({
                         if (e.key === ' ') e.stopPropagation();
                     }}
                 />
-                {pincode && (
+                {locationSearch && (
                     <button
-                        onClick={() => { setPincode(""); setDropdownLocations(locations); }}
+                        onClick={() => { setLocationSearch(""); handleSearch(""); }}
                         className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-primary/10 rounded-full transition-colors"
                     >
                         <X className="w-3 h-3 text-muted-foreground" />
@@ -118,20 +145,20 @@ const LocationDropdownContent = ({
                 )}
             </div>
             <p className="text-[10px] text-muted-foreground mt-2 px-1 font-medium italic">
-                Detecting your city via pincode for local deals
+                Search for your city or town to see local deals
             </p>
         </div>
 
         <div className="max-h-72 overflow-y-auto py-2 scrollbar-thin scrollbar-thumb-primary/10 scrollbar-track-transparent">
             <div className="flex items-center justify-between px-4 py-1 mb-1">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                    {pincode.length === 6 ? "Search Results" : "Suggested Locations"}
+                    {locationSearch ? "Search Results" : "Suggested Locations"}
                 </span>
             </div>
             {loading ? (
                 <div className="px-4 py-8 text-center animate-pulse">
                     <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin mx-auto mb-3" />
-                    <p className="text-sm text-muted-foreground font-medium">Searching for local deals...</p>
+                    <p className="text-sm text-muted-foreground font-medium">Searching...</p>
                 </div>
             ) : dropdownLocations.length === 0 ? (
                 <div className="px-4 py-8 text-center animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -139,31 +166,48 @@ const LocationDropdownContent = ({
                     <p className="text-sm text-muted-foreground">No locations found</p>
                 </div>
             ) : (
-                dropdownLocations.map((location) => (
-                    <DropdownMenuItem
-                        key={location}
-                        onClick={() => setSelectedLocation(location)}
-                        className={cn(
-                            "mx-2 rounded-xl cursor-pointer py-3 px-3 transition-all duration-200",
-                            selectedLocation === location
-                                ? "bg-primary/10 text-primary font-semibold"
-                                : "hover:bg-primary/5 focus:bg-primary/5"
-                        )}
-                    >
-                        <div className="flex items-center w-full">
-                            <div className={cn(
-                                "w-8 h-8 rounded-lg flex items-center justify-center mr-3 transition-colors",
-                                selectedLocation === location ? "bg-primary/20" : "bg-secondary"
-                            )}>
-                                <MapPin className={cn("w-4 h-4", selectedLocation === location ? "text-primary" : "text-muted-foreground")} />
-                            </div>
-                            <span className="text-sm">{location}</span>
-                            {selectedLocation === location && (
-                                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                dropdownLocations.map((location) => {
+                    const parts = location.split(',');
+                    const mainName = parts[0].trim();
+                    const subtitle = parts.length > 1
+                        ? parts.slice(1).map(p => p.trim()).filter(p => p !== "India" && !/^\d+$/.test(p)).slice(0, 2).join(", ")
+                        : "Kerala";
+
+                    return (
+                        <DropdownMenuItem
+                            key={location}
+                            onClick={() => setSelectedLocation(location)}
+                            className={cn(
+                                "mx-2 rounded-xl cursor-pointer py-2.5 px-3 transition-all duration-200",
+                                selectedLocation === location
+                                    ? "bg-primary/10 text-primary font-semibold"
+                                    : "hover:bg-primary/5 focus:bg-primary/5"
                             )}
-                        </div>
-                    </DropdownMenuItem>
-                ))
+                        >
+                            <div className="flex items-center w-full min-w-0">
+                                <div className={cn(
+                                    "w-8 h-8 rounded-lg flex items-center justify-center mr-3 transition-colors shrink-0",
+                                    selectedLocation === location ? "bg-primary/20" : "bg-secondary"
+                                )}>
+                                    <MapPin className={cn("w-4 h-4", selectedLocation === location ? "text-primary" : "text-muted-foreground")} />
+                                </div>
+                                <div className="flex items-baseline min-w-0 text-left gap-1.5 flex-1">
+                                    <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[65%]" title={location}>
+                                        {mainName}
+                                    </span>
+                                    {subtitle && (
+                                        <span className="text-xs text-slate-400 dark:text-slate-500 truncate flex-1">
+                                            {subtitle}
+                                        </span>
+                                    )}
+                                </div>
+                                {selectedLocation === location && (
+                                    <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary animate-pulse shrink-0 ml-2" />
+                                )}
+                            </div>
+                        </DropdownMenuItem>
+                    );
+                })
             )}
         </div>
     </DropdownMenuContent>
@@ -181,13 +225,68 @@ const Header = () => {
     const [scrolled, setScrolled] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [searchOpen, setSearchOpen] = useState(false);
-    const [selectedLocation, setSelectedLocation] = useState("Location");
+    const [selectedLocation, setSelectedLocation] = useState(() => {
+        if (typeof window !== "undefined") {
+            const saved = localStorage.getItem("offerKart_location");
+            if (saved) return saved;
+        }
+        return "Location";
+    });
     const [desktopLocationOpen, setDesktopLocationOpen] = useState(false);
     const [mobileLocationOpen, setMobileLocationOpen] = useState(false);
     const islandLocationOpen = desktopLocationOpen || mobileLocationOpen;
     const [islandExpanded, setIslandExpanded] = useState(false);
-    const [pincode, setPincode] = useState("");
-    const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(null);
+    const [locationSearch, setLocationSearch] = useState("");
+    const [locationSearchTimer, setLocationSearchTimer] = useState<NodeJS.Timeout | null>(null);
+
+    useEffect(() => {
+        warmUpPlacesCache();
+
+        // Silent geolocation check: auto-detect location if not already set, and permissions are granted
+        if (selectedLocation === "Location" && typeof navigator !== "undefined" && navigator.permissions && navigator.geolocation) {
+            navigator.permissions.query({ name: 'geolocation' as any }).then((permissionStatus) => {
+                if (permissionStatus.state === 'granted') {
+                    navigator.geolocation.getCurrentPosition(
+                        async (position) => {
+                            const { latitude, longitude } = position.coords;
+                            try {
+                                const response = await fetch(
+                                    `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+                                );
+                                if (response.ok) {
+                                    const data = await response.json();
+                                    const locationName = data.display_name || data.address.city || data.address.town || data.address.village;
+                                    if (locationName) {
+                                        setSelectedLocation(locationName);
+                                    }
+                                }
+                            } catch (error) {
+                                console.error("Error auto-detecting location:", error);
+                            }
+                        },
+                        (error) => {
+                            console.warn("Geolocation query failed despite granted state:", error);
+                        },
+                        { timeout: 8000 }
+                    );
+                }
+            }).catch((err) => {
+                console.warn("Permissions query for geolocation not supported or failed:", err);
+            });
+        }
+    }, [selectedLocation]);
+
+    useEffect(() => {
+        if (selectedLocation && selectedLocation !== "Location") {
+            localStorage.setItem("offerKart_location", selectedLocation);
+        }
+    }, [selectedLocation]);
+
+    useEffect(() => {
+        return () => {
+            if (locationSearchTimer) clearTimeout(locationSearchTimer);
+        };
+    }, [locationSearchTimer]);
     const [dropdownLocations, setDropdownLocations] = useState(locations);
     const [loading, setLoading] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -205,8 +304,7 @@ const Header = () => {
         setIsSearching(true);
         const delayDebounceFn = setTimeout(async () => {
             try {
-                const response = await fetch(`/api/user/offer/search?search=${encodeURIComponent(searchQuery)}`);
-                const result = await response.json();
+                const result = await getGlobalSearch(searchQuery);
                 if (result.success && result.data) {
                     setSearchResults(result.data);
                 } else {
@@ -285,33 +383,85 @@ const Header = () => {
         };
     }, [scrolled, islandExpanded, islandLocationOpen]);
 
-    const fetchLocations = async (pin: string) => {
-        setLoading(true);
-        try {
-            // 1. Try local lookup first (instant, offline-first, no CORS)
-            const pinNum = parseInt(pin, 10);
-            if (!isNaN(pinNum)) {
-                const localPlaces = getPlacesByPin(pinNum);
-                if (localPlaces && localPlaces.length > 0) {
-                    const formatted = localPlaces.map((p: any) => `${p.place}, ${p.district}`);
-                    setDropdownLocations(formatted);
-                    setLoading(false);
-                    return;
-                }
-            }
+    const handleLocationSearch = (query: string) => {
+        const cleanQuery = query.trim();
+        if (locationSearchTimer) clearTimeout(locationSearchTimer);
 
-            // 2. Unreliable external API fallback (with CORS fallback protection)
-            const response = await fetch(`https://api.postalpincode.in/pincode/${pin}`);
-            const data = await response.json();
-            if (data[0].Status === 'Success' && data[0].PostOffice.length > 0) {
-                const postOffices = data[0].PostOffice;
-                setDropdownLocations(postOffices.map((po: { Name: string; District: string }) => `${po.Name}, ${po.District}`));
-            }
-        } catch (error) {
-            console.error('Error fetching location:', error);
-        } finally {
+        if (!cleanQuery) {
+            setDropdownLocations(locations);
             setLoading(false);
+            return;
         }
+
+        setLoading(true);
+        const timer = setTimeout(async () => {
+            try {
+                const lowerQuery = cleanQuery.toLowerCase();
+                const results: string[] = [];
+
+                // 1. Search in suggested locations first
+                const matchedSuggestions = locations.filter(loc =>
+                    loc !== "All" && loc.toLowerCase().includes(lowerQuery)
+                );
+                results.push(...matchedSuggestions);
+
+                if (cleanQuery.length >= 3) {
+                    try {
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+                        const response = await fetch(
+                            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cleanQuery)}&format=json&countrycodes=in&limit=15`,
+                            { signal: controller.signal }
+                        );
+                        clearTimeout(timeoutId);
+
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (Array.isArray(data) && data.length > 0) {
+                                data.forEach((item: any) => {
+                                    if (item.display_name && !results.includes(item.display_name)) {
+                                        results.push(item.display_name);
+                                    }
+                                });
+                            }
+                        }
+                    } catch (apiError) {
+                        console.warn("Nominatim API lookup failed, falling back to local database:", apiError);
+                    }
+
+                    // Fallback to local offline search if Nominatim returned few or no results
+                    if (results.length < 10) {
+                        if (!placesCache) {
+                            warmUpPlacesCache();
+                        }
+                        const cache = placesCache || [];
+                        let count = 0;
+                        for (const place of cache) {
+                            const formatted = `${place.name}, ${place.district}, ${place.state}`;
+                            if (
+                                (place.name.toLowerCase().includes(lowerQuery) ||
+                                    place.district.toLowerCase().includes(lowerQuery)) &&
+                                !results.includes(formatted)
+                            ) {
+                                results.push(formatted);
+                                count++;
+                                if (results.length >= 30 || count >= 30) {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                setDropdownLocations(results);
+            } catch (error) {
+                console.error("Error searching locations:", error);
+            } finally {
+                setLoading(false);
+            }
+        }, 300);
+
+        setLocationSearchTimer(timer);
     };
 
     const islandTitle =
@@ -530,7 +680,7 @@ const Header = () => {
                                                     className="relative text-foreground hover:text-primary transition-all font-medium flex items-center gap-2 group border-0 outline-none select-none"
                                                 >
                                                     <MapPin className="w-4 h-4 text-orange-500 group-hover:scale-110 transition-transform" />
-                                                    <span className="relative z-10">{selectedLocation}</span>
+                                                    <span className="relative z-10">{selectedLocation.split(',')[0]}</span>
                                                     <ChevronDown className="w-4 h-4 transition-transform group-hover:scale-110" />
                                                     <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-primary to-secondary group-hover:w-full transition-all duration-300" />
                                                 </button>
@@ -538,15 +688,12 @@ const Header = () => {
                                             <LocationDropdownContent
                                                 align="start"
                                                 loading={loading}
-                                                pincode={pincode}
-                                                setPincode={setPincode}
+                                                locationSearch={locationSearch}
+                                                setLocationSearch={setLocationSearch}
                                                 dropdownLocations={dropdownLocations}
-                                                setDropdownLocations={setDropdownLocations}
                                                 selectedLocation={selectedLocation}
                                                 setSelectedLocation={setSelectedLocation}
-                                                fetchLocations={fetchLocations}
-                                                debounceTimer={debounceTimer}
-                                                setDebounceTimer={setDebounceTimer}
+                                                handleSearch={handleLocationSearch}
                                             />
                                         </DropdownMenu>
                                     </nav>
@@ -559,7 +706,7 @@ const Header = () => {
                                                     className="relative text-foreground hover:text-primary transition-all font-medium flex items-center gap-2 group border-0 outline-none focus:ring-0 focus:ring-offset-0 focus:outline-none select-none"
                                                 >
                                                     <MapPin className="w-4 h-4 text-orange-500 group-hover:scale-110 transition-transform" />
-                                                    <span className="relative z-10">{selectedLocation}</span>
+                                                    <span className="relative z-10">{selectedLocation.split(',')[0]}</span>
                                                     <ChevronDown className="w-4 h-4 transition-transform group-hover:scale-110" />
                                                     <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-primary to-secondary group-hover:w-full transition-all duration-300" />
                                                 </button>
@@ -568,15 +715,12 @@ const Header = () => {
                                                 align="center"
                                                 isMobile={true}
                                                 loading={loading}
-                                                pincode={pincode}
-                                                setPincode={setPincode}
+                                                locationSearch={locationSearch}
+                                                setLocationSearch={setLocationSearch}
                                                 dropdownLocations={dropdownLocations}
-                                                setDropdownLocations={setDropdownLocations}
                                                 selectedLocation={selectedLocation}
                                                 setSelectedLocation={setSelectedLocation}
-                                                fetchLocations={fetchLocations}
-                                                debounceTimer={debounceTimer}
-                                                setDebounceTimer={setDebounceTimer}
+                                                handleSearch={handleLocationSearch}
                                             />
                                         </DropdownMenu>
                                     </div>
@@ -700,7 +844,7 @@ const Header = () => {
                                         )}
                                     />
 
-                                    {!searchOpen && (
+                                    {!searchOpen && !searchQuery && (
                                         <span className="absolute left-11 text-sm font-medium text-muted-foreground opacity-70 pointer-events-none transition-opacity duration-300">
                                             Search shops, offers, deals...
                                         </span>
@@ -758,9 +902,12 @@ const Header = () => {
                                                                         }}
                                                                         className="group/item flex items-center justify-between mx-1 px-2 py-2 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-900 transition-all duration-200 text-left"
                                                                     >
-                                                                        <div className="flex flex-col gap-0.5 min-w-0">
-                                                                            <div className="font-semibold text-[14px] text-slate-800 dark:text-slate-200 truncate leading-tight tracking-wide">
-                                                                                {p.name} <span className="text-slate-400 font-normal mx-1 tracking-normal">in</span> <span className="text-orange-500 dark:text-orange-400">{p.category || "General"}</span>
+                                                                        <div className="flex flex-col min-w-0">
+                                                                            <div className="text-[11px] text-slate-400 font-normal tracking-wide mb-0.5">
+                                                                                in <span className="text-orange-500 dark:text-orange-400 font-medium">{p.category || "General"}</span>
+                                                                            </div>
+                                                                            <div className="font-semibold text-[14px] text-slate-800 dark:text-slate-200 truncate leading-tight tracking-wide mb-1" title={p.name}>
+                                                                                {p.name}
                                                                             </div>
                                                                             <div className="flex items-center gap-2">
                                                                                 <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 tracking-wide">{p.totalOfferProducts} Products,</span>
@@ -781,11 +928,8 @@ const Header = () => {
 
                                                     {/* Offers Section */}
                                                     {searchResults.offers && searchResults.offers.length > 0 && (
-                                                        <div className="px-2 pt-2.5 pb-2">
-                                                            <div className="flex items-center gap-2 px-3">
-                                                                <Percent className="w-3.5 h-3.5 text-orange-500" />
-                                                                <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">Offers</span>
-                                                            </div>
+                                                        <div className="pl-0 pr-2 pb-2">
+
                                                             <div className="space-y-0.5 max-h-[240px] overflow-y-auto pr-1">
                                                                 {searchResults.offers.map((o) => (
                                                                     <Link
@@ -797,9 +941,13 @@ const Header = () => {
                                                                         }}
                                                                         className="group/item flex items-center justify-between mx-1 px-4 py-2 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-900 transition-all duration-200 text-left"
                                                                     >
-                                                                        <div className="flex items-center gap-3">
-                                                                            <div className="w-1.5 h-1.5 rounded-full bg-orange-500/70 group-hover/item:bg-orange-500 group-hover/item:scale-110 transition-all duration-200 shrink-0 shadow-sm shadow-orange-500/20" />
-                                                                            <div className="font-semibold text-[14px] text-slate-800 dark:text-slate-200 truncate leading-tight tracking-wide">{o.offerName}</div>
+                                                                        <div className="flex flex-col min-w-0 w-full">
+                                                                            <div className="text-[11px] text-slate-400 font-normal tracking-wide mb-0.5">
+                                                                                in <span className="text-orange-500 dark:text-orange-400 font-medium">Offers</span>
+                                                                            </div>
+                                                                            <div className="font-semibold text-[14px] text-slate-800 dark:text-slate-200 truncate leading-tight tracking-wide mb-1" title={o.offerName}>
+                                                                                {o.offerName}
+                                                                            </div>
                                                                         </div>
                                                                         <ChevronDown className="w-4 h-4 -rotate-90 text-slate-300 dark:text-slate-600 group-hover/item:text-slate-400 transition-colors shrink-0" />
                                                                     </Link>
@@ -917,9 +1065,12 @@ const Header = () => {
                                                                         }}
                                                                         className="group/item flex items-center justify-between mx-0.5 px-1.5 py-1.5 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-900 transition-all duration-200 text-left"
                                                                     >
-                                                                        <div className="flex flex-col gap-1 min-w-0">
-                                                                            <div className="font-semibold text-[13px] text-slate-800 dark:text-slate-200 truncate leading-tight tracking-wide">
-                                                                                {p.name} <span className="text-slate-400 font-normal mx-1 tracking-normal">in</span> <span className="text-orange-500 dark:text-orange-400">{p.category || "General"}</span>
+                                                                        <div className="flex flex-col min-w-0">
+                                                                            <div className="text-[10px] text-slate-400 font-normal tracking-wide mb-0.5">
+                                                                                in <span className="text-orange-500 dark:text-orange-400 font-medium">{p.category || "General"}</span>
+                                                                            </div>
+                                                                            <div className="font-semibold text-[13px] text-slate-800 dark:text-slate-200 truncate leading-tight tracking-wide mb-1" title={p.name}>
+                                                                                {p.name}
                                                                             </div>
                                                                             <div className="flex items-center gap-1">
                                                                                 <span className="text-[8px] font-bold text-slate-600 dark:text-slate-300 tracking-wide">{p.totalOfferProducts} Products,</span>
@@ -940,11 +1091,8 @@ const Header = () => {
 
                                                     {/* Offers */}
                                                     {searchResults.offers && searchResults.offers.length > 0 && (
-                                                        <div className="px-1.5 pt-2 pb-2">
-                                                            <div className="flex items-center gap-1.5">
-                                                                <Percent className="w-3 h-3 text-orange-500" />
-                                                                <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">Offers</span>
-                                                            </div>
+                                                        <div className="pl-0 pr-1.5 pt-1 pb-2">
+
                                                             <div className="space-y-0.5 max-h-[200px] overflow-y-auto pr-1">
                                                                 {searchResults.offers.map((o) => (
                                                                     <Link
@@ -955,9 +1103,13 @@ const Header = () => {
                                                                         }}
                                                                         className="group/item flex items-center justify-between mx-0.5 px-3 py-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900 transition-all duration-200 text-left"
                                                                     >
-                                                                        <div className="flex items-center gap-2.5">
-                                                                            <div className="w-1 h-1 rounded-full bg-orange-500/70 group-hover/item:bg-orange-500 group-hover/item:scale-110 transition-all duration-200 shrink-0 shadow-sm shadow-orange-500/20" />
-                                                                            <div className="font-semibold text-[13px] text-slate-800 dark:text-slate-200 truncate leading-tight tracking-wide">{o.offerName}</div>
+                                                                        <div className="flex flex-col min-w-0 w-full">
+                                                                            <div className="text-[10px] text-slate-400 font-normal tracking-wide mb-0.5">
+                                                                                in <span className="text-orange-500 dark:text-orange-400 font-medium">Offers</span>
+                                                                            </div>
+                                                                            <div className="font-semibold text-[13px] text-slate-800 dark:text-slate-200 truncate leading-tight tracking-wide mb-1" title={o.offerName}>
+                                                                                {o.offerName}
+                                                                            </div>
                                                                         </div>
                                                                         <ChevronDown className="w-3.5 h-3.5 -rotate-90 text-slate-300 dark:text-slate-600 group-hover/item:text-slate-400 transition-colors shrink-0" />
                                                                     </Link>
@@ -1008,7 +1160,7 @@ const Header = () => {
                                 <div className="flex items-center gap-2 rounded-full px-3 py-1.5 bg-white/40 dark:bg-white/10 border border-white/30 dark:border-white/10 max-w-[240px]">
                                     <MapPin className="w-4 h-4 text-orange-500 shrink-0" />
                                     <span className="text-xs font-semibold truncate">
-                                        {selectedLocation}
+                                        {selectedLocation.split(',')[0]}
                                     </span>
                                 </div>
                             </div>
