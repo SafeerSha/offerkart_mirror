@@ -493,13 +493,16 @@ export async function getGlobalSearch(search: string): Promise<SearchResponse> {
         if (response && response.success && response.data) {
             const apiData = response.data;
             const searchData = unwrapApiEnvelope(apiData);
+            
+            // searchData might still be wrapped in { success, data } if unwrapApiEnvelope didn't peel it
+            const actualData = searchData.data || searchData;
 
             return {
                 success: true,
                 message: apiData.message || "search details fetched successfully",
                 data: {
-                    products: searchData.products || [],
-                    offers: searchData.offers || []
+                    products: actualData.products || [],
+                    offers: actualData.offers || []
                 }
             };
         }

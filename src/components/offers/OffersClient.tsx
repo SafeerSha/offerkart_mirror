@@ -331,7 +331,10 @@ export default function OffersClient({
                                         </div>
                                     )}
                                 </div>
-                                <h3 className="text-2xl font-bold text-gray-900">
+                                <h3 
+                                    className="text-2xl font-bold text-gray-900 truncate max-w-full"
+                                    title={`${activeFilters.category === "All" ? t("catalog.allOffers") : activeFilters.category}${activeFilters.subcategory.length > 0 ? " — " + activeFilters.subcategory.join(", ") : ""}`}
+                                >
                                     {activeFilters.category === "All" ? t("catalog.allOffers") : activeFilters.category}
                                     {activeFilters.subcategory.length > 0 && (
                                         <span className="text-gray-400 font-medium">
@@ -346,15 +349,17 @@ export default function OffersClient({
 
                                 {activeFilters.shopId && (
                                     <div className="flex flex-wrap items-center gap-2 mt-3">
-                                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-orange-50 text-orange-600 border border-orange-100 shadow-sm animate-in fade-in duration-300">
-                                            <span>Shop: {featuredShops.find(s => String(s.id) === String(activeFilters.shopId))?.name || `Shop #${activeFilters.shopId}`}</span>
+                                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-orange-50 text-orange-600 border border-orange-100 shadow-sm animate-in fade-in duration-300 max-w-full">
+                                            <span className="truncate" title={`Shop: ${featuredShops.find(s => String(s.id) === String(activeFilters.shopId))?.name || `Shop #${activeFilters.shopId}`}`}>
+                                                Shop: {featuredShops.find(s => String(s.id) === String(activeFilters.shopId))?.name || `Shop #${activeFilters.shopId}`}
+                                            </span>
                                             <button
                                                 onClick={() => {
                                                     const params = new URLSearchParams(searchParams.toString());
                                                     params.delete("shopId");
                                                     router.push(`/offers?${params.toString()}`);
                                                 }}
-                                                className="w-4 h-4 rounded-full bg-orange-100 hover:bg-orange-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
+                                                className="shrink-0 w-4 h-4 rounded-full bg-orange-100 hover:bg-orange-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
                                                 title="Clear shop filter"
                                             >
                                                 ×

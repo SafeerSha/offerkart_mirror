@@ -422,10 +422,6 @@ export async function getUserOfferById(
     id: string | number,
     cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">
 ) {
-    // Fetch both the detail and listing endpoints in parallel.
-    // The detail API provides posters, products, branches, etc.
-    // The listing API provides shopName, shopLogo, daysLeft, distanceKm, etc.
-    // We need both to build a complete offer representation.
     const [detailResponse, listingResult] = await Promise.all([
         backend.get<any>(ENDPOINTS.USER_OFFER.DETAILS(id), {
             next: { tags: [CACHE_TAGS.OFFERS, CACHE_TAGS.OFFER(id)] },
@@ -448,10 +444,6 @@ export async function getUserOfferById(
     // Primary path: use the detail endpoint response enriched with listing data
     if (detailResponse && detailResponse.success && detailResponse.data) {
         const detailData = detailResponse.data;
-        // The backend.request returns { success, data: <jsonBody> }
-        // where <jsonBody> may be { success: true, data: { ...offerDetail } }
-        // unwrapApiEnvelope peels one layer if it detects a nested envelope,
-        // but we also need to handle the case where the result still has a .data wrapper
         let actualDetail = unwrapApiEnvelope(detailData);
         // If after unwrapping we still have { success, data: {...} }, extract .data
         if (
