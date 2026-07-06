@@ -16,6 +16,10 @@ export async function GET(request: NextRequest) {
 
         const minPrice = minPriceStr ? Number(minPriceStr) : undefined;
         const maxPrice = maxPriceStr ? Number(maxPriceStr) : undefined;
+        const latitudeStr = searchParams.get("latitude");
+        const longitudeStr = searchParams.get("longitude");
+        const latitude = latitudeStr ? Number(latitudeStr) : undefined;
+        const longitude = longitudeStr ? Number(longitudeStr) : undefined;
 
         const result = await getUserOfferProducts({
             search,
@@ -26,7 +30,9 @@ export async function GET(request: NextRequest) {
             maxPrice,
             sort,
             page,
-            limit
+            limit,
+            latitude,
+            longitude
         });
 
         return NextResponse.json(result);

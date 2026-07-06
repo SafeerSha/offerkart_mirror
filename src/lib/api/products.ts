@@ -193,11 +193,13 @@ export async function getUserProducts(query: {
     sort?: string;
     page?: number;
     limit?: number;
+    latitude?: number;
+    longitude?: number;
 }, cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">) {
     const page = query.page || 1;
     const limit = query.limit || 20;
     const sort = query.sort || "newest";
-    const { search, categoryId, subcategoryId, shopId, minPrice, maxPrice } = query;
+    const { search, categoryId, subcategoryId, shopId, minPrice, maxPrice, latitude, longitude } = query;
 
     const params = new URLSearchParams({
         page: String(page),
@@ -210,6 +212,8 @@ export async function getUserProducts(query: {
     if (shopId) params.set("shopId", shopId);
     if (minPrice !== undefined) params.set("minPrice", String(minPrice));
     if (maxPrice !== undefined) params.set("maxPrice", String(maxPrice));
+    if (latitude !== undefined) params.set("latitude", String(latitude));
+    if (longitude !== undefined) params.set("longitude", String(longitude));
 
     let response: any;
     try {

@@ -138,7 +138,7 @@ const FeaturedCarousel = ({ shops }: FeaturedCarouselProps) => {
                   <div className="absolute inset-0 overflow-hidden rounded-2xl bg-white dark:bg-slate-950/40">
                     <Image
                       src={offer.image || "/images/shop-registration-bg-light.png"}
-                      alt={offer.name}
+                      alt={offer.name || "Featured Shop"}
                       fill
                       unoptimized
                       className="object-cover transition-transform duration-700 group-hover:scale-110"

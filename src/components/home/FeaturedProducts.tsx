@@ -1,11 +1,13 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import ProductCard from "@/components/products/ProductCard";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { Heading, Text } from "@/components/shared/Typography";
 import { Sparkles, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useLocationContext } from "@/context/LocationContext";
+import { getShopIdFromShopName, getShopCoords, calculateDistance } from "@/lib/api/userOffersService";
 
 interface Product {
     id: number;
@@ -19,6 +21,7 @@ interface Product {
     rating?: number;
     reviews?: number;
     discount?: string;
+    distanceKm?: number | null;
 }
 
 interface FeaturedProductsProps {
@@ -27,6 +30,29 @@ interface FeaturedProductsProps {
 
 const FeaturedProducts = ({ products }: FeaturedProductsProps) => {
     const router = useRouter();
+    const { location: userLocation } = useLocationContext();
+
+    const sortedProducts = useMemo(() => {
+        if (!products) return [];
+        let items = products.map(p => {
+            let distanceKm: number | null = null;
+            if (userLocation.latitude !== null && userLocation.longitude !== null) {
+                const shopId = p.shopName ? getShopIdFromShopName(p.shopName) : 0;
+                const coords = getShopCoords(shopId);
+                distanceKm = calculateDistance(userLocation.latitude, userLocation.longitude, coords.lat, coords.lng);
+            }
+            return { ...p, distanceKm };
+        });
+
+        if (userLocation.latitude !== null && userLocation.longitude !== null) {
+            items.sort((a, b) => {
+                const distA = a.distanceKm ?? Infinity;
+                const distB = b.distanceKm ?? Infinity;
+                return distA - distB;
+            });
+        }
+        return items;
+    }, [products, userLocation]);
 
     if (!products || products.length === 0) {
         return null;
@@ -59,9 +85,8 @@ const FeaturedProducts = ({ products }: FeaturedProductsProps) => {
                     </PremiumButton>
                 </div>
 
-                {/* Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-1 md:gap-2">
-                    {products.slice(0, 12).map((product, index) => (
+                    {sortedProducts.slice(0, 12).map((product, index) => (
                         <div
                             key={product.id}
                             className="animate-in fade-in slide-in-from-bottom-4 duration-500 fill-mode-both"

@@ -370,11 +370,13 @@ export async function getUserOfferProducts(query: {
     sort?: string;
     page?: number;
     limit?: number;
+    latitude?: number;
+    longitude?: number;
 }) {
     const page = Number(query.page) || 1;
     const limit = Number(query.limit) || 20;
     const sort = query.sort || "newest";
-    const { search, categoryId, subcategoryId, shopId, minPrice, maxPrice } = query;
+    const { search, categoryId, subcategoryId, shopId, minPrice, maxPrice, latitude, longitude } = query;
 
     const params = new URLSearchParams({
         page: String(page),
@@ -387,6 +389,8 @@ export async function getUserOfferProducts(query: {
     if (shopId) params.set("shopId", shopId);
     if (minPrice !== undefined) params.set("minPrice", String(minPrice));
     if (maxPrice !== undefined) params.set("maxPrice", String(maxPrice));
+    if (latitude !== undefined) params.set("latitude", String(latitude));
+    if (longitude !== undefined) params.set("longitude", String(longitude));
 
     const response = await backend.get<any>(`${ENDPOINTS.USER_OFFER.PRODUCTS}?${params.toString()}`, {
         next: { tags: [CACHE_TAGS.OFFERS, CACHE_TAGS.PRODUCTS] },
