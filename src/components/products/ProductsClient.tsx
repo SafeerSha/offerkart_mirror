@@ -26,6 +26,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { getUserProducts } from "@/lib/api/products";
 import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
 import { useUserProductsFiltered } from "@/hooks/useApi";
+import { useLocationContext } from "@/context/LocationContext";
 
 interface ProductsClientProps {
     initialProducts: any[];
@@ -36,6 +37,7 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
     const { t } = useTranslation("common");
     const searchParams = useSearchParams();
     const router = useRouter();
+    const { location: globalLocation } = useLocationContext();
 
     const initialCategory = searchParams.get("category") || "All";
     const initialSubcategories = searchParams.getAll("subcategory") || [];
@@ -162,7 +164,9 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
         subcategoryId: subCatId ? String(subCatId) : undefined,
         shopId: activeFilters.shopId,
         sort: mappedSort,
-        limit: 100
+        limit: 100,
+        latitude: globalLocation.latitude !== null ? globalLocation.latitude : undefined,
+        longitude: globalLocation.longitude !== null ? globalLocation.longitude : undefined,
     };
 
     const { data: productsData, isLoading, error, refetch } = useUserProductsFiltered(queryFilters);

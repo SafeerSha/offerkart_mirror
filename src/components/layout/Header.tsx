@@ -20,6 +20,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { SearchResultData } from "@/lib/types/search";
 import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
 import { getGlobalSearch } from "@/lib/api/userOffersService";
+import { useLocationContext } from "@/context/LocationContext";
 
 const locations = [
     "All",
@@ -88,8 +89,7 @@ interface LocationModalProps {
     locationSearch: string;
     setLocationSearch: (val: string) => void;
     dropdownLocations: string[];
-    selectedLocation: string;
-    setSelectedLocation: (loc: string) => void;
+    locationCoordsMap: Record<string, { lat: number; lon: number }>;
     handleSearch: (val: string) => void;
 }
 
@@ -100,10 +100,11 @@ const LocationModal = ({
     locationSearch,
     setLocationSearch,
     dropdownLocations,
-    selectedLocation,
-    setSelectedLocation,
+    locationCoordsMap,
     handleSearch
 }: LocationModalProps) => {
+    const { location: globalLocation, isLocationSet, setLocation } = useLocationContext();
+    const selectedLocation = globalLocation.name;
     const [detectingLocation, setDetectingLocation] = useState(false);
 
     const handleDetectLocation = () => {
@@ -125,7 +126,7 @@ const LocationModal = ({
                         const address = data.address || {};
                         const locationName = data.display_name || address.city || address.town || address.village || address.suburb;
                         if (locationName) {
-                            setSelectedLocation(locationName);
+                            setLocation(locationName, latitude, longitude);
                             onOpenChange(false);
                         } else {
                             alert("Could not determine location name from coordinates.");
@@ -158,13 +159,29 @@ const LocationModal = ({
     };
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="p-0 overflow-hidden bg-white/95 backdrop-blur-md border border-primary/10 rounded-2xl sm:rounded-2xl shadow-2xl max-w-md w-[calc(100vw-2rem)] gap-0">
-                <DialogHeader className="p-4 border-b border-primary/5 bg-primary/5 text-left shrink-0">
+        <Dialog open={open} onOpenChange={(val) => {
+            // Only allow closing if a location has already been selected
+            if (isLocationSet) {
+                onOpenChange(val);
+            }
+        }}>
+            <DialogContent
+                onPointerDownOutside={(e) => {
+                    if (!isLocationSet) e.preventDefault();
+                }}
+                onEscapeKeyDown={(e) => {
+                    if (!isLocationSet) e.preventDefault();
+                }}
+                className={cn(
+                    "p-0 overflow-hidden bg-white/95 backdrop-blur-md border border-primary/10 rounded-2xl sm:rounded-2xl shadow-2xl max-w-md w-[calc(100vw-2rem)] gap-0",
+                    !isLocationSet && "[&>button:last-child]:hidden"
+                )}
+            >
+                <DialogHeader className="px-4 py-2 border-b border-primary/5 bg-primary/5 text-left shrink-0">
                     <DialogTitle className="font-sans font-bold text-lg text-slate-800">
                         Select Location
                     </DialogTitle>
-                    <div className="flex items-center gap-2 mt-3 w-full">
+                    <div className="flex items-center gap-2 mt-1 w-full">
                         <div className="relative flex-1 group">
                             <div className="absolute left-3 top-1/2 -translate-y-1/2">
                                 {loading ? (
@@ -193,29 +210,33 @@ const LocationModal = ({
                                 </button>
                             )}
                         </div>
-
-                        <span className="text-xs font-semibold text-slate-400 shrink-0 select-none">or</span>
-
-                        <button
-                            onClick={handleDetectLocation}
-                            disabled={detectingLocation}
-                            className="flex items-center gap-1.5 h-10 px-3.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold text-xs transition-all duration-200 shrink-0 shadow-sm active:scale-[0.97] disabled:opacity-75 disabled:cursor-not-allowed"
-                        >
-                            {detectingLocation ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
-                            ) : (
-                                <Locate className="w-3.5 h-3.5 text-white" />
-                            )}
-                            <span>{detectingLocation ? "Detecting..." : "Near by"}</span>
-                        </button>
                     </div>
 
-                    <p className="text-[10px] text-muted-foreground mt-2 px-1 font-medium italic">
-                        Search for your city or town to see local deals
+                    <p className="text-[10px] text-muted-foreground mt-1 px-1 font-medium italic">
+                        {!isLocationSet ? "Please select a location to see deals near you" : "Search for your city or town to see local deals"}
                     </p>
                 </DialogHeader>
 
                 <div className="max-h-72 overflow-y-auto py-2 scrollbar-thin scrollbar-thumb-primary/10 scrollbar-track-transparent">
+                    <button
+                        onClick={handleDetectLocation}
+                        disabled={detectingLocation}
+                        className="mx-2 rounded-xl cursor-pointer py-2 px-2 flex items-center w-[calc(100%-1rem)] text-left border border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10 transition-all duration-200 outline-none mb-3 shrink-0"
+                    >
+                        <div className="w-7 h-7 rounded-lg flex items-center justify-center mr-3 bg-orange-500/20 shrink-0">
+                            {detectingLocation ? (
+                                <Loader2 className="w-4 h-4 animate-spin text-orange-600" />
+                            ) : (
+                                <Locate className="w-4 h-4 text-orange-600" />
+                            )}
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                            <span className="text-sm font-bold text-orange-600">
+                                {detectingLocation ? "Detecting location..." : "Use current location"}
+                            </span>
+                        </div>
+                    </button>
+
                     <div className="flex items-center justify-between px-4 py-1 mb-1">
                         <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                             {locationSearch ? "Search Results" : "Suggested Locations"}
@@ -232,8 +253,8 @@ const LocationModal = ({
                             <p className="text-sm text-muted-foreground">No locations found</p>
                         </div>
                     ) : (
-                        dropdownLocations.map((location) => {
-                            const parts = location.split(',');
+                        dropdownLocations.map((loc) => {
+                            const parts = loc.split(',');
                             const mainName = parts[0].trim();
                             const subtitle = parts.length > 1
                                 ? parts.slice(1).map(p => p.trim()).filter(p => p !== "India" && !/^\d+$/.test(p)).slice(0, 2).join(", ")
@@ -241,27 +262,28 @@ const LocationModal = ({
 
                             return (
                                 <button
-                                    key={location}
+                                    key={loc}
                                     onClick={() => {
-                                        setSelectedLocation(location);
+                                        const coords = locationCoordsMap[loc] || { lat: null, lon: null };
+                                        setLocation(loc, coords.lat, coords.lon);
                                         onOpenChange(false);
                                     }}
                                     className={cn(
-                                        "mx-2 rounded-xl cursor-pointer py-2.5 px-3 transition-all duration-200 flex items-center justify-between w-[calc(100%-1rem)] text-left border-0 outline-none bg-transparent",
-                                        selectedLocation === location
+                                        "rounded-xl cursor-pointer py-2.5 px-3 transition-all duration-200 flex items-center justify-between w-[calc(100%-1rem)] text-left border-0 outline-none bg-transparent",
+                                        selectedLocation === loc
                                             ? "bg-primary/10 text-primary font-semibold"
                                             : "hover:bg-primary/5 focus:bg-primary/5"
                                     )}
                                 >
                                     <div className="flex items-center w-full min-w-0">
                                         <div className={cn(
-                                            "w-8 h-8 rounded-lg flex items-center justify-center mr-3 transition-colors shrink-0",
-                                            selectedLocation === location ? "bg-primary/20" : "bg-secondary"
+                                            "w-8 h-8 rounded-lg flex items-center justify-center transition-colors shrink-0",
+                                            selectedLocation === loc ? "bg-primary/20" : "bg-secondary"
                                         )}>
-                                            <MapPin className={cn("w-4 h-4", selectedLocation === location ? "text-primary" : "text-muted-foreground")} />
+                                            <MapPin className={cn("w-4 h-4", selectedLocation === loc ? "text-primary" : "text-muted-foreground")} />
                                         </div>
                                         <div className="flex items-baseline min-w-0 text-left gap-1.5 flex-1">
-                                            <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[65%]" title={location}>
+                                            <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[65%]" title={loc}>
                                                 {mainName}
                                             </span>
                                             {subtitle && (
@@ -270,7 +292,7 @@ const LocationModal = ({
                                                 </span>
                                             )}
                                         </div>
-                                        {selectedLocation === location && (
+                                        {selectedLocation === loc && (
                                             <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary animate-pulse shrink-0 ml-2" />
                                         )}
                                     </div>
@@ -296,18 +318,13 @@ const Header = () => {
     const [scrolled, setScrolled] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [searchOpen, setSearchOpen] = useState(false);
-    const [selectedLocation, setSelectedLocation] = useState(() => {
-        if (typeof window !== "undefined") {
-            const saved = localStorage.getItem("offerKart_location");
-            if (saved) return saved;
-        }
-        return "Location";
-    });
-    const [locationOpen, setLocationOpen] = useState(false);
+    const { location: globalLocation, isLocationSet, isModalOpen: locationOpen, setLocation, setModalOpen: setLocationOpen } = useLocationContext();
+    const selectedLocation = globalLocation.name;
     const islandLocationOpen = locationOpen;
     const [islandExpanded, setIslandExpanded] = useState(false);
     const [locationSearch, setLocationSearch] = useState("");
     const [locationSearchTimer, setLocationSearchTimer] = useState<NodeJS.Timeout | null>(null);
+    const [locationCoordsMap, setLocationCoordsMap] = useState<Record<string, { lat: number; lon: number }>>({});
 
     useEffect(() => {
         warmUpPlacesCache();
@@ -327,7 +344,7 @@ const Header = () => {
                                     const data = await response.json();
                                     const locationName = data.display_name || data.address.city || data.address.town || data.address.village;
                                     if (locationName) {
-                                        setSelectedLocation(locationName);
+                                        setLocation(locationName, latitude, longitude);
                                     }
                                 }
                             } catch (error) {
@@ -344,13 +361,7 @@ const Header = () => {
                 console.warn("Permissions query for geolocation not supported or failed:", err);
             });
         }
-    }, [selectedLocation]);
-
-    useEffect(() => {
-        if (selectedLocation && selectedLocation !== "Location") {
-            localStorage.setItem("offerKart_location", selectedLocation);
-        }
-    }, [selectedLocation]);
+    }, [selectedLocation, setLocation]);
 
     useEffect(() => {
         return () => {
@@ -491,6 +502,13 @@ const Header = () => {
                                 data.forEach((item: any) => {
                                     if (item.display_name && !results.includes(item.display_name)) {
                                         results.push(item.display_name);
+                                        setLocationCoordsMap(prev => ({
+                                            ...prev,
+                                            [item.display_name]: {
+                                                lat: parseFloat(item.lat),
+                                                lon: parseFloat(item.lon)
+                                            }
+                                        }));
                                     }
                                 });
                             }
@@ -1219,8 +1237,7 @@ const Header = () => {
                 locationSearch={locationSearch}
                 setLocationSearch={setLocationSearch}
                 dropdownLocations={dropdownLocations}
-                selectedLocation={selectedLocation}
-                setSelectedLocation={setSelectedLocation}
+                locationCoordsMap={locationCoordsMap}
                 handleSearch={handleLocationSearch}
             />
         </header>

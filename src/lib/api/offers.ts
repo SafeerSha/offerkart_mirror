@@ -136,12 +136,10 @@ async function fetchUserOffersPage({
         params.set("shopId", normalizedShopId);
     }
 
-    if (sort === "nearby" || sort === "nearest") {
-        const normalizedLatitude = normalizeOptionalQueryValue(latitude);
-        const normalizedLongitude = normalizeOptionalQueryValue(longitude);
-        if (normalizedLatitude !== undefined) params.set("latitude", normalizedLatitude);
-        if (normalizedLongitude !== undefined) params.set("longitude", normalizedLongitude);
-    }
+    const normalizedLatitude = normalizeOptionalQueryValue(latitude);
+    const normalizedLongitude = normalizeOptionalQueryValue(longitude);
+    if (normalizedLatitude !== undefined) params.set("latitude", normalizedLatitude);
+    if (normalizedLongitude !== undefined) params.set("longitude", normalizedLongitude);
 
     let response: any;
     try {

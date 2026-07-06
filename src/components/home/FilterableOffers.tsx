@@ -8,6 +8,8 @@ import { Heading, Text } from "@/components/shared/Typography";
 import FilterPanel from "./FilterPanel";
 import OfferGrid from "./OfferGrid";
 import { Offer } from "@/lib/types/offer";
+import { useLocationContext } from "@/context/LocationContext";
+import { getShopIdFromShopName, getShopCoords, calculateDistance } from "@/lib/api/userOffersService";
 
 interface FilterableOffersProps {
     initialOffers: Offer[];
@@ -16,13 +18,22 @@ interface FilterableOffersProps {
 
 export default function FilterableOffers({ initialOffers = [], buttonText }: FilterableOffersProps) {
     const router = useRouter();
+    const { location: userLocation } = useLocationContext();
     const [activeCategory, setActiveCategory] = useState("All");
     const [activeSubcategory, setActiveSubcategory] = useState<string[]>([]);
     const [activeSort, setActiveSort] = useState("latest");
 
     // Filter offers client-side
     const filteredOffers = useMemo(() => {
-        let result = [...initialOffers];
+        let result = initialOffers.map(o => {
+            let distanceKm: number | null = null;
+            if (userLocation.latitude !== null && userLocation.longitude !== null) {
+                const shopId = o.shopId || (o.shopName ? getShopIdFromShopName(o.shopName) : 0);
+                const coords = getShopCoords(shopId);
+                distanceKm = calculateDistance(userLocation.latitude, userLocation.longitude, coords.lat, coords.lng);
+            }
+            return { ...o, distanceKm };
+        });
 
         // 1. Category Filter
         if (activeCategory !== "All") {
@@ -41,7 +52,13 @@ export default function FilterableOffers({ initialOffers = [], buttonText }: Fil
         }
 
         // 3. Sort
-        if (activeSort === "popular" || activeSort === "top") {
+        if (userLocation.latitude !== null && userLocation.longitude !== null) {
+            result.sort((a, b) => {
+                const distA = a.distanceKm ?? Infinity;
+                const distB = b.distanceKm ?? Infinity;
+                return distA - distB;
+            });
+        } else if (activeSort === "popular" || activeSort === "top") {
             result.sort((a, b) => {
                 const ratingA = (a as any).rating || 0;
                 const ratingB = (b as any).rating || 0;
@@ -54,7 +71,7 @@ export default function FilterableOffers({ initialOffers = [], buttonText }: Fil
         }
 
         return result;
-    }, [initialOffers, activeCategory, activeSubcategory, activeSort]);
+    }, [initialOffers, activeCategory, activeSubcategory, activeSort, userLocation]);
 
     return (
         <div className="space-y-6">

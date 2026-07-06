@@ -26,6 +26,7 @@ import { Offer } from "@/lib/types/offer";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useInfiniteUserOffers } from "@/hooks/useApi";
 import { cn } from "@/lib/utils";
+import { useLocationContext } from "@/context/LocationContext";
 
 interface OffersClientProps {
     initialOffers: Offer[];
@@ -46,6 +47,7 @@ export default function OffersClient({
     const { t } = useTranslation("common");
     const router = useRouter();
     const searchParams = useSearchParams();
+    const { location: globalLocation } = useLocationContext();
 
     const sortOptions = [
         { value: "latest", label: t("catalog.sortLatest") },
@@ -170,8 +172,8 @@ export default function OffersClient({
     // Include coordinates if sort is nearby, otherwise pass nulls to avoid triggering backend geolocation logic
     const queryFilters = {
         ...activeFilters,
-        latitude: activeFilters.sort === "nearby" ? userCoordinates?.latitude : undefined,
-        longitude: activeFilters.sort === "nearby" ? userCoordinates?.longitude : undefined,
+        latitude: globalLocation.latitude !== null ? globalLocation.latitude : (activeFilters.sort === "nearby" ? userCoordinates?.latitude : undefined),
+        longitude: globalLocation.longitude !== null ? globalLocation.longitude : (activeFilters.sort === "nearby" ? userCoordinates?.longitude : undefined),
     };
 
     const {
