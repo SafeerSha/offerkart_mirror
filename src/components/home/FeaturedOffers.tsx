@@ -28,7 +28,7 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const { t } = useTranslation("home");
-  
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
@@ -67,7 +67,7 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
     } else {
       params.set("shopId", String(shopId));
     }
-    
+
     // If we are on the home page, redirect to the offers page with the shopId filter
     const targetPath = pathname === "/" ? "/offers" : pathname;
     router.push(`${targetPath}?${params.toString()}`);
@@ -133,7 +133,7 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
         )}
 
         <div className={cn(
-          "relative z-20 border border-orange-500/25 bg-orange-500/[0.02] rounded-3xl pt-4 shadow-sm",
+          "relative z-20 border border-orange-500/25 bg-orange-500/[0.02] rounded-3xl shadow-sm",
           variant === "minimal" ? "shadow-[0_2px_12px_rgba(249,115,22,0.04)] border-orange-500/30" : "border-orange-500/20"
         )}>
           {/* Fading gradients */}
@@ -167,12 +167,16 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
               </>
             )}
 
-            <div className="overflow-hidden pt-2 pb-8 -mt-2 -mb-8 px-2 relative z-0">
+            <div className={cn(
+              "overflow-hidden relative z-0",
+              variant === "full" ? "pt-0 pb-5 -mt-0 -mb-10" : "pt-0 pb-6 -mt-0 -mb-12"
+            )}>
               <div
                 ref={scrollRef}
                 onScroll={checkScroll}
                 className={cn(
-                  "flex gap-1.5 overflow-x-auto scrollbar-hide pb-4 px-4 snap-x snap-mandatory scroll-smooth relative"
+                  "flex gap-1.5 overflow-x-auto scrollbar-hide snap-x snap-mandatory scroll-smooth relative",
+                  variant === "full" ? "pt-3 pb-8 px-3" : "pt-3 pb-8 px-3"
                 )}
               >
                 {displayOffers.map((offer) => {
@@ -188,8 +192,8 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
                         isActive
                           ? "border-orange-500 scale-105 shadow-md shadow-orange-500/20"
                           : "border-primary/10 group-hover:border-primary group-hover:shadow-lg group-hover:scale-105",
-                        variant === "full" 
-                          ? "w-[12.5vw] h-[12.5vw] min-w-[40px] min-h-[40px] max-w-[80px] max-h-[80px] sm:w-16 sm:h-16 lg:w-20 lg:h-20" 
+                        variant === "full"
+                          ? "w-[12.5vw] h-[12.5vw] min-w-[40px] min-h-[40px] max-w-[80px] max-h-[80px] sm:w-16 sm:h-16 lg:w-20 lg:h-20"
                           : "w-[12.5vw] h-[12.5vw] min-w-[40px] min-h-[40px] max-w-[56px] max-h-[56px] sm:w-12 sm:h-12 lg:w-14 lg:h-14"
                       )}>
                         {offer.logo ? (

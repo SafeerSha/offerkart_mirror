@@ -2,15 +2,15 @@
 
 import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
-import { Search, User, LogIn, Menu, X, PlusCircle, MapPin, ChevronDown, LayoutDashboard, Plus, Loader2, Home, Percent, ShoppingBag } from "lucide-react";
+import { Search, User, LogIn, Menu, X, PlusCircle, MapPin, ChevronDown, LayoutDashboard, Plus, Loader2, Home, Percent, ShoppingBag, Locate } from "lucide-react";
 import Link from "next/link";
 import { useSession, signIn, signOut } from "next-auth/react";
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { cn } from "@/lib/utils";
 import { config } from "@/lib/config";
@@ -81,9 +81,9 @@ const warmUpPlacesCache = () => {
     }
 };
 
-interface LocationDropdownContentProps {
-    align?: "start" | "center" | "end";
-    isMobile?: boolean;
+interface LocationModalProps {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
     loading: boolean;
     locationSearch: string;
     setLocationSearch: (val: string) => void;
@@ -93,9 +93,9 @@ interface LocationDropdownContentProps {
     handleSearch: (val: string) => void;
 }
 
-const LocationDropdownContent = ({
-    align = "start",
-    isMobile = false,
+const LocationModal = ({
+    open,
+    onOpenChange,
     loading,
     locationSearch,
     setLocationSearch,
@@ -103,115 +103,186 @@ const LocationDropdownContent = ({
     selectedLocation,
     setSelectedLocation,
     handleSearch
-}: LocationDropdownContentProps) => (
-    <DropdownMenuContent
-        className={cn(
-            "p-0 overflow-hidden bg-white/95 backdrop-blur-md border border-primary/10 rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200",
-            isMobile ? "w-[calc(100vw-2rem)] sm:w-80" : "w-80"
-        )}
-        align={align}
-    >
-        <div className="p-4 border-b border-primary/5 bg-primary/5">
-            <div className="relative group">
-                <div className="absolute left-3 top-1/2 -translate-y-1/2">
-                    {loading ? (
-                        <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                    ) : (
-                        <Search className="w-4 h-4 text-primary opacity-50 group-hover:opacity-100 transition-opacity" />
-                    )}
-                </div>
-                <input
-                    type="text"
-                    placeholder="Search location, city, or district..."
-                    value={locationSearch}
-                    onChange={(e) => {
-                        const value = e.target.value;
-                        setLocationSearch(value);
-                        handleSearch(value);
-                    }}
-                    className="w-full pl-10 pr-10 py-2.5 text-sm bg-white border border-primary/10 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none transition-all shadow-inner"
-                    onKeyDown={(e) => {
-                        // Prevent menu from closing on space or enter
-                        if (e.key === ' ') e.stopPropagation();
-                    }}
-                />
-                {locationSearch && (
-                    <button
-                        onClick={() => { setLocationSearch(""); handleSearch(""); }}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-primary/10 rounded-full transition-colors"
-                    >
-                        <X className="w-3 h-3 text-muted-foreground" />
-                    </button>
-                )}
-            </div>
-            <p className="text-[10px] text-muted-foreground mt-2 px-1 font-medium italic">
-                Search for your city or town to see local deals
-            </p>
-        </div>
+}: LocationModalProps) => {
+    const [detectingLocation, setDetectingLocation] = useState(false);
 
-        <div className="max-h-72 overflow-y-auto py-2 scrollbar-thin scrollbar-thumb-primary/10 scrollbar-track-transparent">
-            <div className="flex items-center justify-between px-4 py-1 mb-1">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                    {locationSearch ? "Search Results" : "Suggested Locations"}
-                </span>
-            </div>
-            {loading ? (
-                <div className="px-4 py-8 text-center animate-pulse">
-                    <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin mx-auto mb-3" />
-                    <p className="text-sm text-muted-foreground font-medium">Searching...</p>
-                </div>
-            ) : dropdownLocations.length === 0 ? (
-                <div className="px-4 py-8 text-center animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <MapPin className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground">No locations found</p>
-                </div>
-            ) : (
-                dropdownLocations.map((location) => {
-                    const parts = location.split(',');
-                    const mainName = parts[0].trim();
-                    const subtitle = parts.length > 1
-                        ? parts.slice(1).map(p => p.trim()).filter(p => p !== "India" && !/^\d+$/.test(p)).slice(0, 2).join(", ")
-                        : "Kerala";
+    const handleDetectLocation = () => {
+        if (typeof navigator === "undefined" || !navigator.geolocation) {
+            alert("Geolocation is not supported by your browser.");
+            return;
+        }
 
-                    return (
-                        <DropdownMenuItem
-                            key={location}
-                            onClick={() => setSelectedLocation(location)}
-                            className={cn(
-                                "mx-2 rounded-xl cursor-pointer py-2.5 px-3 transition-all duration-200",
-                                selectedLocation === location
-                                    ? "bg-primary/10 text-primary font-semibold"
-                                    : "hover:bg-primary/5 focus:bg-primary/5"
-                            )}
-                        >
-                            <div className="flex items-center w-full min-w-0">
-                                <div className={cn(
-                                    "w-8 h-8 rounded-lg flex items-center justify-center mr-3 transition-colors shrink-0",
-                                    selectedLocation === location ? "bg-primary/20" : "bg-secondary"
-                                )}>
-                                    <MapPin className={cn("w-4 h-4", selectedLocation === location ? "text-primary" : "text-muted-foreground")} />
-                                </div>
-                                <div className="flex items-baseline min-w-0 text-left gap-1.5 flex-1">
-                                    <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[65%]" title={location}>
-                                        {mainName}
-                                    </span>
-                                    {subtitle && (
-                                        <span className="text-xs text-slate-400 dark:text-slate-500 truncate flex-1">
-                                            {subtitle}
-                                        </span>
-                                    )}
-                                </div>
-                                {selectedLocation === location && (
-                                    <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary animate-pulse shrink-0 ml-2" />
+        setDetectingLocation(true);
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                const { latitude, longitude } = position.coords;
+                try {
+                    const response = await fetch(
+                        `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+                    );
+                    if (response.ok) {
+                        const data = await response.json();
+                        const address = data.address || {};
+                        const locationName = data.display_name || address.city || address.town || address.village || address.suburb;
+                        if (locationName) {
+                            setSelectedLocation(locationName);
+                            onOpenChange(false);
+                        } else {
+                            alert("Could not determine location name from coordinates.");
+                        }
+                    } else {
+                        alert("Failed to retrieve location details.");
+                    }
+                } catch (error) {
+                    console.error("Error auto-detecting location:", error);
+                    alert("Error retrieving location details.");
+                } finally {
+                    setDetectingLocation(false);
+                }
+            },
+            (error) => {
+                console.warn("Geolocation query failed:", error);
+                let msg = "Failed to detect location.";
+                if (error.code === error.PERMISSION_DENIED) {
+                    msg = "Location access denied. Please enable location permissions in your browser settings.";
+                } else if (error.code === error.POSITION_UNAVAILABLE) {
+                    msg = "Location information is unavailable.";
+                } else if (error.code === error.TIMEOUT) {
+                    msg = "Location request timed out.";
+                }
+                alert(msg);
+                setDetectingLocation(false);
+            },
+            { timeout: 8000, enableHighAccuracy: true }
+        );
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="p-0 overflow-hidden bg-white/95 backdrop-blur-md border border-primary/10 rounded-2xl sm:rounded-2xl shadow-2xl max-w-md w-[calc(100vw-2rem)] gap-0">
+                <DialogHeader className="p-4 border-b border-primary/5 bg-primary/5 text-left shrink-0">
+                    <DialogTitle className="font-sans font-bold text-lg text-slate-800">
+                        Select Location
+                    </DialogTitle>
+                    <div className="flex items-center gap-2 mt-3 w-full">
+                        <div className="relative flex-1 group">
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2">
+                                {loading ? (
+                                    <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                                ) : (
+                                    <Search className="w-4 h-4 text-primary opacity-50 group-hover:opacity-100 transition-opacity" />
                                 )}
                             </div>
-                        </DropdownMenuItem>
-                    );
-                })
-            )}
-        </div>
-    </DropdownMenuContent>
-);
+                            <input
+                                type="text"
+                                placeholder="Search location, city, or district..."
+                                value={locationSearch}
+                                onChange={(e) => {
+                                    const value = e.target.value;
+                                    setLocationSearch(value);
+                                    handleSearch(value);
+                                }}
+                                className="w-full pl-10 pr-10 py-2.5 text-sm bg-white border border-primary/10 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none transition-all shadow-inner"
+                            />
+                            {locationSearch && (
+                                <button
+                                    onClick={() => { setLocationSearch(""); handleSearch(""); }}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-primary/10 rounded-full transition-colors"
+                                >
+                                    <X className="w-3.5 h-3.5 text-muted-foreground" />
+                                </button>
+                            )}
+                        </div>
+
+                        <span className="text-xs font-semibold text-slate-400 shrink-0 select-none">or</span>
+
+                        <button
+                            onClick={handleDetectLocation}
+                            disabled={detectingLocation}
+                            className="flex items-center gap-1.5 h-10 px-3.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold text-xs transition-all duration-200 shrink-0 shadow-sm active:scale-[0.97] disabled:opacity-75 disabled:cursor-not-allowed"
+                        >
+                            {detectingLocation ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
+                            ) : (
+                                <Locate className="w-3.5 h-3.5 text-white" />
+                            )}
+                            <span>{detectingLocation ? "Detecting..." : "Near by"}</span>
+                        </button>
+                    </div>
+
+                    <p className="text-[10px] text-muted-foreground mt-2 px-1 font-medium italic">
+                        Search for your city or town to see local deals
+                    </p>
+                </DialogHeader>
+
+                <div className="max-h-72 overflow-y-auto py-2 scrollbar-thin scrollbar-thumb-primary/10 scrollbar-track-transparent">
+                    <div className="flex items-center justify-between px-4 py-1 mb-1">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                            {locationSearch ? "Search Results" : "Suggested Locations"}
+                        </span>
+                    </div>
+                    {loading ? (
+                        <div className="px-4 py-8 text-center animate-pulse">
+                            <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin mx-auto mb-3" />
+                            <p className="text-sm text-muted-foreground font-medium">Searching...</p>
+                        </div>
+                    ) : dropdownLocations.length === 0 ? (
+                        <div className="px-4 py-8 text-center animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            <MapPin className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
+                            <p className="text-sm text-muted-foreground">No locations found</p>
+                        </div>
+                    ) : (
+                        dropdownLocations.map((location) => {
+                            const parts = location.split(',');
+                            const mainName = parts[0].trim();
+                            const subtitle = parts.length > 1
+                                ? parts.slice(1).map(p => p.trim()).filter(p => p !== "India" && !/^\d+$/.test(p)).slice(0, 2).join(", ")
+                                : "Kerala";
+
+                            return (
+                                <button
+                                    key={location}
+                                    onClick={() => {
+                                        setSelectedLocation(location);
+                                        onOpenChange(false);
+                                    }}
+                                    className={cn(
+                                        "mx-2 rounded-xl cursor-pointer py-2.5 px-3 transition-all duration-200 flex items-center justify-between w-[calc(100%-1rem)] text-left border-0 outline-none bg-transparent",
+                                        selectedLocation === location
+                                            ? "bg-primary/10 text-primary font-semibold"
+                                            : "hover:bg-primary/5 focus:bg-primary/5"
+                                    )}
+                                >
+                                    <div className="flex items-center w-full min-w-0">
+                                        <div className={cn(
+                                            "w-8 h-8 rounded-lg flex items-center justify-center mr-3 transition-colors shrink-0",
+                                            selectedLocation === location ? "bg-primary/20" : "bg-secondary"
+                                        )}>
+                                            <MapPin className={cn("w-4 h-4", selectedLocation === location ? "text-primary" : "text-muted-foreground")} />
+                                        </div>
+                                        <div className="flex items-baseline min-w-0 text-left gap-1.5 flex-1">
+                                            <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[65%]" title={location}>
+                                                {mainName}
+                                            </span>
+                                            {subtitle && (
+                                                <span className="text-xs text-slate-400 dark:text-slate-500 truncate flex-1">
+                                                    {subtitle}
+                                                </span>
+                                            )}
+                                        </div>
+                                        {selectedLocation === location && (
+                                            <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary animate-pulse shrink-0 ml-2" />
+                                        )}
+                                    </div>
+                                </button>
+                            );
+                        })
+                    )}
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+};
 
 const Header = () => {
     const { resolveHierarchyById } = useCategoryHierarchy();
@@ -232,9 +303,8 @@ const Header = () => {
         }
         return "Location";
     });
-    const [desktopLocationOpen, setDesktopLocationOpen] = useState(false);
-    const [mobileLocationOpen, setMobileLocationOpen] = useState(false);
-    const islandLocationOpen = desktopLocationOpen || mobileLocationOpen;
+    const [locationOpen, setLocationOpen] = useState(false);
+    const islandLocationOpen = locationOpen;
     const [islandExpanded, setIslandExpanded] = useState(false);
     const [locationSearch, setLocationSearch] = useState("");
     const [locationSearchTimer, setLocationSearchTimer] = useState<NodeJS.Timeout | null>(null);
@@ -343,8 +413,7 @@ const Header = () => {
             const nextScrolled = window.scrollY > 20;
             setScrolled(nextScrolled);
             if (!nextScrolled) {
-                setDesktopLocationOpen(false);
-                setMobileLocationOpen(false);
+                setLocationOpen(false);
                 setIslandExpanded(false);
             }
         };
@@ -674,55 +743,28 @@ const Header = () => {
                                         )}>
                                             <span className="relative z-10">Products</span>
                                         </Link>
-                                        <DropdownMenu modal={false} open={desktopLocationOpen} onOpenChange={(open) => setDesktopLocationOpen(open)}>
-                                            <DropdownMenuTrigger asChild>
-                                                <button
-                                                    className="relative text-foreground hover:text-primary transition-all font-medium flex items-center gap-2 group border-0 outline-none select-none"
-                                                >
-                                                    <MapPin className="w-4 h-4 text-orange-500 group-hover:scale-110 transition-transform" />
-                                                    <span className="relative z-10">{selectedLocation.split(',')[0]}</span>
-                                                    <ChevronDown className="w-4 h-4 transition-transform group-hover:scale-110" />
-                                                    <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-primary to-secondary group-hover:w-full transition-all duration-300" />
-                                                </button>
-                                            </DropdownMenuTrigger>
-                                            <LocationDropdownContent
-                                                align="start"
-                                                loading={loading}
-                                                locationSearch={locationSearch}
-                                                setLocationSearch={setLocationSearch}
-                                                dropdownLocations={dropdownLocations}
-                                                selectedLocation={selectedLocation}
-                                                setSelectedLocation={setSelectedLocation}
-                                                handleSearch={handleLocationSearch}
-                                            />
-                                        </DropdownMenu>
+                                        <button
+                                            onClick={() => setLocationOpen(true)}
+                                            className="relative text-foreground hover:text-primary transition-all font-medium flex items-center gap-2 group border-0 outline-none select-none"
+                                        >
+                                            <MapPin className="w-4 h-4 text-orange-500 group-hover:scale-110 transition-transform" />
+                                            <span className="relative z-10">{selectedLocation.split(',')[0]}</span>
+                                            <ChevronDown className="w-4 h-4 transition-transform group-hover:scale-110" />
+                                            <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-primary to-secondary group-hover:w-full transition-all duration-300" />
+                                        </button>
                                     </nav>
 
                                     {/* Mobile Location */}
                                     <div className="lg:hidden">
-                                        <DropdownMenu modal={false} open={mobileLocationOpen} onOpenChange={(open) => setMobileLocationOpen(open)}>
-                                            <DropdownMenuTrigger asChild>
-                                                <button
-                                                    className="relative text-foreground hover:text-primary transition-all font-medium flex items-center gap-2 group border-0 outline-none focus:ring-0 focus:ring-offset-0 focus:outline-none select-none"
-                                                >
-                                                    <MapPin className="w-4 h-4 text-orange-500 group-hover:scale-110 transition-transform" />
-                                                    <span className="relative z-10">{selectedLocation.split(',')[0]}</span>
-                                                    <ChevronDown className="w-4 h-4 transition-transform group-hover:scale-110" />
-                                                    <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-primary to-secondary group-hover:w-full transition-all duration-300" />
-                                                </button>
-                                            </DropdownMenuTrigger>
-                                            <LocationDropdownContent
-                                                align="center"
-                                                isMobile={true}
-                                                loading={loading}
-                                                locationSearch={locationSearch}
-                                                setLocationSearch={setLocationSearch}
-                                                dropdownLocations={dropdownLocations}
-                                                selectedLocation={selectedLocation}
-                                                setSelectedLocation={setSelectedLocation}
-                                                handleSearch={handleLocationSearch}
-                                            />
-                                        </DropdownMenu>
+                                        <button
+                                            onClick={() => setLocationOpen(true)}
+                                            className="relative text-foreground hover:text-primary transition-all font-medium flex items-center gap-2 group border-0 outline-none focus:ring-0 focus:ring-offset-0 focus:outline-none select-none"
+                                        >
+                                            <MapPin className="w-4 h-4 text-orange-500 group-hover:scale-110 transition-transform" />
+                                            <span className="relative z-10">{selectedLocation.split(',')[0]}</span>
+                                            <ChevronDown className="w-4 h-4 transition-transform group-hover:scale-110" />
+                                            <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-primary to-secondary group-hover:w-full transition-all duration-300" />
+                                        </button>
                                     </div>
                                 </div>
 
@@ -1150,11 +1192,7 @@ const Header = () => {
                                     e.preventDefault();
                                     e.stopPropagation();
                                     setIslandExpanded(true);
-                                    if (window.innerWidth >= 1024) {
-                                        setDesktopLocationOpen(true);
-                                    } else {
-                                        setMobileLocationOpen(true);
-                                    }
+                                    setLocationOpen(true);
                                 }}
                             >
                                 <div className="flex items-center gap-2 rounded-full px-3 py-1.5 bg-white/40 dark:bg-white/10 border border-white/30 dark:border-white/10 max-w-[240px]">
@@ -1173,6 +1211,18 @@ const Header = () => {
                     </div>
                 </div>
             </div>
+
+            <LocationModal
+                open={locationOpen}
+                onOpenChange={setLocationOpen}
+                loading={loading}
+                locationSearch={locationSearch}
+                setLocationSearch={setLocationSearch}
+                dropdownLocations={dropdownLocations}
+                selectedLocation={selectedLocation}
+                setSelectedLocation={setSelectedLocation}
+                handleSearch={handleLocationSearch}
+            />
         </header>
     );
 };
