@@ -188,7 +188,7 @@ export default function OffersClient({
 
     // Flatten pages into a single array
     const offers = data?.pages.flatMap(page => page.data) || initialOffers;
-    const isLoading = status === "pending";
+    const isLoading = status === "pending" && offers.length === 0;
     const hasMore = hasNextPage;
 
     // Infinite Scroll Observer

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
-import { Search, User, LogIn, Menu, X, PlusCircle, MapPin, ChevronDown, LayoutDashboard, Plus, Loader2, Home, Percent, ShoppingBag, Locate } from "lucide-react";
+import { Search, User, LogIn, Menu, X, PlusCircle, MapPin, ChevronDown, LayoutDashboard, Plus, Loader2, Home, Percent, ShoppingBag, Locate, Package, Tag } from "lucide-react";
 import Link from "next/link";
 import { useSession, signIn, signOut } from "next-auth/react";
 import {
@@ -159,7 +159,7 @@ const LocationModal = ({
     };
 
     return (
-        <Dialog open={open} onOpenChange={(val) => {
+        <Dialog open={open} modal={false} onOpenChange={(val) => {
             // Only allow closing if a location has already been selected
             if (isLocationSet) {
                 onOpenChange(val);
@@ -307,18 +307,10 @@ const LocationModal = ({
 };
 
 const Header = () => {
-    const { resolveHierarchyById } = useCategoryHierarchy();
-    const getProductHref = (p: any) => {
-        const resolvedCategory = resolveHierarchyById(p.category);
-        const categoryParam = resolvedCategory.main ? resolvedCategory.main : (p.category || "All");
-        const subcategoryParam = resolvedCategory.sub ? `&subcategory=${encodeURIComponent(resolvedCategory.sub)}` : "";
-        return `/products?search=${encodeURIComponent(p.name)}&category=${encodeURIComponent(categoryParam)}${subcategoryParam}`;
-    };
-
     const [scrolled, setScrolled] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [searchOpen, setSearchOpen] = useState(false);
-    const { location: globalLocation, isLocationSet, isModalOpen: locationOpen, setLocation, setModalOpen: setLocationOpen } = useLocationContext();
+    const { location: globalLocation, isLocationSet, isModalOpen: locationOpen, setLocation, setModalOpen: setLocationOpen, hydrated } = useLocationContext();
     const selectedLocation = globalLocation.name;
     const islandLocationOpen = locationOpen;
     const [islandExpanded, setIslandExpanded] = useState(false);
@@ -329,39 +321,63 @@ const Header = () => {
     useEffect(() => {
         warmUpPlacesCache();
 
-        // Silent geolocation check: auto-detect location if not already set, and permissions are granted
-        if (selectedLocation === "Location" && typeof navigator !== "undefined" && navigator.permissions && navigator.geolocation) {
-            navigator.permissions.query({ name: 'geolocation' as any }).then((permissionStatus) => {
-                if (permissionStatus.state === 'granted') {
-                    navigator.geolocation.getCurrentPosition(
-                        async (position) => {
-                            const { latitude, longitude } = position.coords;
-                            try {
-                                const response = await fetch(
-                                    `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
-                                );
-                                if (response.ok) {
-                                    const data = await response.json();
-                                    const locationName = data.display_name || data.address.city || data.address.town || data.address.village;
-                                    if (locationName) {
-                                        setLocation(locationName, latitude, longitude);
-                                    }
-                                }
-                            } catch (error) {
-                                console.error("Error auto-detecting location:", error);
+        // Wait until the location context has hydrated from localStorage.
+        if (!hydrated) return;
+
+        // If location is already set, do nothing.
+        if (selectedLocation !== "Location") return;
+
+        // Helper to perform the background detection using browser Geolocation and Nominatim reverse-geocoding
+        const detectBackgroundLocation = () => {
+            if (typeof navigator === "undefined" || !navigator.geolocation) return;
+
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    const { latitude, longitude } = position.coords;
+                    try {
+                        const response = await fetch(
+                            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+                        );
+                        if (response.ok) {
+                            const data = await response.json();
+                            const address = data.address || {};
+                            const locationName = data.display_name || address.city || address.town || address.village || address.suburb;
+                            if (locationName) {
+                                setLocation(locationName, latitude, longitude);
                             }
-                        },
-                        (error) => {
-                            console.warn("Geolocation query failed despite granted state:", error);
-                        },
-                        { timeout: 8000 }
-                    );
-                }
-            }).catch((err) => {
-                console.warn("Permissions query for geolocation not supported or failed:", err);
-            });
+                        }
+                    } catch (error) {
+                        console.error("Error silently auto-detecting location:", error);
+                    }
+                },
+                (error) => {
+                    console.warn("Silent background geolocation query failed:", error);
+                },
+                { timeout: 8000 }
+            );
+        };
+
+        if (navigator.permissions && navigator.permissions.query) {
+            navigator.permissions
+                .query({ name: "geolocation" as any })
+                .then((permissionStatus) => {
+                    if (permissionStatus.state === "granted") {
+                        // Silent background detect since permission is already granted
+                        detectBackgroundLocation();
+                    } else {
+                        // Prompt or Denied: open location modal to let user choose manually
+                        setLocationOpen(true);
+                    }
+                })
+                .catch(() => {
+                    // Fallback to opening modal if query fails
+                    setLocationOpen(true);
+                });
+        } else {
+            // Browser doesn't support permissions query (like Safari): open location modal
+            setLocationOpen(true);
         }
-    }, [selectedLocation, setLocation]);
+    }, [hydrated, selectedLocation, setLocation, setLocationOpen]);
 
     useEffect(() => {
         return () => {
@@ -375,8 +391,17 @@ const Header = () => {
     const [searchResults, setSearchResults] = useState<SearchResultData | null>(null);
     const [isSearching, setIsSearching] = useState(false);
 
+    const { resolveHierarchyById } = useCategoryHierarchy(searchOpen || searchQuery.trim().length > 0);
+    const getProductHref = (p: any) => {
+        const resolvedCategory = resolveHierarchyById(p.category);
+        const categoryParam = resolvedCategory.main ? resolvedCategory.main : (p.category || "All");
+        const subcategoryParam = resolvedCategory.sub ? `&subcategory=${encodeURIComponent(resolvedCategory.sub)}` : "";
+        return `/products?search=${encodeURIComponent(p.name)}&category=${encodeURIComponent(categoryParam)}${subcategoryParam}`;
+    };
+
     useEffect(() => {
-        if (!searchQuery.trim()) {
+        const trimmed = searchQuery.trim();
+        if (trimmed.length < 3) {
             setSearchResults(null);
             setIsSearching(false);
             return;
@@ -385,7 +410,7 @@ const Header = () => {
         setIsSearching(true);
         const delayDebounceFn = setTimeout(async () => {
             try {
-                const result = await getGlobalSearch(searchQuery);
+                const result = await getGlobalSearch(trimmed);
                 if (result.success && result.data) {
                     setSearchResults(result.data);
                 } else {
@@ -579,10 +604,7 @@ const Header = () => {
                             <LanguageSwitcher className="[&>button]:py-1.5 [&>button]:px-3.5 [&>button]:rounded-xl" />
                         </div>
 
-                        <div className={cn(
-                            "transition-opacity duration-300 w-full flex flex-col gap-2.5",
-                            status === "loading" ? "opacity-0 pointer-events-none" : "opacity-100"
-                        )}>
+                        <div className="w-full flex flex-col gap-2.5">
                             {!isRegistered ? (
                                 <button
                                     onClick={() => {
@@ -703,7 +725,7 @@ const Header = () => {
                 {/* Visual Background Layer */}
                 <div
                     className={cn(
-                        "absolute left-1/2 -translate-x-1/2 transition-all duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] transform-gpu origin-top pointer-events-none",
+                        "absolute left-1/2 -translate-x-1/2 transition-all duration-300 ease-out transform-gpu origin-top pointer-events-none",
                         scrolled
                             ? (scrolled && !islandExpanded)
                                 ? "top-4 w-[min(520px,calc(100vw-1.5rem))] h-12 rounded-full border shadow-xl bg-background/55 backdrop-blur-xl backdrop-saturate-150 border-border/50"
@@ -716,7 +738,7 @@ const Header = () => {
                 <div className="relative w-full z-10">
                     {/* Full Header Content */}
                     <div className={cn(
-                        "transition-all duration-300 ease-in-out origin-top py-2.5 lg:py-4",
+                        "transition-all duration-150 ease-out origin-top py-2.5 lg:py-4",
                         (scrolled && !islandExpanded)
                             ? "opacity-0 pointer-events-none absolute inset-x-0 top-0 scale-[0.95] translate-y-2"
                             : "opacity-100 scale-100 relative translate-y-0"
@@ -788,10 +810,7 @@ const Header = () => {
 
                                 {/* Right: Desktop Buttons or Mobile Toggle */}
                                 <div className="flex items-center gap-2 sm:gap-3">
-                                    <div className={cn(
-                                        "hidden lg:flex items-center gap-2 sm:gap-3 transition-opacity duration-300",
-                                        status === "loading" ? "opacity-0 pointer-events-none" : "opacity-100"
-                                    )}>
+                                    <div className="hidden lg:flex items-center gap-2 sm:gap-3">
                                         {!isRegistered ? (
                                             <PremiumButton
                                                 variant="outline"
@@ -947,11 +966,14 @@ const Header = () => {
                                                     <span className="text-sm text-slate-400 dark:text-slate-500">No results found</span>
                                                 </div>
                                             ) : (
-                                                <div>
+                                                <div className="py-2">
                                                     {/* Products Section */}
                                                     {searchResults.products && searchResults.products.length > 0 && (
-                                                        <div className="px-2 pt-2 pb-1">
-                                                            <div className="max-h-[240px] overflow-y-auto pr-1">
+                                                        <div className="mb-3 last:mb-0">
+                                                            <div className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-orange-500 dark:text-orange-400 bg-slate-50/50 dark:bg-slate-900/30 border-y border-slate-100 dark:border-slate-800/40 mb-2">
+                                                                Products
+                                                            </div>
+                                                            <div className="max-h-[240px] overflow-y-auto pr-1 px-2">
                                                                 {searchResults.products.map((p, idx) => (
                                                                     <Link
                                                                         key={idx}
@@ -960,37 +982,40 @@ const Header = () => {
                                                                             setSearchOpen(false);
                                                                             setSearchQuery("");
                                                                         }}
-                                                                        className="group/item flex items-center justify-between mx-1 px-2 py-2 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-900 transition-all duration-200 text-left"
+                                                                        className="group/item flex items-center justify-between mx-1 px-3 py-1.5 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-900 transition-all duration-200 text-left gap-4"
                                                                     >
-                                                                        <div className="flex flex-col min-w-0">
-                                                                            <div className="text-[11px] text-slate-400 font-normal tracking-wide mb-0.5">
+                                                                        <div className="flex flex-col min-w-0 flex-1">
+                                                                            <div className="text-[10px] text-slate-400 font-normal tracking-wide mb-0.5">
                                                                                 in <span className="text-orange-500 dark:text-orange-400 font-medium">{p.category || "General"}</span>
                                                                             </div>
-                                                                            <div className="font-semibold text-[14px] text-slate-800 dark:text-slate-200 truncate leading-tight tracking-wide mb-1" title={p.name}>
-                                                                                {p.name}
-                                                                            </div>
-                                                                            <div className="flex items-center gap-2">
-                                                                                <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 tracking-wide">{p.totalOfferProducts} Products,</span>
-                                                                                <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 tracking-wide">{p.shopCount} {p.shopCount === 1 ? 'Shop' : 'Shops'}</span>
+                                                                            <div className="flex items-center gap-1.5 min-w-0">
+                                                                                <Package className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+                                                                                <span className="font-semibold text-[13.5px] text-slate-800 dark:text-slate-200 truncate leading-tight tracking-wide" title={p.name}>
+                                                                                    {p.name}
+                                                                                </span>
                                                                             </div>
                                                                         </div>
-                                                                        <ChevronDown className="w-4 h-4 -rotate-90 text-slate-300 dark:text-slate-600 group-hover/item:text-slate-400 transition-colors shrink-0" />
+                                                                        <div className="flex items-center gap-2.5 shrink-0">
+                                                                            <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 dark:text-slate-400 tracking-wide bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded-lg select-none">
+                                                                                <span>{p.totalOfferProducts} {p.totalOfferProducts === 1 ? 'Product' : 'Products'}</span>
+                                                                                <span className="text-slate-300 dark:text-slate-600 font-normal">•</span>
+                                                                                <span>{p.shopCount} {p.shopCount === 1 ? 'Shop' : 'Shops'}</span>
+                                                                            </div>
+                                                                            <ChevronDown className="w-4 h-4 -rotate-90 text-slate-300 dark:text-slate-600 group-hover/item:text-slate-400 transition-colors shrink-0" />
+                                                                        </div>
                                                                     </Link>
                                                                 ))}
                                                             </div>
                                                         </div>
                                                     )}
 
-                                                    {/* Divider */}
-                                                    {searchResults.products && searchResults.products.length > 0 && searchResults.offers && searchResults.offers.length > 0 && (
-                                                        <div className="mx-5 border-t border-slate-100 dark:border-slate-800/60" />
-                                                    )}
-
                                                     {/* Offers Section */}
                                                     {searchResults.offers && searchResults.offers.length > 0 && (
-                                                        <div className="pl-0 pr-2 pb-2">
-
-                                                            <div className="space-y-0.5 max-h-[240px] overflow-y-auto pr-1">
+                                                        <div className="mb-1 last:mb-0">
+                                                            <div className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-orange-500 dark:text-orange-400 bg-slate-50/50 dark:bg-slate-900/30 border-y border-slate-100 dark:border-slate-800/40 mb-2">
+                                                                Offers
+                                                            </div>
+                                                            <div className="max-h-[240px] overflow-y-auto pr-1 px-2 space-y-0.5">
                                                                 {searchResults.offers.map((o) => (
                                                                     <Link
                                                                         key={o.offerId}
@@ -999,14 +1024,14 @@ const Header = () => {
                                                                             setSearchOpen(false);
                                                                             setSearchQuery("");
                                                                         }}
-                                                                        className="group/item flex items-center justify-between mx-1 px-4 py-2 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-900 transition-all duration-200 text-left"
+                                                                        className="group/item flex items-center justify-between mx-1 px-3 py-2 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-900 transition-all duration-200 text-left"
                                                                     >
-                                                                        <div className="flex flex-col min-w-0 w-full">
-                                                                            <div className="text-[11px] text-slate-400 font-normal tracking-wide mb-0.5">
-                                                                                in <span className="text-orange-500 dark:text-orange-400 font-medium">Offers</span>
-                                                                            </div>
-                                                                            <div className="font-semibold text-[14px] text-slate-800 dark:text-slate-200 truncate leading-tight tracking-wide mb-1" title={o.offerName}>
-                                                                                {o.offerName}
+                                                                        <div className="flex flex-col min-w-0 w-full py-0.5">
+                                                                            <div className="flex items-center gap-1.5 min-w-0">
+                                                                                <Tag className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+                                                                                <span className="font-semibold text-[14px] text-slate-800 dark:text-slate-200 truncate leading-tight tracking-wide" title={o.offerName}>
+                                                                                    {o.offerName}
+                                                                                </span>
                                                                             </div>
                                                                         </div>
                                                                         <ChevronDown className="w-4 h-4 -rotate-90 text-slate-300 dark:text-slate-600 group-hover/item:text-slate-400 transition-colors shrink-0" />
@@ -1111,11 +1136,14 @@ const Header = () => {
                                                     <span className="text-xs text-slate-400 dark:text-slate-500">No results found</span>
                                                 </div>
                                             ) : (
-                                                <div>
+                                                <div className="pb-1.5">
                                                     {/* Products */}
                                                     {searchResults.products && searchResults.products.length > 0 && (
-                                                        <div className="px-1 pt-2 pb-1">
-                                                            <div className="max-h-[200px] overflow-y-auto pr-1">
+                                                        <div className="mb-1 last:mb-0">
+                                                            <div className="px-3 py-1 text-[9px] font-bold uppercase tracking-wider text-orange-500 dark:text-orange-400 bg-slate-50/50 dark:bg-slate-900/30 border-y border-slate-100 dark:border-slate-800/40 mb-1">
+                                                                Products
+                                                            </div>
+                                                            <div className="max-h-[200px] overflow-y-auto pr-1 px-1.5">
                                                                 {searchResults.products.map((p, idx) => (
                                                                     <Link
                                                                         key={idx}
@@ -1123,37 +1151,40 @@ const Header = () => {
                                                                         onClick={() => {
                                                                             setSearchQuery("");
                                                                         }}
-                                                                        className="group/item flex items-center justify-between mx-0.5 px-1.5 py-1.5 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-900 transition-all duration-200 text-left"
+                                                                        className="group/item flex items-center justify-between mx-0.5 px-2 py-1 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-900 transition-all duration-200 text-left"
                                                                     >
-                                                                        <div className="flex flex-col min-w-0">
-                                                                            <div className="text-[10px] text-slate-400 font-normal tracking-wide mb-0.5">
+                                                                        <div className="flex flex-col min-w-0 flex-1">
+                                                                            <div className="text-[9.5px] text-slate-400 font-normal tracking-wide mb-0.5">
                                                                                 in <span className="text-orange-500 dark:text-orange-400 font-medium">{p.category || "General"}</span>
                                                                             </div>
-                                                                            <div className="font-semibold text-[13px] text-slate-800 dark:text-slate-200 truncate leading-tight tracking-wide mb-1" title={p.name}>
-                                                                                {p.name}
-                                                                            </div>
-                                                                            <div className="flex items-center gap-1">
-                                                                                <span className="text-[8px] font-bold text-slate-600 dark:text-slate-300 tracking-wide">{p.totalOfferProducts} Products,</span>
-                                                                                <span className="text-[8px] font-bold text-slate-600 dark:text-slate-300 tracking-wide">{p.shopCount} {p.shopCount === 1 ? 'Shop' : 'Shops'}</span>
+                                                                            <div className="flex items-center gap-1.5 min-w-0">
+                                                                                <Package className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+                                                                                <span className="font-semibold text-[12.5px] text-slate-800 dark:text-slate-200 truncate leading-tight tracking-wide" title={p.name}>
+                                                                                    {p.name}
+                                                                                </span>
                                                                             </div>
                                                                         </div>
-                                                                        <ChevronDown className="w-3.5 h-3.5 -rotate-90 text-slate-300 dark:text-slate-600 group-hover/item:text-slate-400 transition-colors shrink-0" />
+                                                                        <div className="flex items-center gap-1.5 shrink-0">
+                                                                            <div className="flex items-center gap-1 text-[9px] font-bold text-slate-500 dark:text-slate-400 tracking-wide bg-slate-100 dark:bg-slate-800/80 px-1.5 py-0.5 rounded-md select-none">
+                                                                                <span>{p.totalOfferProducts} {p.totalOfferProducts === 1 ? 'Product' : 'Products'}</span>
+                                                                                <span className="text-slate-300 dark:text-slate-600 font-normal">•</span>
+                                                                                <span>{p.shopCount} {p.shopCount === 1 ? 'Shop' : 'Shops'}</span>
+                                                                            </div>
+                                                                            <ChevronDown className="w-3.5 h-3.5 -rotate-90 text-slate-300 dark:text-slate-600 group-hover/item:text-slate-400 transition-colors shrink-0" />
+                                                                        </div>
                                                                     </Link>
                                                                 ))}
                                                             </div>
                                                         </div>
                                                     )}
 
-                                                    {/* Divider */}
-                                                    {searchResults.products && searchResults.products.length > 0 && searchResults.offers && searchResults.offers.length > 0 && (
-                                                        <div className="mx-4 border-t border-slate-100 dark:border-slate-800/60" />
-                                                    )}
-
                                                     {/* Offers */}
                                                     {searchResults.offers && searchResults.offers.length > 0 && (
-                                                        <div className="pl-0 pr-1.5 pt-1 pb-2">
-
-                                                            <div className="space-y-0.5 max-h-[200px] overflow-y-auto pr-1">
+                                                        <div className="mb-1 last:mb-0">
+                                                            <div className="px-3 py-1 text-[9px] font-bold uppercase tracking-wider text-orange-500 dark:text-orange-400 bg-slate-50/50 dark:bg-slate-900/30 border-y border-slate-100 dark:border-slate-800/40 mb-1.5">
+                                                                Offers
+                                                            </div>
+                                                            <div className="max-h-[200px] overflow-y-auto pr-1 px-1.5 space-y-0.5">
                                                                 {searchResults.offers.map((o) => (
                                                                     <Link
                                                                         key={o.offerId}
@@ -1161,14 +1192,14 @@ const Header = () => {
                                                                         onClick={() => {
                                                                             setSearchQuery("");
                                                                         }}
-                                                                        className="group/item flex items-center justify-between mx-0.5 px-3 py-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900 transition-all duration-200 text-left"
+                                                                        className="group/item flex items-center justify-between mx-0.5 px-2.5 py-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-900 transition-all duration-200 text-left"
                                                                     >
-                                                                        <div className="flex flex-col min-w-0 w-full">
-                                                                            <div className="text-[10px] text-slate-400 font-normal tracking-wide mb-0.5">
-                                                                                in <span className="text-orange-500 dark:text-orange-400 font-medium">Offers</span>
-                                                                            </div>
-                                                                            <div className="font-semibold text-[13px] text-slate-800 dark:text-slate-200 truncate leading-tight tracking-wide mb-1" title={o.offerName}>
-                                                                                {o.offerName}
+                                                                        <div className="flex flex-col min-w-0 w-full py-0.5">
+                                                                            <div className="flex items-center gap-1.5 min-w-0">
+                                                                                <Tag className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+                                                                                <span className="font-semibold text-[13px] text-slate-800 dark:text-slate-200 truncate leading-tight tracking-wide" title={o.offerName}>
+                                                                                    {o.offerName}
+                                                                                </span>
                                                                             </div>
                                                                         </div>
                                                                         <ChevronDown className="w-3.5 h-3.5 -rotate-90 text-slate-300 dark:text-slate-600 group-hover/item:text-slate-400 transition-colors shrink-0" />
@@ -1190,7 +1221,7 @@ const Header = () => {
 
                     {/* Compact Dynamic Island Content */}
                     <div className={cn(
-                        "transition-all duration-300 ease-in-out origin-top max-w-[min(520px,calc(100vw-1.5rem))] mx-auto pt-4",
+                        "transition-all duration-150 ease-out origin-top max-w-[min(520px,calc(100vw-1.5rem))] mx-auto pt-4",
                         (scrolled && !islandExpanded)
                             ? "opacity-100 scale-100 relative translate-y-0"
                             : "opacity-0 pointer-events-none absolute inset-x-0 top-0 scale-[0.95] -translate-y-2"

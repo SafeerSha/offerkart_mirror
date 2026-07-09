@@ -1,8 +1,8 @@
 import { useMemo, useCallback } from "react";
 import { useCategories } from "./useApi";
 
-export function useCategoryHierarchy() {
-    const { data, isLoading, isError, error } = useCategories();
+export function useCategoryHierarchy(enabled = true) {
+    const { data, isLoading, isError, error } = useCategories(enabled);
     
     // Default fallback to ensure UI doesn't crash while loading
     const FALLBACK_HIERARCHY: Record<string, string[]> = {};

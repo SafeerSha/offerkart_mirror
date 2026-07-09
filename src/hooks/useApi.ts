@@ -398,7 +398,7 @@ export function useToggleOfferProductStatus() {
 
 // ============ CATEGORY HOOKS ============
 
-export function useCategories() {
+export function useCategories(enabled: boolean = true) {
   return useQuery({
     queryKey: queryKeys.categories,
     queryFn: getCategories,
@@ -406,6 +406,7 @@ export function useCategories() {
     gcTime: 24 * 60 * 60 * 1000,    // 24 hours
     refetchOnWindowFocus: false,
     refetchOnMount: false,
+    enabled,
   });
 }
 

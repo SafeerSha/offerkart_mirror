@@ -11,13 +11,17 @@ const MAX_PUBLIC_OFFER_PAGES = 20;
 
 interface UserOfferApiItem {
     id: number;
-    offerName: string;
-    shopName: string;
-    shopLogo: string | null;
-    totalPosters: number;
-    defaultPoster: string | null;
-    daysLeft: number | null;
-    distanceKm: number | null;
+    offerName?: string;
+    title?: string;
+    shopName?: string;
+    shop_name?: string;
+    shopLogo?: string | null;
+    logo_url?: string | null;
+    totalPosters?: number;
+    defaultPoster?: string | null;
+    image?: string | null;
+    daysLeft?: number | null;
+    distanceKm?: number | null;
     shopId?: number;
 }
 
@@ -80,14 +84,52 @@ function formatDaysLeft(daysLeft: number | null | undefined) {
 }
 
 function mapUserOfferToOffer(item: UserOfferApiItem): Offer {
-    const primaryImage = item.defaultPoster || item.shopLogo || DEFAULT_USER_OFFER_IMAGE;
+    let primaryImage = item.defaultPoster || item.image || item.logo_url || item.shopLogo;
+    if (!primaryImage || primaryImage === DEFAULT_USER_OFFER_IMAGE) {
+        const shopLower = ((item.shopName || item.shop_name) || "").toLowerCase();
+        if (shopLower.includes("coffee")) {
+            primaryImage = "https://images.unsplash.com/photo-1509042239860-f550ce710b93?q=80&w=800&auto=format&fit=crop";
+        } else if (shopLower.includes("boutique") || shopLower.includes("bella")) {
+            primaryImage = "https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=800&auto=format&fit=crop";
+        } else if (shopLower.includes("spa") || shopLower.includes("wellness")) {
+            primaryImage = "https://images.unsplash.com/photo-1544161515-4ae6ce6fe858?q=80&w=800&auto=format&fit=crop";
+        } else if (shopLower.includes("bistro") || shopLower.includes("grand")) {
+            primaryImage = "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=800&auto=format&fit=crop";
+        } else if (shopLower.includes("bakery") || shopLower.includes("sweet")) {
+            primaryImage = "https://images.unsplash.com/photo-1509440159596-0249088772ff?q=80&w=800&auto=format&fit=crop";
+        } else if (shopLower.includes("tech") || shopLower.includes("gadget")) {
+            primaryImage = "https://images.unsplash.com/photo-1550009158-9ebf69173e03?q=80&w=800&auto=format&fit=crop";
+        } else if (shopLower.includes("gym") || shopLower.includes("fitlife") || shopLower.includes("fitness")) {
+            primaryImage = "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=800&auto=format&fit=crop";
+        } else if (shopLower.includes("jewel") || shopLower.includes("diamond")) {
+            primaryImage = "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?q=80&w=800&auto=format&fit=crop";
+        } else {
+            const fallbackImages = [
+                "https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=800&auto=format&fit=crop", // shopping
+                "https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=800&auto=format&fit=crop", // clothing
+                "https://images.unsplash.com/photo-1513104890138-7c749659a591?q=80&w=800&auto=format&fit=crop", // pizza
+                "https://images.unsplash.com/photo-1509440159596-0249088772ff?q=80&w=800&auto=format&fit=crop", // bakery
+                "https://images.unsplash.com/photo-1550009158-9ebf69173e03?q=80&w=800&auto=format&fit=crop", // tech
+                "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=800&auto=format&fit=crop", // gym
+                "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?q=80&w=800&auto=format&fit=crop", // jewelry
+                "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?q=80&w=800&auto=format&fit=crop", // restaurant
+            ];
+            let hash = 0;
+            const str = (item.shopName || item.shop_name) || String(item.id) || "shop";
+            for (let i = 0; i < str.length; i++) {
+                hash = str.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const index = Math.abs(hash) % fallbackImages.length;
+            primaryImage = fallbackImages[index];
+        }
+    }
 
     return {
         id: item.id,
         offerId: item.id,
-        shopName: item.shopName,
-        offerName: item.offerName,
-        title: item.offerName,
+        shopName: item.shopName || item.shop_name,
+        offerName: item.offerName || item.title,
+        title: item.offerName || item.title,
         image: primaryImage,
         posterSrc: primaryImage,
         posters: (item as any).posters || (primaryImage
@@ -109,8 +151,8 @@ function mapUserOfferToOffer(item: UserOfferApiItem): Offer {
         numberOfPosters: item.totalPosters,
         daysLeft: item.daysLeft,
         distanceKm: item.distanceKm,
-        shopLogo: item.shopLogo,
-        description: `${item.offerName} from ${item.shopName}`,
+        shopLogo: item.shopLogo || item.logo_url,
+        description: `${item.offerName || item.title} from ${item.shopName || item.shop_name}`,
         isActive: true,
         status: "active",
         shopId: (item as any).shop?.id || item.shopId || (item as any).shop_id,
@@ -248,11 +290,33 @@ export async function getFeaturedOffers() {
             const shops: Shops[] = Array.isArray(apiData.data) ? apiData.data : (Array.isArray(apiData) ? apiData : []);
             return {
                 success: true,
-                data: shops.map((shop) => ({
-                    id: shop.id,
-                    name: shop.shop_name,
-                    logo: shop.logo_url || null
-                }))
+                data: shops.map((shop) => {
+                    let logoUrl = shop.logo_url;
+                    if (!logoUrl) {
+                        const fallbackLogos = [
+                            "https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=200&auto=format&fit=crop",
+                            "https://images.unsplash.com/photo-1513639776629-7b61b0ac49cb?q=80&w=200&auto=format&fit=crop",
+                            "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?q=80&w=200&auto=format&fit=crop",
+                            "https://images.unsplash.com/photo-1513104890138-7c749659a591?q=80&w=200&auto=format&fit=crop",
+                            "https://images.unsplash.com/photo-1509440159596-0249088772ff?q=80&w=200&auto=format&fit=crop",
+                            "https://images.unsplash.com/photo-1550009158-9ebf69173e03?q=80&w=200&auto=format&fit=crop",
+                            "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=200&auto=format&fit=crop",
+                            "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?q=80&w=200&auto=format&fit=crop",
+                        ];
+                        let hash = 0;
+                        const str = shop.shop_name || String(shop.id) || "shop";
+                        for (let i = 0; i < str.length; i++) {
+                            hash = str.charCodeAt(i) + ((hash << 5) - hash);
+                        }
+                        const index = Math.abs(hash) % fallbackLogos.length;
+                        logoUrl = fallbackLogos[index];
+                    }
+                    return {
+                        id: shop.id,
+                        name: shop.shop_name,
+                        logo: logoUrl
+                    };
+                })
             };
         }
     } catch (e) {
