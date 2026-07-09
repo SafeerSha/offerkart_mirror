@@ -2,11 +2,22 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { StaticImageData } from "next/image";
-import { Tag, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { Tag, ChevronLeft, ChevronRight, Loader2, Store, Link as LinkIcon } from "lucide-react";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { Subheading } from "@/components/shared/Typography";
 import { MarkedPoster } from "@/components/shared/MarkedPoster";
 import { Poster, MarkedItem } from "@/lib/types/offer";
+import { cn } from "@/lib/utils";
+import Link from "next/link";
+import {
+    SiFacebook,
+    SiInstagram,
+    SiYoutube,
+    SiWhatsapp,
+    SiThreads,
+    SiX
+} from "react-icons/si";
+import { FaLinkedin } from "react-icons/fa";
 
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import OfferCard from "@/components/offer/OfferCard";
@@ -31,6 +42,7 @@ interface OfferDetail {
     branchId?: number | string;
     branchName?: string;
     shopLogo?: string | null;
+    socialLinks?: { platform: string; url: string; }[] | null;
 }
 
 interface SimilarOffer {
@@ -60,7 +72,7 @@ function mapApiOfferToDetail(raw: any): OfferDetail {
     const finalPosters: Poster[] = (raw.posters || []).map((p: any) => {
         const rawPosterSrc = p.imageUrl || p.posterSrc || p.image_url || p.image;
         const posterSrc = typeof rawPosterSrc === "object" ? (rawPosterSrc as any)?.src ?? DEFAULT_IMAGE : rawPosterSrc || DEFAULT_IMAGE;
-        
+
         let markedItems: MarkedItem[] = [];
         if (Array.isArray(p.markedItems)) {
             markedItems = p.markedItems.map((item: any) => ({
@@ -127,8 +139,20 @@ function mapApiOfferToDetail(raw: any): OfferDetail {
         originalPrice: "",
         branchName: raw.branchNames?.[0] ?? raw.branchName,
         shopLogo: raw.shopLogo || null,
+        socialLinks: raw.socialLinks || raw.social_links || null,
     };
 }
+
+const SOCIAL_PLATFORMS: Record<string, { label: string; icon: React.ComponentType<any>; color: string; hoverBg: string }> = {
+    YOUTUBE: { label: "YouTube", icon: SiYoutube, color: "text-[#FF0000] hover:text-[#FF0000]", hoverBg: "hover:bg-[#FF0000]/10 border-[#FF0000]/20 hover:border-[#FF0000]/50" },
+    INSTAGRAM: { label: "Instagram", icon: SiInstagram, color: "text-[#E4405F] hover:text-[#E4405F]", hoverBg: "hover:bg-[#E4405F]/10 border-[#E4405F]/20 hover:border-[#E4405F]/50" },
+    FACEBOOK: { label: "Facebook", icon: SiFacebook, color: "text-[#1877F2] hover:text-[#1877F2]", hoverBg: "hover:bg-[#1877F2]/10 border-[#1877F2]/20 hover:border-[#1877F2]/50" },
+    WHATSAPP: { label: "WhatsApp", icon: SiWhatsapp, color: "text-[#25D366] hover:text-[#25D366]", hoverBg: "hover:bg-[#25D366]/10 border-[#25D366]/20 hover:border-[#25D366]/50" },
+    THREADS: { label: "Threads", icon: SiThreads, color: "text-black dark:text-white hover:text-black dark:hover:text-white", hoverBg: "hover:bg-black/5 dark:hover:bg-white/10 border-black/10 dark:border-white/10 hover:border-black/30 dark:hover:border-white/30" },
+    X: { label: "X", icon: SiX, color: "text-black dark:text-white hover:text-black dark:hover:text-white", hoverBg: "hover:bg-black/5 dark:hover:bg-white/10 border-black/10 dark:border-white/10 hover:border-black/30 dark:hover:border-white/30" },
+    LINKEDIN: { label: "LinkedIn", icon: FaLinkedin, color: "text-[#0A66C2] hover:text-[#0A66C2]", hoverBg: "hover:bg-[#0A66C2]/10 border-[#0A66C2]/20 hover:border-[#0A66C2]/50" },
+    WEBSITE: { label: "Website", icon: LinkIcon, color: "text-indigo-600 hover:text-indigo-600", hoverBg: "hover:bg-indigo-50 border-indigo-100 hover:border-indigo-500" },
+};
 
 export default function OfferDetailClient({ offer: initialOffer, similarOffers, prevOfferId: initialPrevId, nextOfferId: initialNextId }: OfferDetailClientProps) {
     const { t } = useTranslation("common");
@@ -136,6 +160,10 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
     // --- Current offer state (can be changed client-side without page reload) ---
     const [offer, setOffer] = useState(initialOffer);
     const [prevOfferId, setPrevOfferId] = useState(initialPrevId);
+    const activeSocialLinks = useMemo(() => {
+        if (!offer.socialLinks || !Array.isArray(offer.socialLinks)) return [];
+        return offer.socialLinks.filter(link => link.url && link.url.trim() !== "");
+    }, [offer.socialLinks]);
     const [nextOfferId, setNextOfferId] = useState(initialNextId);
     const [allOfferIds, setAllOfferIds] = useState<(number | string)[]>([]);
     const [isNavigating, setIsNavigating] = useState(false);
@@ -161,7 +189,7 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
                     setAllOfferIds(json.ids);
                 }
             })
-            .catch(() => {/* silently ignore */});
+            .catch(() => {/* silently ignore */ });
     }, []);
 
     // Recompute prev/next from the ID list when current offer or list changes
@@ -257,9 +285,69 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
             {/* Hero Spacer */}
             <div className="h-40 lg:h-36" />
 
-            {/* Breadcrumbs */}
-            <div className="container mx-auto px-4 py-4">
+            {/* Breadcrumbs & Desktop Shop Header */}
+            <div className="container mx-auto px-4 py-4 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                 <Breadcrumbs items={breadcrumbItems} />
+
+                {/* Desktop shop info top right corner */}
+                <div className="hidden md:flex flex-col items-end text-right">
+                    <span className="text-[9px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest leading-none">Published By</span>
+                    <div className="flex items-baseline gap-2 mt-1">
+                        <Link
+                            href={`/offers?shopId=${offer.shopId || ""}`}
+                            className="text-base font-black text-slate-800 dark:text-zinc-200 hover:text-orange-500 transition-colors"
+                        >
+                            {offer.shopName}
+                        </Link>
+                        {/* <span className="text-[10px] text-slate-300 dark:text-zinc-700">|</span>
+                        <Link
+                            href={`/offers?shopId=${offer.shopId || ""}`}
+                            className="text-[10px] font-bold text-orange-500 hover:text-orange-600 uppercase tracking-wider"
+                        >
+                            View Outlet
+                        </Link> */}
+                    </div>
+
+                    {/* Social Media Links under it as icons only */}
+                    {activeSocialLinks.length > 0 && (
+                        <div className="flex items-center gap-2 mt-2.5">
+                            {activeSocialLinks.map((link) => {
+                                const platformInfo = SOCIAL_PLATFORMS[link.platform.toUpperCase()] || {
+                                    label: link.platform,
+                                    icon: LinkIcon,
+                                    color: "text-slate-500 hover:text-slate-700",
+                                    hoverBg: "hover:bg-slate-50 border-slate-200 hover:border-slate-350"
+                                };
+                                const IconComponent = platformInfo.icon;
+
+                                let finalUrl = link.url;
+                                if (link.platform.toUpperCase() === "WHATSAPP" && !finalUrl.startsWith("http") && /^\d+$/.test(finalUrl.replace(/\D/g, ""))) {
+                                    finalUrl = `https://wa.me/${finalUrl.replace(/\D/g, "")}`;
+                                } else if (!finalUrl.startsWith("http")) {
+                                    finalUrl = `https://${finalUrl}`;
+                                }
+
+                                return (
+                                    <a
+                                        key={link.platform}
+                                        href={finalUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className={cn(
+                                            "group p-2 rounded-xl bg-slate-50/50 dark:bg-zinc-950/50 border border-slate-200/60 dark:border-zinc-800/60 text-slate-600 dark:text-zinc-400 hover:shadow-lg hover:shadow-orange-500/5 transition-all active:scale-95 duration-300 relative overflow-hidden",
+                                            platformInfo.color,
+                                            platformInfo.hoverBg
+                                        )}
+                                        title={platformInfo.label}
+                                    >
+                                        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-r from-transparent via-white/5 to-transparent pointer-events-none" />
+                                        <IconComponent className="w-4 h-4 transition-transform group-hover:scale-110 duration-300" />
+                                    </a>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
             </div>
 
             <div className="container mx-auto px-4 pb-16">
@@ -332,18 +420,67 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
                             </MarkedPoster>
                         </div>
                         {/* Poster Info under the poster */}
-                        <div className="flex flex-row items-center justify-between gap-2 px-1">
-                            <div className="flex flex-col items-start text-left">
+                        <div className="flex flex-col gap-1.5 px-1 py-1">
+                            <div className="flex flex-row items-center justify-between gap-2">
                                 <span className="text-xs sm:text-sm font-black text-slate-800 dark:text-zinc-200 line-clamp-1">
                                     {offer.offerName}
                                 </span>
-                                <span className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 mt-0.5">
-                                    {totalPosters} {totalPosters === 1 ? "Poster" : "Posters"}
+                                <span className="bg-white dark:bg-zinc-900/95 text-slate-700 dark:text-zinc-300 text-[10px] font-bold px-3 py-1.5 rounded-2xl border border-primary/10 shadow-sm tracking-wider shrink-0">
+                                    Poster {posterIndex + 1} of {totalPosters}
                                 </span>
                             </div>
-                            <span className="bg-white dark:bg-zinc-900/95 text-slate-700 dark:text-zinc-300 text-[10px] font-bold px-3 py-1.5 rounded-2xl border border-primary/10 shadow-sm tracking-wider shrink-0">
-                                Poster {posterIndex + 1} of {totalPosters}
-                            </span>
+                            
+                            <div className="flex flex-row items-center justify-between gap-2 text-[10px]">
+                                <div className="flex flex-col items-start text-slate-500 dark:text-zinc-400 font-medium">
+                                    {/* <span>{totalPosters} {totalPosters === 1 ? "Poster" : "Posters"}</span>
+                                    <span className="md:hidden">•</span> */}
+                                    <span className="md:hidden">Published by</span>
+                                    <Link
+                                        href={`/offers?shopId=${offer.shopId || ""}`}
+                                        className="md:hidden font-bold text-orange-500 hover:underline text-xs"
+                                    >
+                                        {offer.shopName}
+                                    </Link>
+                                </div>
+                                
+                                {/* Mobile social icons only (hidden on desktop to avoid duplication) */}
+                                {activeSocialLinks.length > 0 && (
+                                    <div className="flex md:hidden items-center gap-1">
+                                        {activeSocialLinks.map((link) => {
+                                            const platformInfo = SOCIAL_PLATFORMS[link.platform.toUpperCase()] || {
+                                                label: link.platform,
+                                                icon: LinkIcon,
+                                                color: "text-slate-500 hover:text-slate-700",
+                                                hoverBg: "hover:bg-slate-50 border-slate-200 hover:border-slate-350"
+                                            };
+                                            const IconComponent = platformInfo.icon;
+                                            
+                                            let finalUrl = link.url;
+                                            if (link.platform.toUpperCase() === "WHATSAPP" && !finalUrl.startsWith("http") && /^\d+$/.test(finalUrl.replace(/\D/g, ""))) {
+                                                finalUrl = `https://wa.me/${finalUrl.replace(/\D/g, "")}`;
+                                            } else if (!finalUrl.startsWith("http")) {
+                                                finalUrl = `https://${finalUrl}`;
+                                            }
+
+                                            return (
+                                                <a
+                                                    key={link.platform}
+                                                    href={finalUrl}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className={cn(
+                                                        "transition-all active:scale-90 duration-200 p-1 rounded-lg",
+                                                        platformInfo.color
+                                                    )}
+                                                    title={platformInfo.label}
+                                                >
+                                                    <IconComponent className="w-5 h-5" />
+                                                </a>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
 
@@ -416,13 +553,13 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
                         </div>
                     </div>
 
-                    <div 
+                    <div
                         ref={similarCarouselRef}
                         className="flex gap-1 overflow-x-auto pb-4 scrollbar-hide px-0.5 snap-x snap-mandatory scroll-smooth"
                     >
                         {similarOffers.map((o) => (
-                            <div 
-                                key={o.id} 
+                            <div
+                                key={o.id}
                                 className="w-[calc((100%-0.5rem)/2)] sm:w-[calc((100%-0.75rem)/2)] md:w-[calc((100%-4rem)/5)] lg:w-[calc((100%-4rem)/5)] flex-shrink-0 snap-start"
                             >
                                 <OfferCard {...o} />

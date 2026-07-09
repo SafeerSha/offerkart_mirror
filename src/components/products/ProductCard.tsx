@@ -71,7 +71,7 @@ const ProductCard = ({
                         alt={name}
                         fill
                         unoptimized
-                        className="object-cover"
+                        className="object-contain p-1.5"
                     />
                 ) : (
                     <div className="absolute inset-0 flex items-center justify-center bg-slate-50 dark:bg-slate-900/20">
@@ -163,7 +163,7 @@ const ProductCard = ({
                             <span className="text-md font-black text-slate-950 dark:text-white tracking-tight">
                                 ₹{price}
                             </span>
-                            {originalPrice && originalPrice > price && (
+                            {!!originalPrice && originalPrice > price && (
                                 <span className="text-[10px] text-slate-400 dark:text-slate-500 line-through font-bold">
                                     ₹{originalPrice}
                                 </span>

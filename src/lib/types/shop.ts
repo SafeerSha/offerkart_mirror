@@ -33,6 +33,7 @@ export interface Shop {
     updated_by: string;
     created_at: string;
     updated_at: string;
+    industry?: string | number;
 }
 
 export interface Shops {

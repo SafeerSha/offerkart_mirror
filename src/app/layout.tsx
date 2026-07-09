@@ -76,6 +76,9 @@ export const metadata: Metadata = {
   description: "Find the best local deals, coupons, and exclusive offers from trusted businesses in your neighborhood. Save money with OfferKart.",
   keywords: ["local deals", "coupons", "offers", "discounts", "local businesses", "savings"],
   authors: [{ name: "OfferKart" }],
+  icons: {
+    icon: "/icon.svg",
+  },
   openGraph: {
     title: "OfferKart - Discover Local Deals & Offers",
     description: "Find the best local deals and exclusive offers near you",

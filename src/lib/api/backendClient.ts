@@ -10,6 +10,7 @@ const UPSTREAM_API_BASE_URL = config.api.upstreamBaseUrl;
 const PUBLIC_PATHS = new Set([
     "business/auth/login",
     "business/auth/register",
+    "business/industry",
 ]);
 
 function isPublicPath(pathname: string) {

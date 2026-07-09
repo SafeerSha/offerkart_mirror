@@ -24,7 +24,7 @@ import {
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import { Offer } from "@/lib/types/offer";
 import { useTranslation } from "@/hooks/useTranslation";
-import { useInfiniteUserOffers } from "@/hooks/useApi";
+import { useInfiniteUserOffers, useIndustries } from "@/hooks/useApi";
 import { cn } from "@/lib/utils";
 import { useLocationContext } from "@/context/LocationContext";
 
@@ -51,82 +51,95 @@ export default function OffersClient({
 
     const sortOptions = [
         { value: "latest", label: t("catalog.sortLatest") },
-        { value: "popular", label: t("catalog.sortPopular") },
-        { value: "nearby", label: t("catalog.sortNearby") },
-        { value: "discount", label: t("catalog.sortDiscount") },
+        { value: "top", label: t("catalog.sortPopular") },
     ];
-    const initialCategory = searchParams.get("category") || "All";
+    const { data: industriesResponse } = useIndustries();
+    const industries = industriesResponse?.success && industriesResponse.data ? industriesResponse.data : [];
+    const industryNames = ["All", ...industries.map(ind => ind.name)];
+
     const initialShopId = searchParams.get("shopId") || undefined;
-    const initialSubcategories = searchParams.getAll("subcategory") || [];
+    const initialSort = searchParams.get("sort") || "latest";
 
     const featuredShops = initialFeaturedShops;
     const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
     const [userCoordinates, setUserCoordinates] = useState<UserCoordinates | null>(null);
 
     const [activeFilters, setActiveFilters] = useState<{
-        category: string;
-        subcategory: string[];
+        industry: string;
         sort: string;
         shopId?: string;
     }>({
-        category: initialCategory,
-        subcategory: initialSubcategories,
-        sort: "latest",
+        industry: "All",
+        sort: initialSort,
         shopId: initialShopId || undefined
     });
 
-    // Sync category, subcategories, and shopId from URL if they change
+    // Sync industry, sort, and shopId from URL if they change
     useEffect(() => {
-        const cat = searchParams.get("category") || "All";
+        const industryIdParam = searchParams.get("industryId");
         const shopId = searchParams.get("shopId") || undefined;
-        const subs = searchParams.getAll("subcategory") || [];
-        setActiveFilters(prev => {
-            const isCategorySame = prev.category === cat;
-            const isShopIdSame = prev.shopId === shopId;
-            const isSubcategorySame = prev.subcategory.length === subs.length &&
-                prev.subcategory.every((val, index) => val === subs[index]);
+        const sortParam = searchParams.get("sort") || "latest";
 
-            if (isCategorySame && isSubcategorySame && isShopIdSame) {
+        let resolvedIndustryName = "All";
+        if (industryIdParam && industryIdParam !== "All") {
+            const matched = industries.find(ind => String(ind.id) === String(industryIdParam));
+            if (matched) {
+                resolvedIndustryName = matched.name;
+            } else {
+                resolvedIndustryName = "All";
+            }
+        }
+
+        setActiveFilters(prev => {
+            let finalIndustry = resolvedIndustryName;
+            if (industryIdParam && industryIdParam !== "All" && industries.length === 0) {
+                finalIndustry = prev.industry;
+            }
+
+            const isIndustrySame = prev.industry === finalIndustry;
+            const isShopIdSame = prev.shopId === shopId;
+            const isSortSame = prev.sort === sortParam;
+
+            if (isIndustrySame && isShopIdSame && isSortSame) {
                 return prev;
             }
             return {
-                ...prev,
-                category: cat,
-                subcategory: subs,
-                shopId: shopId
+                industry: finalIndustry,
+                shopId: shopId,
+                sort: sortParam
             };
         });
-    }, [searchParams]);
+    }, [searchParams, industries]);
 
-
-
-    const handleCategoryChange = useCallback((category: string) => {
+    const handleIndustryChange = useCallback((industryName: string) => {
         const params = new URLSearchParams(searchParams.toString());
-        if (category === "All") {
-            params.delete("category");
+        if (industryName === "All") {
+            params.delete("industryId");
         } else {
-            params.set("category", category);
+            const matched = industries.find(ind => ind.name === industryName);
+            if (matched) {
+                params.set("industryId", String(matched.id));
+            } else {
+                params.delete("industryId");
+            }
         }
-        params.delete("subcategory"); // Clear subcategory when category changes
-        router.push(`/products?${params.toString()}`);
-    }, [router, searchParams]);
-
-    const handleSubcategoryChange = useCallback((subcategory: string[]) => {
-        const params = new URLSearchParams(searchParams.toString());
-        params.delete("subcategory");
-        subcategory.forEach(sub => params.append("subcategory", sub));
-        router.push(`/products?${params.toString()}`);
-    }, [router, searchParams]);
+        router.push(`/offers?${params.toString()}`);
+    }, [router, searchParams, industries]);
 
     const handleSortChange = useCallback((sort: string) => {
-        setActiveFilters(prev => ({ ...prev, sort }));
-    }, []);
+        const params = new URLSearchParams(searchParams.toString());
+        if (sort === "latest") {
+            params.delete("sort");
+        } else {
+            params.set("sort", sort);
+        }
+        router.push(`/offers?${params.toString()}`);
+    }, [router, searchParams]);
 
     const handleClearFilters = useCallback(() => {
         const params = new URLSearchParams(searchParams.toString());
-        params.delete("category");
-        params.delete("subcategory");
-        setActiveFilters(prev => ({ ...prev, sort: "latest" }));
+        params.delete("industryId");
+        params.delete("sort");
         router.push(`/offers?${params.toString()}`);
     }, [router, searchParams]);
 
@@ -170,8 +183,13 @@ export default function OffersClient({
 
     // Use React Query for infinite scrolling offers
     // Include coordinates if sort is nearby, otherwise pass nulls to avoid triggering backend geolocation logic
+    const activeIndustryObj = industries.find(ind => ind.name === activeFilters.industry);
+    const activeIndustryId = activeIndustryObj ? activeIndustryObj.id : undefined;
+
     const queryFilters = {
-        ...activeFilters,
+        sort: activeFilters.sort,
+        shopId: activeFilters.shopId,
+        industry: activeIndustryId,
         latitude: globalLocation.latitude !== null ? globalLocation.latitude : (activeFilters.sort === "nearby" ? userCoordinates?.latitude : undefined),
         longitude: globalLocation.longitude !== null ? globalLocation.longitude : (activeFilters.sort === "nearby" ? userCoordinates?.longitude : undefined),
     };
@@ -226,13 +244,15 @@ export default function OffersClient({
                             <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
                                 <FilterPanel
                                     variant="sidebar"
-                                    activeCategory={activeFilters.category}
-                                    activeSubcategory={activeFilters.subcategory}
+                                    activeCategory={activeFilters.industry}
                                     activeSort={activeFilters.sort}
-                                    onCategoryChange={handleCategoryChange}
-                                    onSubcategoryChange={handleSubcategoryChange}
+                                    onCategoryChange={handleIndustryChange}
                                     onSortChange={handleSortChange}
                                     onClearFilters={handleClearFilters}
+                                    categoriesOverride={industryNames}
+                                    hideSubcategories={true}
+                                    categoryLabel="Industry"
+                                    sortOptionsOverride={sortOptions}
                                 />
                             </div>
                         </div>
@@ -263,13 +283,15 @@ export default function OffersClient({
                                         <div className="pb-8">
                                             <FilterPanel
                                                 variant="sidebar"
-                                                activeCategory={activeFilters.category}
-                                                activeSubcategory={activeFilters.subcategory}
+                                                activeCategory={activeFilters.industry}
                                                 activeSort={activeFilters.sort}
-                                                onCategoryChange={handleCategoryChange}
-                                                onSubcategoryChange={handleSubcategoryChange}
+                                                onCategoryChange={handleIndustryChange}
                                                 onSortChange={handleSortChange}
                                                 onClearFilters={handleClearFilters}
+                                                categoriesOverride={industryNames}
+                                                hideSubcategories={true}
+                                                categoryLabel="Industry"
+                                                sortOptionsOverride={sortOptions}
                                             />
                                         </div>
                                     </SheetContent>
@@ -320,33 +342,22 @@ export default function OffersClient({
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 lg:mb-8">
                             <div>
                                 <div className="flex items-center gap-2 mb-2">
-                                    {(activeFilters.category !== "All" || activeFilters.subcategory.length > 0) && (
+                                    {activeFilters.industry !== "All" && (
                                         <div className="flex items-center gap-2 text-xs font-medium text-gray-400">
                                             <span>/</span>
-                                            <span className="text-gray-900">{activeFilters.category === "All" ? t("catalog.all") : activeFilters.category}</span>
-                                            {activeFilters.subcategory.length > 0 && (
-                                                <>
-                                                    <span>/</span>
-                                                    <span className="text-gray-900 line-clamp-1">{activeFilters.subcategory.join(", ")}</span>
-                                                </>
-                                            )}
+                                            <span className="text-gray-900">{activeFilters.industry}</span>
                                         </div>
                                     )}
                                 </div>
                                 <h3 
                                     className="text-2xl font-bold text-gray-900 truncate max-w-full"
-                                    title={`${activeFilters.category === "All" ? t("catalog.allOffers") : activeFilters.category}${activeFilters.subcategory.length > 0 ? " — " + activeFilters.subcategory.join(", ") : ""}`}
+                                    title={activeFilters.industry === "All" ? t("catalog.allOffers") : activeFilters.industry}
                                 >
-                                    {activeFilters.category === "All" ? t("catalog.allOffers") : activeFilters.category}
-                                    {activeFilters.subcategory.length > 0 && (
-                                        <span className="text-gray-400 font-medium">
-                                            {" — "}{activeFilters.subcategory.join(", ")}
-                                        </span>
-                                    )}
+                                    {activeFilters.industry === "All" ? t("catalog.allOffers") : activeFilters.industry}
                                 </h3>
                                 <p className="text-gray-500 text-sm mt-1">
                                     {t("catalog.showingVerifiedDeals").replace("{count}", offers.length.toString())}
-                                    {activeFilters.subcategory.length > 0 ? t("catalog.inSelectedCategories") : t("catalog.forYou")}
+                                    {activeFilters.industry !== "All" ? ` in ${activeFilters.industry}` : ` ${t("catalog.forYou")}`}
                                 </p>
 
                                 {activeFilters.shopId && (

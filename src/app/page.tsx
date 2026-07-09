@@ -32,7 +32,7 @@ export default async function HomePage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Spacer for Fixed Header */}
-      <div className="h-44 lg:h-16" />
+      <div className="h-40 lg:h-28" />
 
       {/* Featured Shops Carousel */}
       <FeaturedCarousel shops={featuredShops} />

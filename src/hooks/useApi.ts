@@ -6,6 +6,7 @@ import { getAllProducts, createProduct, updateProduct, deleteProduct, getUserPro
 import { getOfferProductById, toggleOfferProductStatus } from "@/lib/api/offerproduct";
 import { s3Api } from "@/lib/api/s3";
 import { getCategories, getSubCategories } from "@/lib/api/categories";
+import { getIndustries } from "@/lib/api/industry";
 import { cleanupOfferImages, cleanupProductImages } from "@/lib/imageUtils";
 
 
@@ -36,6 +37,7 @@ export const queryKeys = {
   // Category keys
   categories: ["categories"] as const,
   subcategories: (categoryId: string | number) => ["subcategories", categoryId] as const,
+  industries: ["industries"] as const,
 };
 
 
@@ -419,5 +421,17 @@ export function useSubcategories(categoryId: string | number | null) {
     gcTime: 24 * 60 * 60 * 1000,    // 24 hours
     refetchOnWindowFocus: false,
     refetchOnMount: false,
+  });
+}
+
+export function useIndustries(enabled: boolean = true) {
+  return useQuery({
+    queryKey: queryKeys.industries,
+    queryFn: getIndustries,
+    staleTime: 24 * 60 * 60 * 1000, // 24 hours
+    gcTime: 24 * 60 * 60 * 1000,    // 24 hours
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    enabled,
   });
 }

@@ -228,9 +228,9 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                 </div>
 
                 {/* Product Detail Section */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 items-start">
                     {/* Left: Images */}
-                    <div className="lg:col-span-6 space-y-4">
+                    <div className="lg:col-span-5 space-y-4">
                         <PremiumCard
                             onClick={() => {
                                 if (productImages.length > 0) {
@@ -246,7 +246,7 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                                         alt={product.name}
                                         fill
                                         unoptimized
-                                        className="object-cover group-hover/img:scale-105 transition-transform duration-500"
+                                        className="object-contain p-6 bg-white group-hover/img:scale-105 transition-transform duration-500"
                                     />
                                     {/* Zoom Hover Overlay */}
                                     <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover/img:opacity-100 duration-300">
@@ -296,7 +296,7 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                     </div>
 
                     {/* Right: Info */}
-                    <div className="lg:col-span-6 space-y-6">
+                    <div className="lg:col-span-7 space-y-6">
                         <div className="bg-white p-8 md:p-10 rounded-[2.5rem] border border-gray-100/80 shadow-xl shadow-gray-200/20 space-y-6">
 
                             {/* Shop Header (Outlet Info) - D4D Style */}
@@ -340,7 +340,7 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                                             <span className="text-3xl md:text-4xl font-black text-orange-600 tracking-tight">
                                                 ₹{product.price.toLocaleString()}
                                             </span>
-                                            {product.originalPrice && product.originalPrice > product.price && (
+                                            {!!product.originalPrice && product.originalPrice > product.price && (
                                                 <span className="text-sm text-gray-400 line-through font-bold">
                                                     ₹{product.originalPrice.toLocaleString()}
                                                 </span>
@@ -350,7 +350,7 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                                 </div>
 
                                 {/* Savings indicator */}
-                                {product.originalPrice && product.originalPrice > product.price && (
+                                {!!product.originalPrice && product.originalPrice > product.price && (
                                     <div className="flex items-center gap-2 pt-2 border-t border-gray-200/60">
                                         <span className="px-2.5 py-1 bg-green-500 text-white font-black text-[9px] uppercase tracking-wider rounded-md shadow-sm">
                                             SAVE {discountPercent}%

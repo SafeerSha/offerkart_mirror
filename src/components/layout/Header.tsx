@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
-import { Search, User, LogIn, Menu, X, PlusCircle, MapPin, ChevronDown, LayoutDashboard, Plus, Loader2, Home, Percent, ShoppingBag, Locate, Package, Tag } from "lucide-react";
+import { Search, User, LogIn, Menu, X, PlusCircle, MapPin, ChevronDown, LayoutDashboard, Plus, Loader2, Home, Percent, ShoppingBag, Locate, Package, Tag, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useSession, signIn, signOut } from "next-auth/react";
 import {
@@ -21,6 +21,7 @@ import { SearchResultData } from "@/lib/types/search";
 import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
 import { getGlobalSearch } from "@/lib/api/userOffersService";
 import { useLocationContext } from "@/context/LocationContext";
+import { Arrow } from "@radix-ui/react-popover";
 
 const locations = [
     "All",
@@ -966,7 +967,7 @@ const Header = () => {
                                                     <span className="text-sm text-slate-400 dark:text-slate-500">No results found</span>
                                                 </div>
                                             ) : (
-                                                <div className="py-2">
+                                                <div className="pb-2">
                                                     {/* Products Section */}
                                                     {searchResults.products && searchResults.products.length > 0 && (
                                                         <div className="mb-3 last:mb-0">
@@ -989,14 +990,14 @@ const Header = () => {
                                                                                 in <span className="text-orange-500 dark:text-orange-400 font-medium">{p.category || "General"}</span>
                                                                             </div>
                                                                             <div className="flex items-center gap-1.5 min-w-0">
-                                                                                <Package className="w-3.5 h-3.5 text-orange-500 shrink-0" />
-                                                                                <span className="font-semibold text-[13.5px] text-slate-800 dark:text-slate-200 truncate leading-tight tracking-wide" title={p.name}>
+                                                                                {/* <ArrowRight className="w-3.5 h-3.5 text-orange-500 shrink-0" /> */}
+                                                                                <span className="font-semibold text-[11.5px] text-slate-800 dark:text-slate-200 truncate leading-tight tracking-wide pl-1" title={p.name}>
                                                                                     {p.name}
                                                                                 </span>
                                                                             </div>
                                                                         </div>
                                                                         <div className="flex items-center gap-2.5 shrink-0">
-                                                                            <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 dark:text-slate-400 tracking-wide bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded-lg select-none">
+                                                                            <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-700 dark:text-slate-400 tracking-wide bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded-lg select-none">
                                                                                 <span>{p.totalOfferProducts} {p.totalOfferProducts === 1 ? 'Product' : 'Products'}</span>
                                                                                 <span className="text-slate-300 dark:text-slate-600 font-normal">•</span>
                                                                                 <span>{p.shopCount} {p.shopCount === 1 ? 'Shop' : 'Shops'}</span>
@@ -1028,8 +1029,8 @@ const Header = () => {
                                                                     >
                                                                         <div className="flex flex-col min-w-0 w-full py-0.5">
                                                                             <div className="flex items-center gap-1.5 min-w-0">
-                                                                                <Tag className="w-3.5 h-3.5 text-orange-500 shrink-0" />
-                                                                                <span className="font-semibold text-[14px] text-slate-800 dark:text-slate-200 truncate leading-tight tracking-wide" title={o.offerName}>
+                                                                                <Tag className="w-3 h-3 text-orange-500 shrink-0" />
+                                                                                <span className="font-semibold text-[13px] text-slate-800 dark:text-slate-200 truncate leading-tight tracking-wide" title={o.offerName}>
                                                                                     {o.offerName}
                                                                                 </span>
                                                                             </div>

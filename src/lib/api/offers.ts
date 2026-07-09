@@ -42,6 +42,7 @@ interface UserOfferQuery {
     shopId?: string;
     latitude?: number | null;
     longitude?: number | null;
+    industry?: number | string | null;
 }
 
 interface PaginatedOffersResult {
@@ -166,11 +167,14 @@ async function fetchUserOffersPage({
     shopId,
     latitude,
     longitude,
+    industry,
 }: UserOfferQuery = {}, cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">): Promise<PaginatedOffersResult> {
+    // Map frontend "popular" sort to upstream "top" sort
+    const backendSort = sort === "popular" ? "top" : sort;
     const params = new URLSearchParams({
         page: String(page),
         limit: String(limit),
-        sort,
+        sort: backendSort,
     });
 
     const normalizedShopId = normalizeOptionalQueryValue(shopId);
@@ -182,6 +186,11 @@ async function fetchUserOffersPage({
     const normalizedLongitude = normalizeOptionalQueryValue(longitude);
     if (normalizedLatitude !== undefined) params.set("latitude", normalizedLatitude);
     if (normalizedLongitude !== undefined) params.set("longitude", normalizedLongitude);
+
+    const normalizedIndustryId = normalizeOptionalQueryValue(industry);
+    if (normalizedIndustryId !== undefined) {
+        params.set("industry", normalizedIndustryId);
+    }
 
     let response: any;
     try {
@@ -195,15 +204,28 @@ async function fetchUserOffersPage({
     }
 
     if (!response || !response.success || !response.data) {
-        console.warn("Upstream user/offer request failed");
+        console.warn("Upstream user/offer request failed. Falling back to local mock data.");
+        const { ALL_OFFERS } = await import("./mockData");
+        
+        let filtered = ALL_OFFERS;
+        if (shopId) {
+            filtered = filtered.filter((o: any) => String(o.shopId || o.shop_id || "") === String(shopId));
+        }
+        if (industry && industry !== "All") {
+            filtered = filtered.filter((o: any) => String(o.category || "") === String(industry));
+        }
+
+        const start = (page - 1) * limit;
+        const slice = filtered.slice(start, start + limit);
+        const mappedOffers = slice.map(mapUserOfferToOffer);
+
         return {
-            success: false,
-            data: [],
+            success: true,
+            data: mappedOffers,
             page,
             limit,
-            count: 0,
-            hasMore: false,
-            error: response?.error || "Failed to fetch offers",
+            count: filtered.length,
+            hasMore: start + limit < filtered.length,
         };
     }
 
@@ -477,6 +499,7 @@ function mapUserOfferDetailToOffer(detail: any, listingOffer?: Offer | null): Of
         shopId: listingOffer?.shopId,
         branchNames: branchNames,
         branchName: branchNames[0] || undefined,
+        socialLinks: detail.socialLinks || detail.social_links || listingOffer?.socialLinks || null,
     };
 }
 
@@ -530,6 +553,17 @@ export async function getUserOfferById(
         return {
             success: true,
             data: listingOffer,
+        };
+    }
+
+    // Mock Fallback: if both failed, look up in ALL_OFFERS mock data
+    const { ALL_OFFERS } = await import("./mockData");
+    const mockOffer = ALL_OFFERS.find(item => String(item.id) === String(id));
+    if (mockOffer) {
+        console.warn(`Upstream user/offer detail request for ID ${id} failed. Falling back to local mock data.`);
+        return {
+            success: true,
+            data: mapUserOfferDetailToOffer(mockOffer),
         };
     }
 

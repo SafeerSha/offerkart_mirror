@@ -39,6 +39,11 @@ interface FilterPanelProps {
 
   variant?: "inline" | "sidebar";
   className?: string;
+
+  categoriesOverride?: string[];
+  hideSubcategories?: boolean;
+  categoryLabel?: string;
+  sortOptionsOverride?: { value: string; label: string }[];
 }
 
 const FilterPanel = ({
@@ -51,15 +56,19 @@ const FilterPanel = ({
   onFilterChange,
   onClearFilters,
   variant = "inline",
-  className
+  className,
+  categoriesOverride,
+  hideSubcategories = false,
+  categoryLabel,
+  sortOptionsOverride
 }: FilterPanelProps) => {
   const router = useRouter();
   const pathname = usePathname();
   const { t } = useTranslation("common");
   const { mainCategories, categoryHierarchy, categoryLookup, getCategoryId } = useCategoryHierarchy();
-  const categories = ["All", ...mainCategories];
+  const categories = categoriesOverride ?? ["All", ...mainCategories];
 
-  const sortOptions = [
+  const sortOptions = sortOptionsOverride ?? [
     { value: "latest", label: t("catalog.sortLatest") },
     { value: "popular", label: t("catalog.sortPopular") },
     { value: "nearby", label: t("catalog.sortNearby") },
@@ -173,7 +182,7 @@ const FilterPanel = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-gray-900 font-semibold">
               <Tag className="w-5 h-5 text-orange-500" />
-              <span>{t("catalog.categories")}</span>
+              <span>{categoryLabel || t("catalog.categories")}</span>
             </div>
             {hasActiveFilters && (
               <button
@@ -201,7 +210,7 @@ const FilterPanel = ({
                 </button>
 
                 {/* Nested Subcategories */}
-                {category === cat && cat !== "All" && dynamicSubcategories.length > 0 && (
+                {!hideSubcategories && category === cat && cat !== "All" && dynamicSubcategories.length > 0 && (
                   <div className="flex flex-col gap-1 pl-4 pb-2 animate-in slide-in-from-top-2 fade-in duration-300">
                     <button
                       onClick={() => handleSubcategoryChange("All")}

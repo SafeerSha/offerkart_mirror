@@ -156,7 +156,7 @@ export function ProductsTab({
                                         <span className="text-xs font-black text-gray-900 tracking-tighter leading-none">
                                             ₹{product.price}
                                         </span>
-                                        {product.originalPrice && (
+                                        {!!product.originalPrice && (
                                             <span className="text-[9px] text-red-500 line-through font-medium">
                                                 ₹{product.originalPrice}
                                             </span>
