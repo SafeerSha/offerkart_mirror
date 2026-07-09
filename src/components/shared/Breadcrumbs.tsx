@@ -21,7 +21,7 @@ const Breadcrumbs = ({ items, className }: BreadcrumbsProps) => {
     return (
         <nav
             aria-label="Breadcrumb"
-            className={cn("flex mb-6", className)}
+            className={cn("flex mb-2", className)}
         >
             <ol className="flex items-center flex-wrap gap-1.5 sm:gap-2">
                 {/* Home Item */}

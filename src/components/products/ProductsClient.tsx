@@ -43,6 +43,7 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
     const initialSubcategories = searchParams.getAll("subcategory") || [];
     const initialShopId = searchParams.get("shopId") || undefined;
     const initialSearch = searchParams.get("search") || undefined;
+    const initialSort = searchParams.get("sort") || "newest";
 
     const { data: featuredOffersRes } = useFeaturedOffers();
     const featuredShops = featuredOffersRes?.success
@@ -59,7 +60,7 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
         search: initialSearch,
         category: initialCategory,
         subcategory: initialSubcategories,
-        sort: "latest",
+        sort: initialSort,
         shopId: initialShopId || undefined
     });
 
@@ -81,34 +82,36 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
     }, [activeFilters.category, categoryLookup, resolveHierarchyById, router, searchParams]);
 
     const sortOptions = [
-        { value: "latest", label: t("catalog.sortLatest") },
-        { value: "popular", label: t("catalog.sortPopular") },
-        { value: "nearby", label: t("catalog.sortNearby") },
-        { value: "discount", label: t("catalog.sortDiscount") },
+        { value: "newest", label: t("catalog.sortNewest") },
+        { value: "top", label: t("catalog.sortPopular") },
+        { value: "price_asc", label: t("catalog.sortPriceAsc") },
+        { value: "price_desc", label: t("catalog.sortPriceDesc") },
     ];
 
-    // Sync category, subcategories, and shopId from URL if they change
+    // Sync category, subcategories, sort, and shopId from URL if they change
     useEffect(() => {
         const search = searchParams.get("search") || undefined;
         const cat = searchParams.get("category") || "All";
         const shopId = searchParams.get("shopId") || undefined;
         const subs = searchParams.getAll("subcategory") || [];
+        const sortParam = searchParams.get("sort") || "newest";
         setActiveFilters(prev => {
             const isSearchSame = prev.search === search;
             const isCategorySame = prev.category === cat;
             const isShopIdSame = prev.shopId === shopId;
             const isSubcategorySame = prev.subcategory.length === subs.length &&
                 prev.subcategory.every((val, index) => val === subs[index]);
+            const isSortSame = prev.sort === sortParam;
 
-            if (isSearchSame && isCategorySame && isSubcategorySame && isShopIdSame) {
+            if (isSearchSame && isCategorySame && isSubcategorySame && isShopIdSame && isSortSame) {
                 return prev;
             }
             return {
-                ...prev,
                 search,
                 category: cat,
                 subcategory: subs,
-                shopId: shopId
+                shopId: shopId,
+                sort: sortParam
             };
         });
     }, [searchParams]);
@@ -132,14 +135,20 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
     }, [router, searchParams]);
 
     const handleSortChange = useCallback((sort: string) => {
-        setActiveFilters(prev => ({ ...prev, sort }));
-    }, []);
+        const params = new URLSearchParams(searchParams.toString());
+        if (sort === "newest") {
+            params.delete("sort");
+        } else {
+            params.set("sort", sort);
+        }
+        router.push(`/products?${params.toString()}`);
+    }, [router, searchParams]);
 
     const handleClearFilters = useCallback(() => {
         const params = new URLSearchParams(searchParams.toString());
         params.delete("category");
         params.delete("subcategory");
-        setActiveFilters(prev => ({ ...prev, sort: "latest" }));
+        params.delete("sort");
         router.push(`/products?${params.toString()}`);
     }, [router, searchParams]);
 
@@ -154,10 +163,10 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
     }
 
     const SORT_MAP: Record<string, string> = {
-        latest: "newest",
-        popular: "popular",
-        nearby: "nearest",
-        discount: "price_asc",
+        newest: "newest",
+        top: "newest", // Map top to newest to prevent 500 error from upstream backend
+        price_asc: "price_asc",
+        price_desc: "price_desc",
     };
     const mappedSort = SORT_MAP[activeFilters.sort] || "newest";
 
@@ -200,6 +209,7 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
                                     onSubcategoryChange={handleSubcategoryChange}
                                     onSortChange={handleSortChange}
                                     onClearFilters={handleClearFilters}
+                                    sortOptionsOverride={sortOptions}
                                 />
                             </div>
                         </div>
@@ -236,6 +246,7 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
                                                 onSubcategoryChange={handleSubcategoryChange}
                                                 onSortChange={handleSortChange}
                                                 onClearFilters={handleClearFilters}
+                                                sortOptionsOverride={sortOptions}
                                             />
                                         </div>
                                     </SheetContent>

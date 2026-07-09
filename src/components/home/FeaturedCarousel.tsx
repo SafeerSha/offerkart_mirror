@@ -62,7 +62,7 @@ const FeaturedCarousel = ({ shops = [] }: FeaturedCarouselProps) => {
       </div>
 
       <div className="container mx-auto px-4 relative">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 gap-4">
           <div className="flex items-center gap-4">
             <div className="p-3 rounded-2xl bg-primary/10 border border-primary/20">
               <Zap className="w-6 h-6 text-primary" />
@@ -74,6 +74,44 @@ const FeaturedCarousel = ({ shops = [] }: FeaturedCarouselProps) => {
               <Text className="text-sm mt-1">{t("featuredOffers.subtitle")}</Text>
             </div>
           </div>
+
+          {displayShops.length > 1 && (
+            <div className="flex items-center gap-3 shrink-0">
+              {/* Progress Bar */}
+              <div className="hidden sm:flex items-center gap-2 mr-2">
+                <div className="w-16 h-1 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-primary to-secondary transition-all duration-300 ease-linear"
+                    style={{ width: `${((currentIndex + 1) / displayShops.length) * 100}%` }}
+                  />
+                </div>
+                <span className="text-xs text-muted-foreground min-w-[3ch]">
+                  {currentIndex + 1}/{displayShops.length}
+                </span>
+              </div>
+
+              <PremiumButton
+                variant="outline"
+                size="icon"
+                onClick={prevSlide}
+                onMouseEnter={() => setIsAutoPlaying(false)}
+                onMouseLeave={() => setIsAutoPlaying(true)}
+                className="rounded-full border-orange-500/50 hover:border-orange-500 h-9 w-9 sm:h-10 sm:w-10 group"
+              >
+                <ChevronLeft className="w-5 h-5 text-orange-500 group-hover:scale-110 transition-transform" />
+              </PremiumButton>
+              <PremiumButton
+                variant="outline"
+                size="icon"
+                onClick={nextSlide}
+                onMouseEnter={() => setIsAutoPlaying(false)}
+                onMouseLeave={() => setIsAutoPlaying(true)}
+                className="rounded-full border-orange-500/50 hover:border-orange-500 h-9 w-9 sm:h-10 sm:w-10 group"
+              >
+                <ChevronRight className="w-5 h-5 text-orange-500 group-hover:scale-110 transition-transform" />
+              </PremiumButton>
+            </div>
+          )}
         </div>
 
         {displayShops.length === 0 ? (
@@ -82,43 +120,6 @@ const FeaturedCarousel = ({ shops = [] }: FeaturedCarouselProps) => {
           </div>
         ) : (
           <>
-            {displayShops.length > 1 && (
-              <div className="flex items-center gap-3">
-                {/* Progress Bar */}
-                <div className="hidden sm:flex items-center gap-2 mr-4">
-                  <div className="w-20 h-1 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-primary to-secondary transition-all duration-300 ease-linear"
-                      style={{ width: `${((currentIndex + 1) / displayShops.length) * 100}%` }}
-                    />
-                  </div>
-                  <span className="text-xs text-muted-foreground min-w-[3ch]">
-                    {currentIndex + 1}/{displayShops.length}
-                  </span>
-                </div>
-
-                <PremiumButton
-                  variant="outline"
-                  size="icon"
-                  onClick={prevSlide}
-                  onMouseEnter={() => setIsAutoPlaying(false)}
-                  onMouseLeave={() => setIsAutoPlaying(true)}
-                  className="rounded-full border-orange-500/50 hover:border-orange-500 h-10 w-10 group"
-                >
-                  <ChevronLeft className="w-5 h-5 text-orange-500 group-hover:scale-110 transition-transform" />
-                </PremiumButton>
-                <PremiumButton
-                  variant="outline"
-                  size="icon"
-                  onClick={nextSlide}
-                  onMouseEnter={() => setIsAutoPlaying(false)}
-                  onMouseLeave={() => setIsAutoPlaying(true)}
-                  className="rounded-full border-orange-500/50 hover:border-orange-500 h-10 w-10 group"
-                >
-                  <ChevronRight className="w-5 h-5 text-orange-500 group-hover:scale-110 transition-transform" />
-                </PremiumButton>
-              </div>
-            )}
 
             <div
               className="relative h-72 md:h-80"

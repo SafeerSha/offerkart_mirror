@@ -3172,7 +3172,7 @@ export const PosterDesigner = forwardRef<PosterDesignerRef, {
                                         </div>
                                         <div className="flex items-baseline gap-2 mt-1">
                                             <span className="text-[10px] font-black text-emerald-600">₹{p.price}</span>
-                                            {p.originalPrice && (
+                                            {!!p.originalPrice && (
                                                 <span className="text-[9px] font-bold text-red-500 line-through">₹{p.originalPrice}</span>
                                             )}
                                             {p.validFrom && (

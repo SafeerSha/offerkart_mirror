@@ -35,7 +35,7 @@ import { useSession } from "next-auth/react";
 import dynamic from "next/dynamic";
 import { addShop, updateShop, getShopDetails } from "@/lib/api/shop";
 import { Shop } from "@/lib/types/shop";
-import { queryKeys } from "@/hooks/useApi";
+import { queryKeys, useIndustries } from "@/hooks/useApi";
 import { useLocation } from "@/hooks/useLocation";
 import { compressImage } from "@/lib/imageUtils";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
@@ -77,6 +77,7 @@ const formSchema = z.object({
     isActive: z.boolean(),
     logo: z.any().optional(),
     license: z.any().optional(),
+    industry: z.string().min(1, "Please select an industry"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -89,6 +90,9 @@ export default function AddShopForm() {
     const shopId = searchParams.get('id');
     const returnTo = searchParams.get('returnTo');
     const isEditMode = !!shopId;
+
+    const { data: industriesResponse } = useIndustries();
+    const industries = industriesResponse?.success && industriesResponse.data ? industriesResponse.data : [];
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoading, setIsLoading] = useState(isEditMode);
@@ -113,6 +117,7 @@ export default function AddShopForm() {
             latitude: undefined,
             longitude: undefined,
             isActive: true,
+            industry: "",
         },
     });
 
@@ -172,6 +177,7 @@ export default function AddShopForm() {
                         latitude: shop.latitude || undefined,
                         longitude: shop.longitude || undefined,
                         isActive: shop.is_active ?? true,
+                        industry: shop.industry ? String(shop.industry) : (shop as any).industry_id ? String((shop as any).industry_id) : (shop as any).industryId ? String((shop as any).industryId) : "",
                     });
 
                     if (shop.logo_url && shop.logo_url !== "null") {
@@ -238,6 +244,10 @@ export default function AddShopForm() {
             if (values.longitude) formData.append("longitude", values.longitude.toString());
 
             formData.append("is_active", String(values.isActive));
+            
+            if (values.industry) {
+                formData.append("industry", values.industry);
+            }
 
             if (!isLogoRemoved) {
                 if (isEditMode) {
@@ -495,6 +505,32 @@ export default function AddShopForm() {
                                         <FormMessage />
                                     </FormItem>
                                 )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="industry"
+                                render={({ field }) => {
+                                    const selectedIndustryObj = industries.find(ind => String(ind.id) === String(field.value));
+                                    const selectedIndustryName = selectedIndustryObj ? selectedIndustryObj.name : "";
+
+                                    return (
+                                        <FormItem className="space-y-2">
+                                            <FormLabel className="text-sm font-medium text-gray-700">Business Industry</FormLabel>
+                                            <FormControl>
+                                                <SearchableSelect
+                                                    options={industries.map(ind => ind.name)}
+                                                    value={selectedIndustryName}
+                                                    onChange={(val) => {
+                                                        const matched = industries.find(ind => ind.name === val);
+                                                        field.onChange(matched ? String(matched.id) : "");
+                                                    }}
+                                                    placeholder="Select business industry"
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    );
+                                }}
                             />
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <FormField
