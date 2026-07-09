@@ -71,6 +71,7 @@ export interface Offer {
     rating?: number;
     posterSrc?: string;
     shopId?: number;
+    socialLinks?: { platform: string; url: string; }[] | null;
 }
 
 export interface OfferPayload {

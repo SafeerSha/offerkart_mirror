@@ -217,7 +217,7 @@ async function fetchUserOffersPage({
 
         const start = (page - 1) * limit;
         const slice = filtered.slice(start, start + limit);
-        const mappedOffers = slice.map(mapUserOfferToOffer);
+        const mappedOffers = slice.map((o: any) => mapUserOfferToOffer(o));
 
         return {
             success: true,

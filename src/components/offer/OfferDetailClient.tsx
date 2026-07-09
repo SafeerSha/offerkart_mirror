@@ -42,6 +42,7 @@ interface OfferDetail {
     branchId?: number | string;
     branchName?: string;
     shopLogo?: string | null;
+    shopId?: number | string;
     socialLinks?: { platform: string; url: string; }[] | null;
 }
 
@@ -139,6 +140,7 @@ function mapApiOfferToDetail(raw: any): OfferDetail {
         originalPrice: "",
         branchName: raw.branchNames?.[0] ?? raw.branchName,
         shopLogo: raw.shopLogo || null,
+        shopId: raw.shopId || raw.shop_id || undefined,
         socialLinks: raw.socialLinks || raw.social_links || null,
     };
 }
@@ -291,7 +293,7 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
 
                 {/* Desktop shop info top right corner */}
                 <div className="hidden md:flex flex-col items-end text-right">
-                    <span className="text-[9px] font-black text-gray-400 dark:text-zinc-500 uppercase tracking-widest leading-none">Published By</span>
+                    <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest leading-none">Published By</span>
                     <div className="flex items-baseline gap-2 mt-1">
                         <Link
                             href={`/offers?shopId=${offer.shopId || ""}`}
@@ -352,7 +354,7 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
 
             <div className="container mx-auto px-4 pb-16">
                 {/* Main Poster Section */}
-                <div className="flex flex-col md:flex-row items-center justify-center gap-4 max-w-4xl mx-auto mb-16">
+                <div className="flex flex-col md:flex-row items-center justify-center gap-2 max-w-4xl mx-auto mb-16">
                     {/* Left Desktop Navigation */}
                     <button
                         onClick={handlePrev}
@@ -429,20 +431,20 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
                                     Poster {posterIndex + 1} of {totalPosters}
                                 </span>
                             </div>
-                            
+
                             <div className="flex flex-row items-center justify-between gap-2 text-[10px]">
-                                <div className="flex flex-col items-start text-slate-500 dark:text-zinc-400 font-medium">
+                                <div className="flex flex-col items-start font-medium">
                                     {/* <span>{totalPosters} {totalPosters === 1 ? "Poster" : "Posters"}</span>
                                     <span className="md:hidden">•</span> */}
-                                    <span className="md:hidden">Published by</span>
+                                    <span className="md:hidden text-orange-500 font-bold">Published by</span>
                                     <Link
                                         href={`/offers?shopId=${offer.shopId || ""}`}
-                                        className="md:hidden font-bold text-orange-500 hover:underline text-xs"
+                                        className="md:hidden font-bold  font-black hover:underline text-xs"
                                     >
                                         {offer.shopName}
                                     </Link>
                                 </div>
-                                
+
                                 {/* Mobile social icons only (hidden on desktop to avoid duplication) */}
                                 {activeSocialLinks.length > 0 && (
                                     <div className="flex md:hidden items-center gap-1">
@@ -454,7 +456,7 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
                                                 hoverBg: "hover:bg-slate-50 border-slate-200 hover:border-slate-350"
                                             };
                                             const IconComponent = platformInfo.icon;
-                                            
+
                                             let finalUrl = link.url;
                                             if (link.platform.toUpperCase() === "WHATSAPP" && !finalUrl.startsWith("http") && /^\d+$/.test(finalUrl.replace(/\D/g, ""))) {
                                                 finalUrl = `https://wa.me/${finalUrl.replace(/\D/g, "")}`;
@@ -499,7 +501,7 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
                     </button>
 
                     {/* Mobile Carousel Navigation */}
-                    <div className="flex md:hidden w-full justify-between items-center gap-3 mt-6 relative z-10">
+                    <div className="flex md:hidden w-full justify-between items-center gap-2 mt-1 relative z-10">
                         <button
                             onClick={handlePrev}
                             disabled={isNavigating || (!prevOfferId && (totalPosters === 1 || posterIndex === 0))}
