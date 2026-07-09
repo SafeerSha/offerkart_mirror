@@ -37,7 +37,7 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
     const { t } = useTranslation("common");
     const searchParams = useSearchParams();
     const router = useRouter();
-    const { location: globalLocation } = useLocationContext();
+    const { location: globalLocation, hydrated } = useLocationContext();
 
     const initialCategory = searchParams.get("category") || "All";
     const initialSubcategories = searchParams.getAll("subcategory") || [];
@@ -46,8 +46,8 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
     const initialSort = searchParams.get("sort") || "newest";
 
     const { data: featuredOffersRes } = useFeaturedOffers();
-    const featuredShops = featuredOffersRes?.success
-        ? (featuredOffersRes.data || [])
+    const featuredShops: any[] = (featuredOffersRes as any)?.success
+        ? ((featuredOffersRes as any).data || [])
         : (initialFeaturedShops || []);
     const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
     const [activeFilters, setActiveFilters] = useState<{
@@ -181,7 +181,7 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
         longitude: globalLocation.longitude !== null ? globalLocation.longitude : undefined,
     };
 
-    const { data: productsData, isLoading: queryLoading, error, refetch } = useUserProductsFiltered(queryFilters);
+    const { data: productsData, isLoading: queryLoading, error, refetch } = useUserProductsFiltered(queryFilters, { enabled: hydrated });
     const filteredProducts = productsData || initialProducts || [];
     const isLoading = queryLoading && filteredProducts.length === 0;
 
@@ -310,8 +310,8 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
                                         <div className="flex flex-wrap items-center gap-2 mt-3">
                                             {activeFilters.shopId && (
                                                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-orange-50 text-orange-600 border border-orange-100 shadow-sm animate-in fade-in duration-300 max-w-full">
-                                                    <span className="truncate" title={`Shop: ${featuredShops.find(s => String(s.id) === String(activeFilters.shopId))?.name || `Shop #${activeFilters.shopId}`}`}>
-                                                        Shop: {featuredShops.find(s => String(s.id) === String(activeFilters.shopId))?.name || `Shop #${activeFilters.shopId}`}
+                                                    <span className="truncate" title={`Shop: ${featuredShops.find((s: any) => String(s.id) === String(activeFilters.shopId))?.name || `Shop #${activeFilters.shopId}`}`}>
+                                                        Shop: {featuredShops.find((s: any) => String(s.id) === String(activeFilters.shopId))?.name || `Shop #${activeFilters.shopId}`}
                                                     </span>
                                                     <button 
                                                         onClick={() => {

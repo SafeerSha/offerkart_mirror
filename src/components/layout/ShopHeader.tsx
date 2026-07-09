@@ -39,9 +39,14 @@ export default function ShopHeader() {
 
     useEffect(() => {
         const handleScroll = () => {
-            setScrolled(window.scrollY > 20);
+            const nextScrolled = window.scrollY > 20;
+            setScrolled(nextScrolled);
+            if (nextScrolled) {
+                setIslandExpanded(false);
+            }
         };
-        window.addEventListener("scroll", handleScroll);
+        handleScroll();
+        window.addEventListener("scroll", handleScroll, { passive: true });
         return () => window.removeEventListener("scroll", handleScroll);
     }, []);
 

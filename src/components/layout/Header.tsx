@@ -449,12 +449,15 @@ const Header = () => {
         const handleScroll = () => {
             const nextScrolled = window.scrollY > 20;
             setScrolled(nextScrolled);
-            if (!nextScrolled) {
+            if (nextScrolled) {
+                setIslandExpanded(false);
+            } else {
                 setLocationOpen(false);
                 setIslandExpanded(false);
             }
         };
-        window.addEventListener("scroll", handleScroll);
+        handleScroll();
+        window.addEventListener("scroll", handleScroll, { passive: true });
         return () => window.removeEventListener("scroll", handleScroll);
     }, []);
 

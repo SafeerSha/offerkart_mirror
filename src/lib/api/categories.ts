@@ -54,23 +54,23 @@ export async function getCategories() {
     }
 
     // Preload all subcategories in parallel so they are ready on page load
-    try {
-        const categoriesWithSubcategories = await Promise.all(
-            normalizedData.map(async (category) => {
-                if (category.subcategories && category.subcategories.length > 0) {
-                    return category;
-                }
-                const subRes = await getSubCategories(category.id);
-                return {
-                    ...category,
-                    subcategories: subRes.success && subRes.data ? subRes.data : [],
-                };
-            })
-        );
-        normalizedData = categoriesWithSubcategories;
-    } catch (err) {
-        console.error("Failed to preload subcategories in parallel:", err);
-    }
+    // try {
+    //     const categoriesWithSubcategories = await Promise.all(
+    //         normalizedData.map(async (category) => {
+    //             if (category.subcategories && category.subcategories.length > 0) {
+    //                 return category;
+    //             }
+    //             const subRes = await getSubCategories(category.id);
+    //             return {
+    //                 ...category,
+    //                 subcategories: subRes.success && subRes.data ? subRes.data : [],
+    //             };
+    //         })
+    //     );
+    //     normalizedData = categoriesWithSubcategories;
+    // } catch (err) {
+    //     console.error("Failed to preload subcategories in parallel:", err);
+    // }
 
     return {
         success: true,

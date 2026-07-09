@@ -33,3 +33,49 @@ export function formatDateLocal(date: Date | undefined) {
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
 }
+
+export function getSocialEmbedInfo(platform: string, url: string): { embedUrl: string | null; aspectClass: string } {
+    const lowerPlatform = platform.toLowerCase();
+    
+    // Parse YouTube
+    if (lowerPlatform === 'youtube') {
+        let videoId: string | null = null;
+        if (url.includes('/shorts/')) {
+            videoId = url.split('/shorts/')[1]?.split(/[?#]/)[0] || null;
+            if (videoId) {
+                return { embedUrl: `https://www.youtube.com/embed/${videoId}`, aspectClass: "aspect-[9/16] max-h-[60vh] h-[480px] w-auto mx-auto" };
+            }
+        } else if (url.includes('v=')) {
+            videoId = url.split('v=')[1]?.split(/[&#]/)[0] || null;
+        } else if (url.includes('youtu.be/')) {
+            videoId = url.split('youtu.be/')[1]?.split(/[?#]/)[0] || null;
+        } else if (url.includes('/embed/')) {
+            videoId = url.split('/embed/')[1]?.split(/[?#]/)[0] || null;
+        }
+        if (videoId) {
+            return { embedUrl: `https://www.youtube.com/embed/${videoId}`, aspectClass: "aspect-video w-full" };
+        }
+    }
+    
+    // Parse Instagram
+    if (lowerPlatform === 'instagram') {
+        let postId: string | null = null;
+        if (url.includes('/p/')) {
+            postId = url.split('/p/')[1]?.split('/')[0] || null;
+        } else if (url.includes('/reel/')) {
+            postId = url.split('/reel/')[1]?.split('/')[0] || null;
+        } else if (url.includes('/reels/')) {
+            postId = url.split('/reels/')[1]?.split('/')[0] || null;
+        }
+        if (postId) {
+            return { embedUrl: `https://www.instagram.com/p/${postId}/embed/`, aspectClass: "aspect-[3/4] w-full max-h-[60vh] h-[480px]" };
+        }
+    }
+
+    // Parse Facebook
+    if (lowerPlatform === 'facebook') {
+        return { embedUrl: `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&show_text=0`, aspectClass: "aspect-video w-full" };
+    }
+    
+    return { embedUrl: null, aspectClass: "" };
+}

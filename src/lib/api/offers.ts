@@ -301,11 +301,11 @@ export async function getFeaturedShops() {
     };
 }
 
-export async function getFeaturedOffers() {
+export async function getFeaturedOffers(cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">): Promise<{ success: boolean; data: any[] }> {
     try {
         const response = await backend.get<any>(ENDPOINTS.USER_OFFER.SHOPS, {
-            cache: "no-store",
-            next: { revalidate: 0 }
+            next: { tags: [CACHE_TAGS.OFFERS, CACHE_TAGS.HOME], revalidate: 60 },
+            ...cacheOptions,
         });
         if (response && response.success && response.data) {
             const apiData = response.data;
@@ -313,30 +313,10 @@ export async function getFeaturedOffers() {
             return {
                 success: true,
                 data: shops.map((shop) => {
-                    let logoUrl = shop.logo_url;
-                    if (!logoUrl) {
-                        const fallbackLogos = [
-                            "https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=200&auto=format&fit=crop",
-                            "https://images.unsplash.com/photo-1513639776629-7b61b0ac49cb?q=80&w=200&auto=format&fit=crop",
-                            "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?q=80&w=200&auto=format&fit=crop",
-                            "https://images.unsplash.com/photo-1513104890138-7c749659a591?q=80&w=200&auto=format&fit=crop",
-                            "https://images.unsplash.com/photo-1509440159596-0249088772ff?q=80&w=200&auto=format&fit=crop",
-                            "https://images.unsplash.com/photo-1550009158-9ebf69173e03?q=80&w=200&auto=format&fit=crop",
-                            "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=200&auto=format&fit=crop",
-                            "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?q=80&w=200&auto=format&fit=crop",
-                        ];
-                        let hash = 0;
-                        const str = shop.shop_name || String(shop.id) || "shop";
-                        for (let i = 0; i < str.length; i++) {
-                            hash = str.charCodeAt(i) + ((hash << 5) - hash);
-                        }
-                        const index = Math.abs(hash) % fallbackLogos.length;
-                        logoUrl = fallbackLogos[index];
-                    }
                     return {
                         id: shop.id,
                         name: shop.shop_name,
-                        logo: logoUrl
+                        logo: shop.logo_url || null
                     };
                 })
             };

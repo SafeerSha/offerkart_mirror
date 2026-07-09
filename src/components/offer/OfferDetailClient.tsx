@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { StaticImageData } from "next/image";
-import { Tag, ChevronLeft, ChevronRight, Loader2, Store, Link as LinkIcon } from "lucide-react";
+import { Tag, ChevronLeft, ChevronRight, Loader2, Store, Link as LinkIcon, ExternalLink } from "lucide-react";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { Subheading } from "@/components/shared/Typography";
 import { MarkedPoster } from "@/components/shared/MarkedPoster";
 import { Poster, MarkedItem } from "@/lib/types/offer";
-import { cn } from "@/lib/utils";
+import { cn, getSocialEmbedInfo } from "@/lib/utils";
 import Link from "next/link";
 import {
     SiFacebook,
@@ -176,6 +176,64 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
     const [isProductModalOpen, setIsProductModalOpen] = useState(false);
     const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 
+    // --- Social media preview modal state ---
+    const [previewModalOpen, setPreviewModalOpen] = useState(false);
+    const [previewPlatform, setPreviewPlatform] = useState("");
+    const [previewUrl, setPreviewUrl] = useState("");
+    const [previewEmbedUrl, setPreviewEmbedUrl] = useState("");
+    const [previewAspectClass, setPreviewAspectClass] = useState("");
+
+    const handleSocialClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>, platform: string, rawUrl: string) => {
+        let finalUrl = rawUrl;
+        if (platform.toUpperCase() === "WHATSAPP" && !finalUrl.startsWith("http") && /^\d+$/.test(finalUrl.replace(/\D/g, ""))) {
+            finalUrl = `https://wa.me/${finalUrl.replace(/\D/g, "")}`;
+        } else if (!finalUrl.startsWith("http")) {
+            finalUrl = `https://${finalUrl}`;
+        }
+
+        const embedInfo = getSocialEmbedInfo(platform, finalUrl);
+        if (embedInfo.embedUrl) {
+            e.preventDefault();
+            setPreviewPlatform(platform.toLowerCase());
+            setPreviewUrl(finalUrl);
+            setPreviewEmbedUrl(embedInfo.embedUrl);
+            setPreviewAspectClass(embedInfo.aspectClass);
+            setPreviewModalOpen(true);
+        }
+    }, []);
+
+    // Load and trigger Instagram embed SDK
+    useEffect(() => {
+        if (previewModalOpen && previewPlatform.toLowerCase() === 'instagram') {
+            const processEmbeds = () => {
+                if ((window as any).instgrm?.Embeds) {
+                    try {
+                        (window as any).instgrm.Embeds.process();
+                    } catch (err) {
+                        console.warn("Error processing Instagram embeds:", err);
+                    }
+                }
+            };
+
+            if ((window as any).instgrm) {
+                setTimeout(processEmbeds, 100);
+            } else {
+                const existingScript = document.getElementById('instagram-embed-script');
+                if (!existingScript) {
+                    const script = document.createElement('script');
+                    script.id = 'instagram-embed-script';
+                    script.src = 'https://www.instagram.com/embed.js';
+                    script.async = true;
+                    script.defer = true;
+                    script.onload = () => setTimeout(processEmbeds, 200);
+                    document.body.appendChild(script);
+                } else {
+                    setTimeout(processEmbeds, 300);
+                }
+            }
+        }
+    }, [previewModalOpen, previewPlatform, previewUrl]);
+
     // Keep breadcrumbs in sync with current offer name using useMemo instead of useEffect state sync
     const breadcrumbItems = useMemo(() => [
         { label: t("nav.offers"), href: "/offers" },
@@ -209,6 +267,12 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
     useEffect(() => {
         setPosterIndex(0);
     }, [offer.id]);
+
+    useEffect(() => {
+        if (offer) {
+            document.title = `${offer.offerName || "Untitled Offer"} at ${offer.shopName || "OfferKart"} - OfferKart`;
+        }
+    }, [offer]);
 
     const totalPosters = offer.posters?.length || offer.images.length || 1;
 
@@ -335,6 +399,7 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
                                         href={finalUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
+                                        onClick={(e) => handleSocialClick(e, link.platform, link.url)}
                                         className={cn(
                                             "group p-2 rounded-xl bg-slate-50/50 dark:bg-zinc-950/50 border border-slate-200/60 dark:border-zinc-800/60 text-slate-600 dark:text-zinc-400 hover:shadow-lg hover:shadow-orange-500/5 transition-all active:scale-95 duration-300 relative overflow-hidden",
                                             platformInfo.color,
@@ -470,6 +535,7 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
                                                     href={finalUrl}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
+                                                    onClick={(e) => handleSocialClick(e, link.platform, link.url)}
                                                     className={cn(
                                                         "transition-all active:scale-90 duration-200 p-1 rounded-lg",
                                                         platformInfo.color
@@ -579,6 +645,68 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
                 shopName={offer.shopName}
                 shopLogo={offer.shopLogo}
             />
+
+            {previewModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-2">
+                    <div
+                        className="absolute inset-0 bg-black/60 backdrop-blur-md transition-opacity"
+                        onClick={() => setPreviewModalOpen(false)}
+                    />
+                    <div className="relative bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-2xl overflow-hidden max-w-xl w-full max-h-[90vh] flex flex-col z-10 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex-1 overflow-y-auto p-1 bg-slate-50/20 dark:bg-zinc-950/10 flex items-center justify-center">
+                            {previewPlatform.toLowerCase() === 'instagram' ? (
+                                <div key={previewUrl} className="w-full overflow-y-auto flex justify-center max-h-[90vh] py-2 bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm border border-slate-150 dark:border-zinc-800">
+                                    <blockquote
+                                        className="instagram-media w-full"
+                                        data-instgrm-captioned
+                                        data-instgrm-permalink={previewUrl}
+                                        data-instgrm-version="14"
+                                        style={{ minWidth: '320px', width: '100%', margin: '0 auto' }}
+                                    >
+                                        <div className="p-8 text-center text-xs font-bold text-slate-400 dark:text-zinc-500 animate-pulse uppercase tracking-widest">
+                                            Loading Instagram Post...
+                                        </div>
+                                    </blockquote>
+                                </div>
+                            ) : (
+                                <div className={cn("relative w-full overflow-hidden rounded-xl shadow-sm border border-slate-150 dark:border-zinc-800 bg-black", previewAspectClass)}>
+                                    <iframe
+                                        src={previewEmbedUrl}
+                                        className="absolute inset-0 w-full h-full border-0"
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                        allowFullScreen
+                                        sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                                        title={`${previewPlatform} Embed`}
+                                    />
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex items-center justify-end px-2 py-1.5 border-t border-slate-100 dark:border-zinc-800/60 bg-slate-50/50 dark:bg-zinc-950/20">
+                            <a
+                                href={previewUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="group flex items-center gap-1.5 px-3 py-1.5 rounded-full text-slate-500 dark:text-zinc-400 hover:text-orange-500 dark:hover:text-orange-400 transition-colors text-[11px] font-bold"
+                                title={`Open in ${previewPlatform}`}
+                            >
+                                {(() => {
+                                    const pInfo = SOCIAL_PLATFORMS[previewPlatform.toUpperCase()];
+                                    const PIcon = pInfo?.icon;
+                                    return PIcon ? <PIcon className="w-3.5 h-3.5" /> : null;
+                                })()}
+                                <ExternalLink className="w-3 h-3 opacity-60 group-hover:opacity-100 transition-opacity" />
+                            </a>
+                            <button
+                                onClick={() => setPreviewModalOpen(false)}
+                                className="text-[11px] font-bold text-slate-400 hover:text-slate-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors px-3 py-1.5"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
