@@ -42,8 +42,12 @@ function mapOfferForDetail(offer: Offer) {
         price: "",
         originalPrice: "",
         branchName: offer.branchNames?.[0],
+        shopLogo: offer.shopLogo || null,
+        shopId: offer.shopId || undefined,
+        socialLinks: offer.socialLinks || null,
     };
 }
+
 
 function mapOfferForSimilarCard(offer: Offer) {
     const idAsNum = Number(offer.id);

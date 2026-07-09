@@ -47,7 +47,7 @@ export default function OffersClient({
     const { t } = useTranslation("common");
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { location: globalLocation } = useLocationContext();
+    const { location: globalLocation, hydrated } = useLocationContext();
 
     const sortOptions = [
         { value: "latest", label: t("catalog.sortLatest") },
@@ -202,7 +202,7 @@ export default function OffersClient({
         isFetchingNextPage,
         status,
         error
-    } = useInfiniteUserOffers(8, queryFilters);
+    } = useInfiniteUserOffers(8, queryFilters, { enabled: hydrated });
 
     // Flatten pages into a single array
     const offers = data?.pages.flatMap(page => page.data) || initialOffers;

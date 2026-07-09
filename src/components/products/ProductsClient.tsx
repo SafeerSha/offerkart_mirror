@@ -37,7 +37,7 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
     const { t } = useTranslation("common");
     const searchParams = useSearchParams();
     const router = useRouter();
-    const { location: globalLocation } = useLocationContext();
+    const { location: globalLocation, hydrated } = useLocationContext();
 
     const initialCategory = searchParams.get("category") || "All";
     const initialSubcategories = searchParams.getAll("subcategory") || [];
@@ -181,7 +181,7 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
         longitude: globalLocation.longitude !== null ? globalLocation.longitude : undefined,
     };
 
-    const { data: productsData, isLoading: queryLoading, error, refetch } = useUserProductsFiltered(queryFilters);
+    const { data: productsData, isLoading: queryLoading, error, refetch } = useUserProductsFiltered(queryFilters, { enabled: hydrated });
     const filteredProducts = productsData || initialProducts || [];
     const isLoading = queryLoading && filteredProducts.length === 0;
 

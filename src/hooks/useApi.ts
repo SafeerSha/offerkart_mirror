@@ -186,9 +186,10 @@ export function usePaginatedOffers(page: number = 1, limit: number = 8) {
   });
 }
 
-export function useInfiniteUserOffers(limit: number = 8, filters: any = {}) {
+export function useInfiniteUserOffers(limit: number = 8, filters: any = {}, options: { enabled?: boolean } = {}) {
   return useInfiniteQuery({
     queryKey: queryKeys.infiniteUserOffers(filters),
+    enabled: options.enabled ?? true,
     queryFn: async ({ pageParam = 1 }) => {
       const result = await getPaginatedOffers(pageParam as number, limit, filters);
       if (!result.success) throw new Error(result.error || "Failed to load offers");
@@ -315,9 +316,10 @@ export function useProductDetails(id: string) {
   });
 }
 
-export function useUserProductsFiltered(filters: any) {
+export function useUserProductsFiltered(filters: any, options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: queryKeys.userProductsFiltered(filters),
+    enabled: options.enabled ?? true,
     queryFn: async () => {
       const res = await getUserProducts(filters);
       if (res && res.success && res.data && res.data.data) {
