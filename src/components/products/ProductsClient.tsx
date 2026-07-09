@@ -25,7 +25,7 @@ import {
 import { useTranslation } from "@/hooks/useTranslation";
 import { getUserProducts } from "@/lib/api/products";
 import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
-import { useUserProductsFiltered } from "@/hooks/useApi";
+import { useUserProductsFiltered, useFeaturedOffers } from "@/hooks/useApi";
 import { useLocationContext } from "@/context/LocationContext";
 
 interface ProductsClientProps {
@@ -44,7 +44,10 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
     const initialShopId = searchParams.get("shopId") || undefined;
     const initialSearch = searchParams.get("search") || undefined;
 
-    const featuredShops = initialFeaturedShops;
+    const { data: featuredOffersRes } = useFeaturedOffers();
+    const featuredShops = featuredOffersRes?.success
+        ? (featuredOffersRes.data || [])
+        : (initialFeaturedShops || []);
     const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
     const [activeFilters, setActiveFilters] = useState<{
         search?: string;
@@ -169,8 +172,9 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
         longitude: globalLocation.longitude !== null ? globalLocation.longitude : undefined,
     };
 
-    const { data: productsData, isLoading, error, refetch } = useUserProductsFiltered(queryFilters);
+    const { data: productsData, isLoading: queryLoading, error, refetch } = useUserProductsFiltered(queryFilters);
     const filteredProducts = productsData || initialProducts || [];
+    const isLoading = queryLoading && filteredProducts.length === 0;
 
     return (
         <div className="min-h-screen bg-gray-50/50">

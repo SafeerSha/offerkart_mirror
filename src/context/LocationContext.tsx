@@ -12,6 +12,7 @@ interface LocationContextType {
     location: LocationData;
     isLocationSet: boolean;
     isModalOpen: boolean;
+    hydrated: boolean;
     setLocation: (name: string, lat: number | null, lon: number | null) => void;
     setModalOpen: (open: boolean) => void;
 }
@@ -50,7 +51,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     });
     const [isLocationSet, setIsLocationSet] = useState(false);
     const [isModalOpen, setModalOpen] = useState(false);
-    const [loaded, setLoaded] = useState(false);
+    const [hydrated, setHydrated] = useState(false);
 
     useEffect(() => {
         if (typeof window !== "undefined") {
@@ -65,10 +66,8 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                     longitude: savedLng ? parseFloat(savedLng) : null,
                 });
                 setIsLocationSet(true);
-            } else {
-                setModalOpen(true);
             }
-            setLoaded(true);
+            setHydrated(true);
         }
     }, []);
 
@@ -101,18 +100,13 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
     };
 
-    useEffect(() => {
-        if (loaded && !isLocationSet) {
-            setModalOpen(true);
-        }
-    }, [loaded, isLocationSet]);
-
     return (
         <LocationContext.Provider
             value={{
                 location,
                 isLocationSet,
                 isModalOpen,
+                hydrated,
                 setLocation,
                 setModalOpen,
             }}
