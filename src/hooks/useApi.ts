@@ -171,9 +171,9 @@ export function useFeaturedShops() {
 }
 
 export function useFeaturedOffers() {
-  return useQuery({
+  return useQuery<{ success: boolean; data: any[] }>({
     queryKey: queryKeys.featuredOffers,
-    queryFn: getFeaturedOffers,
+    queryFn: () => getFeaturedOffers(),
     staleTime: 5 * 60 * 1000,
   });
 }

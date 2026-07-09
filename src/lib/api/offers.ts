@@ -301,7 +301,7 @@ export async function getFeaturedShops() {
     };
 }
 
-export async function getFeaturedOffers(cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">) {
+export async function getFeaturedOffers(cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">): Promise<{ success: boolean; data: any[] }> {
     try {
         const response = await backend.get<any>(ENDPOINTS.USER_OFFER.SHOPS, {
             next: { tags: [CACHE_TAGS.OFFERS, CACHE_TAGS.HOME], revalidate: 60 },
