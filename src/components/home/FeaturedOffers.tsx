@@ -81,10 +81,11 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
 
   const filteredOffers = useMemo(() => {
     if (!offers) return [];
-    if (userLocation.latitude !== null && userLocation.longitude !== null) {
+    const { latitude, longitude } = userLocation;
+    if (latitude !== null && longitude !== null) {
       return offers.filter(offer => {
         const coords = getShopCoords(offer.id);
-        const distance = calculateDistance(userLocation.latitude, userLocation.longitude, coords.lat, coords.lng);
+        const distance = calculateDistance(latitude, longitude, coords.lat, coords.lng);
         return distance <= 50;
       });
     }
