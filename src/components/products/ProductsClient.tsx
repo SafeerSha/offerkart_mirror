@@ -296,7 +296,6 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
 
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 lg:mb-8">
                             <div className="flex items-center gap-4">
-                                <div className="h-8 w-1.5 bg-orange-500 rounded-full" />
                                 <div>
                                     <h2 
                                         className="text-2xl font-bold text-gray-900 truncate max-w-full"
@@ -304,8 +303,9 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
                                     >
                                         {activeFilters.category === "All" ? t("catalog.allProducts") : activeFilters.category}
                                     </h2>
-                                    <p className="text-sm text-gray-500 font-medium">
-                                        {t("catalog.showingPremiumItems").replace("{count}", filteredProducts.length.toString())}
+                                    <p className="text-sm text-gray-500 font-medium mt-1">
+                                        Showing {filteredProducts.length} products
+                                        {activeFilters.category !== "All" ? ` in ${activeFilters.category}` : " for you"}
                                     </p>
                                         <div className="flex flex-wrap items-center gap-2 mt-3">
                                             {activeFilters.shopId && (
