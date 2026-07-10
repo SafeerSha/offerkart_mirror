@@ -30,52 +30,72 @@ interface RawCategoryResponse {
  * in the data field of the ApiResponse object.
  */
 export async function getCategories() {
-    const response = await backend.get<RawCategoryResponse | BackendCategory[]>(ENDPOINTS.CATEGORY.BASE);
+    try {
+        const [categoriesRes, subcategoriesRes] = await Promise.all([
+            backend.get<RawCategoryResponse | BackendCategory[]>(ENDPOINTS.CATEGORY.BASE),
+            backend.get<any>(ENDPOINTS.CATEGORY.ALL_SUBCATEGORIES)
+        ]);
 
-    if (!response.success || !response.data) {
+        if (!categoriesRes.success || !categoriesRes.data) {
+            return {
+                success: false,
+                data: [] as BackendCategory[],
+                error: categoriesRes.error || "Failed to fetch categories",
+            };
+        }
+
+        const rawCats = categoriesRes.data;
+        let categories: BackendCategory[] = [];
+        if (Array.isArray(rawCats)) {
+            categories = rawCats;
+        } else if (rawCats && typeof rawCats === 'object' && Array.isArray(rawCats.data)) {
+            categories = rawCats.data;
+        }
+
+        let subcategories: any[] = [];
+        if (subcategoriesRes && subcategoriesRes.success && subcategoriesRes.data) {
+            const rawSubs = subcategoriesRes.data;
+            if (Array.isArray(rawSubs)) {
+                subcategories = rawSubs;
+            } else if (rawSubs && typeof rawSubs === 'object' && Array.isArray(rawSubs.data)) {
+                subcategories = rawSubs.data;
+            }
+        }
+
+        const subcategoriesByParentId: Record<number, BackendSubCategory[]> = {};
+        subcategories.forEach((sub: any) => {
+            const parentId = sub.parent?.id || sub.categoryId;
+            if (parentId) {
+                if (!subcategoriesByParentId[parentId]) {
+                    subcategoriesByParentId[parentId] = [];
+                }
+                subcategoriesByParentId[parentId].push({
+                    id: sub.id,
+                    name: sub.name,
+                    categoryId: parentId
+                });
+            }
+        });
+
+        const mergedCategories = categories.map((cat) => {
+            return {
+                ...cat,
+                subcategories: subcategoriesByParentId[cat.id] || cat.subcategories || []
+            };
+        });
+
+        return {
+            success: true,
+            data: mergedCategories,
+        };
+    } catch (err) {
+        console.error("Failed to fetch categories and subcategories:", err);
         return {
             success: false,
             data: [] as BackendCategory[],
-            error: response.error || "Failed to fetch categories",
+            error: "Failed to fetch categories",
         };
     }
-
-    // Normalize shape: handle both wrapped { success, data } and raw array []
-    const rawData = response.data;
-    let normalizedData: BackendCategory[] = [];
-
-    if (Array.isArray(rawData)) {
-        normalizedData = rawData;
-    } else if (rawData && typeof rawData === 'object' && Array.isArray(rawData.data)) {
-        normalizedData = rawData.data;
-    } else if (rawData && typeof rawData === 'object') {
-        // Sometimes nested under a custom key or returned directly as the object?
-        console.warn("[Categories API] Unrecognized shape in payload:", rawData);
-    }
-
-    // Preload all subcategories in parallel so they are ready on page load
-    // try {
-    //     const categoriesWithSubcategories = await Promise.all(
-    //         normalizedData.map(async (category) => {
-    //             if (category.subcategories && category.subcategories.length > 0) {
-    //                 return category;
-    //             }
-    //             const subRes = await getSubCategories(category.id);
-    //             return {
-    //                 ...category,
-    //                 subcategories: subRes.success && subRes.data ? subRes.data : [],
-    //             };
-    //         })
-    //     );
-    //     normalizedData = categoriesWithSubcategories;
-    // } catch (err) {
-    //     console.error("Failed to preload subcategories in parallel:", err);
-    // }
-
-    return {
-        success: true,
-        data: normalizedData,
-    };
 }
 
 export async function getSubCategories(categoryId: number | string) {

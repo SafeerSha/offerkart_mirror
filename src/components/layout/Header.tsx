@@ -45,43 +45,6 @@ const locations = [
 let placesCache: { name: string; district: string; state: string }[] | null = null;
 let isCachingInProgress = false;
 
-const warmUpPlacesCache = () => {
-    if (placesCache || isCachingInProgress) return;
-    isCachingInProgress = true;
-
-    const run = () => {
-        try {
-            const startTime = performance.now();
-            const list: { name: string; district: string; state: string }[] = [];
-            const statesList = getStates();
-            for (const state of statesList) {
-                const districtsList = state.getDistricts();
-                for (const district of districtsList) {
-                    const placesList = district.getPlaces();
-                    for (const place of placesList) {
-                        list.push({
-                            name: place.name,
-                            district: district.name,
-                            state: state.name
-                        });
-                    }
-                }
-            }
-            placesCache = list;
-            console.log(`[Location Cache] Loaded ${list.length} places in ${(performance.now() - startTime).toFixed(1)}ms`);
-        } catch (error) {
-            console.error("[Location Cache] Failed to warm up:", error);
-        } finally {
-            isCachingInProgress = false;
-        }
-    };
-
-    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
-        (window as any).requestIdleCallback(run);
-    } else {
-        setTimeout(run, 1000);
-    }
-};
 
 interface LocationModalProps {
     open: boolean;
@@ -320,8 +283,6 @@ const Header = () => {
     const [locationCoordsMap, setLocationCoordsMap] = useState<Record<string, { lat: number; lon: number }>>({});
 
     useEffect(() => {
-        warmUpPlacesCache();
-
         // Wait until the location context has hydrated from localStorage.
         if (!hydrated) return;
 
@@ -546,28 +507,6 @@ const Header = () => {
                         console.warn("Nominatim API lookup failed, falling back to local database:", apiError);
                     }
 
-                    // Fallback to local offline search if Nominatim returned few or no results
-                    if (results.length < 10) {
-                        if (!placesCache) {
-                            warmUpPlacesCache();
-                        }
-                        const cache = placesCache || [];
-                        let count = 0;
-                        for (const place of cache) {
-                            const formatted = `${place.name}, ${place.district}, ${place.state}`;
-                            if (
-                                (place.name.toLowerCase().includes(lowerQuery) ||
-                                    place.district.toLowerCase().includes(lowerQuery)) &&
-                                !results.includes(formatted)
-                            ) {
-                                results.push(formatted);
-                                count++;
-                                if (results.length >= 30 || count >= 30) {
-                                    break;
-                                }
-                            }
-                        }
-                    }
                 }
                 setDropdownLocations(results);
             } catch (error) {

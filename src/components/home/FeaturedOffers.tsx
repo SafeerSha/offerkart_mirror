@@ -9,7 +9,11 @@ import { cn } from "@/lib/utils";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
+import { useMemo } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useLocationContext } from "@/context/LocationContext";
+import { getShopCoords, calculateDistance } from "@/lib/api/userOffersService";
+import { Search } from "lucide-react";
 
 interface FeaturedOffer {
   id: number;
@@ -73,7 +77,53 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
     router.push(`${targetPath}?${params.toString()}`);
   };
 
-  const displayOffers = offers.slice(0, variant === "minimal" && offers.length > 15 ? 15 : 16);
+  const { location: userLocation } = useLocationContext();
+
+  const filteredOffers = useMemo(() => {
+    if (!offers) return [];
+    const { latitude, longitude } = userLocation;
+    if (latitude !== null && longitude !== null) {
+      return offers.filter(offer => {
+        const coords = getShopCoords(offer.id);
+        const distance = calculateDistance(latitude, longitude, coords.lat, coords.lng);
+        return distance <= 50;
+      });
+    }
+    return offers;
+  }, [offers, userLocation]);
+
+  const displayOffers = filteredOffers.slice(0, variant === "minimal" && filteredOffers.length > 15 ? 15 : 16);
+
+  if (displayOffers.length === 0) {
+    return (
+      <section className={cn("bg-background relative py-8", variant === "minimal" && "py-2")}>
+        <div className="container px-4 mx-auto">
+          {variant === "full" && (
+            <div className="flex sm:flex-row items-center justify-between mb-4 gap-1">
+              <div className="flex items-center gap-4">
+                <div className="p-2.5 rounded-xl bg-primary/10 border border-primary/20 shadow-sm shadow-primary/5">
+                  <Store className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <Subheading className="text-xl md:text-2xl font-bold mb-0">
+                    Featured Shops
+                  </Subheading>
+                  <p className="text-xs text-muted-foreground mt-1">Handpicked premium shops just for you</p>
+                </div>
+              </div>
+            </div>
+          )}
+          <div className="py-12 text-center bg-white rounded-3xl border border-slate-100 shadow-sm animate-in fade-in duration-300">
+            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Search className="w-8 h-8 text-slate-400" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900">No featured shops found</h3>
+            <p className="text-sm text-slate-500 mt-1">Try to change your location preferences</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <TooltipProvider>
