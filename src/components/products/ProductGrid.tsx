@@ -49,7 +49,7 @@ const ProductGrid = ({ products, isLoading }: ProductGridProps) => {
                     </svg>
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">No products found</h3>
-                <p className="text-gray-500">Try adjusting your filters or category.</p>
+                <p className="text-gray-500">Try adjusting your filters.</p>
             </div>
         );
     }

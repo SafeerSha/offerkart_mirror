@@ -80,17 +80,8 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
   const { location: userLocation } = useLocationContext();
 
   const filteredOffers = useMemo(() => {
-    if (!offers) return [];
-    const { latitude, longitude } = userLocation;
-    if (latitude !== null && longitude !== null) {
-      return offers.filter(offer => {
-        const coords = getShopCoords(offer.id);
-        const distance = calculateDistance(latitude, longitude, coords.lat, coords.lng);
-        return distance <= 50;
-      });
-    }
-    return offers;
-  }, [offers, userLocation]);
+    return offers || [];
+  }, [offers]);
 
   const displayOffers = filteredOffers.slice(0, variant === "minimal" && filteredOffers.length > 15 ? 15 : 16);
 

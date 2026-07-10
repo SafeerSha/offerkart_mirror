@@ -28,17 +28,8 @@ const FeaturedCarousel = ({ shops = [] }: FeaturedCarouselProps) => {
   const { location: userLocation } = useLocationContext();
 
   const displayShops = useMemo(() => {
-    if (!shops) return [];
-    const { latitude, longitude } = userLocation;
-    if (latitude !== null && longitude !== null) {
-      return shops.filter(shop => {
-        const coords = getShopCoords(shop.id);
-        const distance = calculateDistance(latitude, longitude, coords.lat, coords.lng);
-        return distance <= 50;
-      });
-    }
-    return shops;
-  }, [shops, userLocation]);
+    return shops || [];
+  }, [shops]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);

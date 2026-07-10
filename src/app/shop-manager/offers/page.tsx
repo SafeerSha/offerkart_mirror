@@ -625,6 +625,20 @@ function ShopOffersContent() {
                                                                         Draft
                                                                     </span>
                                                                 )}
+                                                                {(() => {
+                                                                    if (!offer.validTo) return null;
+                                                                    const expiryDate = new Date(offer.validTo);
+                                                                    const today = new Date();
+                                                                    today.setHours(0, 0, 0, 0);
+                                                                    if (expiryDate < today) {
+                                                                        return (
+                                                                            <span className="bg-rose-50 text-rose-700 border border-rose-200 px-1 py-0.2 rounded font-bold text-[8px] tracking-wider scale-90 origin-left shrink-0">
+                                                                                Expired
+                                                                            </span>
+                                                                        );
+                                                                    }
+                                                                    return null;
+                                                                })()}
                                                             </div>
                                                         </div>
 

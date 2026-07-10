@@ -1,8 +1,3 @@
-/**
- * Application-wide Enum declarations to avoid hardcoded values.
- * Using modern 'as const' objects to ensure seamless compatibility with existing string literals.
- */
-
 export const OfferStatus = {
     ACTIVE: "active",
     PAUSED: "paused",
@@ -24,3 +19,15 @@ export const UserRole = {
     USER: "user",
 } as const;
 export type UserRole = typeof UserRole[keyof typeof UserRole];
+
+export const PLATFORMS = {
+    YOUTUBE: "YOUTUBE",
+    INSTAGRAM: "INSTAGRAM",
+    FACEBOOK: "FACEBOOK",
+    WHATSAPP: "WHATSAPP",
+    THREADS: "THREADS",
+    X: "X",
+    LINKEDIN: "LINKEDIN",
+    WEBSITE: "WEBSITE",
+} as const;
+export type PLATFORMS = typeof PLATFORMS[keyof typeof PLATFORMS];

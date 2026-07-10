@@ -95,6 +95,20 @@ export function ProductsTab({
                                         <div className="text-[9px] font-bold text-orange-500 uppercase tracking-widest leading-none truncate">
                                             {product.category}
                                         </div>
+                                        {(() => {
+                                            if (!product.validTo) return null;
+                                            const expiryDate = new Date(product.validTo);
+                                            const today = new Date();
+                                            today.setHours(0, 0, 0, 0);
+                                            if (expiryDate < today) {
+                                                return (
+                                                    <span className="bg-rose-50 text-rose-600 border border-rose-200 px-0.5 py-0.5 rounded font-bold text-[7px] tracking-wider shrink-0">
+                                                        Expired
+                                                    </span>
+                                                );
+                                            }
+                                            return null;
+                                        })()}
                                     </div>
 
                                     {(product.validFrom || (product.branchIds && product.branchIds.length > 0)) && (
