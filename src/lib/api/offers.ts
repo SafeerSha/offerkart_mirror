@@ -204,28 +204,13 @@ async function fetchUserOffersPage({
     }
 
     if (!response || !response.success || !response.data) {
-        console.warn("Upstream user/offer request failed. Falling back to local mock data.");
-        const { ALL_OFFERS } = await import("./mockData");
-        
-        let filtered = ALL_OFFERS;
-        if (shopId) {
-            filtered = filtered.filter((o: any) => String(o.shopId || o.shop_id || "") === String(shopId));
-        }
-        if (industry && industry !== "All") {
-            filtered = filtered.filter((o: any) => String(o.category || "") === String(industry));
-        }
-
-        const start = (page - 1) * limit;
-        const slice = filtered.slice(start, start + limit);
-        const mappedOffers = slice.map((o: any) => mapUserOfferToOffer(o));
-
         return {
-            success: true,
-            data: mappedOffers,
+            success: false,
+            data: [],
             page,
             limit,
-            count: filtered.length,
-            hasMore: start + limit < filtered.length,
+            count: 0,
+            hasMore: false,
         };
     }
 
@@ -533,17 +518,6 @@ export async function getUserOfferById(
         return {
             success: true,
             data: listingOffer,
-        };
-    }
-
-    // Mock Fallback: if both failed, look up in ALL_OFFERS mock data
-    const { ALL_OFFERS } = await import("./mockData");
-    const mockOffer = ALL_OFFERS.find(item => String(item.id) === String(id));
-    if (mockOffer) {
-        console.warn(`Upstream user/offer detail request for ID ${id} failed. Falling back to local mock data.`);
-        return {
-            success: true,
-            data: mapUserOfferDetailToOffer(mockOffer),
         };
     }
 

@@ -9,7 +9,6 @@ import FilterPanel from "./FilterPanel";
 import OfferGrid from "./OfferGrid";
 import { Offer } from "@/lib/types/offer";
 import { useLocationContext } from "@/context/LocationContext";
-import { getShopIdFromShopName, getShopCoords, calculateDistance } from "@/lib/api/userOffersService";
 import { useInfiniteUserOffers } from "@/hooks/useApi";
 
 interface FilterableOffersProps {
@@ -51,13 +50,7 @@ debugger;
 
     const filteredOffers = useMemo(() => {
         let result = displayOffers.map(o => {
-            let distanceKm: number | null = null;
-            if (userLocation.latitude !== null && userLocation.longitude !== null) {
-                const shopId = o.shopId || (o.shopName ? getShopIdFromShopName(o.shopName) : 0);
-                const coords = getShopCoords(shopId);
-                distanceKm = calculateDistance(userLocation.latitude, userLocation.longitude, coords.lat, coords.lng);
-            }
-            return { ...o, distanceKm };
+            return { ...o, distanceKm: o.distanceKm ?? null };
         });
 
         // 1. Category Filter

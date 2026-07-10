@@ -1,4 +1,3 @@
-import { ALL_OFFERS, ALL_PRODUCTS, FEATURED_OFFERS } from "./mockData";
 import { backend, unwrapApiEnvelope } from "./backendClient";
 import { ENDPOINTS } from "./endpoints";
 import { CACHE_TAGS } from "./cache-tags";
@@ -66,240 +65,6 @@ export function calculateDistance(lat1: number, lon1: number, lat2: number, lon2
         Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c; // Distance in km
-}
-
-function getDaysLeft(validToStr?: string): number | null {
-    if (!validToStr) return null;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const toDate = new Date(validToStr);
-    toDate.setHours(0, 0, 0, 0);
-    const diffTime = toDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays < 0 ? 0 : diffDays;
-}
-
-export function getMockUserOffers(query: {
-    shopId?: string;
-    page: number;
-    limit: number;
-    latitude?: number;
-    longitude?: number;
-    sort: string;
-}) {
-    const { shopId, page, limit, latitude, longitude, sort } = query;
-    let filtered = ALL_OFFERS.map((item: any) => {
-        const featuredOffer = FEATURED_OFFERS.find(fo => fo.name.toLowerCase() === item.shopName.toLowerCase());
-        const shopLogo = featuredOffer ? featuredOffer.logo : null;
-        const daysLeft = getDaysLeft(item.validTo);
-        const shopIdMapped = getShopIdFromShopName(item.shopName);
-        
-        let distanceKm: number | null = null;
-        if (latitude !== undefined && longitude !== undefined) {
-            const shopCoords = getShopCoords(shopIdMapped);
-            distanceKm = calculateDistance(latitude, longitude, shopCoords.lat, shopCoords.lng);
-        }
-
-        const primaryImage = typeof item.image === "object" && item.image ? (item.image as any).src : item.image;
-
-        return {
-            id: item.id,
-            offerName: item.offerName,
-            shopName: item.shopName,
-            shopLogo,
-            totalPosters: item.posters?.length || 1,
-            defaultPoster: primaryImage || null,
-            daysLeft,
-            distanceKm,
-            rating: item.rating || 4.5,
-            shopId: shopIdMapped,
-            // Keep full posters for detail view
-            posters: item.posters ? item.posters.map((p: any) => {
-                const posterImg = typeof p.posterSrc === "object" && p.posterSrc ? (p.posterSrc as any).src : p.posterSrc;
-                return {
-                    ...p,
-                    posterSrc: posterImg
-                };
-            }) : undefined
-        };
-    });
-
-    // Filter by shopId
-    if (shopId) {
-        filtered = filtered.filter(item => item.shopId === Number(shopId));
-    }
-
-    // Sort
-    if (sort === "top") {
-        filtered.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-    } else if ((sort === "nearest" || sort === "nearby") && latitude !== undefined && longitude !== undefined) {
-        filtered.sort((a, b) => {
-            if (a.distanceKm === null) return 1;
-            if (b.distanceKm === null) return -1;
-            return a.distanceKm - b.distanceKm;
-        });
-    } else {
-        // default: latest (by id desc)
-        filtered.sort((a, b) => b.id - a.id);
-    }
-
-    const total = filtered.length;
-    const sliced = filtered.slice((page - 1) * limit, page * limit);
-
-    return {
-        success: true,
-        page,
-        limit,
-        sort,
-        count: total,
-        data: sliced
-    };
-}
-
-export function getMockUserOfferDetails(id: string | number) {
-    const offerId = Number(id);
-    const offer = ALL_OFFERS.find(item => item.id === offerId);
-    if (!offer) {
-        return {
-            success: false,
-            error: "Offer not found"
-        };
-    }
-
-    const featuredOffer = FEATURED_OFFERS.find(fo => fo.name.toLowerCase() === offer.shopName.toLowerCase());
-    const shopLogo = featuredOffer ? featuredOffer.logo : null;
-    const daysLeft = getDaysLeft(offer.validTo);
-    const shopIdMapped = getShopIdFromShopName(offer.shopName);
-    const primaryImage = typeof offer.image === "object" && offer.image ? (offer.image as any).src : offer.image;
-
-    const mappedPosters = offer.posters ? offer.posters.map((p: any) => {
-        const posterImg = typeof p.posterSrc === "object" && p.posterSrc ? (p.posterSrc as any).src : p.posterSrc;
-        return {
-            ...p,
-            posterSrc: posterImg
-        };
-    }) : [
-        {
-            id: `poster-${offer.id}`,
-            posterSrc: primaryImage,
-            type: "just_post",
-            markedItems: [],
-        }
-    ];
-
-    const detailItem = {
-        id: offer.id,
-        offerName: offer.offerName,
-        shopName: offer.shopName,
-        shopLogo,
-        totalPosters: mappedPosters.length,
-        defaultPoster: primaryImage || null,
-        daysLeft,
-        distanceKm: null,
-        rating: offer.rating || 4.5,
-        shopId: shopIdMapped,
-        posters: mappedPosters,
-        validFrom: offer.validFrom,
-        validTo: offer.validTo,
-        discount: offer.discount
-    };
-
-    return {
-        success: true,
-        data: detailItem
-    };
-}
-
-export function getMockUserProducts(query: {
-    search?: string;
-    categoryId?: string;
-    subcategoryId?: string;
-    shopId?: string;
-    minPrice?: number;
-    maxPrice?: number;
-    sort: string;
-    page: number;
-    limit: number;
-}) {
-    const { search, categoryId, subcategoryId, shopId, minPrice, maxPrice, sort, page, limit } = query;
-    let filtered = ALL_PRODUCTS.map((item: any) => {
-        const shopIdMapped = getShopIdFromShopName(item.shopName);
-        return {
-            id: Number(item.id),
-            displayName: item.name,
-            displayDescription: item.description || "",
-            imageUrl: item.image,
-            offerPrice: item.price,
-            originalPrice: item.originalPrice || item.price,
-            categoryId: Number(categoryId) || 1,
-            shopId: shopIdMapped,
-            shopName: item.shopName,
-            rating: item.rating || 4.5,
-            reviews: item.reviews || 0,
-            category: item.category || "Product",
-            mainCategory: item.category || "Product",
-            subcategory: item.subcategory || null
-        };
-    });
-
-    // 1. Search
-    if (search) {
-        const term = search.toLowerCase();
-        filtered = filtered.filter(item => 
-            item.displayName.toLowerCase().includes(term) || 
-            item.displayDescription.toLowerCase().includes(term)
-        );
-    }
-
-    // 2. CategoryId
-    if (categoryId) {
-        filtered = filtered.filter(item => item.categoryId === Number(categoryId));
-    }
-
-    // 2.5. SubcategoryId
-    if (subcategoryId) {
-        filtered = filtered.filter(item => (item as any).subcategoryId === Number(subcategoryId));
-    }
-
-    // 3. ShopId
-    if (shopId) {
-        filtered = filtered.filter(item => item.shopId === Number(shopId));
-    }
-
-    // 4. Min/Max Price
-    if (minPrice !== undefined) {
-        filtered = filtered.filter(item => item.offerPrice >= minPrice);
-    }
-    if (maxPrice !== undefined) {
-        filtered = filtered.filter(item => item.offerPrice <= maxPrice);
-    }
-
-    // 5. Sort: newest | price_asc | price_desc | expiring_soon
-    if (sort === "price_asc") {
-        filtered.sort((a, b) => a.offerPrice - b.offerPrice);
-    } else if (sort === "price_desc") {
-        filtered.sort((a, b) => b.offerPrice - a.offerPrice);
-    } else if (sort === "expiring_soon") {
-        filtered.sort((a, b) => a.id - b.id);
-    } else {
-        filtered.sort((a, b) => b.id - a.id);
-    }
-
-    const total = filtered.length;
-    const sliced = filtered.slice((page - 1) * limit, page * limit);
-
-    return {
-        success: true,
-        data: {
-            data: sliced,
-            pagination: {
-                total,
-                page,
-                limit,
-                totalPages: Math.ceil(total / limit)
-            }
-        }
-    };
 }
 
 export async function getUserOffersList(query: {
@@ -415,79 +180,7 @@ export async function getUserOfferProducts(query: {
     return response;
 }
 
-export function getMockSearchDetails(search: string): SearchResponse {
-    if (!search || search.trim() === "") {
-        return {
-            success: true,
-            message: "search details fetched successfully",
-            data: {
-                products: [],
-                offers: []
-            }
-        };
-    }
 
-    const term = search.toLowerCase().trim();
-
-    // 1. Search products from ALL_PRODUCTS
-    const matchedProducts = ALL_PRODUCTS.filter(p => 
-        p.name.toLowerCase().includes(term)
-    );
-
-    const productGroups: Record<string, {
-        name: string;
-        category: string;
-        totalOfferProducts: number;
-        shops: Set<string>;
-        minPrice: number;
-    }> = {};
-
-    matchedProducts.forEach(p => {
-        const key = `${p.name.toLowerCase()}::${p.category.toLowerCase()}`;
-        if (!productGroups[key]) {
-            productGroups[key] = {
-                name: p.name,
-                category: p.category,
-                totalOfferProducts: 0,
-                shops: new Set<string>(),
-                minPrice: p.price
-            };
-        }
-        const group = productGroups[key];
-        group.totalOfferProducts += 1;
-        group.shops.add(p.shopName);
-        if (p.price < group.minPrice) {
-            group.minPrice = p.price;
-        }
-    });
-
-    const productsResult = Object.values(productGroups).map(g => ({
-        name: g.name,
-        category: g.category,
-        totalOfferProducts: g.totalOfferProducts,
-        shopCount: g.shops.size,
-        minPrice: g.minPrice
-    }));
-
-    // 2. Search offers from ALL_OFFERS
-    const matchedOffers = ALL_OFFERS.filter(o => 
-        o.offerName.toLowerCase().includes(term)
-    );
-
-    const offersResult = matchedOffers.map(o => ({
-        offerId: o.id,
-        offerName: o.offerName
-    }));
-
-    return {
-        success: true,
-        message: "search details fetched successfully",
-        data: {
-            products: productsResult,
-            offers: offersResult
-        }
-    };
-}
 
 export async function getGlobalSearch(search: string): Promise<SearchResponse> {
     const params = new URLSearchParams({ search });
@@ -511,10 +204,17 @@ export async function getGlobalSearch(search: string): Promise<SearchResponse> {
             };
         }
     } catch (e) {
-        console.warn("Real user offer search failed, using mock fallback:", e);
+        console.warn("Real user offer search failed:", e);
     }
     
-    return getMockSearchDetails(search);
+    return {
+        success: false,
+        message: "Search failed",
+        data: {
+            products: [],
+            offers: []
+        }
+    };
 }
 
 

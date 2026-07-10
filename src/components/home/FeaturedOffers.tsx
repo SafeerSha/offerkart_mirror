@@ -12,7 +12,6 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
 import { useMemo } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useLocationContext } from "@/context/LocationContext";
-import { getShopCoords, calculateDistance } from "@/lib/api/userOffersService";
 import { Search } from "lucide-react";
 
 interface FeaturedOffer {

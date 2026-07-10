@@ -12,7 +12,6 @@ import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import ProductCard from "./ProductCard";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
-import { FEATURED_OFFERS } from "@/lib/api/mockData";
 
 interface Product {
     id: any;
@@ -141,8 +140,7 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
     const primaryImage = product.image || (Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : null);
     const productImages = primaryImage ? [primaryImage] : [];
 
-    const featuredOffer = FEATURED_OFFERS.find(fo => fo.name.toLowerCase() === product.shopName.toLowerCase());
-    const shopLogo = product.shopLogo || (featuredOffer ? featuredOffer.logo : null);
+    const shopLogo = product.shopLogo || null;
 
     const discountPercent = product.originalPrice && product.price && product.originalPrice > product.price
         ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
