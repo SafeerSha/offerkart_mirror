@@ -7,8 +7,6 @@ import { Heading, Text } from "@/components/shared/Typography";
 import { Sparkles, ArrowRight, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useLocationContext } from "@/context/LocationContext";
-import { getShopIdFromShopName, getShopCoords, calculateDistance } from "@/lib/api/userOffersService";
-
 import { useUserProductsFiltered } from "@/hooks/useApi";
 
 interface Product {
@@ -59,13 +57,7 @@ const FeaturedProducts = ({ products }: FeaturedProductsProps) => {
     const sortedProducts = useMemo(() => {
         if (!displayProducts) return [];
         let items = displayProducts.map(p => {
-            let distanceKm: number | null = null;
-            if (userLocation.latitude !== null && userLocation.longitude !== null) {
-                const shopId = p.shopName ? getShopIdFromShopName(p.shopName) : 0;
-                const coords = getShopCoords(shopId);
-                distanceKm = calculateDistance(userLocation.latitude, userLocation.longitude, coords.lat, coords.lng);
-            }
-            return { ...p, distanceKm };
+            return { ...p, distanceKm: p.distanceKm ?? null };
         });
 
         if (userLocation.latitude !== null && userLocation.longitude !== null) {

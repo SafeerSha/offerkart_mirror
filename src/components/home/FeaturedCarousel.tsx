@@ -7,7 +7,6 @@ import { PremiumButton } from "@/components/shared/PremiumButton";
 import { Subheading, Text } from "@/components/shared/Typography";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useLocationContext } from "@/context/LocationContext";
-import { getShopCoords, calculateDistance } from "@/lib/api/userOffersService";
 import { Search } from "lucide-react";
 
 interface FeaturedShop {
