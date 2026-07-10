@@ -90,7 +90,7 @@ const OfferGrid = ({
           <Search className="w-10 h-10 text-gray-400" />
         </div>
         <h3 className="text-xl font-bold text-gray-900">No offers found</h3>
-        <p className="text-gray-500 mt-2">Try adjusting your filters or search query.</p>
+        <p className="text-gray-500 mt-2">Try to change your location preferences</p>
       </div>
     )
   }

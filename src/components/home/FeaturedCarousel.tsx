@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Image, { StaticImageData } from "next/image";
 import { ChevronLeft, ChevronRight, Zap, Rocket } from "lucide-react";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { Subheading, Text } from "@/components/shared/Typography";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useLocationContext } from "@/context/LocationContext";
+import { getShopCoords, calculateDistance } from "@/lib/api/userOffersService";
+import { Search } from "lucide-react";
 
 interface FeaturedShop {
   id: number;
@@ -22,7 +25,20 @@ interface FeaturedCarouselProps {
 
 const FeaturedCarousel = ({ shops = [] }: FeaturedCarouselProps) => {
   const { t } = useTranslation("home");
-  const displayShops = shops || [];
+  const { location: userLocation } = useLocationContext();
+
+  const displayShops = useMemo(() => {
+    if (!shops) return [];
+    if (userLocation.latitude !== null && userLocation.longitude !== null) {
+      return shops.filter(shop => {
+        const coords = getShopCoords(shop.id);
+        const distance = calculateDistance(userLocation.latitude, userLocation.longitude, coords.lat, coords.lng);
+        return distance <= 50;
+      });
+    }
+    return shops;
+  }, [shops, userLocation]);
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
 
@@ -37,10 +53,11 @@ const FeaturedCarousel = ({ shops = [] }: FeaturedCarouselProps) => {
   };
 
   useEffect(() => {
+    if (displayShops.length === 0) return;
     if (!isAutoPlaying) return;
     const interval = setInterval(nextSlide, 5000);
     return () => clearInterval(interval);
-  }, [isAutoPlaying, nextSlide]);
+  }, [isAutoPlaying, nextSlide, displayShops.length]);
 
   const getVisibleSlides = () => {
     if (displayShops.length === 0) return [];
@@ -51,6 +68,35 @@ const FeaturedCarousel = ({ shops = [] }: FeaturedCarouselProps) => {
     }
     return slides;
   };
+
+  if (displayShops.length === 0) {
+    return (
+      <section className="py-2 overflow-hidden relative">
+        <div className="container mx-auto px-4 relative">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="p-3 rounded-2xl bg-primary/10 border border-primary/20">
+              <Zap className="w-6 h-6 text-primary" />
+            </div>
+            <div>
+              <Subheading className="text-3xl font-bold mb-0">
+                {t("featuredOffers.title")}
+              </Subheading>
+              <Text className="text-sm mt-1">{t("featuredOffers.subtitle")}</Text>
+            </div>
+          </div>
+          <div className="py-16 text-center bg-white rounded-3xl border border-slate-100 shadow-sm animate-in fade-in duration-300">
+            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Search className="w-8 h-8 text-slate-400" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900">No featured offers found</h3>
+            <p className="text-sm text-slate-500 mt-1">Try to change your location preferences</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+
 
   return (
     <section className="py-2 overflow-hidden relative">

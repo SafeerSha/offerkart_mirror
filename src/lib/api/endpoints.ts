@@ -32,6 +32,7 @@ export const ENDPOINTS = {
     CATEGORY: {
         BASE: `business/category`,
         SUBCATEGORIES: (id: string | number) => `business/category/${id}/subcategories`,
+        ALL_SUBCATEGORIES: `business/category/subcategories`,
     },
     INDUSTRY: {
         BASE: `business/industry`,

@@ -10,6 +10,7 @@ import OfferGrid from "./OfferGrid";
 import { Offer } from "@/lib/types/offer";
 import { useLocationContext } from "@/context/LocationContext";
 import { getShopIdFromShopName, getShopCoords, calculateDistance } from "@/lib/api/userOffersService";
+import { useInfiniteUserOffers } from "@/hooks/useApi";
 
 interface FilterableOffersProps {
     initialOffers: Offer[];
@@ -18,14 +19,38 @@ interface FilterableOffersProps {
 
 export default function FilterableOffers({ initialOffers = [], buttonText }: FilterableOffersProps) {
     const router = useRouter();
-    const { location: userLocation } = useLocationContext();
+    const { location: userLocation, hydrated } = useLocationContext();
     const [activeCategory, setActiveCategory] = useState("All");
     const [activeSubcategory, setActiveSubcategory] = useState<string[]>([]);
     const [activeSort, setActiveSort] = useState("latest");
 
-    // Filter offers client-side
+    const queryFilters = useMemo(() => {
+        const filters: any = {};
+        if (userLocation.latitude !== null && userLocation.longitude !== null) {
+            filters.latitude = userLocation.latitude;
+            filters.longitude = userLocation.longitude;
+        }
+        return filters;
+    }, [userLocation]);
+
+    const hasLocation = userLocation.latitude !== null && userLocation.longitude !== null;
+debugger;
+    const { data: dynamicData, isLoading } = useInfiniteUserOffers(10, queryFilters, {
+        enabled: hydrated && hasLocation
+    });
+
+    const displayOffers = useMemo(() => {
+        if (hydrated && hasLocation && dynamicData) {
+            const pages = dynamicData.pages || [];
+            if (pages.length > 0 && pages[0]?.data) {
+                return pages[0].data;
+            }
+        }
+        return initialOffers;
+    }, [hydrated, hasLocation, dynamicData, initialOffers]);
+
     const filteredOffers = useMemo(() => {
-        let result = initialOffers.map(o => {
+        let result = displayOffers.map(o => {
             let distanceKm: number | null = null;
             if (userLocation.latitude !== null && userLocation.longitude !== null) {
                 const shopId = o.shopId || (o.shopName ? getShopIdFromShopName(o.shopName) : 0);
@@ -71,11 +96,10 @@ export default function FilterableOffers({ initialOffers = [], buttonText }: Fil
         }
 
         return result;
-    }, [initialOffers, activeCategory, activeSubcategory, activeSort, userLocation]);
+    }, [displayOffers, activeCategory, activeSubcategory, activeSort, userLocation]);
 
     return (
         <div className="space-y-6">
-            {/* Header section */}
             <div className="flex flex-col md:flex-row md:items-end justify-between mb-6 gap-6">
                 <div>
                     <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-500/10 text-orange-600 text-xs font-bold uppercase tracking-[0.15em] mb-4 border border-orange-500/15 animate-fade-in">
@@ -110,6 +134,7 @@ export default function FilterableOffers({ initialOffers = [], buttonText }: Fil
             /> */}
 
             <OfferGrid
+                isLoading={isLoading}
                 offers={filteredOffers}
                 redirectToOffers={true}
                 buttonText={buttonText}

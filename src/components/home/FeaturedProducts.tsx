@@ -4,10 +4,12 @@ import React, { useMemo } from "react";
 import ProductCard from "@/components/products/ProductCard";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { Heading, Text } from "@/components/shared/Typography";
-import { Sparkles, ArrowRight } from "lucide-react";
+import { Sparkles, ArrowRight, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useLocationContext } from "@/context/LocationContext";
 import { getShopIdFromShopName, getShopCoords, calculateDistance } from "@/lib/api/userOffersService";
+
+import { useUserProductsFiltered } from "@/hooks/useApi";
 
 interface Product {
     id: number;
@@ -30,11 +32,33 @@ interface FeaturedProductsProps {
 
 const FeaturedProducts = ({ products }: FeaturedProductsProps) => {
     const router = useRouter();
-    const { location: userLocation } = useLocationContext();
+    const { location: userLocation, hydrated } = useLocationContext();
+
+    const queryFilters = useMemo(() => {
+        const filters: any = {};
+        if (userLocation.latitude !== null && userLocation.longitude !== null) {
+            filters.latitude = userLocation.latitude;
+            filters.longitude = userLocation.longitude;
+        }
+        return filters;
+    }, [userLocation]);
+
+    const hasLocation = userLocation.latitude !== null && userLocation.longitude !== null;
+
+    const { data: dynamicProductsRes, isLoading } = useUserProductsFiltered(queryFilters, {
+        enabled: hydrated && hasLocation
+    });
+
+    const displayProducts = useMemo(() => {
+        if (hydrated && hasLocation && Array.isArray(dynamicProductsRes)) {
+            return dynamicProductsRes;
+        }
+        return products;
+    }, [hydrated, hasLocation, dynamicProductsRes, products]);
 
     const sortedProducts = useMemo(() => {
-        if (!products) return [];
-        let items = products.map(p => {
+        if (!displayProducts) return [];
+        let items = displayProducts.map(p => {
             let distanceKm: number | null = null;
             if (userLocation.latitude !== null && userLocation.longitude !== null) {
                 const shopId = p.shopName ? getShopIdFromShopName(p.shopName) : 0;
@@ -52,10 +76,21 @@ const FeaturedProducts = ({ products }: FeaturedProductsProps) => {
             });
         }
         return items;
-    }, [products, userLocation]);
+    }, [displayProducts, userLocation]);
 
-    if (!products || products.length === 0) {
-        return null;
+    if (isLoading && hasLocation) {
+        return (
+            <section className="py-8 md:py-12 relative bg-slate-50/50">
+                <div className="container mx-auto px-4">
+                    <div className="h-8 w-48 bg-slate-200 rounded animate-pulse mb-6" />
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                        {Array.from({ length: 6 }).map((_, i) => (
+                            <div key={i} className="h-64 bg-slate-200 rounded-2xl animate-pulse" />
+                        ))}
+                    </div>
+                </div>
+            </section>
+        );
     }
 
     return (
@@ -85,17 +120,27 @@ const FeaturedProducts = ({ products }: FeaturedProductsProps) => {
                     </PremiumButton>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-1 md:gap-2">
-                    {sortedProducts.slice(0, 12).map((product, index) => (
-                        <div
-                            key={product.id}
-                            className="animate-in fade-in slide-in-from-bottom-4 duration-500 fill-mode-both"
-                            style={{ animationDelay: `${index * 0.1}s` }}
-                        >
-                            <ProductCard {...product} />
+                {sortedProducts.length === 0 ? (
+                    <div className="py-20 text-center animate-in fade-in duration-300">
+                        <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <Search className="w-10 h-10 text-gray-400" />
                         </div>
-                    ))}
-                </div>
+                        <h3 className="text-xl font-bold text-gray-900">No products found</h3>
+                        <p className="text-gray-500 mt-2">Try to change your location preferences</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-1 md:gap-2">
+                        {sortedProducts.slice(0, 12).map((product, index) => (
+                            <div
+                                key={product.id}
+                                className="animate-in fade-in slide-in-from-bottom-4 duration-500 fill-mode-both"
+                                style={{ animationDelay: `${index * 0.1}s` }}
+                            >
+                                <ProductCard {...product} />
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
         </section>
     );
