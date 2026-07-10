@@ -351,73 +351,15 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
             {/* Hero Spacer */}
             <div className="h-40 lg:h-36" />
 
-            {/* Breadcrumbs & Desktop Shop Header */}
-            <div className="container mx-auto px-4 py-4 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+            {/* Breadcrumbs Row */}
+            <div className="container mx-auto px-4 py-4">
                 <Breadcrumbs items={breadcrumbItems} />
-
-                {/* Desktop shop info top right corner */}
-                <div className="hidden md:flex flex-col items-end text-right">
-                    <span className="text-[9px] font-black text-orange-500 uppercase tracking-widest leading-none">Published By</span>
-                    <div className="flex items-baseline gap-2 mt-1">
-                        <Link
-                            href={`/offers?shopId=${offer.shopId || ""}`}
-                            className="text-base font-black text-slate-800 dark:text-zinc-200 hover:text-orange-500 transition-colors"
-                        >
-                            {offer.shopName}
-                        </Link>
-                        {/* <span className="text-[10px] text-slate-300 dark:text-zinc-700">|</span>
-                        <Link
-                            href={`/offers?shopId=${offer.shopId || ""}`}
-                            className="text-[10px] font-bold text-orange-500 hover:text-orange-600 uppercase tracking-wider"
-                        >
-                            View Outlet
-                        </Link> */}
-                    </div>
-
-                    {/* Social Media Links under it as icons only */}
-                    {activeSocialLinks.length > 0 && (
-                        <div className="flex items-center gap-2 mt-2.5">
-                            {activeSocialLinks.map((link) => {
-                                const platformInfo = SOCIAL_PLATFORMS[link.platform.toUpperCase()] || {
-                                    label: link.platform,
-                                    icon: LinkIcon,
-                                    color: "text-slate-500 hover:text-slate-700",
-                                    hoverBg: "hover:bg-slate-50 border-slate-200 hover:border-slate-350"
-                                };
-                                const IconComponent = platformInfo.icon;
-
-                                let finalUrl = link.url;
-                                if (link.platform.toUpperCase() === "WHATSAPP" && !finalUrl.startsWith("http") && /^\d+$/.test(finalUrl.replace(/\D/g, ""))) {
-                                    finalUrl = `https://wa.me/${finalUrl.replace(/\D/g, "")}`;
-                                } else if (!finalUrl.startsWith("http")) {
-                                    finalUrl = `https://${finalUrl}`;
-                                }
-
-                                return (
-                                    <a
-                                        key={link.platform}
-                                        href={finalUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        onClick={(e) => handleSocialClick(e, link.platform, link.url)}
-                                        className={cn(
-                                            "group p-2 rounded-xl bg-slate-50/50 dark:bg-zinc-950/50 border border-slate-200/60 dark:border-zinc-800/60 text-slate-600 dark:text-zinc-400 hover:shadow-lg hover:shadow-orange-500/5 transition-all active:scale-95 duration-300 relative overflow-hidden",
-                                            platformInfo.color,
-                                            platformInfo.hoverBg
-                                        )}
-                                        title={platformInfo.label}
-                                    >
-                                        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-r from-transparent via-white/5 to-transparent pointer-events-none" />
-                                        <IconComponent className="w-4 h-4 transition-transform group-hover:scale-110 duration-300" />
-                                    </a>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
             </div>
 
-            <div className="container mx-auto px-4 pb-16">
+            {/* Main Content Layout with Sticky Right Sidebar */}
+            <div className="container mx-auto px-4 pb-16 flex flex-col lg:flex-row gap-8 items-start">
+                {/* Left side: Poster navigator and similar offers */}
+                <div className="flex-1 w-full lg:max-w-4xl mx-auto">
                 {/* Main Poster Section */}
                 <div className="flex flex-col md:flex-row items-center justify-center gap-2 max-w-4xl mx-auto mb-16">
                     {/* Left Desktop Navigation */}
@@ -596,8 +538,65 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
                         </button>
                     </div>
                 </div>
+                </div>
 
-                {/* Similar Offers Carousel */}
+                {/* Right side: Shop info (sticky on desktop) */}
+                <div className="hidden lg:flex lg:flex-col lg:w-64 shrink-0 sticky top-36 self-start text-right items-end">
+                    <span className="text-xs font-bold text-orange-500 uppercase tracking-widest leading-none">Published By</span>
+                    <div className="flex items-baseline gap-2 mt-1.5 mb-1">
+                        <Link
+                            href={`/offers?shopId=${offer.shopId || ""}`}
+                            className="text-2xl font-black text-slate-800 dark:text-zinc-200 hover:text-orange-500 transition-colors"
+                        >
+                            {offer.shopName}
+                        </Link>
+                    </div>
+
+                    {/* Social Media Links under it stacked vertically with labels */}
+                    {activeSocialLinks.length > 0 && (
+                        <div className="flex flex-col gap-2 mt-4 items-end">
+                            <span className="text-[9px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest leading-none mb-1.5 block">Connect With Us</span>
+                            {activeSocialLinks.map((link) => {
+                                const platformInfo = SOCIAL_PLATFORMS[link.platform.toUpperCase()] || {
+                                    label: link.platform,
+                                    icon: LinkIcon,
+                                    color: "text-slate-500 hover:text-slate-700",
+                                    hoverBg: "hover:bg-slate-50 border-slate-200 hover:border-slate-350"
+                                };
+                                const IconComponent = platformInfo.icon;
+
+                                let finalUrl = link.url;
+                                if (link.platform.toUpperCase() === "WHATSAPP" && !finalUrl.startsWith("http") && /^\d+$/.test(finalUrl.replace(/\D/g, ""))) {
+                                    finalUrl = `https://wa.me/${finalUrl.replace(/\D/g, "")}`;
+                                } else if (!finalUrl.startsWith("http")) {
+                                    finalUrl = `https://${finalUrl}`;
+                                }
+
+                                return (
+                                    <a
+                                        key={link.platform}
+                                        href={finalUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={(e) => handleSocialClick(e, link.platform, link.url)}
+                                        className={cn(
+                                            "group flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-100/70 dark:hover:bg-zinc-900/75 hover:shadow-md hover:shadow-orange-500/5 transition-all active:scale-95 duration-300 relative overflow-hidden",
+                                            platformInfo.color
+                                        )}
+                                    >
+                                        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-r from-transparent via-white/5 to-transparent pointer-events-none" />
+                                        <span className="text-base font-bold transition-colors">{platformInfo.label}</span>
+                                        <IconComponent className="w-6 h-6 transition-transform group-hover:scale-110 duration-300" />
+                                    </a>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Similar Offers Carousel (Outside grid, spans full page width) */}
+            <div className="container mx-auto px-4 pb-16">
                 <div className="mt-10">
                     <div className="flex items-center justify-between mb-6">
                         <Subheading className="text-2xl font-bold">{t("catalog.similarOffers")}</Subheading>
