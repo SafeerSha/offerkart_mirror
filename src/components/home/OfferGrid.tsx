@@ -85,12 +85,12 @@ const OfferGrid = ({
 
   if (offers.length === 0) {
     return (
-      <div className="py-20 text-center">
-        <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-          <Search className="w-10 h-10 text-gray-400" />
+      <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-dashed border-gray-200">
+        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+          <Search className="w-8 h-8 text-gray-300" />
         </div>
-        <h3 className="text-xl font-bold text-gray-900">No offers found</h3>
-        <p className="text-gray-500 mt-2">Try to change your location preferences</p>
+        <h3 className="text-xl font-bold text-gray-900 mb-2">No offers found</h3>
+        <p className="text-gray-500">Try adjusting your filters.</p>
       </div>
     )
   }

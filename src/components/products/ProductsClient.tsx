@@ -303,7 +303,7 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
                                     >
                                         {activeFilters.category === "All" ? t("catalog.allProducts") : activeFilters.category}
                                     </h2>
-                                    <p className="text-sm text-gray-500 font-medium mt-1">
+                                    <p className="text-sm text-gray-500 mt-1">
                                         Showing {filteredProducts.length} products
                                         {activeFilters.category !== "All" ? ` in ${activeFilters.category}` : " for you"}
                                     </p>

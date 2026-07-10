@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { StaticImageData } from "next/image";
-import { Tag, ChevronLeft, ChevronRight, Loader2, Store, Link as LinkIcon, ExternalLink } from "lucide-react";
+import { Tag, ChevronLeft, ChevronRight, Loader2, Store, Link as LinkIcon, ExternalLink, X } from "lucide-react";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { Subheading } from "@/components/shared/Typography";
 import { MarkedPoster } from "@/components/shared/MarkedPoster";
 import { Poster, MarkedItem } from "@/lib/types/offer";
+import { PLATFORMS } from "@/lib/types";
 import { cn, getSocialEmbedInfo } from "@/lib/utils";
 import Link from "next/link";
 import {
@@ -145,15 +146,16 @@ function mapApiOfferToDetail(raw: any): OfferDetail {
     };
 }
 
+
 const SOCIAL_PLATFORMS: Record<string, { label: string; icon: React.ComponentType<any>; color: string; hoverBg: string }> = {
-    YOUTUBE: { label: "YouTube", icon: SiYoutube, color: "text-[#FF0000] hover:text-[#FF0000]", hoverBg: "hover:bg-[#FF0000]/10 border-[#FF0000]/20 hover:border-[#FF0000]/50" },
-    INSTAGRAM: { label: "Instagram", icon: SiInstagram, color: "text-[#E4405F] hover:text-[#E4405F]", hoverBg: "hover:bg-[#E4405F]/10 border-[#E4405F]/20 hover:border-[#E4405F]/50" },
-    FACEBOOK: { label: "Facebook", icon: SiFacebook, color: "text-[#1877F2] hover:text-[#1877F2]", hoverBg: "hover:bg-[#1877F2]/10 border-[#1877F2]/20 hover:border-[#1877F2]/50" },
-    WHATSAPP: { label: "WhatsApp", icon: SiWhatsapp, color: "text-[#25D366] hover:text-[#25D366]", hoverBg: "hover:bg-[#25D366]/10 border-[#25D366]/20 hover:border-[#25D366]/50" },
-    THREADS: { label: "Threads", icon: SiThreads, color: "text-black dark:text-white hover:text-black dark:hover:text-white", hoverBg: "hover:bg-black/5 dark:hover:bg-white/10 border-black/10 dark:border-white/10 hover:border-black/30 dark:hover:border-white/30" },
-    X: { label: "X", icon: SiX, color: "text-black dark:text-white hover:text-black dark:hover:text-white", hoverBg: "hover:bg-black/5 dark:hover:bg-white/10 border-black/10 dark:border-white/10 hover:border-black/30 dark:hover:border-white/30" },
-    LINKEDIN: { label: "LinkedIn", icon: FaLinkedin, color: "text-[#0A66C2] hover:text-[#0A66C2]", hoverBg: "hover:bg-[#0A66C2]/10 border-[#0A66C2]/20 hover:border-[#0A66C2]/50" },
-    WEBSITE: { label: "Website", icon: LinkIcon, color: "text-indigo-600 hover:text-indigo-600", hoverBg: "hover:bg-indigo-50 border-indigo-100 hover:border-indigo-500" },
+    [PLATFORMS.YOUTUBE]: { label: "YouTube", icon: SiYoutube, color: "text-[#FF0000] hover:text-[#FF0000]", hoverBg: "hover:bg-[#FF0000]/10 border-[#FF0000]/20 hover:border-[#FF0000]/50" },
+    [PLATFORMS.INSTAGRAM]: { label: "Instagram", icon: SiInstagram, color: "text-[#E4405F] hover:text-[#E4405F]", hoverBg: "hover:bg-[#E4405F]/10 border-[#E4405F]/20 hover:border-[#E4405F]/50" },
+    [PLATFORMS.FACEBOOK]: { label: "Facebook", icon: SiFacebook, color: "text-[#1877F2] hover:text-[#1877F2]", hoverBg: "hover:bg-[#1877F2]/10 border-[#1877F2]/20 hover:border-[#1877F2]/50" },
+    [PLATFORMS.WHATSAPP]: { label: "WhatsApp", icon: SiWhatsapp, color: "text-[#25D366] hover:text-[#25D366]", hoverBg: "hover:bg-[#25D366]/10 border-[#25D366]/20 hover:border-[#25D366]/50" },
+    [PLATFORMS.THREADS]: { label: "Threads", icon: SiThreads, color: "text-black dark:text-white hover:text-black dark:hover:text-white", hoverBg: "hover:bg-black/5 dark:hover:bg-white/10 border-black/10 dark:border-white/10 hover:border-black/30 dark:hover:border-white/30" },
+    [PLATFORMS.X]: { label: "X", icon: SiX, color: "text-black dark:text-white hover:text-black dark:hover:text-white", hoverBg: "hover:bg-black/5 dark:hover:bg-white/10 border-black/10 dark:border-white/10 hover:border-black/30 dark:hover:border-white/30" },
+    [PLATFORMS.LINKEDIN]: { label: "LinkedIn", icon: FaLinkedin, color: "text-[#0A66C2] hover:text-[#0A66C2]", hoverBg: "hover:bg-[#0A66C2]/10 border-[#0A66C2]/20 hover:border-[#0A66C2]/50" },
+    [PLATFORMS.WEBSITE]: { label: "Website", icon: LinkIcon, color: "text-indigo-600 hover:text-indigo-600", hoverBg: "hover:bg-indigo-50 border-indigo-100 hover:border-indigo-500" },
 };
 
 export default function OfferDetailClient({ offer: initialOffer, similarOffers, prevOfferId: initialPrevId, nextOfferId: initialNextId }: OfferDetailClientProps) {
@@ -178,6 +180,7 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
 
     // --- Social media preview modal state ---
     const [previewModalOpen, setPreviewModalOpen] = useState(false);
+    const [isSocialFloatingExpanded, setIsSocialFloatingExpanded] = useState(true);
     const [previewPlatform, setPreviewPlatform] = useState("");
     const [previewUrl, setPreviewUrl] = useState("");
     const [previewEmbedUrl, setPreviewEmbedUrl] = useState("");
@@ -357,192 +360,151 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
             </div>
 
             {/* Main Content Layout with Sticky Right Sidebar */}
-            <div className="container mx-auto px-4 pb-16 flex flex-col lg:flex-row gap-8 items-start">
+            <div className="container mx-auto px-4 pb-6 lg:pb-16 flex flex-col lg:flex-row gap-8 items-start">
                 {/* Left side: Poster navigator and similar offers */}
                 <div className="flex-1 w-full lg:max-w-4xl mx-auto">
-                {/* Main Poster Section */}
-                <div className="flex flex-col md:flex-row items-center justify-center gap-2 max-w-4xl mx-auto mb-16">
-                    {/* Left Desktop Navigation */}
-                    <button
-                        onClick={handlePrev}
-                        disabled={isNavigating || (!prevOfferId && (totalPosters === 1 || posterIndex === 0))}
-                        className="hidden md:flex w-44 items-center justify-center gap-2 px-4 py-3 rounded-xl border border-orange-500/30 dark:border-orange-500/20 hover:border-orange-500 text-orange-600 dark:text-orange-400 hover:bg-orange-500/5 transition-all text-xs font-bold uppercase tracking-wider shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                        {isNavigating ? (
-                            <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-                        ) : (
-                            <ChevronLeft className="w-4 h-4 shrink-0" />
-                        )}
-                        <span className="truncate">{prevLabel}</span>
-                    </button>
-
-                    {/* Poster Container */}
-                    <div className="w-full max-w-lg flex flex-col gap-2 shrink-0">
-                        <div className="w-full relative aspect-[3/4] overflow-hidden rounded-2xl border border-primary/20">
-                            {/* Loading overlay when navigating */}
-                            {isNavigating && (
-                                <div className="absolute inset-0 z-20 bg-background/60 backdrop-blur-sm flex items-center justify-center rounded-2xl">
-                                    <div className="flex flex-col items-center gap-2">
-                                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest animate-pulse">Loading Offer...</span>
-                                    </div>
-                                </div>
-                            )}
-                            <MarkedPoster
-                                src={offer.posters?.[posterIndex]?.posterSrc || (offer.images[posterIndex] as string)}
-                                alt={offer.shopName}
-                                markedItems={offer.posters?.[posterIndex]?.markedItems || []}
-                                className="w-full h-full"
-                                showNames={true}
-                                interactive={true}
-                                onItemClick={(item: MarkedItem) => {
-                                    if (item.name && item.name !== "Processing...") {
-                                        setSelectedItemId(item.id);
-                                        setIsProductModalOpen(true);
-                                    }
-                                }}
-                                showTopGradient={true}
-                                showBottomGradient={true}
-                            >
-                                <div className="absolute top-4 left-4 z-20">
-                                    <span className="badge-futuristic">
-                                        <Tag className="w-3 h-3 mr-1" />
-                                        {offer.discount}
-                                    </span>
-                                </div>
-
-                                {/* Dots Indicator */}
-                                {totalPosters > 1 && (
-                                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
-                                        {Array.from({ length: totalPosters }).map((_, index) => (
-                                            <button
-                                                key={index}
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setPosterIndex(index);
-                                                }}
-                                                className={`w-2 h-2 rounded-full transition-all ${index === posterIndex ? "bg-primary" : "bg-white/50"}`}
-                                            />
-                                        ))}
-                                    </div>
-                                )}
-                            </MarkedPoster>
-                        </div>
-                        {/* Poster Info under the poster */}
-                        <div className="flex flex-col gap-1.5 px-1 py-1">
-                            <div className="flex flex-row items-center justify-between gap-2">
-                                <span className="text-xs sm:text-sm font-black text-slate-800 dark:text-zinc-200 line-clamp-1">
-                                    {offer.offerName}
-                                </span>
-                                <span className="bg-white dark:bg-zinc-900/95 text-slate-700 dark:text-zinc-300 text-[10px] font-bold px-3 py-1.5 rounded-2xl border border-primary/10 shadow-sm tracking-wider shrink-0">
-                                    Poster {posterIndex + 1} of {totalPosters}
-                                </span>
-                            </div>
-
-                            <div className="flex flex-row items-center justify-between gap-2 text-[10px]">
-                                <div className="flex flex-col items-start font-medium">
-                                    {/* <span>{totalPosters} {totalPosters === 1 ? "Poster" : "Posters"}</span>
-                                    <span className="md:hidden">•</span> */}
-                                    <span className="md:hidden text-orange-500 font-bold">Published by</span>
-                                    <Link
-                                        href={`/offers?shopId=${offer.shopId || ""}`}
-                                        className="md:hidden font-bold  font-black hover:underline text-xs"
-                                    >
-                                        {offer.shopName}
-                                    </Link>
-                                </div>
-
-                                {/* Mobile social icons only (hidden on desktop to avoid duplication) */}
-                                {activeSocialLinks.length > 0 && (
-                                    <div className="flex md:hidden items-center gap-1">
-                                        {activeSocialLinks.map((link) => {
-                                            const platformInfo = SOCIAL_PLATFORMS[link.platform.toUpperCase()] || {
-                                                label: link.platform,
-                                                icon: LinkIcon,
-                                                color: "text-slate-500 hover:text-slate-700",
-                                                hoverBg: "hover:bg-slate-50 border-slate-200 hover:border-slate-350"
-                                            };
-                                            const IconComponent = platformInfo.icon;
-
-                                            let finalUrl = link.url;
-                                            if (link.platform.toUpperCase() === "WHATSAPP" && !finalUrl.startsWith("http") && /^\d+$/.test(finalUrl.replace(/\D/g, ""))) {
-                                                finalUrl = `https://wa.me/${finalUrl.replace(/\D/g, "")}`;
-                                            } else if (!finalUrl.startsWith("http")) {
-                                                finalUrl = `https://${finalUrl}`;
-                                            }
-
-                                            return (
-                                                <a
-                                                    key={link.platform}
-                                                    href={finalUrl}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    onClick={(e) => handleSocialClick(e, link.platform, link.url)}
-                                                    className={cn(
-                                                        "transition-all active:scale-90 duration-200 p-1 rounded-lg",
-                                                        platformInfo.color
-                                                    )}
-                                                    title={platformInfo.label}
-                                                >
-                                                    <IconComponent className="w-5 h-5" />
-                                                </a>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Right Desktop Navigation */}
-                    <button
-                        onClick={handleNext}
-                        disabled={isNavigating || (!nextOfferId && (totalPosters === 1 || posterIndex === totalPosters - 1))}
-                        className="hidden md:flex w-44 items-center justify-center gap-2 px-4 py-3 rounded-xl border border-orange-500/30 dark:border-orange-500/20 hover:border-orange-500 text-orange-600 dark:text-orange-400 hover:bg-orange-500/5 transition-all text-xs font-bold uppercase tracking-wider shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                        <span className="truncate">{nextLabel}</span>
-                        {isNavigating ? (
-                            <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-                        ) : (
-                            <ChevronRight className="w-4 h-4 shrink-0" />
-                        )}
-                    </button>
-
-                    {/* Mobile Carousel Navigation */}
-                    <div className="flex md:hidden w-full justify-between items-center gap-2 mt-1 relative z-10">
+                    {/* Main Poster Section */}
+                    <div className="flex flex-col md:flex-row items-center justify-center gap-2 max-w-4xl mx-auto mb-6 md:mb-16">
+                        {/* Left Desktop Navigation */}
                         <button
                             onClick={handlePrev}
                             disabled={isNavigating || (!prevOfferId && (totalPosters === 1 || posterIndex === 0))}
-                            className="flex-1 flex items-center justify-center gap-1.5 px-2 py-3 rounded-2xl bg-gradient-to-br from-orange-500/20 to-orange-500/5 dark:from-orange-500/10 dark:to-orange-500/5 backdrop-blur-xl border border-white/50 dark:border-white/10 ring-1 ring-inset ring-white/40 dark:ring-white/5 text-orange-600 dark:text-orange-400 transition-all active:scale-95 text-[10px] sm:text-xs font-bold uppercase tracking-wider relative overflow-hidden disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="hidden md:flex w-44 items-center justify-center gap-2 px-4 py-3 rounded-xl border border-orange-500/30 dark:border-orange-500/20 hover:border-orange-500 text-orange-600 dark:text-orange-400 hover:bg-orange-500/5 transition-all text-xs font-bold uppercase tracking-wider shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
                         >
-                            <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent dark:from-white/5 opacity-50 pointer-events-none" />
                             {isNavigating ? (
-                                <Loader2 className="w-4 h-4 animate-spin shrink-0 relative z-10" />
+                                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
                             ) : (
-                                <ChevronLeft className="w-4 h-4 shrink-0 relative z-10" />
+                                <ChevronLeft className="w-4 h-4 shrink-0" />
                             )}
-                            <span className="truncate relative z-10">{prevLabel}</span>
+                            <span className="truncate">{prevLabel}</span>
                         </button>
+
+                        {/* Poster Container */}
+                        <div className="w-full max-w-lg flex flex-col gap-2 shrink-0">
+                            <div className="w-full relative aspect-[3/4] overflow-hidden rounded-2xl border border-primary/20">
+                                {/* Loading overlay when navigating */}
+                                {isNavigating && (
+                                    <div className="absolute inset-0 z-20 bg-background/60 backdrop-blur-sm flex items-center justify-center rounded-2xl">
+                                        <div className="flex flex-col items-center gap-2">
+                                            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest animate-pulse">Loading Offer...</span>
+                                        </div>
+                                    </div>
+                                )}
+                                <MarkedPoster
+                                    src={offer.posters?.[posterIndex]?.posterSrc || (offer.images[posterIndex] as string)}
+                                    alt={offer.shopName}
+                                    markedItems={offer.posters?.[posterIndex]?.markedItems || []}
+                                    className="w-full h-full"
+                                    showNames={true}
+                                    interactive={true}
+                                    onItemClick={(item: MarkedItem) => {
+                                        if (item.name && item.name !== "Processing...") {
+                                            setSelectedItemId(item.id);
+                                            setIsProductModalOpen(true);
+                                        }
+                                    }}
+                                    showTopGradient={true}
+                                    showBottomGradient={true}
+                                >
+                                    <div className="absolute top-4 left-4 z-20">
+                                        <span className="badge-futuristic">
+                                            <Tag className="w-3 h-3 mr-1" />
+                                            {offer.discount}
+                                        </span>
+                                    </div>
+
+                                    {/* Dots Indicator */}
+                                    {totalPosters > 1 && (
+                                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+                                            {Array.from({ length: totalPosters }).map((_, index) => (
+                                                <button
+                                                    key={index}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setPosterIndex(index);
+                                                    }}
+                                                    className={`w-2 h-2 rounded-full transition-all ${index === posterIndex ? "bg-primary" : "bg-white/50"}`}
+                                                />
+                                            ))}
+                                        </div>
+                                    )}
+                                </MarkedPoster>
+                            </div>
+                            {/* Poster Info under the poster */}
+                            <div className="flex flex-col px-1 py-1">
+                                <div className="flex flex-row items-center justify-between gap-2">
+                                    <span className="text-xs sm:text-sm font-black text-slate-800 dark:text-zinc-200 line-clamp-1">
+                                        {offer.offerName}
+                                    </span>
+                                    <span className="bg-white dark:bg-zinc-900/95 text-slate-700 dark:text-zinc-300 text-[10px] font-bold px-3 py-1.5 rounded-2xl border border-primary/10 shadow-sm tracking-wider shrink-0">
+                                        Poster {posterIndex + 1} of {totalPosters}
+                                    </span>
+                                </div>
+
+                                <div className="flex flex-row items-center justify-between gap-2 text-[10px]">
+                                    <div className="flex flex-col items-start font-medium">
+                                        <span className="md:hidden text-orange-500 font-bold">Published by</span>
+                                        <Link
+                                            href={`/offers?shopId=${offer.shopId || ""}`}
+                                            className="md:hidden font-bold font-black hover:underline text-xs"
+                                        >
+                                            {offer.shopName}
+                                        </Link>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Right Desktop Navigation */}
                         <button
                             onClick={handleNext}
                             disabled={isNavigating || (!nextOfferId && (totalPosters === 1 || posterIndex === totalPosters - 1))}
-                            className="flex-1 flex items-center justify-center gap-1.5 px-2 py-3 rounded-2xl bg-gradient-to-br from-orange-500/20 to-orange-500/5 dark:from-orange-500/10 dark:to-orange-500/5 backdrop-blur-xl border border-white/50 dark:border-white/10 ring-1 ring-inset ring-white/40 dark:ring-white/5 text-orange-600 dark:text-orange-400 transition-all active:scale-95 text-[10px] sm:text-xs font-bold uppercase tracking-wider relative overflow-hidden disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="hidden md:flex w-44 items-center justify-center gap-2 px-4 py-3 rounded-xl border border-orange-500/30 dark:border-orange-500/20 hover:border-orange-500 text-orange-600 dark:text-orange-400 hover:bg-orange-500/5 transition-all text-xs font-bold uppercase tracking-wider shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
                         >
-                            <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent dark:from-white/5 opacity-50 pointer-events-none" />
-                            <span className="truncate relative z-10">{nextLabel}</span>
+                            <span className="truncate">{nextLabel}</span>
                             {isNavigating ? (
-                                <Loader2 className="w-4 h-4 animate-spin shrink-0 relative z-10" />
+                                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
                             ) : (
-                                <ChevronRight className="w-4 h-4 shrink-0 relative z-10" />
+                                <ChevronRight className="w-4 h-4 shrink-0" />
                             )}
                         </button>
+
+                        {/* Mobile Carousel Navigation */}
+                        <div className="flex md:hidden w-full justify-between items-center gap-2 mt-1 relative z-10">
+                            <button
+                                onClick={handlePrev}
+                                disabled={isNavigating || (!prevOfferId && (totalPosters === 1 || posterIndex === 0))}
+                                className="flex-1 flex items-center justify-center gap-1.5 px-2 py-3 rounded-2xl bg-gradient-to-br from-orange-500/20 to-orange-500/5 dark:from-orange-500/10 dark:to-orange-500/5 backdrop-blur-xl border border-white/50 dark:border-white/10 ring-1 ring-inset ring-white/40 dark:ring-white/5 text-orange-600 dark:text-orange-400 transition-all active:scale-95 text-[10px] sm:text-xs font-bold uppercase tracking-wider relative overflow-hidden disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                                <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent dark:from-white/5 opacity-50 pointer-events-none" />
+                                {isNavigating ? (
+                                    <Loader2 className="w-4 h-4 animate-spin shrink-0 relative z-10" />
+                                ) : (
+                                    <ChevronLeft className="w-4 h-4 shrink-0 relative z-10" />
+                                )}
+                                <span className="truncate relative z-10">{prevLabel}</span>
+                            </button>
+                            <button
+                                onClick={handleNext}
+                                disabled={isNavigating || (!nextOfferId && (totalPosters === 1 || posterIndex === totalPosters - 1))}
+                                className="flex-1 flex items-center justify-center gap-1.5 px-2 py-3 rounded-2xl bg-gradient-to-br from-orange-500/20 to-orange-500/5 dark:from-orange-500/10 dark:to-orange-500/5 backdrop-blur-xl border border-white/50 dark:border-white/10 ring-1 ring-inset ring-white/40 dark:ring-white/5 text-orange-600 dark:text-orange-400 transition-all active:scale-95 text-[10px] sm:text-xs font-bold uppercase tracking-wider relative overflow-hidden disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                                <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent dark:from-white/5 opacity-50 pointer-events-none" />
+                                <span className="truncate relative z-10">{nextLabel}</span>
+                                {isNavigating ? (
+                                    <Loader2 className="w-4 h-4 animate-spin shrink-0 relative z-10" />
+                                ) : (
+                                    <ChevronRight className="w-4 h-4 shrink-0 relative z-10" />
+                                )}
+                            </button>
+                        </div>
                     </div>
-                </div>
                 </div>
 
                 {/* Right side: Shop info (sticky on desktop) */}
                 <div className="hidden lg:flex lg:flex-col lg:w-64 shrink-0 sticky top-36 self-start text-right items-end">
-                    <span className="text-xs font-bold text-orange-500 uppercase tracking-widest leading-none">Published By</span>
+                    <span className="text-xs font-bold text-orange-500 tracking-widest leading-none">Published By</span>
                     <div className="flex items-baseline gap-2 mt-1.5 mb-1">
                         <Link
                             href={`/offers?shopId=${offer.shopId || ""}`}
@@ -554,8 +516,8 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
 
                     {/* Social Media Links under it stacked vertically with labels */}
                     {activeSocialLinks.length > 0 && (
-                        <div className="flex flex-col gap-2 mt-4 items-end">
-                            <span className="text-[9px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest leading-none mb-1.5 block">Connect With Us</span>
+                        <div className="flex flex-col gap-2 mt-2 items-end">
+                            <span className="text-[9px] font-black text-slate-400 dark:text-zinc-500 tracking-widest leading-none mb-1 block">Connect With Us</span>
                             {activeSocialLinks.map((link) => {
                                 const platformInfo = SOCIAL_PLATFORMS[link.platform.toUpperCase()] || {
                                     label: link.platform,
@@ -566,7 +528,7 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
                                 const IconComponent = platformInfo.icon;
 
                                 let finalUrl = link.url;
-                                if (link.platform.toUpperCase() === "WHATSAPP" && !finalUrl.startsWith("http") && /^\d+$/.test(finalUrl.replace(/\D/g, ""))) {
+                                if (link.platform.toUpperCase() === PLATFORMS.WHATSAPP && !finalUrl.startsWith("http") && /^\d+$/.test(finalUrl.replace(/\D/g, ""))) {
                                     finalUrl = `https://wa.me/${finalUrl.replace(/\D/g, "")}`;
                                 } else if (!finalUrl.startsWith("http")) {
                                     finalUrl = `https://${finalUrl}`;
@@ -580,7 +542,7 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
                                         rel="noopener noreferrer"
                                         onClick={(e) => handleSocialClick(e, link.platform, link.url)}
                                         className={cn(
-                                            "group flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-slate-100/70 dark:hover:bg-zinc-900/75 hover:shadow-md hover:shadow-orange-500/5 transition-all active:scale-95 duration-300 relative overflow-hidden",
+                                            "group flex items-center gap-2 px-4 py-2 rounded-xl hover:bg-slate-100/70 dark:hover:bg-zinc-900/75 hover:shadow-md hover:shadow-orange-500/5 transition-all active:scale-95 duration-300 relative overflow-hidden",
                                             platformInfo.color
                                         )}
                                     >
@@ -703,6 +665,87 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
                                 Close
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Mobile Floating Social Toggle Widget */}
+            {activeSocialLinks.length > 0 && (
+                <div className="fixed bottom-11 right-1 z-[60] flex flex-col items-end gap-1 md:hidden">
+                    {isSocialFloatingExpanded && (
+                        <div className="flex flex-col gap-1 mb-1 animate-in fade-in slide-in-from-bottom-3 duration-300">
+                            {activeSocialLinks.map((link) => {
+                                const platformInfo = SOCIAL_PLATFORMS[link.platform.toUpperCase()] || {
+                                    label: link.platform,
+                                    icon: LinkIcon,
+                                    color: "text-slate-500 border-slate-200 bg-slate-50",
+                                    hoverBg: "hover:bg-slate-100"
+                                };
+                                const IconComponent = platformInfo.icon;
+
+                                let finalUrl = link.url;
+                                if (link.platform.toUpperCase() === PLATFORMS.WHATSAPP && !finalUrl.startsWith("http") && /^\d+$/.test(finalUrl.replace(/\D/g, ""))) {
+                                    finalUrl = `https://wa.me/${finalUrl.replace(/\D/g, "")}`;
+                                } else if (!finalUrl.startsWith("http")) {
+                                    finalUrl = `https://${finalUrl}`;
+                                }
+
+                                // Determine custom colors for badges on mobile floating panel
+                                let bgStyle = "bg-white dark:bg-zinc-900 border-slate-150 dark:border-zinc-800/80";
+                                if (link.platform.toUpperCase() === PLATFORMS.YOUTUBE) bgStyle = "bg-red-50 dark:bg-red-950/20 border-red-100/50 dark:border-red-900/30";
+                                if (link.platform.toUpperCase() === PLATFORMS.INSTAGRAM) bgStyle = "bg-pink-50 dark:bg-pink-950/20 border-pink-100/50 dark:border-pink-900/30";
+                                if (link.platform.toUpperCase() === PLATFORMS.WHATSAPP) bgStyle = "bg-green-50 dark:bg-green-950/20 border-green-100/50 dark:border-green-900/30";
+                                if (link.platform.toUpperCase() === PLATFORMS.FACEBOOK) bgStyle = "bg-blue-50 dark:bg-blue-950/20 border-blue-100/50 dark:border-blue-900/30";
+
+                                return (
+                                    <div key={link.platform} className="flex items-center gap-1 justify-end animate-in fade-in slide-in-from-right-2 duration-200">
+                                        <span className="text-[9px] font-black tracking-widest bg-white/95 dark:bg-zinc-900/95 px-2 py-1 rounded-full shadow-xl shadow-slate-900/30 dark:shadow-black/70 border border-slate-100">
+                                            {platformInfo.label}
+                                        </span>
+                                        <a
+                                            href={finalUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onClick={(e) => handleSocialClick(e, link.platform, link.url)}
+                                            className={cn(
+                                                "flex items-center justify-center w-10 h-10 rounded-full border shadow-xl shadow-slate-900/30 dark:shadow-black/70 active:scale-90 transition-all duration-200",
+                                                bgStyle,
+                                                platformInfo.color
+                                            )}
+                                            title={platformInfo.label}
+                                        >
+                                            <IconComponent className="w-5 h-5 shrink-0" />
+                                        </a>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+
+                    {/* Bottom Row containing text and close/toggle button */}
+                    <div className="flex items-center gap-1">
+                        {isSocialFloatingExpanded && (
+                            <span className="text-[10px] font-black tracking-widest bg-white/95 dark:bg-zinc-900/95 px-2 py-1 rounded-full shadow-xl shadow-slate-900/30 dark:shadow-black/70 border border-slate-100 dark:border-zinc-800/80 animate-in fade-in slide-in-from-right-3 duration-250">
+                                Connect with us
+                            </span>
+                        )}
+
+                        {isSocialFloatingExpanded ? (
+                            <button
+                                onClick={() => setIsSocialFloatingExpanded(false)}
+                                className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shadow-xl shadow-slate-900/30 dark:shadow-black/70 text-slate-500 dark:text-zinc-350 hover:text-slate-700 dark:hover:text-white transition-all duration-200 active:scale-90"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        ) : (
+                            <button
+                                onClick={() => setIsSocialFloatingExpanded(true)}
+                                className="relative flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-tr from-orange-500 to-orange-600 dark:from-orange-600 dark:to-orange-500 text-white shadow-lg shadow-orange-500/25 active:scale-90 transition-all duration-200"
+                                style={{ animationDuration: '3s' }}
+                            >
+                                <LinkIcon className="w-5 h-5" />
+                            </button>
+                        )}
                     </div>
                 </div>
             )}

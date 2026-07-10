@@ -189,7 +189,7 @@ async function fetchUserOffersPage({
 
     const normalizedIndustryId = normalizeOptionalQueryValue(industry);
     if (normalizedIndustryId !== undefined) {
-        params.set("industry", normalizedIndustryId);
+        params.set("industryId", normalizedIndustryId);
     }
 
     let response: any;

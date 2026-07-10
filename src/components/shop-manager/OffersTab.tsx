@@ -128,6 +128,20 @@ export function OffersTab({
                                             <div className="text-[9px] font-bold text-orange-500 uppercase tracking-widest leading-none truncate">
                                                 {offer.type ? `${offer.type}` : ''}
                                             </div>
+                                            {(() => {
+                                                if (!offer.validTo) return null;
+                                                const expiryDate = new Date(offer.validTo);
+                                                const today = new Date();
+                                                today.setHours(0, 0, 0, 0);
+                                                if (expiryDate < today) {
+                                                    return (
+                                                        <span className="bg-rose-50 text-rose-600 border border-rose-200 px-0.5 py-0.5 rounded font-bold text-[7px] tracking-wider shrink-0">
+                                                            Expired
+                                                        </span>
+                                                    );
+                                                }
+                                                return null;
+                                            })()}
                                         </div>
 
                                         {(offer.validFrom || offer.validTo || (offer.branches && offer.branches.length > 0) || offer.branchNames || offer.branchName) && (
