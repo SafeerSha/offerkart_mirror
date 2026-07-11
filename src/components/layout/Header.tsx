@@ -962,7 +962,7 @@ const Header = () => {
                                                                 {searchResults.offers.map((o) => (
                                                                     <Link
                                                                         key={o.offerId}
-                                                                        href={`/offer/${o.offerId}`}
+                                                                        href={`/offers?search=${encodeURIComponent(o.offerName)}`}
                                                                         onClick={() => {
                                                                             setSearchOpen(false);
                                                                             setSearchQuery("");
@@ -1131,7 +1131,7 @@ const Header = () => {
                                                                 {searchResults.offers.map((o) => (
                                                                     <Link
                                                                         key={o.offerId}
-                                                                        href={`/offer/${o.offerId}`}
+                                                                        href={`/offers?search=${encodeURIComponent(o.offerName)}`}
                                                                         onClick={() => {
                                                                             setSearchQuery("");
                                                                         }}

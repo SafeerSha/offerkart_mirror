@@ -610,11 +610,20 @@ function HotspotEditorContent() {
                         type: 'marked_poster'
                     };
                     await storage.setItem(storageKey, stack);
+                    // Also update poster_stack_resume as a safety net for PosterCardStack's resume effect
+                    if (isEditFlow) {
+                        await storage.setItem('poster_stack_resume', stack);
+                    }
                     toast.success(isEditFlow ? "Hotspots updated" : "Poster markings updated");
                     
                     if (isEditFlow) {
                         const returnUrl = await storage.getItem<string>('edit_offer_return');
-                        router.push(returnUrl || '/shop-manager');
+                        if (returnUrl) {
+                            const separator = returnUrl.includes('?') ? '&' : '?';
+                            router.push(`${returnUrl}${separator}resume=true&previewIndex=${posterIndex}`);
+                        } else {
+                            router.push('/shop-manager');
+                        }
                     } else {
                         router.push(`/shop-manager/create-offer?resume=true&previewIndex=${posterIndex}`);
                     }
@@ -1057,17 +1066,14 @@ function HotspotEditorContent() {
                                                     <span className="text-xs line-through opacity-40 whitespace-nowrap">{item.currency}{item.oldPrice}</span>
                                                     <span className="text-sm font-bold text-green-600 whitespace-nowrap">{item.currency}{item.offerPrice}</span>
                                                 </div>
-                                                {item.mainCategory && (
+                                                {item.subcategories && item.subcategories.length > 0 && (
                                                     <div className="flex flex-wrap gap-1 mt-1.5 auto-rows-min">
-                                                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-black whitespace-nowrap uppercase">
-                                                            {item.mainCategory}
-                                                        </span>
-                                                        {item.subcategories && item.subcategories.slice(0, 1).map(cat => (
+                                                        {item.subcategories.slice(0, 1).map(cat => (
                                                             <span key={cat} className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/5 text-primary border border-primary/10 font-bold whitespace-nowrap">
                                                                 {cat}
                                                             </span>
                                                         ))}
-                                                        {item.subcategories && item.subcategories.length > 1 && (
+                                                        {item.subcategories.length > 1 && (
                                                             <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border font-bold">
                                                                 +{item.subcategories.length - 1}
                                                             </span>

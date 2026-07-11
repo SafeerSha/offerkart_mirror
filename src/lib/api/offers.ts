@@ -43,6 +43,7 @@ interface UserOfferQuery {
     latitude?: number | null;
     longitude?: number | null;
     industry?: number | string | null;
+    search?: string;
 }
 
 interface PaginatedOffersResult {
@@ -168,6 +169,7 @@ async function fetchUserOffersPage({
     latitude,
     longitude,
     industry,
+    search,
 }: UserOfferQuery = {}, cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">): Promise<PaginatedOffersResult> {
     // Map frontend "popular" sort to upstream "top" sort
     const backendSort = sort === "popular" ? "top" : sort;
@@ -190,6 +192,11 @@ async function fetchUserOffersPage({
     const normalizedIndustryId = normalizeOptionalQueryValue(industry);
     if (normalizedIndustryId !== undefined) {
         params.set("industryId", normalizedIndustryId);
+    }
+
+    const normalizedSearch = normalizeOptionalQueryValue(search);
+    if (normalizedSearch !== undefined) {
+        params.set("search", normalizedSearch);
     }
 
     let response: any;

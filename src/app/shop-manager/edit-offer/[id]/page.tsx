@@ -280,14 +280,46 @@ function EditOfferContent() {
                             return {
                                 id: String(p.id || i),
                                 previewUrl: p.previewUrl || p.posterSrc || p.poster_src || p.imageUrl || p.image_url || p.url,
-                                type: marked.length > 0 ? "marked_poster" : (p.type || "just_post"),
+                                type: (marked.length > 0 || p.type === "marked_poster" || p.type === "mark_products") 
+                                    ? "marked_poster" 
+                                    : "just_post",
                                 markedItems: marked,
                                 file: p.file // retain file if it's a local draft
                             };
                         });
 
-                    console.log("Mapped Posters:", apiPosters);
-                    setPosters(apiPosters);
+                    const isResume = searchParams.get("resume") === "true";
+                    if (isResume) {
+                        try {
+                            const returnUrl = await storage.getItem<string>("edit_offer_return");
+                            const currentEditing = await storage.getItem<any[]>("currentEditingPosters");
+
+                            if (returnUrl && returnUrl.includes(`/shop-manager/edit-offer/${offerId}`) && currentEditing && currentEditing.length > 0) {
+                                const resumeStack = await storage.getItem<any[]>("poster_stack_resume") || [];
+                                const mappedPosters: PosterItem[] = currentEditing.map((p: any) => {
+                                    const matchingResume = resumeStack.find((r: any) => String(r.id) === String(p.id));
+                                    return {
+                                        id: String(p.id),
+                                        previewUrl: p.posterSrc,
+                                        type: (p.type === "marked_poster" || p.type === "mark_products" || (p.markedItems && p.markedItems.length > 0)) ? "marked_poster" : "just_post",
+                                        markedItems: p.markedItems || [],
+                                        file: matchingResume?.file
+                                    };
+                                });
+                                console.log("Loaded Posters from currentEditingPosters:", mappedPosters);
+                                setPosters(mappedPosters);
+                            } else {
+                                console.log("Mapped Posters (Fallback):", apiPosters);
+                                setPosters(apiPosters);
+                            }
+                        } catch (resumeErr) {
+                            console.error("Failed to load resumed posters:", resumeErr);
+                            setPosters(apiPosters);
+                        }
+                    } else {
+                        console.log("Mapped Posters:", apiPosters);
+                        setPosters(apiPosters);
+                    }
                 } else {
                     toast.error("Failed to load offer");
                     router.push("/shop-manager");
@@ -302,7 +334,7 @@ function EditOfferContent() {
             }
         };
         load();
-    }, [offerId, session]);
+    }, [offerId, session, searchParams]);
 
     // ── Load branches ────────────────────────────────────────────────────────
     useEffect(() => {
@@ -459,7 +491,7 @@ function EditOfferContent() {
 
     return (
         <div className="min-h-screen bg-background">
-            <div className="h-40 lg:h-32" />
+            <div className="h-14" />
 
             <main className="w-full relative overflow-hidden bg-background min-h-screen">
                 <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-[500px] h-[500px] bg-primary/5 rounded-full blur-3xl pointer-events-none" />
@@ -482,14 +514,14 @@ function EditOfferContent() {
                         !isEditing && (previewState ? "lg:items-stretch" : "lg:items-start")
                     )}>
                         <div className={cn(
-                            "space-y-6 flex flex-col min-h-0 transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] w-full",
+                            "space-y-1 flex flex-col min-h-0 transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] w-full",
                             isEditing ? "w-full" : previewState ? "lg:flex-1" : "lg:flex-[2]"
                         )}>
                             {!isEditing && (
                                 <div className="space-y-1">
-                                    <Heading className="text-gradient font-bold tracking-tight">
+                                    <Subheading className="text-gradient font-bold tracking-tight">
                                         Edit Offer
-                                    </Heading>
+                                    </Subheading>
                                     <Text className="opacity-50 text-base">
                                         Update posters, adjust tags, and save changes.
                                     </Text>
