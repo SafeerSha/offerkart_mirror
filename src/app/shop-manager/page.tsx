@@ -348,12 +348,12 @@ function DashboardContent() {
     }
 
     return (
-        <main className="min-h-screen pt-24 lg:pt-28 pb-12 bg-[radial-gradient(circle_at_top_right,hsl(var(--color-primary)/0.05)_0%,transparent_50%)]">
+        <main className="min-h-screen pt-20 lg:pt-22 pb-12 bg-[radial-gradient(circle_at_top_right,hsl(var(--color-primary)/0.05)_0%,transparent_50%)]">
             <div className="container mx-auto px-4">
                 <Breadcrumbs items={[{ label: "Shop Dashboard" }]} />
 
                 {/* Header Section */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-6 sm:mb-12">
                     <div>
                         <Heading className="text-3xl md:text-4xl lg:text-5xl mb-3">
                             Welcome <span className="text-gradient">{user?.business_name || "Merchant"}</span>
@@ -412,7 +412,7 @@ function DashboardContent() {
 
                 {/* Quick Stats */}
                 {shops.length > 0 && (
-                    <div className="mb-5">
+                    <div className="mb-2 sm:mb-5">
                         <div className="md:hidden">
                             <div className="flex items-center justify-between mb-3">
                                 <h3 className="text-sm font-semibold text-gray-700">Quick Stats</h3>

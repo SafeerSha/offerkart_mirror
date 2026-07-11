@@ -397,7 +397,7 @@ export const ProductForm = ({
     return (
         <div className="container mx-auto px-4 max-w-6xl">
             {/* Header section with back navigation */}
-            <div className="mb-8 flex items-center justify-between flex-wrap gap-4">
+            <div className=" mb-2 sm:mb-5 flex items-center justify-between flex-wrap gap-4">
                 <div className="space-y-1">
                     <Breadcrumbs
                         items={[
@@ -411,14 +411,14 @@ export const ProductForm = ({
                 <PremiumButton
                     variant="outline"
                     onClick={handleCancelClick}
-                    className="rounded-xl h-10 px-4 flex items-center gap-1.5 border-gray-200 text-gray-650 hover:bg-gray-50 active:scale-95"
+                    className="hidden md:flex rounded-xl h-10 px-4 items-center gap-1 border-gray-200 text-gray-650 hover:bg-gray-50 active:scale-95"
                 >
                     <ArrowLeft className="w-4 h-4" /> Back to List
                 </PremiumButton>
             </div>
 
             {/* Split layout: Form on Left, Live Preview on Right */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-start">
 
                 {/* Form fields */}
                 <form onSubmit={handleFormSubmit} className="lg:col-span-2 space-y-3">
@@ -428,18 +428,16 @@ export const ProductForm = ({
                         <div className="space-y-2">
                             <label className="text-sm font-bold text-gray-700 block pl-1">
                                 Product Image <span className="text-red-500">*</span>
-                            </label>
-
-                            <div
+                            </label>                            <div
                                 onDragOver={handleDragOver}
                                 onDragLeave={handleDragLeave}
                                 onDrop={handleDrop}
-                                onClick={() => !image && fileInputRef.current?.click()}
-                                className={`relative w-full rounded-2xl border-2 border-dashed transition-all duration-300 overflow-hidden flex flex-col items-center justify-center min-h-[220px] ${image
-                                    ? "border-transparent bg-gray-50"
+                                onClick={() => fileInputRef.current?.click()}
+                                className={`relative w-full rounded-2xl border-2 border-dashed transition-all duration-300 overflow-hidden flex flex-col items-center justify-center min-h-[220px] cursor-pointer ${image
+                                    ? "border-transparent bg-gray-55 hover:opacity-90"
                                     : isDragging
                                         ? "border-orange-500 bg-orange-50/30"
-                                        : "border-gray-200 bg-gray-50/30 hover:border-orange-400/50 hover:bg-orange-50/10 cursor-pointer"
+                                        : "border-gray-200 bg-gray-50/30 hover:border-orange-400/50 hover:bg-orange-50/10"
                                     }`}
                             >
                                 {isUploadingImage ? (
@@ -461,7 +459,10 @@ export const ProductForm = ({
                                         <div className="absolute bottom-2 right-2 z-20 flex gap-1.5 lg:bottom-auto lg:right-auto lg:inset-0 lg:bg-black/25 lg:opacity-0 lg:hover:opacity-100 lg:transition-opacity lg:duration-200 lg:flex lg:items-center lg:justify-center lg:gap-3">
                                             <button
                                                 type="button"
-                                                onClick={() => fileInputRef.current?.click()}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    fileInputRef.current?.click();
+                                                }}
                                                 className="bg-white hover:bg-gray-50 text-gray-700 hover:text-gray-900 w-8 h-8 rounded-lg border border-gray-200 shadow-sm transition-all active:scale-95 duration-150 flex items-center justify-center"
                                                 title="Reupload Image"
                                             >
@@ -702,11 +703,8 @@ export const ProductForm = ({
                     <div className="bg-white border border-gray-100 rounded-3xl p-6 shadow-xl shadow-gray-100/50 space-y-5">
                         <div>
                             <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-1">
-                                Live Customer Preview
+                                Live card Preview
                             </h3>
-                            <p className="text-xs text-gray-400 leading-snug">
-                                This card displays in real-time exactly how users will view this product in deals catalog.
-                            </p>
                         </div>
 
                         {/* Consumer Card Mock Container */}
@@ -722,6 +720,7 @@ export const ProductForm = ({
                                     category={category}
                                     subcategory={subcategory}
                                     savingPercentage={savingPercentage}
+                                    clickEnable={false}
                                 />
                             </div>
                         </div>
@@ -862,6 +861,7 @@ export const ProductForm = ({
                                         category={category}
                                         subcategory={subcategory}
                                         savingPercentage={savingPercentage}
+                                        clickEnable={false}
                                     />
                                 </div>
                             </div>

@@ -22,6 +22,7 @@ interface ProductCardProps {
     reviews?: number;
     discount?: string;
     savingPercentage?: number;
+    clickEnable?: boolean;
 }
 
 const ProductCard = ({
@@ -37,6 +38,7 @@ const ProductCard = ({
     reviews = 0,
     discount,
     savingPercentage,
+    clickEnable = true,
 }: ProductCardProps) => {
     const { t } = useTranslation("common");
     const router = useRouter();
@@ -58,10 +60,15 @@ const ProductCard = ({
         <PremiumCard
             variant="default"
             padding="none"
-            className="group cursor-pointer h-full flex flex-col border border-slate-100 dark:border-slate-800/80 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.02)] dark:shadow-none hover:shadow-[0_20px_40px_rgba(249,115,22,0.08)] hover:border-orange-500/20 transition-all duration-500  rounded-t-xl rounded-b-xl !bg-white dark:!bg-[#1c2018]"
-            onClick={() => router.push(`/product/${id}`)}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
+            className={cn(
+                "group h-full flex flex-col border border-slate-100 dark:border-slate-800/80 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.02)] dark:shadow-none transition-all duration-500 rounded-t-xl rounded-b-xl !bg-white dark:!bg-[#1c2018]",
+                clickEnable
+                    ? "cursor-pointer hover:shadow-[0_20px_40px_rgba(249,115,22,0.08)] hover:border-orange-500/20"
+                    : "cursor-default"
+            )}
+            onClick={() => clickEnable && router.push(`/product/${id}`)}
+            onMouseEnter={() => clickEnable && setIsHovered(true)}
+            onMouseLeave={() => clickEnable && setIsHovered(false)}
         >
             {/* Image Container */}
             <div className="relative aspect-square overflow-hidden bg-slate-50 dark:bg-slate-900/10">
@@ -127,14 +134,16 @@ const ProductCard = ({
                 )}
 
                 {/* Action Hover Text */}
-                <div className={cn(
-                    "absolute inset-0 flex items-center justify-center transition-all duration-500 z-10",
-                    isHovered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3 pointer-events-none"
-                )}>
-                    <span className="px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest bg-white/95 dark:bg-slate-900/95 text-orange-600 dark:text-orange-400 shadow-xl backdrop-blur-md border border-white/20 transform hover:scale-105 transition-transform duration-300">
-                        view details
-                    </span>
-                </div>
+                {clickEnable && (
+                    <div className={cn(
+                        "absolute inset-0 flex items-center justify-center transition-all duration-500 z-10",
+                        isHovered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3 pointer-events-none"
+                    )}>
+                        <span className="px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest bg-white/95 dark:bg-slate-900/95 text-orange-600 dark:text-orange-400 shadow-xl backdrop-blur-md border border-white/20 transform hover:scale-105 transition-transform duration-300">
+                            view details
+                        </span>
+                    </div>
+                )}
             </div>
 
             {/* Content Info */}
@@ -151,7 +160,10 @@ const ProductCard = ({
                     </div>
 
                     {/* Product Name */}
-                    <h4 className="text-base font-extrabold text-slate-800 dark:text-slate-100 tracking-tight leading-snug line-clamp-2 group-hover:text-orange-500 transition-colors">
+                    <h4 className={cn(
+                        "text-base font-extrabold text-slate-800 dark:text-slate-100 tracking-tight leading-snug line-clamp-2 transition-colors",
+                        clickEnable && "group-hover:text-orange-500"
+                    )}>
                         {name}
                     </h4>
                 </div>
@@ -180,9 +192,11 @@ const ProductCard = ({
                     </div>
 
                     {/* Sleek action button */}
-                    <div className="w-8 h-8 rounded-xl bg-orange-50 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400 group-hover:bg-orange-500 group-hover:text-white flex items-center justify-center transition-all duration-300 border border-orange-100/30 dark:border-orange-900/30 group-hover:scale-105">
-                        <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-0.5" />
-                    </div>
+                    {clickEnable && (
+                        <div className="w-8 h-8 rounded-xl bg-orange-50 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400 group-hover:bg-orange-500 group-hover:text-white flex items-center justify-center transition-all duration-300 border border-orange-100/30 dark:border-orange-900/30 group-hover:scale-105">
+                            <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-0.5" />
+                        </div>
+                    )}
                 </div>
             </div>
         </PremiumCard>

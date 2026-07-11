@@ -123,7 +123,7 @@ const LocationModal = ({
     };
 
     return (
-        <Dialog open={open} modal={false} onOpenChange={(val) => {
+        <Dialog open={open} modal={true} onOpenChange={(val) => {
             // Only allow closing if a location has already been selected
             if (isLocationSet) {
                 onOpenChange(val);

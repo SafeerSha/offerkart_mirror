@@ -359,19 +359,19 @@ function ShopProductsContent() {
             const matchesStatus = statusFilter === "all"
                 ? !product.isDraft
                 : statusFilter === "active"
-                ? (!product.isDraft && product.status === "active")
-                : statusFilter === "paused"
-                ? (!product.isDraft && product.status === "inactive")
-                : statusFilter === "drafted"
-                ? product.isDraft
-                : true;
+                    ? (!product.isDraft && product.status === "active")
+                    : statusFilter === "paused"
+                        ? (!product.isDraft && product.status === "inactive")
+                        : statusFilter === "drafted"
+                            ? product.isDraft
+                            : true;
 
             return matchesSearch && matchesStatus;
         });
     }, [allProductsList, searchQuery, statusFilter, branchNameMap]);
 
     return (
-        <main className="min-h-screen pt-24 lg:pt-28 pb-12 bg-[radial-gradient(circle_at_top_right,hsl(var(--color-primary)/0.05)_0%,transparent_50%)]">
+        <main className="min-h-screen pt-20 lg:pt-24 pb-12 bg-[radial-gradient(circle_at_top_right,hsl(var(--color-primary)/0.05)_0%,transparent_50%)]">
             <div className="container mx-auto px-4 max-w-6xl">
                 <Breadcrumbs
                     items={[
@@ -557,7 +557,7 @@ function ShopProductsContent() {
                         </div>
 
                         {filteredProducts.length > 0 ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 sm:gap-3">
                                 {filteredProducts.map((product: any) => {
                                     const id = String(product.id);
                                     const productImage = product.image || product.imageUrl;

@@ -228,7 +228,7 @@ export default function OffersClient({
 
     return (
         <div className="min-h-screen bg-gray-50/50">
-            <div className="pt-40 lg:pt-28"></div>
+            <div className="pt-35 lg:pt-22"></div>
 
             <main className="container mx-auto px-4 pt-2 pb-8 lg:py-8">
                 <Breadcrumbs items={[{ label: t("nav.offers") }]} />
