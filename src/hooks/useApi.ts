@@ -186,10 +186,11 @@ export function usePaginatedOffers(page: number = 1, limit: number = 8) {
   });
 }
 
-export function useInfiniteUserOffers(limit: number = 8, filters: any = {}, options: { enabled?: boolean } = {}) {
+export function useInfiniteUserOffers(limit: number = 8, filters: any = {}, options: { enabled?: boolean; initialData?: any } = {}) {
   return useInfiniteQuery({
     queryKey: queryKeys.infiniteUserOffers(filters),
     enabled: options.enabled ?? true,
+    initialData: options.initialData,
     queryFn: async ({ pageParam = 1 }) => {
       const result = await getPaginatedOffers(pageParam as number, limit, filters);
       if (!result.success) throw new Error(result.error || "Failed to load offers");
@@ -209,6 +210,10 @@ export function useCreateOffer() {
     mutationFn: ({ payload, shopId }: { payload: any; shopId: string }) => createOffer(payload, shopId),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.allOffers(variables?.shopId) });
+      // Keep the public, on-demand-ISR offers list fresh without a manual refresh
+      queryClient.invalidateQueries({ queryKey: ["infiniteUserOffers"] });
+      // An offer's validity gates its products' visibility, so refresh the products list too
+      queryClient.invalidateQueries({ queryKey: ["userProductsFiltered"] });
     },
   });
 }
@@ -221,6 +226,8 @@ export function useUpdateOffer() {
     onSuccess: (_, { id, shopId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.allOffers(shopId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.offerDetails(id) });
+      queryClient.invalidateQueries({ queryKey: ["infiniteUserOffers"] });
+      queryClient.invalidateQueries({ queryKey: ["userProductsFiltered"] });
     },
   });
 }
@@ -231,6 +238,8 @@ export function useDeleteOffer() {
     mutationFn: ({ id, shopId, offer }: { id: string; shopId?: string; offer?: any }) => deleteOffer(id, shopId),
     onSuccess: (_, { shopId, offer }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.allOffers(shopId) });
+      queryClient.invalidateQueries({ queryKey: ["infiniteUserOffers"] });
+      queryClient.invalidateQueries({ queryKey: ["userProductsFiltered"] });
       if (offer) {
         cleanupOfferImages(offer).catch(err => console.error("Failed to cleanup offer images:", err));
       }
@@ -270,6 +279,8 @@ export function useToggleOfferStatus() {
     },
     onSettled: (_, __, { shopId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.allOffers(shopId) });
+      queryClient.invalidateQueries({ queryKey: ["infiniteUserOffers"] });
+      queryClient.invalidateQueries({ queryKey: ["userProductsFiltered"] });
     },
   });
 }
@@ -316,10 +327,11 @@ export function useProductDetails(id: string) {
   });
 }
 
-export function useUserProductsFiltered(filters: any, options: { enabled?: boolean } = {}) {
+export function useUserProductsFiltered(filters: any, options: { enabled?: boolean; initialData?: any } = {}) {
   return useQuery({
     queryKey: queryKeys.userProductsFiltered(filters),
     enabled: options.enabled ?? true,
+    initialData: options.initialData,
     queryFn: async () => {
       const res = await getUserProducts(filters);
       if (res && res.success && res.data && res.data.data) {
@@ -337,6 +349,8 @@ export function useCreateProduct() {
     mutationFn: ({ payload, shopId }: { payload: any; shopId?: string }) => createProduct(payload, shopId),
     onSuccess: (_, { shopId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.allProducts(shopId) });
+      // Keep the public, on-demand-ISR products list fresh without a manual refresh
+      queryClient.invalidateQueries({ queryKey: ["userProductsFiltered"] });
     },
   });
 }
@@ -348,6 +362,7 @@ export function useUpdateProduct() {
     onSuccess: (_, { id, shopId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.allProducts(shopId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.productDetails(id) });
+      queryClient.invalidateQueries({ queryKey: ["userProductsFiltered"] });
     },
   });
 }
@@ -358,6 +373,7 @@ export function useDeleteProduct() {
     mutationFn: ({ id, shopId, product }: { id: string; shopId?: string; product?: any }) => deleteProduct(id),
     onSuccess: (_, { shopId, product }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.allProducts(shopId) });
+      queryClient.invalidateQueries({ queryKey: ["userProductsFiltered"] });
       if (product) {
         cleanupProductImages(product).catch(err => console.error("Failed to cleanup product images:", err));
       }
@@ -396,6 +412,7 @@ export function useToggleOfferProductStatus() {
     },
     onSettled: (_, __, { shopId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.allProducts(shopId) });
+      queryClient.invalidateQueries({ queryKey: ["userProductsFiltered"] });
     },
   });
 }

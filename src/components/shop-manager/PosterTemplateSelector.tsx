@@ -22,18 +22,18 @@ export function PosterTemplateSelector({ onSelect, shopName }: PosterTemplateSel
             <div className="space-y-1">
                 <h2 className="text-3xl font-black tracking-tight text-gradient">Choose a Template</h2>
                 <p className="text-muted-foreground text-sm">
-                    {POSTER_TEMPLATES.length} templates available Â· No downloads required
+                    {POSTER_TEMPLATES.length} templates available
                 </p>
             </div>
 
             <div className="relative -mx-4 px-4 sm:mx-0 sm:px-0">
-                <div className="flex overflow-x-auto gap-2 pb-1 scrollbar-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className="flex overflow-x-auto gap-1 pb-1 scrollbar-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     {TEMPLATE_CATEGORIES.map((cat) => (
                         <button
                             key={cat.id}
                             onClick={() => setActiveCategory(cat.id)}
                             className={cn(
-                                "shrink-0 px-4 py-1.5 rounded-full text-sm font-semibold border transition-all duration-200",
+                                "shrink-0 px-5 py-1 rounded-full text-sm font-semibold border transition-all duration-200",
                                 activeCategory === cat.id
                                     ? "bg-primary text-muted-foreground border-primary shadow-md shadow-primary/20"
                                     : "bg-background text-muted-foreground border-border/60 hover:border-primary/40 hover:text-foreground"

@@ -244,7 +244,7 @@ export default function AddShopForm() {
             if (values.longitude) formData.append("longitude", values.longitude.toString());
 
             formData.append("is_active", String(values.isActive));
-            
+
             if (values.industry) {
                 formData.append("industry", values.industry);
             }
@@ -448,7 +448,7 @@ export default function AddShopForm() {
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                <div className="mb-8">
+                <div className="mb-4">
                     <Breadcrumbs
                         items={[
                             { label: "Shop Dashboard", href: "/shop-manager" },
@@ -473,7 +473,7 @@ export default function AddShopForm() {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
                     {/* General Information Section */}
                     <PremiumCard padding="none" className="lg:col-span-8 overflow-hidden">
                         <div className="px-8 py-6 border-b border-gray-100 bg-white">
@@ -488,7 +488,7 @@ export default function AddShopForm() {
                             </div>
                         </div>
 
-                        <div className="p-8 space-y-6 bg-white">
+                        <div className="px-4 pb-4 space-y-1 bg-white">
                             <FormField
                                 control={form.control}
                                 name="shop_name"
@@ -717,7 +717,7 @@ export default function AddShopForm() {
                             </div>
                         </div>
 
-                        <div className="p-8 space-y-6 bg-white">
+                        <div className="px-4 pb-4 space-y-1 bg-white">
                             <FormField
                                 control={form.control}
                                 name="address"

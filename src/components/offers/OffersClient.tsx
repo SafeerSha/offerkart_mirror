@@ -202,19 +202,29 @@ export default function OffersClient({
         longitude: globalLocation.longitude !== null ? globalLocation.longitude : (activeFilters.sort === "nearby" ? userCoordinates?.longitude : undefined),
     };
 
+    const isInitialState = !queryFilters.latitude && !queryFilters.longitude && activeFilters.industry === "All" && activeFilters.sort === "latest" && !activeFilters.search;
+
     const {
         data,
         fetchNextPage,
         hasNextPage,
         isFetching,
         isFetchingNextPage,
-        status,
         error
-    } = useInfiniteUserOffers(8, queryFilters, { enabled: hydrated });
+    } = useInfiniteUserOffers(8, queryFilters, {
+        enabled: hydrated,
+        initialData: (initialOffers.length > 0 && isInitialState)
+            ? {
+                pages: [{ data: initialOffers, page: 1, limit: 8, count: initialOffers.length, hasMore: hasMoreInitial }],
+                pageParams: [1],
+            }
+            : undefined,
+    });
 
     // Flatten pages into a single array
     const offers = data?.pages.flatMap(page => page.data) || initialOffers;
-    const isLoading = status === "pending" && offers.length === 0;
+    // Avoid skeleton flicker when server-rendered initialOffers are already present
+    const isLoading = isFetching && offers.length === 0;
     const hasMore = hasNextPage;
 
     // Infinite Scroll Observer
@@ -236,9 +246,9 @@ export default function OffersClient({
 
     return (
         <div className="min-h-screen bg-gray-50/50">
-            <div className="pt-35 lg:pt-22"></div>
+            <div className="pt-37 lg:pt-22"></div>
 
-            <main className="container mx-auto px-4 pt-2 pb-8 lg:py-8">
+            <main className="container mx-auto px-4 pt-2 pb-24 lg:pb-8">
                 <Breadcrumbs items={[{ label: t("nav.offers") }]} />
 
                 <div className="flex flex-col lg:flex-row gap-10">
@@ -311,8 +321,8 @@ export default function OffersClient({
                                 <DropdownMenu modal={false}>
                                     <DropdownMenuTrigger asChild>
                                         <button className="h-full px-5 flex items-center gap-2 text-gray-800 font-bold hover:text-orange-500 active:scale-95 transition-all outline-none">
-                                            <SlidersHorizontal className="w-3.5 h-3.5 text-orange-500" />
-                                            <span className="text-[11px] font-black uppercase tracking-wider">
+                                            <SlidersHorizontal className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+                                            <span className="text-[11px] font-black uppercase tracking-wider whitespace-nowrap truncate max-w-[100px] sm:max-w-[120px]" title={sortOptions.find(o => o.value === activeFilters.sort)?.label || t("catalog.sortBy")}>
                                                 {sortOptions.find(o => o.value === activeFilters.sort)?.label || t("catalog.sortBy")}
                                             </span>
                                         </button>

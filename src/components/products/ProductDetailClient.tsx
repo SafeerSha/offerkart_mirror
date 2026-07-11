@@ -188,7 +188,7 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
     return (
         <div className="min-h-screen bg-gray-50/50 pb-20">
             {/* Header spacer */}
-            <div className="h-40 lg:h-28" />
+            <div className="h-36 lg:h-28" />
 
             <div className="container mx-auto px-4 py-4 max-w-7xl">
                 <Breadcrumbs
@@ -198,13 +198,13 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                     ]}
                 />
 
-                <div className="mt-6 mb-8 flex items-center justify-between">
+                <div className="mt-3 mb-3 flex items-center justify-between">
                     <Link href="/products" className="inline-flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-orange-600 transition-colors bg-white px-4 py-2 rounded-full border border-gray-100 shadow-sm">
                         <ArrowLeft className="w-4 h-4" />
                         {t("catalog.backToProducts")}
                     </Link>
                     <div className="flex items-center gap-2">
-                        <button
+                        {/* <button
                             onClick={() => setIsFavorite(!isFavorite)}
                             className={`p-3 rounded-full border transition-all ${isFavorite
                                 ? "bg-rose-50 text-rose-500 border-rose-100"
@@ -212,7 +212,7 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                                 } shadow-sm`}
                         >
                             <Heart className={`w-5 h-5 ${isFavorite ? "fill-current" : ""}`} />
-                        </button>
+                        </button> */}
                         <button
                             onClick={() => {
                                 navigator.clipboard.writeText(window.location.href);
@@ -295,7 +295,7 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
 
                     {/* Right: Info */}
                     <div className="lg:col-span-7 space-y-6">
-                        <div className="bg-white p-8 md:p-10 rounded-[2.5rem] border border-gray-100/80 shadow-xl shadow-gray-200/20 space-y-6">
+                        <div className="bg-white p-5 md:p-10 rounded-[2.5rem] border border-gray-100/80 shadow-xl shadow-gray-200/20 space-y-2">
 
                             {/* Shop Header (Outlet Info) - D4D Style */}
                             <div className="flex items-center justify-between pb-4 border-b border-gray-100">
@@ -311,7 +311,7 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
                                         )}
                                     </div>
                                     <div>
-                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Store Outlet</span>
+                                        <span className="text-[10px] font-black text-gray-400 tracking-widest block">Shop name</span>
                                         <span className="text-base font-black text-gray-800 group-hover:text-orange-600 transition-colors flex items-center gap-1">
                                             {product.shopName}
                                         </span>
@@ -443,7 +443,7 @@ export default function ProductDetailClient({ product, similarProducts }: Produc
 
                 {/* Similar items section */}
                 {similarProducts.length > 0 && (
-                    <div className="mt-20 space-y-8">
+                    <div className="mt-10 space-y-8">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
                                 <div className="h-8 w-1.5 bg-orange-500 rounded-full" />

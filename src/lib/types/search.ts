@@ -10,6 +10,8 @@ export interface SearchProductItem {
 export interface SearchOfferItem {
     offerId: number;
     offerName: string;
+    shopName?: string;
+    shopId?: number;
 }
 
 export interface SearchResultData {

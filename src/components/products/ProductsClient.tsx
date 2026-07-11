@@ -181,15 +181,20 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
         longitude: globalLocation.longitude !== null ? globalLocation.longitude : undefined,
     };
 
-    const { data: productsData, isLoading: queryLoading, error, refetch } = useUserProductsFiltered(queryFilters, { enabled: hydrated });
+    const isInitialState = !queryFilters.latitude && !queryFilters.longitude && activeFilters.category === "All" && activeFilters.subcategory.length === 0 && !activeFilters.search && activeFilters.sort === "newest";
+
+    const { data: productsData, isLoading: queryLoading, error, refetch } = useUserProductsFiltered(queryFilters, {
+        enabled: hydrated,
+        initialData: isInitialState ? initialProducts : undefined
+    });
     const filteredProducts = productsData || initialProducts || [];
     const isLoading = queryLoading && filteredProducts.length === 0;
 
     return (
         <div className="min-h-screen bg-gray-50/50">
-            <div className="pt-35 lg:pt-22"></div>
+            <div className="pt-37 lg:pt-22"></div>
 
-            <main className="container mx-auto px-4 pt-2 pb-8 lg:py-8">
+            <main className="container mx-auto px-4 pt-2 pb-24 lg:pb-8">
                 <Breadcrumbs items={[{ label: t("nav.products") }]} />
 
                 <div className="flex flex-col lg:flex-row gap-10">
@@ -258,9 +263,14 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
                                 <DropdownMenu modal={false}>
                                     <DropdownMenuTrigger asChild>
                                         <button className="h-full px-5 flex items-center gap-2 text-gray-800 font-bold hover:text-orange-500 active:scale-95 transition-all outline-none">
-                                            <SlidersHorizontal className="w-3.5 h-3.5 text-orange-500" />
-                                            <span className="text-[11px] font-black uppercase tracking-wider">
-                                                {sortOptions.find(o => o.value === activeFilters.sort)?.label || t("catalog.sortBy")}
+                                            <SlidersHorizontal className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+                                            <span className="text-[11px] font-black uppercase tracking-wider whitespace-nowrap truncate max-w-[100px] sm:max-w-[120px]" title={sortOptions.find(o => o.value === activeFilters.sort)?.label || t("catalog.sortBy")}>
+                                                {(() => {
+                                                    const rawLabel = sortOptions.find(o => o.value === activeFilters.sort)?.label || t("catalog.sortBy");
+                                                    return (activeFilters.sort === "price_asc" || activeFilters.sort === "price_desc")
+                                                        ? rawLabel.replace(/^(Price|വില|मूल्य)\s*:?\s*/i, "₹: ")
+                                                        : rawLabel;
+                                                })()}
                                             </span>
                                         </button>
                                     </DropdownMenuTrigger>

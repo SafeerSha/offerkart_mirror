@@ -48,13 +48,13 @@ export default function FilterableOffers({ initialOffers = [], buttonText }: Fil
     }, [hydrated, hasLocation, dynamicData, initialOffers]);
 
     const filteredOffers = useMemo(() => {
-        let result = displayOffers.map(o => {
+        let result = displayOffers.map((o: Offer) => {
             return { ...o, distanceKm: o.distanceKm ?? null };
         });
 
         // 1. Category Filter
         if (activeCategory !== "All") {
-            result = result.filter(o => {
+            result = result.filter((o: Offer) => {
                 const offerCat = o.category || "";
                 return offerCat.toLowerCase() === activeCategory.toLowerCase();
             });
@@ -62,7 +62,7 @@ export default function FilterableOffers({ initialOffers = [], buttonText }: Fil
 
         // 2. Subcategory Filter
         if (activeSubcategory.length > 0) {
-            result = result.filter(o => {
+            result = result.filter((o: Offer) => {
                 const offerSub = (o as any).subcategory || "";
                 return activeSubcategory.some(sub => sub.toLowerCase() === offerSub.toLowerCase());
             });
@@ -70,21 +70,21 @@ export default function FilterableOffers({ initialOffers = [], buttonText }: Fil
 
         // 3. Sort
         if (userLocation.latitude !== null && userLocation.longitude !== null) {
-            result.sort((a, b) => {
+            result.sort((a: any, b: any) => {
                 const distA = a.distanceKm ?? Infinity;
                 const distB = b.distanceKm ?? Infinity;
                 return distA - distB;
             });
         } else if (activeSort === "popular" || activeSort === "top") {
-            result.sort((a, b) => {
+            result.sort((a: any, b: any) => {
                 const ratingA = (a as any).rating || 0;
                 const ratingB = (b as any).rating || 0;
                 return ratingB - ratingA;
             });
         } else if (activeSort === "discount") {
-            result.sort((a, b) => Number(b.id || b.offerId || 0) - Number(a.id || a.offerId || 0));
+            result.sort((a: any, b: any) => Number(b.id || b.offerId || 0) - Number(a.id || a.offerId || 0));
         } else {
-            result.sort((a, b) => Number(b.id || b.offerId || 0) - Number(a.id || a.offerId || 0));
+            result.sort((a: any, b: any) => Number(b.id || b.offerId || 0) - Number(a.id || a.offerId || 0));
         }
 
         return result;
