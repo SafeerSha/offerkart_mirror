@@ -297,52 +297,55 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 lg:mb-8">
                             <div className="flex items-center gap-4">
                                 <div>
-                                    <h2
-                                        className="text-2xl font-bold text-gray-900 truncate max-w-full"
-                                        title={activeFilters.category === "All" ? t("catalog.allProducts") : activeFilters.category}
-                                    >
-                                        {activeFilters.category === "All" ? t("catalog.allProducts") : activeFilters.category}
-                                    </h2>
-                                    <p className="text-sm text-gray-500 mt-1">
-                                        Showing {filteredProducts.length} products
-                                        {activeFilters.category !== "All" ? ` in ${activeFilters.category}` : " for you"}
-                                    </p>
-                                    <div className="flex flex-wrap items-center gap-2 mt-3">
-                                        {activeFilters.shopId && (
-                                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-orange-50 text-orange-600 border border-orange-100 shadow-sm animate-in fade-in duration-300 max-w-full">
-                                                <span className="truncate" title={`Shop: ${featuredShops.find((s: any) => String(s.id) === String(activeFilters.shopId))?.name || `Shop #${activeFilters.shopId}`}`}>
-                                                    Shop: {featuredShops.find((s: any) => String(s.id) === String(activeFilters.shopId))?.name || `Shop #${activeFilters.shopId}`}
+                                    <div className="flex flex-col gap-0">
+                                        <h2
+                                            className="text-2xl font-bold text-gray-900 truncate max-w-full"
+                                            title={activeFilters.category === "All" ? t("catalog.allProducts") : activeFilters.category}
+                                        >
+                                            {activeFilters.category === "All" ? t("catalog.allProducts") : activeFilters.category + " Products"}
+                                        </h2>
+                                        <div className="flex flex-wrap items-center gap-1">
+                                            {activeFilters.shopId && (
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-50 text-orange-600 border border-orange-100 shadow-sm animate-in fade-in duration-300 max-w-full">
+                                                    <span className="truncate" title={`Shop: ${featuredShops.find((s: any) => String(s.id) === String(activeFilters.shopId))?.name || `Shop #${activeFilters.shopId}`}`}>
+                                                        Shop: {featuredShops.find((s: any) => String(s.id) === String(activeFilters.shopId))?.name || `Shop #${activeFilters.shopId}`}
+                                                    </span>
+                                                    <button
+                                                        onClick={() => {
+                                                            const params = new URLSearchParams(searchParams.toString());
+                                                            params.delete("shopId");
+                                                            router.push(`/products?${params.toString()}`);
+                                                        }}
+                                                        className="shrink-0 w-4 h-4 rounded-full bg-orange-100 hover:bg-orange-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
+                                                        title="Clear shop filter"
+                                                    >
+                                                        ×
+                                                    </button>
                                                 </span>
-                                                <button
-                                                    onClick={() => {
-                                                        const params = new URLSearchParams(searchParams.toString());
-                                                        params.delete("shopId");
-                                                        router.push(`/products?${params.toString()}`);
-                                                    }}
-                                                    className="shrink-0 w-4 h-4 rounded-full bg-orange-100 hover:bg-orange-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
-                                                    title="Clear shop filter"
-                                                >
-                                                    ×
-                                                </button>
-                                            </span>
-                                        )}
-                                        {activeFilters.search && (
-                                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-orange-50 text-orange-600 border border-orange-100 shadow-sm animate-in fade-in duration-300 max-w-full">
-                                                <span className="truncate" title={`Search: "${activeFilters.search}"`}>Search: "{activeFilters.search.length > 30 ? activeFilters.search.substring(0, 30) + '...' : activeFilters.search}"</span>
-                                                <button
-                                                    onClick={() => {
-                                                        const params = new URLSearchParams(searchParams.toString());
-                                                        params.delete("search");
-                                                        router.push(`/products?${params.toString()}`);
-                                                    }}
-                                                    className="shrink-0 w-4 h-4 rounded-full bg-orange-100 hover:bg-orange-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
-                                                    title="Clear search filter"
-                                                >
-                                                    ×
-                                                </button>
-                                            </span>
-                                        )}
+                                            )}
+                                            {activeFilters.search && (
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-50 text-orange-600 border border-orange-100 shadow-sm animate-in fade-in duration-300 max-w-full">
+                                                    <span className="truncate" title={`Search: "${activeFilters.search}"`}>Search: "{activeFilters.search.length > 30 ? activeFilters.search.substring(0, 30) + '...' : activeFilters.search}"</span>
+                                                    <button
+                                                        onClick={() => {
+                                                            const params = new URLSearchParams(searchParams.toString());
+                                                            params.delete("search");
+                                                            router.push(`/products?${params.toString()}`);
+                                                        }}
+                                                        className="shrink-0 w-4 h-4 rounded-full bg-orange-100 hover:bg-orange-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
+                                                        title="Clear search filter"
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
+
+                                    <p className="text-sm text-gray-500 mt-1">
+                                        Showing {filteredProducts.length} products for you
+                                    </p>
+
                                 </div>
                             </div>
                         </div>

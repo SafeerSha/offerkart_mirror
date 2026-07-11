@@ -14,7 +14,7 @@ import {
     EyeOff,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Heading, Text } from "@/components/shared/Typography";
+import { Heading, Subheading, Text } from "@/components/shared/Typography";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -101,10 +101,11 @@ export const PosterCardStack = ({
         }
     }, [posters, phase]);
 
-    // Resume Effect: Load from storage if resume=true
+    // Resume Effect: Load from storage if resume=true (only for create-offer flow, not edit-offer)
+    // When initialPosters are provided by the parent, the parent is the source of truth.
     useEffect(() => {
         const resume = searchParams.get("resume") === "true";
-        if (resume && !hasProcessedInitial) {
+        if (resume && !hasProcessedInitial && !(initialPosters && initialPosters.length > 0)) {
             setHasProcessedInitial(true);
             storage.getItem<PosterItem[]>("poster_stack_resume").then((savedPosters: PosterItem[] | null) => {
                 if (savedPosters && savedPosters.length > 0) {
@@ -125,7 +126,7 @@ export const PosterCardStack = ({
             });
         }
     }, [searchParams, hasProcessedInitial]);
- 
+
     // Handle initialPosters from prop
     useEffect(() => {
         if (initialPosters && initialPosters.length > 0 && !hasProcessedInitial) {
@@ -261,7 +262,7 @@ export const PosterCardStack = ({
         // Start background upload immediately if not already started
         const currentPoster = posters[currentIndex];
         let newUploadPromise = currentPoster.uploadPromise;
-        
+
         if (!newUploadPromise && currentPoster.file) {
             newUploadPromise = s3Api.uploadImage(currentPoster.file).then((res) => {
                 const uploadedUrl = extractS3Url(res);
@@ -539,7 +540,7 @@ export const PosterCardStack = ({
                 {/* Card Stack — visible stacked cards behind */}
                 <div
                     className="relative w-full max-w-sm mx-auto"
-                    // style={{ paddingBottom: `${Math.min(behindCards.length, 3) * 14 + 8}px` }}
+                // style={{ paddingBottom: `${Math.min(behindCards.length, 3) * 14 + 8}px` }}
                 >
                     {behindCards.map((poster, i) => {
                         const offset = (i + 1) * 14;
@@ -711,7 +712,7 @@ export const PosterCardStack = ({
                                             unoptimized
                                             className="object-cover"
                                         />
-                                        
+
                                         {/* Hotspot Overlays */}
                                         {poster.markedItems && poster.markedItems.map((item) => (
                                             <div
@@ -791,9 +792,9 @@ export const PosterCardStack = ({
                 {/* <div className="w-12 h-12 rounded-full gradient-primary flex items-center justify-center shadow-lg shadow-primary/20 animate-in zoom-in duration-500">
                     <Check className="w-6 h-6 text-white" />
                 </div> */}
-                <Heading className="text-gradient">
+                <Subheading className="text-gradient">
                     {posters.length} Poster{posters.length !== 1 ? 's' : ''} Ready!
-                </Heading>
+                </Subheading>
                 <p className="opacity-50 text-sm max-w-xs">
                     Review the summary below, or add more posters.
                 </p>
@@ -801,17 +802,6 @@ export const PosterCardStack = ({
 
             {/* Summary cards */}
             <div className="flex flex-wrap items-center gap-3 justify-center w-full max-w-sm">
-                {justPostPosters.length > 0 && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-muted/30 border border-border/50 mt-2">
-                        <div className="w-6 h-6 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                            <ImageIcon className="w-3.5 h-3.5 text-muted-foreground" />
-                        </div>
-                        <div className="flex items-baseline gap-1.5">
-                            <span className="text-sm font-black">{justPostPosters.length}</span>
-                            <span className="text-[10px] opacity-40 uppercase tracking-widest whitespace-nowrap">Just Post</span>
-                        </div>
-                    </div>
-                )}
                 {markPosters.length > 0 && (
                     <div className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-primary/5 border border-primary/20">
                         <div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
@@ -820,6 +810,18 @@ export const PosterCardStack = ({
                         <div className="flex items-baseline gap-1.5 text-primary">
                             <span className="text-sm font-black">{markPosters.length}</span>
                             <span className="text-[10px] font-bold opacity-60 uppercase tracking-widest whitespace-nowrap">Marked</span>
+                        </div>
+                    </div>
+                )}
+
+                {justPostPosters.length > 0 && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-primary/5 border border-primary/20">
+                        <div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                            <ImageIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                        </div>
+                        <div className="flex items-baseline gap-1.5 text-primary">
+                            <span className="text-sm font-black">{justPostPosters.length}</span>
+                            <span className="text-[10px] font-bold opacity-60 uppercase tracking-widest whitespace-nowrap">Just Post</span>
                         </div>
                     </div>
                 )}

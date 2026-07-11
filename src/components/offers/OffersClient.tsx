@@ -59,6 +59,7 @@ export default function OffersClient({
 
     const initialShopId = searchParams.get("shopId") || undefined;
     const initialSort = searchParams.get("sort") || "latest";
+    const initialSearch = searchParams.get("search") || undefined;
 
     const featuredShops: any[] = initialFeaturedShops || [];
     const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
@@ -68,17 +69,20 @@ export default function OffersClient({
         industry: string;
         sort: string;
         shopId?: string;
+        search?: string;
     }>({
         industry: "All",
         sort: initialSort,
-        shopId: initialShopId || undefined
+        shopId: initialShopId || undefined,
+        search: initialSearch
     });
 
-    // Sync industry, sort, and shopId from URL if they change
+    // Sync industry, sort, shopId, and search from URL if they change
     useEffect(() => {
         const industryIdParam = searchParams.get("industryId");
         const shopId = searchParams.get("shopId") || undefined;
         const sortParam = searchParams.get("sort") || "latest";
+        const search = searchParams.get("search") || undefined;
 
         let resolvedIndustryName = "All";
         if (industryIdParam && industryIdParam !== "All") {
@@ -99,14 +103,16 @@ export default function OffersClient({
             const isIndustrySame = prev.industry === finalIndustry;
             const isShopIdSame = prev.shopId === shopId;
             const isSortSame = prev.sort === sortParam;
+            const isSearchSame = prev.search === search;
 
-            if (isIndustrySame && isShopIdSame && isSortSame) {
+            if (isIndustrySame && isShopIdSame && isSortSame && isSearchSame) {
                 return prev;
             }
             return {
                 industry: finalIndustry,
                 shopId: shopId,
-                sort: sortParam
+                sort: sortParam,
+                search: search
             };
         });
     }, [searchParams, industries]);
@@ -140,6 +146,7 @@ export default function OffersClient({
         const params = new URLSearchParams(searchParams.toString());
         params.delete("industryId");
         params.delete("sort");
+        params.delete("search");
         router.push(`/offers?${params.toString()}`);
     }, [router, searchParams]);
 
@@ -190,6 +197,7 @@ export default function OffersClient({
         sort: activeFilters.sort,
         shopId: activeFilters.shopId,
         industry: activeIndustryId,
+        search: activeFilters.search,
         latitude: globalLocation.latitude !== null ? globalLocation.latitude : (activeFilters.sort === "nearby" ? userCoordinates?.latitude : undefined),
         longitude: globalLocation.longitude !== null ? globalLocation.longitude : (activeFilters.sort === "nearby" ? userCoordinates?.longitude : undefined),
     };
@@ -341,45 +349,58 @@ export default function OffersClient({
 
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 lg:mb-8">
                             <div>
-                                <div className="flex items-center gap-2 mb-2">
-                                    {activeFilters.industry !== "All" && (
-                                        <div className="flex items-center gap-2 text-xs font-medium text-gray-400">
-                                            <span>/</span>
-                                            <span className="text-gray-900">{activeFilters.industry}</span>
-                                        </div>
-                                    )}
+                                <div className="flex flex-col gap-0">
+                                    <h3
+                                        className="text-2xl font-bold text-gray-900 truncate max-w-full"
+                                        title={activeFilters.industry === "All" ? t("catalog.allOffers") : activeFilters.industry}
+                                    >
+                                        {activeFilters.industry === "All" ? t("catalog.allOffers") : activeFilters.industry + " Offers"}
+                                    </h3>
+                                    <div className="flex flex-wrap items-center gap-1">
+                                        {activeFilters.shopId && (
+                                            <div className="flex flex-wrap items-center gap-3">
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-50 text-orange-600 border border-orange-100 shadow-sm animate-in fade-in duration-300 max-w-full">
+                                                    <span className="truncate" title={`Shop: ${featuredShops.find((s: any) => String(s.id) === String(activeFilters.shopId))?.name || `Shop #${activeFilters.shopId}`}`}>
+                                                        Shop: {featuredShops.find((s: any) => String(s.id) === String(activeFilters.shopId))?.name || `Shop #${activeFilters.shopId}`}
+                                                    </span>
+                                                    <button
+                                                        onClick={() => {
+                                                            const params = new URLSearchParams(searchParams.toString());
+                                                            params.delete("shopId");
+                                                            router.push(`/offers?${params.toString()}`);
+                                                        }}
+                                                        className="shrink-0 w-4 h-4 rounded-full bg-orange-100 hover:bg-orange-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
+                                                        title="Clear shop filter"
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </span>
+                                            </div>
+                                        )}
+                                        {activeFilters.search && (
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-50 text-orange-600 border border-orange-100 shadow-sm animate-in fade-in duration-300 max-w-full">
+                                                <span className="truncate" title={`Search: "${activeFilters.search}"`}>Search: "{activeFilters.search.length > 30 ? activeFilters.search.substring(0, 30) + '...' : activeFilters.search}"</span>
+                                                <button
+                                                    onClick={() => {
+                                                        const params = new URLSearchParams(searchParams.toString());
+                                                        params.delete("search");
+                                                        router.push(`/offers?${params.toString()}`);
+                                                    }}
+                                                    className="shrink-0 w-4 h-4 rounded-full bg-orange-100 hover:bg-orange-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
+                                                    title="Clear search filter"
+                                                >
+                                                    ×
+                                                </button>
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
-                                <h3 
-                                    className="text-2xl font-bold text-gray-900 truncate max-w-full"
-                                    title={activeFilters.industry === "All" ? t("catalog.allOffers") : activeFilters.industry}
-                                >
-                                    {activeFilters.industry === "All" ? t("catalog.allOffers") : activeFilters.industry}
-                                </h3>
                                 <p className="text-gray-500 text-sm mt-1">
                                     {t("catalog.showingVerifiedDeals").replace("{count}", offers.length.toString())}
-                                    {activeFilters.industry !== "All" ? ` in ${activeFilters.industry}` : ` ${t("catalog.forYou")}`}
+                                    {` ${t("catalog.forYou")}`}
                                 </p>
 
-                                {activeFilters.shopId && (
-                                    <div className="flex flex-wrap items-center gap-2 mt-3">
-                                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-orange-50 text-orange-600 border border-orange-100 shadow-sm animate-in fade-in duration-300 max-w-full">
-                                            <span className="truncate" title={`Shop: ${featuredShops.find((s: any) => String(s.id) === String(activeFilters.shopId))?.name || `Shop #${activeFilters.shopId}`}`}>
-                                                Shop: {featuredShops.find((s: any) => String(s.id) === String(activeFilters.shopId))?.name || `Shop #${activeFilters.shopId}`}
-                                            </span>
-                                            <button
-                                                onClick={() => {
-                                                    const params = new URLSearchParams(searchParams.toString());
-                                                    params.delete("shopId");
-                                                    router.push(`/offers?${params.toString()}`);
-                                                }}
-                                                className="shrink-0 w-4 h-4 rounded-full bg-orange-100 hover:bg-orange-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
-                                                title="Clear shop filter"
-                                            >
-                                                ×
-                                            </button>
-                                        </span>
-                                    </div>
-                                )}
+
                             </div>
                         </div>
 

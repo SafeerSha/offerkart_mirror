@@ -101,8 +101,8 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
 
     const activeCategoryId = formData.mainCategory ? getCategoryId(formData.mainCategory) : null;
     const { data: subcategoriesRes, isLoading: isLoadingSubcategories } = useSubcategories(activeCategoryId);
-    const dynamicSubcategories = subcategoriesRes?.success && subcategoriesRes.data 
-        ? subcategoriesRes.data 
+    const dynamicSubcategories = subcategoriesRes?.success && subcategoriesRes.data
+        ? subcategoriesRes.data
         : [];
 
     const [posterData, setPosterData] = useState<PosterData>({
@@ -647,7 +647,7 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                         </PremiumCard>
 
                     </div>
-                    <div className="w-full xl:w-96 space-y-6 px-4 sm:px-0">
+                    <div className="w-full xl:w-96 space-y-6 px-2 sm:px-0">
                         <PremiumCard className="p-6">
                             <div className="flex items-center justify-between mb-6">
                                 <div className="flex items-center gap-2">
@@ -696,17 +696,14 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                                                     <span className="text-xs line-through opacity-40 whitespace-nowrap">{item.currency}{item.oldPrice}</span>
                                                     <span className="text-sm font-bold text-green-600 whitespace-nowrap">{item.currency}{item.offerPrice}</span>
                                                 </div>
-                                                {item.mainCategory && (
+                                                {item.subcategories && item.subcategories.length > 0 && (
                                                     <div className="flex flex-wrap gap-1 mt-1.5 auto-rows-min">
-                                                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-black whitespace-nowrap uppercase">
-                                                            {item.mainCategory}
-                                                        </span>
-                                                        {item.subcategories && item.subcategories.slice(0, 1).map(cat => (
+                                                        {item.subcategories.slice(0, 1).map(cat => (
                                                             <span key={cat} className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/5 text-primary border border-primary/10 font-bold whitespace-nowrap">
                                                                 {cat}
                                                             </span>
                                                         ))}
-                                                        {item.subcategories && item.subcategories.length > 1 && (
+                                                        {item.subcategories.length > 1 && (
                                                             <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border font-bold">
                                                                 +{item.subcategories.length - 1}
                                                             </span>
