@@ -370,7 +370,7 @@ function ShopOffersContent() {
     }, [allOffersList, searchQuery, statusFilter]);
 
     return (
-        <main className="min-h-screen pt-24 lg:pt-28 pb-12 bg-[radial-gradient(circle_at_top_right,hsl(var(--color-primary)/0.05)_0%,transparent_50%)]">
+        <main className="min-h-screen pt-20 lg:pt-24 pb-12 bg-[radial-gradient(circle_at_top_right,hsl(var(--color-primary)/0.05)_0%,transparent_50%)]">
             <div className="container mx-auto px-4 max-w-6xl">
                 <Breadcrumbs
                     items={[
@@ -378,7 +378,6 @@ function ShopOffersContent() {
                         { label: "Manage Offers" }
                     ]}
                 />
-
 
                 <div className="mb-5 mt-4 p-1.5 rounded-xl border border-gray-100 bg-white/50 backdrop-blur-sm flex flex-col sm:flex-row gap-2.5 sm:items-center sm:justify-between shadow-sm">
                     <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center flex-1 max-w-2xl">
@@ -558,7 +557,7 @@ function ShopOffersContent() {
                         </div>
 
                         {filteredOffers.length > 0 ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 sm:gap-3">
                                 {filteredOffers.map((offer: any, idx: number) => {
                                     const id = String(offer.offerId || offer.id || offer.batchId || idx);
                                     const offerImage = offer.posters?.[0]?.posterSrc || offer.posterSrc;

@@ -167,14 +167,14 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
           {/* Mobile swipe hint (Top Right Above Section) */}
           {showNav && (
             <div className={cn("flex justify-end lg:hidden mb-1.5", variant === "minimal" ? "pr-2" : "hidden")}>
-              <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest flex items-center gap-1">
+              <span className="text-[10px] text-gray-500 font-bold tracking-widest flex items-center gap-1">
                 Swipe for more <ChevronRight className="w-3 h-3 -ml-0.5 text-primary/70" />
               </span>
             </div>
           )}
 
           <div className={cn(
-            "relative z-20 border border-orange-500/25 bg-orange-500/[0.02] rounded-3xl shadow-sm",
+            "relative z-20 border border-orange-500/25 bg-orange-500/[0.02] rounded-2xl shadow-sm",
             variant === "minimal" ? "shadow-[0_2px_12px_rgba(249,115,22,0.04)] border-orange-500/30" : "border-orange-500/20"
           )}>
             {/* Fading gradients */}
@@ -216,8 +216,8 @@ const FeaturedOffers = ({ offers, variant = "full", activeShopId }: FeaturedOffe
                   ref={scrollRef}
                   onScroll={checkScroll}
                   className={cn(
-                    "flex gap-1.5 overflow-x-auto scrollbar-hide snap-x snap-mandatory scroll-smooth relative",
-                    variant === "full" ? "pt-3 pb-8 px-3" : "pt-3 pb-8 px-3"
+                    "flex gap-1 overflow-x-auto scrollbar-hide snap-x snap-mandatory scroll-smooth relative",
+                    variant === "full" ? "pt-2 pb-8 px-3" : "pt-2 pb-8 px-3"
                   )}
                 >
                   {displayOffers.map((offer) => {

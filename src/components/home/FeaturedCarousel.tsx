@@ -105,7 +105,7 @@ const FeaturedCarousel = ({ shops = [] }: FeaturedCarouselProps) => {
               <Zap className="w-6 h-6 text-primary" />
             </div>
             <div>
-              <Subheading className="text-3xl font-bold mb-0">
+              <Subheading className="sm:text-3xl font-bold mb-0">
                 {t("featuredOffers.title")}
               </Subheading>
               <Text className="text-sm mt-1">{t("featuredOffers.subtitle")}</Text>

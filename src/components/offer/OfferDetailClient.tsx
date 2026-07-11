@@ -352,10 +352,10 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
             </div>
 
             {/* Hero Spacer */}
-            <div className="h-40 lg:h-36" />
+            <div className="h-34 lg:h-36" />
 
             {/* Breadcrumbs Row */}
-            <div className="container mx-auto px-4 py-4">
+            <div className="container mx-auto px-4 pt-4">
                 <Breadcrumbs items={breadcrumbItems} />
             </div>
 
@@ -443,8 +443,8 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
                                 </div>
 
                                 <div className="flex flex-row items-center justify-between gap-2 text-[10px]">
-                                    <div className="flex flex-col items-start font-medium">
-                                        <span className="md:hidden text-orange-500 font-bold">Published by</span>
+                                    <div className="flex flex-row items-center gap-1 font-medium">
+                                        <Store className="w-3.5 h-3.5 text-orange-500 shrink-0 md:hidden" />
                                         <Link
                                             href={`/offers?shopId=${offer.shopId || ""}`}
                                             className="md:hidden font-bold font-black hover:underline text-xs"
@@ -732,7 +732,10 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
 
                         {isSocialFloatingExpanded ? (
                             <button
-                                onClick={() => setIsSocialFloatingExpanded(false)}
+                                onClick={() => {
+                                    setIsSocialFloatingExpanded(false);
+                                    setPreviewModalOpen(false);
+                                }}
                                 className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shadow-xl shadow-slate-900/30 dark:shadow-black/70 text-slate-500 dark:text-zinc-350 hover:text-slate-700 dark:hover:text-white transition-all duration-200 active:scale-90"
                             >
                                 <X className="w-5 h-5" />
