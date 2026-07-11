@@ -124,34 +124,44 @@ async function handleProxy(request: NextRequest, context: { params: Promise<{ pa
         responseHeaders.set("content-type", responseContentType);
     }
 
-    // Automate dynamic on-demand ISR revalidations on successful merchant mutations
-    if (upstreamResponse.ok && ["POST", "PUT", "PATCH", "DELETE"].includes(request.method.toUpperCase())) {
-        try {
-            const { revalidateTag } = await import("next/cache");
-            
-            if (upstreamPath.startsWith("business/product") || upstreamPath.startsWith("business/offerproduct")) {
-                revalidateTag(CACHE_TAGS.PRODUCTS, "max");
+            // Automate dynamic on-demand ISR revalidations on successful merchant mutations
+            if (upstreamResponse.ok && ["POST", "PUT", "PATCH", "DELETE"].includes(request.method.toUpperCase())) {
+                try {
+                    const { revalidateTag, revalidatePath } = await import("next/cache");
+                    
+                    if (upstreamPath.startsWith("business/product") || upstreamPath.startsWith("business/offerproduct")) {
+                        revalidateTag(CACHE_TAGS.PRODUCTS, "max");
+                        // Belt-and-suspenders: also purge the public list/detail routes directly
+                        revalidatePath("/products");
+                        revalidatePath("/");
 
-                const id = extractEntityId(upstreamPath);
-                if (id) {
-                    revalidateTag(CACHE_TAGS.PRODUCT(id), "max");
-                }
-            } else if (upstreamPath.startsWith("business/offer")) {
-                revalidateTag(CACHE_TAGS.HOME, "max");
-                revalidateTag(CACHE_TAGS.OFFERS, "max");
+                        const id = extractEntityId(upstreamPath);
+                        if (id) {
+                            revalidateTag(CACHE_TAGS.PRODUCT(id), "max");
+                        }
+                    } else if (upstreamPath.startsWith("business/offer")) {
+                        revalidateTag(CACHE_TAGS.HOME, "max");
+                        revalidateTag(CACHE_TAGS.OFFERS, "max");
+                        // An offer's validity gates its products' visibility, so also purge products
+                        revalidateTag(CACHE_TAGS.PRODUCTS, "max");
+                        // Belt-and-suspenders: also purge the public list/detail routes directly
+                        revalidatePath("/offers");
+                        revalidatePath("/products");
+                        revalidatePath("/");
 
-                const id = extractEntityId(upstreamPath);
-                if (id) {
-                    revalidateTag(CACHE_TAGS.OFFER(id), "max");
+                        const id = extractEntityId(upstreamPath);
+                        if (id) {
+                            revalidateTag(CACHE_TAGS.OFFER(id), "max");
+                        }
+                    } else if (upstreamPath.startsWith("business/shop")) {
+                        revalidateTag(CACHE_TAGS.HOME, "max");
+                        revalidateTag(CACHE_TAGS.SHOPS, "max");
+                        revalidatePath("/");
+                    }
+                } catch (revalError) {
+                    console.error("Dynamic tag revalidation failed inside proxy:", revalError);
                 }
-            } else if (upstreamPath.startsWith("business/shop")) {
-                revalidateTag(CACHE_TAGS.HOME, "max");
-                revalidateTag(CACHE_TAGS.SHOPS, "max");
             }
-        } catch (revalError) {
-            console.error("Dynamic tag revalidation failed inside proxy:", revalError);
-        }
-    }
 
     return new NextResponse(upstreamResponse.body, {
         status: upstreamResponse.status,

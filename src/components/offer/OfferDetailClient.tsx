@@ -186,6 +186,98 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
     const [previewEmbedUrl, setPreviewEmbedUrl] = useState("");
     const [previewAspectClass, setPreviewAspectClass] = useState("");
 
+    // --- Floating social widget drag state (place anywhere on screen) ---
+    const fabRef = useRef<HTMLDivElement>(null);
+    const fabDragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
+    const fabDragMovedRef = useRef(false);
+    const [fabPos, setFabPos] = useState<{ x: number; y: number } | null>(null);
+    const [fabDragging, setFabDragging] = useState(false);
+
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem("offerSocialFabPos");
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (typeof parsed.x === "number" && typeof parsed.y === "number") {
+                    setFabPos(parsed);
+                }
+            }
+        } catch { /* ignore */ }
+    }, []);
+
+    const handleFabPointerDown = (e: React.PointerEvent) => {
+        const el = fabRef.current;
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        
+        // Clear bottom and right styles immediately to allow unconstrained left/top tracking
+        el.style.bottom = "auto";
+        el.style.right = "auto";
+        el.style.left = `${rect.left}px`;
+        el.style.top = `${rect.top}px`;
+
+        fabDragRef.current = {
+            startX: e.clientX,
+            startY: e.clientY,
+            origX: rect.left,
+            origY: rect.top,
+        };
+        fabDragMovedRef.current = false;
+        setFabDragging(true);
+        (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    };
+
+    const handleFabPointerMove = (e: React.PointerEvent) => {
+        if (!fabDragging || !fabDragRef.current || !fabRef.current) return;
+        const dx = e.clientX - fabDragRef.current.startX;
+        const dy = e.clientY - fabDragRef.current.startY;
+        if (Math.abs(dx) > 4 || Math.abs(dy) > 4) fabDragMovedRef.current = true;
+        const w = fabRef.current.offsetWidth;
+        const h = fabRef.current.offsetHeight;
+        const nx = Math.max(0, Math.min(fabDragRef.current.origX + dx, window.innerWidth - w));
+        const ny = Math.max(0, Math.min(fabDragRef.current.origY + dy, window.innerHeight - h));
+        
+        // Direct DOM manipulation for buttery smooth dragging without React re-renders
+        fabRef.current.style.left = `${nx}px`;
+        fabRef.current.style.top = `${ny}px`;
+    };
+
+    const handleFabPointerUp = (e: React.PointerEvent) => {
+        if (!fabDragging || !fabDragRef.current || !fabRef.current) return;
+        const dx = e.clientX - fabDragRef.current.startX;
+        const dy = e.clientY - fabDragRef.current.startY;
+        const w = fabRef.current.offsetWidth;
+        const h = fabRef.current.offsetHeight;
+        const nx = Math.max(0, Math.min(fabDragRef.current.origX + dx, window.innerWidth - w));
+        const ny = Math.max(0, Math.min(fabDragRef.current.origY + dy, window.innerHeight - h));
+
+        // Sync final position to state on drag release
+        setFabPos({ x: nx, y: ny });
+        setFabDragging(false);
+        fabDragRef.current = null;
+        (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+        try {
+            localStorage.setItem("offerSocialFabPos", JSON.stringify({ x: nx, y: ny }));
+        } catch { /* ignore */ }
+    };
+
+    const handleFabClick = () => {
+        // Ignore the click that ends a drag gesture
+        if (fabDragMovedRef.current) return;
+        if (isSocialFloatingExpanded) {
+            setIsSocialFloatingExpanded(false);
+            setPreviewModalOpen(false);
+        } else {
+            setIsSocialFloatingExpanded(true);
+        }
+    };
+
+    // Decide which screen edge the widget sits on so the panel opens the correct way.
+    // Button is w-10 (40px); compare its center to the viewport midpoint.
+    const fabSide: "left" | "right" = (typeof window !== "undefined" && fabPos)
+        ? (fabPos.x + 20 < window.innerWidth / 2 ? "left" : "right")
+        : "right";
+
     const handleSocialClick = useCallback((e: React.MouseEvent<HTMLAnchorElement>, platform: string, rawUrl: string) => {
         let finalUrl = rawUrl;
         if (platform.toUpperCase() === "WHATSAPP" && !finalUrl.startsWith("http") && /^\d+$/.test(finalUrl.replace(/\D/g, ""))) {
@@ -360,7 +452,7 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
             </div>
 
             {/* Main Content Layout with Sticky Right Sidebar */}
-            <div className="container mx-auto px-4 pb-6 lg:pb-16 flex flex-col lg:flex-row gap-8 items-start">
+            <div className="container mx-auto px-4 pb-0 lg:pb-16 flex flex-col lg:flex-row gap-0 items-start">
                 {/* Left side: Poster navigator and similar offers */}
                 <div className="flex-1 w-full lg:max-w-4xl mx-auto">
                     {/* Main Poster Section */}
@@ -503,7 +595,7 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
                 </div>
 
                 {/* Right side: Shop info (sticky on desktop) */}
-                <div className="hidden lg:flex lg:flex-col lg:w-64 shrink-0 sticky top-36 self-start text-right items-end">
+                <div className="hidden lg:flex lg:flex-col lg:w-54 shrink-0 sticky top-36 self-start text-right items-end">
                     <span className="text-xs font-bold text-orange-500 tracking-widest leading-none">Published By</span>
                     <div className="flex items-baseline gap-2 mt-1.5 mb-1">
                         <Link
@@ -517,7 +609,11 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
                     {/* Social Media Links under it stacked vertically with labels */}
                     {activeSocialLinks.length > 0 && (
                         <div className="flex flex-col gap-2 mt-2 items-end">
-                            <span className="text-[9px] font-black text-slate-400 dark:text-zinc-500 tracking-widest leading-none mb-1 block">Connect With Us</span>
+                            <div className="flex items-start gap-1 font-bold text-orange-500">
+                                <span className="text-xs font-bold text-orange-500 tracking-widest leading-none mb-1 block">View on Social Media</span>
+                                {/* <LinkIcon className="w-3 h-3" /> */}
+                            </div>
+
                             {activeSocialLinks.map((link) => {
                                 const platformInfo = SOCIAL_PLATFORMS[link.platform.toUpperCase()] || {
                                     label: link.platform,
@@ -542,7 +638,7 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
                                         rel="noopener noreferrer"
                                         onClick={(e) => handleSocialClick(e, link.platform, link.url)}
                                         className={cn(
-                                            "group flex items-center gap-2 px-4 py-2 rounded-xl hover:bg-slate-100/70 dark:hover:bg-zinc-900/75 hover:shadow-md hover:shadow-orange-500/5 transition-all active:scale-95 duration-300 relative overflow-hidden",
+                                            "group flex items-center gap-2 py-2 rounded-xl hover:bg-slate-100/70 dark:hover:bg-zinc-900/75 hover:shadow-md hover:shadow-orange-500/5 transition-all active:scale-95 duration-300 relative overflow-hidden",
                                             platformInfo.color
                                         )}
                                     >
@@ -559,7 +655,7 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
 
             {/* Similar Offers Carousel (Outside grid, spans full page width) */}
             <div className="container mx-auto px-4 pb-16">
-                <div className="mt-10">
+                <div>
                     <div className="flex items-center justify-between mb-6">
                         <Subheading className="text-2xl font-bold">{t("catalog.similarOffers")}</Subheading>
                         <div className="flex items-center gap-2">
@@ -669,11 +765,28 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
                 </div>
             )}
 
-            {/* Mobile Floating Social Toggle Widget */}
+            {/* Mobile Floating Social Toggle Widget (draggable, position persisted) */}
             {activeSocialLinks.length > 0 && (
-                <div className="fixed bottom-11 right-1 z-[60] flex flex-col items-end gap-1 md:hidden">
+                <div
+                    ref={fabRef}
+                    className={cn(
+                        "fixed z-[60] w-10 h-10 md:hidden",
+                        fabDragging ? "cursor-grabbing" : "cursor-grab"
+                    )}
+                    style={
+                        fabPos
+                            ? { left: `${fabPos.x}px`, top: `${fabPos.y}px`, right: "auto", bottom: "auto" }
+                            : { bottom: "2.75rem", right: "0.75rem" }
+                    }
+                >
+                    {/* Expanded social panel: anchored to the button, grows outward by side */}
                     {isSocialFloatingExpanded && (
-                        <div className="flex flex-col gap-1 mb-1 animate-in fade-in slide-in-from-bottom-3 duration-300">
+                        <div
+                            className={cn(
+                                "absolute bottom-full mb-1 flex flex-col gap-1",
+                                fabSide === "left" ? "left-0 items-start" : "right-0 items-end"
+                            )}
+                        >
                             {activeSocialLinks.map((link) => {
                                 const platformInfo = SOCIAL_PLATFORMS[link.platform.toUpperCase()] || {
                                     label: link.platform,
@@ -698,10 +811,7 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
                                 if (link.platform.toUpperCase() === PLATFORMS.FACEBOOK) bgStyle = "bg-blue-50 dark:bg-blue-950/20 border-blue-100/50 dark:border-blue-900/30";
 
                                 return (
-                                    <div key={link.platform} className="flex items-center gap-1 justify-end animate-in fade-in slide-in-from-right-2 duration-200">
-                                        <span className="text-[9px] font-black tracking-widest bg-white/95 dark:bg-zinc-900/95 px-2 py-1 rounded-full shadow-xl shadow-slate-900/30 dark:shadow-black/70 border border-slate-100">
-                                            {platformInfo.label}
-                                        </span>
+                                    <div key={link.platform} className={cn("flex items-center gap-2 animate-in fade-in duration-200", fabSide === "left" ? "flex-row justify-start slide-in-from-left-2" : "flex-row-reverse justify-end slide-in-from-right-2")}>
                                         <a
                                             href={finalUrl}
                                             target="_blank"
@@ -716,40 +826,52 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
                                         >
                                             <IconComponent className="w-5 h-5 shrink-0" />
                                         </a>
+                                        <span className="text-[9px] font-black tracking-widest bg-white/95 dark:bg-zinc-900/95 px-2 py-1 rounded-full shadow-xl shadow-slate-900/30 dark:shadow-black/70 border border-slate-100 whitespace-nowrap">
+                                            {platformInfo.label}
+                                        </span>
                                     </div>
                                 );
                             })}
                         </div>
                     )}
 
-                    {/* Bottom Row containing text and close/toggle button */}
-                    <div className="flex items-center gap-1">
-                        {isSocialFloatingExpanded && (
-                            <span className="text-[10px] font-black tracking-widest bg-white/95 dark:bg-zinc-900/95 px-2 py-1 rounded-full shadow-xl shadow-slate-900/30 dark:shadow-black/70 border border-slate-100 dark:border-zinc-800/80 animate-in fade-in slide-in-from-right-3 duration-250">
-                                Connect with us
+                    {/* "View on Social Media" label: anchored outward from the button when expanded */}
+                    {isSocialFloatingExpanded && (
+                        <div
+                            className={cn(
+                                "absolute bottom-0 flex items-center pointer-events-none whitespace-nowrap",
+                                fabSide === "left" ? "left-full ml-2" : "right-full mr-2"
+                            )}
+                        >
+                            <span className="pointer-events-auto text-[10px] font-black tracking-widest bg-white/95 dark:bg-zinc-900/95 px-2 py-1 rounded-full shadow-xl shadow-slate-900/30 dark:shadow-black/70 border border-slate-100 dark:border-zinc-800/80 animate-in fade-in duration-250">
+                                View on Social Media
                             </span>
-                        )}
+                        </div>
+                    )}
 
-                        {isSocialFloatingExpanded ? (
-                            <button
-                                onClick={() => {
-                                    setIsSocialFloatingExpanded(false);
-                                    setPreviewModalOpen(false);
-                                }}
-                                className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shadow-xl shadow-slate-900/30 dark:shadow-black/70 text-slate-500 dark:text-zinc-350 hover:text-slate-700 dark:hover:text-white transition-all duration-200 active:scale-90"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
-                        ) : (
-                            <button
-                                onClick={() => setIsSocialFloatingExpanded(true)}
-                                className="relative flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-tr from-orange-500 to-orange-600 dark:from-orange-600 dark:to-orange-500 text-white shadow-lg shadow-orange-500/25 active:scale-90 transition-all duration-200"
-                                style={{ animationDuration: '3s' }}
-                            >
-                                <LinkIcon className="w-5 h-5" />
-                            </button>
-                        )}
-                    </div>
+                    {/* The toggle button itself (defines the widget's placed position) */}
+                    {isSocialFloatingExpanded ? (
+                        <button
+                            onClick={handleFabClick}
+                            onPointerDown={handleFabPointerDown}
+                            onPointerMove={handleFabPointerMove}
+                            onPointerUp={handleFabPointerUp}
+                            className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shadow-xl shadow-slate-900/30 dark:shadow-black/70 text-slate-500 dark:text-zinc-350 hover:text-slate-700 dark:hover:text-white transition-all duration-200 active:scale-90 touch-none"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                    ) : (
+                        <button
+                            onClick={handleFabClick}
+                            onPointerDown={handleFabPointerDown}
+                            onPointerMove={handleFabPointerMove}
+                            onPointerUp={handleFabPointerUp}
+                            className="relative flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-tr from-orange-500 to-orange-600 dark:from-orange-600 dark:to-orange-500 text-white shadow-lg shadow-orange-500/25 active:scale-90 transition-all duration-200 touch-none"
+                            style={{ animationDuration: '3s' }}
+                        >
+                            <LinkIcon className="w-5 h-5" />
+                        </button>
+                    )}
                 </div>
             )}
         </div>

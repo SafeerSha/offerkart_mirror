@@ -1,7 +1,9 @@
-import ProductsClient from "@/components/products/ProductsClient";
+import ProductsLoader from "@/components/products/ProductsLoader";
 
-export default function ProductsPage() {
+export default function ProductsPage(props: {
+    searchParams?: Promise<{ category?: string; subcategory?: string | string[]; shopId?: string; search?: string; sort?: string }> | { category?: string; subcategory?: string | string[]; shopId?: string; search?: string; sort?: string };
+}) {
     return (
-        <ProductsClient initialProducts={[]} initialFeaturedShops={[]} />
+        <ProductsLoader searchParams={props.searchParams} />
     );
 }
