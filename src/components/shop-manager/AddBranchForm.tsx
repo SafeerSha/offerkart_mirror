@@ -349,7 +349,7 @@ export default function AddBranchForm({ shopId }: AddBranchFormProps) {
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     {/* Branch Info */}
-                    <PremiumCard padding="none" className="lg:col-span-8 overflow-hidden">
+                    <PremiumCard padding="none" className="lg:col-span-12 overflow-hidden">
                         <div className="px-8 py-6 border-b border-gray-100 bg-white">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center">
@@ -451,70 +451,16 @@ export default function AddBranchForm({ shopId }: AddBranchFormProps) {
                                     )}
                                 />
                             </div>
-                        </div>
-                    </PremiumCard>
 
-                    {/* Status & Verification Card */}
-                    <PremiumCard padding="none" className="lg:col-span-4 overflow-hidden">
-                        <div className="px-8 py-6 border-b border-gray-100 bg-white">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center">
-                                    <AlertCircle className="w-5 h-5 text-orange-600" />
-                                </div>
-                                <div>
-                                    <h2 className="text-xl font-semibold text-gray-900">Status & Verification</h2>
-                                    <p className="text-sm text-gray-600">Visibility & compliance</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="p-8 space-y-6 bg-white">
-                            <FormField
-                                control={form.control}
-                                name="isActive"
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 p-4 rounded-xl border border-gray-100 bg-orange-50/50">
-                                        <FormControl>
-                                            <input
-                                                type="checkbox"
-                                                className="w-4 h-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
-                                                checked={field.value}
-                                                onChange={field.onChange}
-                                            />
-                                        </FormControl>
-                                        <div className="space-y-1 leading-none">
-                                            <FormLabel className="text-sm font-semibold text-gray-900">
-                                                Active Branch
-                                            </FormLabel>
-                                            <FormDescription className="text-[10px] text-gray-500">
-                                                Make this branch visible to customers.
-                                            </FormDescription>
-                                        </div>
-                                    </FormItem>
-                                )}
-                            />
-
-                            <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
-                                <p className="text-xs text-gray-500 leading-relaxed">
-                                    <span className="font-semibold text-gray-700">Tip:</span> Each branch operates independently. You can activate or deactivate branches without affecting the parent shop.
-                                </p>
-                            </div>
-
-                            {/* Divider */}
-                            <div className="border-t border-gray-100"></div>
-
-                            {/* License Section */}
                             <FormField
                                 control={form.control}
                                 name="licence_no"
                                 render={({ field }) => (
-                                    <FormItem className="space-y-4">
-                                        <div className="flex items-center justify-between">
-                                            <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                                                <FileText className="w-4 h-4" />
-                                                Branch License Number
-                                            </label>
-                                        </div>
+                                    <FormItem className="space-y-2">
+                                        <FormLabel className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                                            <FileText className="w-4 h-4 text-gray-400" />
+                                            Branch License Number <span className="text-gray-400 font-normal">(optional)</span>
+                                        </FormLabel>
                                         <FormControl>
                                             <PremiumInput
                                                 placeholder="e.g. KER123456"
@@ -526,6 +472,39 @@ export default function AddBranchForm({ shopId }: AddBranchFormProps) {
                                     </FormItem>
                                 )}
                             />
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-150/50">
+                                <FormField
+                                    control={form.control}
+                                    name="isActive"
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center space-x-3 space-y-0 p-4 rounded-xl border border-gray-100 bg-orange-50/50">
+                                            <FormControl>
+                                                <input
+                                                    type="checkbox"
+                                                    className="w-4 h-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                                                    checked={field.value}
+                                                    onChange={field.onChange}
+                                                />
+                                            </FormControl>
+                                            <div className="space-y-1 leading-none">
+                                                <FormLabel className="text-sm font-semibold text-gray-900">
+                                                    Active Branch
+                                                </FormLabel>
+                                                <FormDescription className="text-[10px] text-gray-500">
+                                                    Make this branch visible to customers.
+                                                </FormDescription>
+                                            </div>
+                                        </FormItem>
+                                    )}
+                                />
+
+                                <div className="p-4 rounded-xl bg-gray-50 border border-gray-100 flex items-center">
+                                    <p className="text-xs text-gray-500 leading-relaxed">
+                                        <span className="font-semibold text-gray-700">Tip:</span> Each branch operates independently. You can activate or deactivate branches without affecting the parent shop.
+                                    </p>
+                                </div>
+                            </div>
                         </div>
                     </PremiumCard>
 

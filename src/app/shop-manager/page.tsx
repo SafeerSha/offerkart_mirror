@@ -179,6 +179,7 @@ function DashboardContent() {
         return new Date(now.setDate(diff));
     });
     const [showDatePopup, setShowDatePopup] = useState(false);
+    const [showNoBranchModal, setShowNoBranchModal] = useState(false);
     const [previewLogo, setPreviewLogo] = useState<{ src: string, name: string, markedItems?: any[] } | null>(null);
     const tabsRef = useRef<HTMLDivElement>(null);
     const user = session?.user as any;
@@ -371,11 +372,18 @@ function DashboardContent() {
                         </PremiumButton>
 
                         {shops.length > 0 ? (
-                            <PremiumButton asChild className="rounded-full shadow-lg shadow-primary/20 w-full md:w-auto justify-center px-1 sm:px-3 md:px-4 py-1.5 md:py-2.5 h-auto text-[11px] sm:text-xs md:text-sm">
-                                <Link href="/shop-manager/create-offer">
-                                    <span className="hidden sm:inline">Add Offer</span>
-                                    <span className="sm:hidden">Offer +</span>
-                                </Link>
+                            <PremiumButton
+                                onClick={() => {
+                                    if (branches.length === 0) {
+                                        setShowNoBranchModal(true);
+                                    } else {
+                                        router.push("/shop-manager/create-offer");
+                                    }
+                                }}
+                                className="rounded-full shadow-lg shadow-primary/20 w-full md:w-auto justify-center px-1 sm:px-3 md:px-4 py-1.5 md:py-2.5 h-auto text-[11px] sm:text-xs md:text-sm"
+                            >
+                                <span className="hidden sm:inline">Add Offer</span>
+                                <span className="sm:hidden">Offer +</span>
                             </PremiumButton>
                         ) : (
                             <PremiumButton
@@ -391,7 +399,11 @@ function DashboardContent() {
                         <PremiumButton
                             onClick={() => {
                                 if (shops.length > 0) {
-                                    router.push("/shop-manager/products/add");
+                                    if (branches.length === 0) {
+                                        setShowNoBranchModal(true);
+                                    } else {
+                                        router.push("/shop-manager/products/add");
+                                    }
                                 } else {
                                     toast.error("Please create a shop profile first to add offers or products.");
                                 }
@@ -632,16 +644,20 @@ function DashboardContent() {
                                                     {shops[0].city}
                                                 </div>
                                             </div>
-                                            <div className="grid grid-cols-2 gap-4 w-full mt-4 py-2.5 border-y border-primary/5">
-                                                <div className="text-center">
-                                                    <div className="text-xs font-bold text-gray-900">{publishedOffers.length}</div>
-                                                    <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Offers</div>
-                                                </div>
-                                                <div className="text-center">
-                                                    <div className="text-xs font-bold text-gray-900">{products.length}</div>
-                                                    <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Products</div>
-                                                </div>
-                                            </div>
+                                             <div className="grid grid-cols-3 gap-2 w-full mt-4 py-2.5 border-y border-primary/5">
+                                                 <div className="text-center">
+                                                     <div className="text-xs font-bold text-gray-900">{publishedOffers.length}</div>
+                                                     <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Offers</div>
+                                                 </div>
+                                                 <div className="text-center border-x border-primary/5">
+                                                     <div className="text-xs font-bold text-gray-900">{branches.length}</div>
+                                                     <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Branches</div>
+                                                 </div>
+                                                 <div className="text-center">
+                                                     <div className="text-xs font-bold text-gray-900">{products.length}</div>
+                                                     <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Products</div>
+                                                 </div>
+                                             </div>
                                             <div className="grid grid-cols-2 gap-2 w-full mt-4">
                                                 <Link href={`/shop-manager/${shops[0].id}/branches`} className="w-full cursor-pointer">
                                                     <PremiumButton variant="outline" glow={false} size="sm" className="w-full rounded-xl py-3.5 border-primary/10 hover:border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary gap-1.5 shadow-none cursor-pointer">
@@ -808,6 +824,13 @@ function DashboardContent() {
                                                 setOfferToDelete={setOfferToDelete}
                                                 handleToggleOfferStatus={handleToggleOfferStatus}
                                                 setPreviewLogo={setPreviewLogo}
+                                                onAddOffer={() => {
+                                                    if (branches.length === 0) {
+                                                        setShowNoBranchModal(true);
+                                                    } else {
+                                                        router.push("/shop-manager/create-offer");
+                                                    }
+                                                }}
                                             />
                                         </TabsContent>
                                         <TabsContent value="products" className="mt-0 space-y-3 focus-visible:ring-0">
@@ -819,6 +842,13 @@ function DashboardContent() {
                                                 setProductToDelete={setProductToDelete}
                                                 handleToggleProductStatus={handleToggleProductStatus}
                                                 setPreviewLogo={setPreviewLogo}
+                                                onAddProduct={() => {
+                                                    if (branches.length === 0) {
+                                                        setShowNoBranchModal(true);
+                                                    } else {
+                                                        router.push("/shop-manager/products/add");
+                                                    }
+                                                }}
                                             />
                                         </TabsContent>
 
@@ -890,6 +920,31 @@ function DashboardContent() {
                     <div className="flex gap-3 justify-end">
                         <PremiumButton variant="outline" onClick={() => setProductToDelete(null)} className="rounded-xl">Cancel</PremiumButton>
                         <PremiumButton onClick={() => productToDelete && handleDeleteProduct(productToDelete)} className="rounded-xl px-6 bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20"><Trash2 className="w-4 h-4 mr-2" />Confirm Delete</PremiumButton>
+                    </div>
+                </div>
+            </AppModal>
+
+            {/* Branch Required Modal */}
+            <AppModal
+                open={showNoBranchModal}
+                onOpenChange={setShowNoBranchModal}
+                title="Branch Required"
+                description="At least one branch is necessary in creating products and offers."
+            >
+                <div className="space-y-4">
+                    <div className="flex gap-3 justify-end">
+                        <PremiumButton variant="outline" onClick={() => setShowNoBranchModal(false)} className="rounded-xl">
+                            Cancel
+                        </PremiumButton>
+                        <PremiumButton
+                            onClick={() => {
+                                setShowNoBranchModal(false);
+                                router.push(`/shop-manager/${activeShopId}/add-branch`);
+                            }}
+                            className="rounded-xl px-6 shadow-lg shadow-primary/20"
+                        >
+                            OK
+                        </PremiumButton>
                     </div>
                 </div>
             </AppModal>

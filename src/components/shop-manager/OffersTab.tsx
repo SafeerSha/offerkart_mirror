@@ -16,6 +16,7 @@ interface OffersTabProps {
     setOfferToDelete: (offer: any) => void;
     handleToggleOfferStatus: (offer: any) => void;
     setPreviewLogo: (preview: { src: string; name: string } | null) => void;
+    onAddOffer?: () => void;
 }
 
 export function OffersTab({
@@ -25,6 +26,7 @@ export function OffersTab({
     setOfferToDelete,
     handleToggleOfferStatus,
     setPreviewLogo,
+    onAddOffer,
 }: OffersTabProps) {
     const router = useRouter();
 
@@ -205,12 +207,10 @@ export function OffersTab({
                         </div>
                         <p className="text-base font-bold text-gray-900">Your Campaign Catalog is Empty</p>
                         <p className="text-sm text-gray-500 max-w-xs mt-1 mb-4">Start publishing offers to showcase them to your customers.</p>
-                        <Link href="/shop-manager/create-offer">
-                            <PremiumButton className="rounded-xl shadow-lg shadow-primary/20">
-                                Add Offer
-                                <Plus className="w-4 h-4" />
-                            </PremiumButton>
-                        </Link>
+                        <PremiumButton onClick={onAddOffer} className="rounded-xl shadow-lg shadow-primary/20">
+                            Add Offer
+                            <Plus className="w-4 h-4" />
+                        </PremiumButton>
                     </div>
                 )}
             </div>
