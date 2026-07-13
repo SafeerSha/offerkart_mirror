@@ -139,6 +139,7 @@ function ShopProductsContent() {
     const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
     const [bulkActionModal, setBulkActionModal] = useState<{ type: "delete" | "status" | null; targetStatus?: "active" | "inactive" } | null>(null);
     const [isBulkMode, setIsBulkMode] = useState(false);
+    const [showNoBranchModal, setShowNoBranchModal] = useState(false);
 
     const isSelectMode = selectedProducts.size > 0;
 
@@ -417,7 +418,13 @@ function ShopProductsContent() {
                             </button>
 
                             <PremiumButton
-                                onClick={() => router.push("/shop-manager/products/add")}
+                                onClick={() => {
+                                    if (branches.length === 0) {
+                                        setShowNoBranchModal(true);
+                                    } else {
+                                        router.push("/shop-manager/products/add");
+                                    }
+                                }}
                                 className="w-8 h-8 rounded-lg flex sm:hidden items-center justify-center shrink-0 animate-none"
                                 title="Add Product"
                             >
@@ -462,7 +469,13 @@ function ShopProductsContent() {
                             {isBulkMode ? "Cancel" : "Select"}
                         </button>
                         <PremiumButton
-                            onClick={() => router.push("/shop-manager/products/add")}
+                            onClick={() => {
+                                if (branches.length === 0) {
+                                    setShowNoBranchModal(true);
+                                } else {
+                                    router.push("/shop-manager/products/add");
+                                }
+                            }}
                             className="rounded-lg h-7 px-3 text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1 shrink-0 self-start sm:self-auto"
                         >
                             <Plus className="w-3.5 h-3.5" /> Add Product
@@ -825,6 +838,31 @@ function ShopProductsContent() {
                                 Update Status
                             </PremiumButton>
                         )}
+                    </div>
+                </div>
+            </AppModal>
+
+            {/* Branch Required Modal */}
+            <AppModal
+                open={showNoBranchModal}
+                onOpenChange={setShowNoBranchModal}
+                title="Branch Required"
+                description="At least one branch is necessary in creating products and offers."
+            >
+                <div className="space-y-4">
+                    <div className="flex gap-3 justify-end">
+                        <PremiumButton variant="outline" onClick={() => setShowNoBranchModal(false)} className="rounded-xl">
+                            Cancel
+                        </PremiumButton>
+                        <PremiumButton
+                            onClick={() => {
+                                setShowNoBranchModal(false);
+                                router.push(`/shop-manager/${activeShopId}/add-branch`);
+                            }}
+                            className="rounded-xl px-6 shadow-lg shadow-primary/20"
+                        >
+                            OK
+                        </PremiumButton>
                     </div>
                 </div>
             </AppModal>

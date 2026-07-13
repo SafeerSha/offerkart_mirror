@@ -17,6 +17,7 @@ interface ProductsTabProps {
     setProductToDelete: (product: any) => void;
     handleToggleProductStatus: (product: any) => void;
     setPreviewLogo: (preview: { src: string; name: string } | null) => void;
+    onAddProduct?: () => void;
 }
 
 export function ProductsTab({
@@ -27,6 +28,7 @@ export function ProductsTab({
     setProductToDelete,
     handleToggleProductStatus,
     setPreviewLogo,
+    onAddProduct,
 }: ProductsTabProps) {
     const router = useRouter();
 
@@ -186,7 +188,7 @@ export function ProductsTab({
                         </SwipeableCard>
                     ))
                 ) : (
-                    <div className="col-span-full p-6 flex flex-col items-center justify-center bg-gray-50/50 rounded-2xl border-2 border-dashed border-gray-100 text-center"><div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center mb-4"><ShoppingBag className="w-8 h-8 text-primary/20" /></div><p className="text-base font-bold text-gray-900">Your Catalog is Empty</p><p className="text-sm text-gray-500 max-w-xs mt-1 mb-4">Start adding products to showcase them to your customers.</p><PremiumButton onClick={() => router.push("/shop-manager/products/add")} className="rounded-xl shadow-lg shadow-primary/20">Add Product<Plus className="w-4 h-4" /></PremiumButton></div>
+                    <div className="col-span-full p-6 flex flex-col items-center justify-center bg-gray-50/50 rounded-2xl border-2 border-dashed border-gray-100 text-center"><div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center mb-4"><ShoppingBag className="w-8 h-8 text-primary/20" /></div><p className="text-base font-bold text-gray-900">Your Catalog is Empty</p><p className="text-sm text-gray-500 max-w-xs mt-1 mb-4">Start adding products to showcase them to your customers.</p><PremiumButton onClick={onAddProduct} className="rounded-xl shadow-lg shadow-primary/20">Add Product<Plus className="w-4 h-4" /></PremiumButton></div>
                 )}
             </div>
 

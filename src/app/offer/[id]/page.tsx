@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import OfferDetailClient from "@/components/offer/OfferDetailClient";
 import { notFound } from "next/navigation";
-import { getAllUserOffers, getUserOfferById, getPaginatedOffers } from "@/lib/api/offers";
+import { getAllUserOffers, getUserOfferById, getUserOfferSimilar } from "@/lib/api/offers";
 import { Offer } from "@/lib/types/offer";
 import { CACHE_TAGS } from "@/lib/api/cache-tags";
 
@@ -110,7 +110,7 @@ export default async function OfferDetailPage({
         getUserOfferById(resolvedParams.id, {
             next: { tags: [CACHE_TAGS.OFFERS, CACHE_TAGS.OFFER(resolvedParams.id)] },
         }),
-        getPaginatedOffers(1, 8, {}, { next: { tags: [CACHE_TAGS.OFFERS] } }),
+        getUserOfferSimilar(resolvedParams.id, {}, { next: { tags: [CACHE_TAGS.OFFERS] } }),
         getAllUserOffers({ limit: 100 }),
     ]);
 
@@ -120,12 +120,12 @@ export default async function OfferDetailPage({
 
     const similarOffers = similarOffersResult.success ? similarOffersResult.data : [];
     const filteredSimilarOffers = similarOffers
-        .filter((o) => String(o.id) !== resolvedParams.id)
+        .filter((o: any) => String(o.id) !== resolvedParams.id)
         .slice(0, 5)
         .map(mapOfferForSimilarCard);
 
     const allOffers = allOffersResult.success ? allOffersResult.data : [];
-    const currentIndex = allOffers.findIndex(o => String(o.id) === resolvedParams.id);
+    const currentIndex = allOffers.findIndex((o: any) => String(o.id) === resolvedParams.id);
     let prevOfferId = null;
     let nextOfferId = null;
 

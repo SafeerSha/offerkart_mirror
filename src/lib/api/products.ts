@@ -272,3 +272,50 @@ export async function getUserProducts(query: {
         }
     };
 }
+
+/**
+ * Fetches similar products for a given product ID, optionally filtered by latitude/longitude.
+ */
+export async function getUserProductSimilar(
+    id: string | number,
+    query: { latitude?: number | null; longitude?: number | null } = {},
+    cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">
+) {
+    const params = new URLSearchParams();
+    const normalizedLatitude = query.latitude !== undefined && query.latitude !== null ? String(query.latitude) : undefined;
+    const normalizedLongitude = query.longitude !== undefined && query.longitude !== null ? String(query.longitude) : undefined;
+
+    if (normalizedLatitude) params.set("latitude", normalizedLatitude);
+    if (normalizedLongitude) params.set("longitude", normalizedLongitude);
+
+    let response: any;
+    try {
+        response = await backend.get<any>(
+            `${ENDPOINTS.USER_OFFER.PRODUCT_SIMILAR(id)}?${params.toString()}`,
+            {
+                next: { tags: [CACHE_TAGS.PRODUCTS, CACHE_TAGS.PRODUCT(id)] },
+                ...cacheOptions,
+            }
+        );
+    } catch (e: any) {
+        console.error("getUserProductSimilar backend call failed:", e);
+        response = { success: false };
+    }
+
+    if (!response || !response.success || !response.data) {
+        return {
+            success: false,
+            data: [],
+            error: response?.error || "Failed to fetch similar products",
+        };
+    }
+
+    const apiData = unwrapApiEnvelope(response.data);
+    const productsArray = Array.isArray(apiData) ? apiData : (Array.isArray(apiData.data) ? apiData.data : []);
+    const mappedProducts = productsArray.map((p: any) => mapUserProductToProduct(p));
+
+    return {
+        success: true,
+        data: mappedProducts,
+    };
+}

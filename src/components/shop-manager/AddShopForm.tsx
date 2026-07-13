@@ -37,12 +37,14 @@ import { addShop, updateShop, getShopDetails } from "@/lib/api/shop";
 import { Shop } from "@/lib/types/shop";
 import { queryKeys, useIndustries } from "@/hooks/useApi";
 import { useLocation } from "@/hooks/useLocation";
+import { getStates, getDistrictsByState, getPlacesByDistrict } from "indian_places";
 import { compressImage } from "@/lib/imageUtils";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { ImagePreviewModal } from "@/components/shared/ImagePreviewModal";
+import { forwardGeocode, reverseGeocode } from "@/lib/api/geocoding";
 import Image from "next/image";
 
-const MapPicker = dynamic(() => import("@/components/shared/MapPicker"), {
+const PigeonMapPicker = dynamic(() => import("@/components/shared/PigeonMapPicker"), {
     ssr: false,
     loading: () => <div className="h-48 w-full bg-gray-100 animate-pulse rounded-xl flex items-center justify-center text-gray-400">Loading Map...</div>
 });
@@ -123,6 +125,35 @@ export default function AddShopForm() {
 
     const locations = useLocation();
 
+    // Forward Geocode to update map coordinates when user changes location values manually
+    const handleForwardGeocode = useCallback(async (customQuery?: string) => {
+        const address = form.getValues("address") || "";
+        const city = form.getValues("city") || "";
+        const district = form.getValues("district") || "";
+        const state = form.getValues("state") || "";
+
+        let query = "";
+        if (customQuery) {
+            query = customQuery;
+        } else {
+            const parts = [];
+            if (address) parts.push(address.split(",")[0].trim());
+            if (city) parts.push(city);
+            if (district) parts.push(district);
+            if (state) parts.push(state);
+            parts.push("India");
+            query = parts.join(", ");
+        }
+
+        if (!query || query === "India") return;
+
+        const result = await forwardGeocode(query);
+        if (result) {
+            form.setValue("latitude", result.lat);
+            form.setValue("longitude", result.lng);
+        }
+    }, [form]);
+
     // When state changes, load districts instantly (offline)
     const handleStateChange = useCallback((stateName: string) => {
         form.setValue("state", stateName);
@@ -130,7 +161,10 @@ export default function AddShopForm() {
         form.setValue("city", "");
         form.setValue("pincode", "");
         locations.selectState(stateName);
-    }, [form, locations]);
+        if (stateName) {
+            handleForwardGeocode(stateName + ", India");
+        }
+    }, [form, locations, handleForwardGeocode]);
 
     // When district changes, load cities (offline)
     const handleDistrictChange = useCallback((districtName: string) => {
@@ -138,7 +172,11 @@ export default function AddShopForm() {
         form.setValue("city", "");
         form.setValue("pincode", "");
         locations.selectDistrict(districtName);
-    }, [form, locations]);
+        const currentState = form.getValues("state");
+        if (districtName) {
+            handleForwardGeocode(`${districtName}, ${currentState || ""}, India`);
+        }
+    }, [form, locations, handleForwardGeocode]);
 
     // When city changes, auto-fill pincode
     const handleCityChange = useCallback((cityName: string) => {
@@ -148,6 +186,114 @@ export default function AddShopForm() {
             if (pincode) {
                 form.setValue("pincode", pincode);
             }
+            const currentState = form.getValues("state");
+            const currentDistrict = form.getValues("district");
+            handleForwardGeocode(`${cityName}, ${currentDistrict || ""}, ${currentState || ""}, India`);
+        }
+    }, [form, locations, handleForwardGeocode]);
+
+    // Reverse Geocode using Nominatim API to fill out location details
+    const handleReverseGeocode = useCallback(async (lat: number, lng: number) => {
+        // Only allow coordinates inside India bounds
+        if (lat < 6.5 || lat > 35.5 || lng < 68.0 || lng > 97.5) {
+            return;
+        }
+        const result = await reverseGeocode(lat, lng);
+        if (result && result.address) {
+            const addr = result.address;
+
+            // Check if country is India
+            const isCountryIndia =
+                (addr.country_code && addr.country_code.toLowerCase() === "in") ||
+                (addr.country && addr.country.toLowerCase() === "india");
+
+            if (!isCountryIndia) {
+                toast.error("Please select a location inside India.");
+                form.setValue("latitude", undefined);
+                form.setValue("longitude", undefined);
+                return;
+            }
+
+            // 1. Resolve State
+            const rawState = addr.state || "";
+            const stateMatch = locations.states.find(
+                (s) => s.toLowerCase() === rawState.toLowerCase()
+            );
+
+            if (stateMatch) {
+                form.setValue("state", stateMatch);
+                locations.selectState(stateMatch);
+                form.setValue("district", "");
+                form.setValue("city", "");
+                form.setValue("pincode", "");
+
+                // 2. Resolve District & City
+                const rawDistrict = (addr.state_district || addr.district || addr.county || "").replace(/\s*district\s*/i, "").trim();
+                const stateObj = getStates().find(s => s.name.toLowerCase() === stateMatch.toLowerCase());
+                let resolvedCity = "";
+                const rawCity = addr.city || addr.town || addr.village || addr.suburb || "";
+
+                if (stateObj) {
+                    const districtList = getDistrictsByState(stateObj).map(d => d.name);
+                    const districtMatch = districtList.find(
+                        (d) => d.toLowerCase() === rawDistrict.toLowerCase() ||
+                            d.toLowerCase().includes(rawDistrict.toLowerCase()) ||
+                            rawDistrict.toLowerCase().includes(d.toLowerCase())
+                    );
+
+                    if (districtMatch) {
+                        form.setValue("district", districtMatch);
+                        locations.selectDistrict(districtMatch, stateMatch);
+
+                        const districtObj = getDistrictsByState(stateObj).find(d => d.name.toLowerCase() === districtMatch.toLowerCase());
+                        if (districtObj) {
+                            const cityList = getPlacesByDistrict(districtObj).map(p => p.name);
+                            const cityMatch = cityList.find(
+                                (c) => c.toLowerCase() === rawCity.toLowerCase() ||
+                                    c.toLowerCase().includes(rawCity.toLowerCase()) ||
+                                    rawCity.toLowerCase().includes(c.toLowerCase())
+                            );
+
+                            if (cityMatch) {
+                                resolvedCity = cityMatch;
+                            }
+                        }
+                    } else if (rawDistrict) {
+                        form.setValue("district", rawDistrict);
+                    }
+                }
+
+                if (!resolvedCity && rawCity) {
+                    resolvedCity = rawCity;
+                }
+
+                if (resolvedCity) {
+                    form.setValue("city", resolvedCity);
+                }
+            }
+
+            // 3. Resolve Pincode
+            if (addr.postcode) {
+                const cleanPincode = addr.postcode.replace(/\s+/g, "").slice(0, 6);
+                if (/^\d{6}$/.test(cleanPincode)) {
+                    form.setValue("pincode", cleanPincode);
+                }
+            }
+
+            // 4. Resolve Address
+            const addressParts = [];
+            if (addr.road) addressParts.push(addr.road);
+            if (addr.suburb || addr.neighbourhood) addressParts.push(addr.suburb || addr.neighbourhood);
+            if (addr.village || addr.city_district) addressParts.push(addr.village || addr.city_district);
+
+            const constructedAddress = addressParts.join(", ");
+            if (constructedAddress) {
+                form.setValue("address", constructedAddress);
+            } else if (result.display_name) {
+                form.setValue("address", result.display_name.split(",").slice(0, 3).join(",").trim());
+            }
+
+            toast.success("Location details auto-filled from map pin!");
         }
     }, [form, locations]);
 
@@ -447,7 +593,7 @@ export default function AddShopForm() {
 
     return (
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <div className="mb-4">
                     <Breadcrumbs
                         items={[
@@ -473,10 +619,10 @@ export default function AddShopForm() {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+                <div className="flex flex-col gap-6">
                     {/* General Information Section */}
-                    <PremiumCard padding="none" className="lg:col-span-8 overflow-hidden">
-                        <div className="px-8 py-6 border-b border-gray-100 bg-white">
+                    <PremiumCard padding="none" className="w-full overflow-hidden">
+                        <div className="px-4 md:px-8 py-6 border-b border-gray-100 bg-white">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
                                     <Store className="w-5 h-5 text-blue-600" />
@@ -488,50 +634,144 @@ export default function AddShopForm() {
                             </div>
                         </div>
 
-                        <div className="px-4 pb-4 space-y-1 bg-white">
-                            <FormField
-                                control={form.control}
-                                name="shop_name"
-                                render={({ field }) => (
-                                    <FormItem className="space-y-2">
-                                        <FormLabel className="text-sm font-medium text-gray-700">Shop Name</FormLabel>
-                                        <FormControl>
-                                            <PremiumInput
-                                                placeholder="Enter shop name"
-                                                icon={Store}
-                                                {...field}
+                        <div className="p-4 md:p-8 space-y-6 bg-white">
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center py-2 m-0">
+                                {/* Shop Logo Section */}
+                                <div className="lg:col-span-5 flex items-center gap-4">
+                                    <div className="relative w-16 h-16 rounded-full border border-gray-200 overflow-hidden bg-white shadow-sm shrink-0 flex items-center justify-center">
+                                        {logoPreview ? (
+                                            <Image
+                                                src={logoPreview}
+                                                alt="Logo"
+                                                fill
+                                                className="object-cover"
+                                                unoptimized
                                             />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="industry"
-                                render={({ field }) => {
-                                    const selectedIndustryObj = industries.find(ind => String(ind.id) === String(field.value));
-                                    const selectedIndustryName = selectedIndustryObj ? selectedIndustryObj.name : "";
-
-                                    return (
-                                        <FormItem className="space-y-2">
-                                            <FormLabel className="text-sm font-medium text-gray-700">Business Industry</FormLabel>
-                                            <FormControl>
-                                                <SearchableSelect
-                                                    options={industries.map(ind => ind.name)}
-                                                    value={selectedIndustryName}
-                                                    onChange={(val) => {
-                                                        const matched = industries.find(ind => ind.name === val);
-                                                        field.onChange(matched ? String(matched.id) : "");
+                                        ) : (
+                                            <Store className="w-6 h-6 text-gray-300" />
+                                        )}
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Shop Logo</span>
+                                        <div className="flex items-center gap-3">
+                                            <label htmlFor="logo-upload" className="cursor-pointer text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors">
+                                                {logoPreview ? "Change Logo" : "Add Logo"}
+                                            </label>
+                                            <input
+                                                id="logo-upload"
+                                                type="file"
+                                                accept="image/*"
+                                                className="hidden"
+                                                onChange={handleLogoChange}
+                                            />
+                                            {logoPreview && (
+                                                <button
+                                                    type="button"
+                                                    className="text-xs font-bold text-red-600 hover:text-red-700 transition-colors"
+                                                    onClick={() => {
+                                                        setLogoPreview(null);
+                                                        setLogoFile(null);
+                                                        setIsLogoRemoved(true);
                                                     }}
-                                                    placeholder="Select business industry"
+                                                >
+                                                    Remove
+                                                </button>
+                                            )}
+                                        </div>
+                                        <p className="text-[10px] text-gray-400">JPG/PNG. Square ratio recommended.</p>
+                                    </div>
+                                </div>
+
+                                {/* Verification & Status Section */}
+                                <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-6 items-start">
+                                    <FormField
+                                        control={form.control}
+                                        name="isActive"
+                                        render={({ field }) => (
+                                            <FormItem className="flex items-start gap-2.5 space-y-0 mt-1">
+                                                <FormControl className="mt-0.5">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                        checked={field.value}
+                                                        onChange={field.onChange}
+                                                    />
+                                                </FormControl>
+                                                <div className="space-y-0.5 leading-none">
+                                                    <FormLabel className="text-xs font-bold text-gray-800">
+                                                        Active Status
+                                                    </FormLabel>
+                                                    <FormDescription className="text-[10px] text-gray-400">
+                                                        Visible to customers on platform
+                                                    </FormDescription>
+                                                </div>
+                                            </FormItem>
+                                        )}
+                                    />
+
+                                    <div className="flex items-start gap-2.5 opacity-50 grayscale mt-1">
+                                        <FileText className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
+                                        <div className="flex flex-col gap-0.5">
+                                            <div className="flex items-center gap-1.5 leading-none">
+                                                <span className="text-xs font-bold text-gray-800">License Verification</span>
+                                                <span className="text-[8px] font-black text-orange-600 bg-orange-50 px-1 py-0.2 rounded uppercase">Soon</span>
+                                            </div>
+                                            <span className="text-[10px] text-gray-400">
+                                                Verification document upload
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <hr className="border-gray-100 my-6" />
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <FormField
+                                    control={form.control}
+                                    name="shop_name"
+                                    render={({ field }) => (
+                                        <FormItem className="space-y-2">
+                                            <FormLabel className="text-sm font-medium text-gray-700">Shop Name</FormLabel>
+                                            <FormControl>
+                                                <PremiumInput
+                                                    placeholder="Enter shop name"
+                                                    icon={Store}
+                                                    {...field}
                                                 />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
-                                    );
-                                }}
-                            />
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="industry"
+                                    render={({ field }) => {
+                                        const selectedIndustryObj = industries.find(ind => String(ind.id) === String(field.value));
+                                        const selectedIndustryName = selectedIndustryObj ? selectedIndustryObj.name : "";
+
+                                        return (
+                                            <FormItem className="space-y-2">
+                                                <FormLabel className="text-sm font-medium text-gray-700">Business Industry</FormLabel>
+                                                <FormControl>
+                                                    <SearchableSelect
+                                                        options={industries.map(ind => ind.name)}
+                                                        value={selectedIndustryName}
+                                                        onChange={(val) => {
+                                                            const matched = industries.find(ind => ind.name === val);
+                                                            field.onChange(matched ? String(matched.id) : "");
+                                                        }}
+                                                        placeholder="Select business industry"
+                                                    />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        );
+                                    }}
+                                />
+                            </div>
+
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <FormField
                                     control={form.control}
@@ -612,7 +852,7 @@ export default function AddShopForm() {
                                         <FormControl>
                                             <textarea
                                                 placeholder="Describe the items or services you provide..."
-                                                className="w-full min-h-[120px] px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all resize-none text-gray-900 placeholder-gray-500"
+                                                className="w-full min-h-[100px] px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all resize-none text-gray-900 placeholder-gray-500"
                                                 {...field}
                                             />
                                         </FormControl>
@@ -624,88 +864,9 @@ export default function AddShopForm() {
                         </div>
                     </PremiumCard>
 
-                    {/* Shop Logo Section */}
-                    <PremiumCard padding="none" className="lg:col-span-4 overflow-hidden">
-                        <div className="px-4 sm:px-8 py-4 sm:py-6 border-b border-gray-100 bg-white">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center">
-                                    <Upload className="w-5 h-5 text-purple-600" />
-                                </div>
-                                <div>
-                                    <h2 className="text-xl font-semibold text-gray-900">Shop Logo</h2>
-                                    <p className="text-sm text-gray-600">Represent your brand</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="p-4 sm:p-8 flex flex-col items-center justify-center space-y-3 sm:space-y-4 bg-white">
-                            <div className={cn(
-                                "w-24 h-24 sm:w-32 sm:h-32 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden bg-gray-50 transition-all hover:border-blue-400 group relative",
-                                logoPreview && "border-solid"
-                            )}>
-                                {logoPreview ? (
-                                    <>
-                                        <Image
-                                            src={logoPreview}
-                                            alt="Logo preview"
-                                            fill
-                                            className="object-cover relative z-10"
-                                            unoptimized
-                                        />
-                                        <div
-                                            className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-20"
-                                            onClick={() => setIsPreviewOpen(true)}
-                                        >
-                                            <Eye className="w-8 h-8 text-white" />
-                                        </div>
-                                    </>
-                                ) : (
-                                    <Store className="w-10 h-10 sm:w-12 sm:h-12 text-gray-300" />
-                                )}
-                            </div>
-                            {logoPreview && (
-                                <ImagePreviewModal
-                                    src={logoPreview}
-                                    alt="Logo Preview"
-                                    isOpen={isPreviewOpen}
-                                    onClose={() => setIsPreviewOpen(false)}
-                                />
-                            )}
-                            <div className="w-full flex gap-2">
-                                <label htmlFor="logo-upload" className="flex-1 cursor-pointer">
-                                    <div className="flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl bg-gray-50 border border-gray-200 hover:bg-gray-100 transition-colors">
-                                        <Upload className="w-4 h-4 sm:w-5 sm:h-5 mb-1 sm:mb-2 text-gray-600" />
-                                        <span className="text-xs sm:text-sm font-medium text-gray-700">Select Logo</span>
-                                    </div>
-                                </label>
-                                <input
-                                    id="logo-upload"
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    onChange={handleLogoChange}
-                                />
-                                {logoPreview && (
-                                    <button
-                                        type="button"
-                                        className="flex-1 flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl bg-red-50 border border-red-200 hover:bg-red-100 transition-colors text-red-600"
-                                        onClick={() => {
-                                            setLogoPreview(null);
-                                            setLogoFile(null);
-                                            setIsLogoRemoved(true);
-                                        }}
-                                    >
-                                        <X className="w-4 h-4 sm:w-5 sm:h-5 mb-1 sm:mb-2" />
-                                        <span className="text-xs sm:text-sm font-medium">Remove</span>
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    </PremiumCard>
-
                     {/* Location Details Section */}
-                    <PremiumCard padding="none" className="lg:col-span-8 overflow-hidden">
-                        <div className="px-8 py-6 border-b border-gray-100 bg-white">
+                    <PremiumCard padding="none" className="w-full overflow-hidden">
+                        <div className="px-4 md:px-8 py-6 border-b border-gray-100 bg-white">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">
                                     <MapPin className="w-5 h-5 text-green-600" />
@@ -717,7 +878,7 @@ export default function AddShopForm() {
                             </div>
                         </div>
 
-                        <div className="px-4 pb-4 space-y-1 bg-white">
+                        <div className="p-4 md:p-8 space-y-6 bg-white">
                             <FormField
                                 control={form.control}
                                 name="address"
@@ -729,6 +890,10 @@ export default function AddShopForm() {
                                                 placeholder="Shop no, Building, Street..."
                                                 className="w-full min-h-[100px] px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all resize-none text-gray-900 placeholder-gray-500"
                                                 {...field}
+                                                onBlur={(e) => {
+                                                    field.onBlur();
+                                                    handleForwardGeocode();
+                                                }}
                                             />
                                         </FormControl>
                                         <FormMessage />
@@ -817,17 +982,13 @@ export default function AddShopForm() {
                             </div>
 
                             <div className="p-4 rounded-xl bg-gray-50 border border-gray-200">
-                                <div className="flex items-center gap-2 mb-2 text-gray-700">
-                                    <Globe className="w-4 h-4 text-blue-600" />
-                                    <span className="text-sm font-semibold">Map Picker</span>
-                                </div>
                                 <div className="h-[350px] sm:h-[450px] bg-white rounded-lg overflow-hidden border border-gray-100 shadow-inner">
                                     <FormField
                                         control={form.control}
                                         name="latitude"
                                         render={({ field }) => (
                                             <FormControl>
-                                                <MapPicker
+                                                <PigeonMapPicker
                                                     value={form.getValues("latitude") && form.getValues("longitude") ? {
                                                         lat: form.getValues("latitude") as number,
                                                         lng: form.getValues("longitude") as number
@@ -835,6 +996,7 @@ export default function AddShopForm() {
                                                     onChange={(coords) => {
                                                         form.setValue("latitude", coords.lat);
                                                         form.setValue("longitude", coords.lng);
+                                                        handleReverseGeocode(coords.lat, coords.lng);
                                                     }}
                                                 />
                                             </FormControl>
@@ -846,64 +1008,6 @@ export default function AddShopForm() {
                                     Coordinates: {form.watch("latitude")?.toFixed(4) || "0"}, {form.watch("longitude")?.toFixed(4) || "0"}
                                 </p>
                             </div>
-                        </div>
-                    </PremiumCard>
-
-                    {/* Verification & Status Section */}
-                    <PremiumCard padding="none" className="lg:col-span-4 overflow-hidden">
-                        <div className="px-8 py-6 border-b border-gray-100 bg-white">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center">
-                                    <FileText className="w-5 h-5 text-orange-600" />
-                                </div>
-                                <div>
-                                    <h2 className="text-xl font-semibold text-gray-900">Verification</h2>
-                                    <p className="text-sm text-gray-600">Business compliance</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="p-8 space-y-6 bg-white">
-                            <div className="space-y-4 opacity-60 grayscale pointer-events-none">
-                                <div className="flex items-center justify-between">
-                                    <label className="text-sm font-medium text-gray-700">Shop License</label>
-                                    <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full uppercase tracking-wider">Coming Soon</span>
-                                </div>
-                                <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50/50 transition-all group">
-                                    <FileText className="w-10 h-10 mb-2 text-gray-300" />
-                                    <span className="text-xs text-center text-gray-500 mb-4 px-2">
-                                        Upload trade license or certificate (PDF, JPG, PNG)
-                                    </span>
-                                    <PremiumButton type="button" variant="outline" size="sm" className="rounded-full bg-white" disabled>
-                                        Select File
-                                    </PremiumButton>
-                                </div>
-                            </div>
-
-                            <FormField
-                                control={form.control}
-                                name="isActive"
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 p-4 rounded-xl border border-gray-100 bg-blue-50/50">
-                                        <FormControl>
-                                            <input
-                                                type="checkbox"
-                                                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                                checked={field.value}
-                                                onChange={field.onChange}
-                                            />
-                                        </FormControl>
-                                        <div className="space-y-1 leading-none">
-                                            <FormLabel className="text-sm font-semibold text-gray-900">
-                                                Active Shop
-                                            </FormLabel>
-                                            <FormDescription className="text-[10px] text-gray-500">
-                                                Go live immediately.
-                                            </FormDescription>
-                                        </div>
-                                    </FormItem>
-                                )}
-                            />
                         </div>
                     </PremiumCard>
                 </div>

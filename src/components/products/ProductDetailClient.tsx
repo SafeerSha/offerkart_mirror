@@ -12,6 +12,7 @@ import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import ProductCard from "./ProductCard";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
+import { useLocationContext } from "@/context/LocationContext";
 
 interface Product {
     id: any;
@@ -102,10 +103,34 @@ function getFallbackLocations(shopName?: string): LocationItem[] {
     }));
 }
 
-export default function ProductDetailClient({ product, similarProducts }: ProductDetailClientProps) {
+export default function ProductDetailClient({ product, similarProducts: initialSimilarProducts }: ProductDetailClientProps) {
     const router = useRouter();
     const { t } = useTranslation("common");
+    const { location } = useLocationContext();
+    const { latitude, longitude } = location;
+    const [similarProducts, setSimilarProducts] = useState<Product[]>(initialSimilarProducts);
     const similarProductsRef = useRef<HTMLDivElement>(null);
+
+    // Fetch similar products client-side based on user's browser location
+    useEffect(() => {
+        const fetchSimilarProducts = async () => {
+            try {
+                const params = new URLSearchParams();
+                if (latitude !== null) params.set("latitude", String(latitude));
+                if (longitude !== null) params.set("longitude", String(longitude));
+
+                const res = await fetch(`/api/user/offer/products/${product.id}/similar?${params.toString()}`);
+                const json = await res.json();
+                if (json.success && Array.isArray(json.data)) {
+                    setSimilarProducts(json.data.slice(0, 5));
+                }
+            } catch (err) {
+                console.error("Failed to fetch similar products client-side:", err);
+            }
+        };
+
+        fetchSimilarProducts();
+    }, [product.id, latitude, longitude]);
 
     const scrollSimilarProducts = (direction: "left" | "right") => {
         if (!similarProductsRef.current) return;

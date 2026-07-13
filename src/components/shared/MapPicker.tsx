@@ -234,12 +234,25 @@ export default function MapPicker({
                         {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                     </div>
                     <input
-                        type="text"
+                        type="search"
                         placeholder="Search city, area, or landmark..."
                         className="w-full pl-10 pr-10 py-2.5 bg-white border border-gray-200 rounded-xl shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm text-gray-900 placeholder-gray-500"
                         value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        onFocus={() => searchQuery && setShowResults(true)}
+                        autoComplete="new-password"
+                        name="mapQueryInput"
+                        id="leafletMapSearchVal"
+                        autoCorrect="off"
+                        spellCheck="false"
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            setSearchQuery(val);
+                            if (val.length >= 3) {
+                                setShowResults(true);
+                            } else {
+                                setShowResults(false);
+                            }
+                        }}
+                        onFocus={() => searchQuery && searchQuery.length >= 3 && setShowResults(true)}
                         onKeyDown={(e) => {
                             if (e.key === 'Enter') {
                                 e.preventDefault();
