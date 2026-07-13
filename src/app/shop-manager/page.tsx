@@ -435,64 +435,48 @@ function DashboardContent() {
                             </div>
                             <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide px-1">
                                 <div className="w-[46vw] sm:w-[240px] flex-none shrink-0 snap-center">
-                                    {isLoadingOffers ? (
-                                        <Skeleton className="h-24 w-full rounded-2xl" />
-                                    ) : (
-                                        <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 transition-all duration-300 rounded-2xl">
-                                            <div className="p-3.5 flex items-center gap-3">
-                                                <div className="p-2 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform flex-shrink-0">
-                                                    <Package className="w-5 h-5" />
+                                    <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 transition-all duration-300 rounded-2xl">
+                                        <div className="p-3.5 flex items-center gap-3">
+                                            <div className="p-2 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform flex-shrink-0">
+                                                <Package className="w-5 h-5" />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center justify-between gap-2 mb-0.5">
+                                                    <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate">Offers</h3>
                                                 </div>
-                                                <div className="min-w-0 flex-1">
-                                                    <div className="flex items-center justify-between gap-2 mb-0.5">
-                                                        <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate">Offers</h3>
-                                                        {/* <div className="flex items-center gap-1 text-[9px] text-emerald-500 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded-lg whitespace-nowrap">
-                                                            <Calendar className="w-2.5 h-2.5" />
-                                                            Active
-                                                        </div> */}
+                                                <div className="flex items-baseline gap-2">
+                                                    <div className={cn("text-xl font-black text-gray-900 tracking-tight")}>
+                                                        {isLoadingOffers ? 0 : publishedOffers.filter((o: any) => o.status === 'active').length}
                                                     </div>
-                                                    <div className="flex items-baseline gap-2">
-                                                        <div className="text-xl font-black text-gray-900 tracking-tight">
-                                                            {publishedOffers.filter((o: any) => o.status === 'active').length}
-                                                        </div>
-                                                        <span className="text-[10px] text-gray-400 font-medium truncate">
-                                                            / {publishedOffers.filter((o: any) => o.status !== 'active').length} paused
-                                                        </span>
-                                                    </div>
+                                                    <span className="text-[10px] text-gray-400 font-medium truncate">
+                                                        / {isLoadingOffers ? 0 : publishedOffers.filter((o: any) => o.status !== 'active').length} paused
+                                                    </span>
                                                 </div>
                                             </div>
-                                        </PremiumCard>
-                                    )}
+                                        </div>
+                                    </PremiumCard>
                                 </div>
                                 <div className="w-[46vw] sm:w-[240px] flex-none shrink-0 snap-center">
-                                    {isLoadingProducts ? (
-                                        <Skeleton className="h-24 w-full rounded-2xl" />
-                                    ) : (
-                                        <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 transition-all duration-300 rounded-2xl">
-                                            <div className="p-3.5 flex items-center gap-3">
-                                                <div className="p-2 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform flex-shrink-0">
-                                                    <ShoppingBag className="w-5 h-5" />
+                                    <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 transition-all duration-300 rounded-2xl">
+                                        <div className="p-3.5 flex items-center gap-3">
+                                            <div className="p-2 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform flex-shrink-0">
+                                                <ShoppingBag className="w-5 h-5" />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center justify-between gap-2 mb-0.5">
+                                                    <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate">Products</h3>
                                                 </div>
-                                                <div className="min-w-0 flex-1">
-                                                    <div className="flex items-center justify-between gap-2 mb-0.5">
-                                                        <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate">Products</h3>
-                                                        {/* <div className="flex items-center gap-1 text-[9px] text-emerald-500 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded-lg whitespace-nowrap">
-                                                            <Calendar className="w-2.5 h-2.5" />
-                                                            Active
-                                                        </div> */}
+                                                <div className="flex items-baseline gap-2">
+                                                    <div className={cn("text-xl font-black text-gray-900 tracking-tight")}>
+                                                        {isLoadingProducts ? 0 : products.filter((p: any) => p.status === 'active').length}
                                                     </div>
-                                                    <div className="flex items-baseline gap-2">
-                                                        <div className="text-xl font-black text-gray-900 tracking-tight">
-                                                            {products.filter((p: any) => p.status === 'active').length}
-                                                        </div>
-                                                        <span className="text-[10px] text-gray-400 font-medium truncate">
-                                                            / {products.filter((p: any) => p.status !== 'active').length} paused
-                                                        </span>
-                                                    </div>
+                                                    <span className="text-[10px] text-gray-400 font-medium truncate">
+                                                        / {isLoadingProducts ? 0 : products.filter((p: any) => p.status !== 'active').length} paused
+                                                    </span>
                                                 </div>
                                             </div>
-                                        </PremiumCard>
-                                    )}
+                                        </div>
+                                    </PremiumCard>
                                 </div>
                                 <div className="w-[46vw] sm:w-[220px] flex-none shrink-0 snap-center">
                                     <StatCard icon={BarChart3} label="Total Views" value="1.2k" trend="+15%" isLoading={isLoadingOffers} />
@@ -508,62 +492,46 @@ function DashboardContent() {
                         </div>
 
                         <div className="hidden md:grid grid-cols-2 xl:grid-cols-5 gap-4">
-                            {isLoadingOffers ? (
-                                <Skeleton className="h-24 w-full rounded-2xl" />
-                            ) : (
-                                <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 transition-all duration-300 rounded-2xl">
-                                    <div className="p-4 flex items-center gap-3">
-                                        <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform flex-shrink-0">
-                                            <Package className="w-5 h-5 transition-transform" />
+                            <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 transition-all duration-300 rounded-2xl">
+                                <div className="p-4 flex items-center gap-3">
+                                    <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform flex-shrink-0">
+                                        <Package className="w-5 h-5 transition-transform" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center justify-between gap-2 mb-0.5">
+                                            <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate">Offers</h3>
                                         </div>
-                                        <div className="min-w-0 flex-1">
-                                            <div className="flex items-center justify-between gap-2 mb-0.5">
-                                                <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate">Offers</h3>
-                                                {/* <div className="flex items-center gap-1 text-[10px] text-emerald-500 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-lg whitespace-nowrap">
-                                                    <Calendar className="w-3 h-3" />
-                                                    Live
-                                                </div> */}
+                                        <div className="flex items-baseline gap-2">
+                                            <div className={cn("text-2xl font-black text-gray-900 tracking-tighter")}>
+                                                {isLoadingOffers ? 0 : publishedOffers.filter((o: any) => o.status === 'active').length}
                                             </div>
-                                            <div className="flex items-baseline gap-2">
-                                                <div className="text-2xl font-black text-gray-900 tracking-tighter">
-                                                    {publishedOffers.filter((o: any) => o.status === 'active').length}
-                                                </div>
-                                                <span className="text-[11px] text-gray-400 font-medium truncate mt-1">
-                                                    / {publishedOffers.filter((o: any) => o.status !== 'active').length} paused
-                                                </span>
-                                            </div>
+                                            <span className="text-[11px] text-gray-400 font-medium truncate mt-1">
+                                                / {isLoadingOffers ? 0 : publishedOffers.filter((o: any) => o.status !== 'active').length} paused
+                                            </span>
                                         </div>
                                     </div>
-                                </PremiumCard>
-                            )}
-                            {isLoadingProducts ? (
-                                <Skeleton className="h-24 w-full rounded-2xl" />
-                            ) : (
-                                <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 transition-all duration-300 rounded-2xl">
-                                    <div className="p-4 flex items-center gap-3">
-                                        <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform flex-shrink-0">
-                                            <ShoppingBag className="w-5 h-5 transition-transform" />
+                                </div>
+                            </PremiumCard>
+                            <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 transition-all duration-300 rounded-2xl">
+                                <div className="p-4 flex items-center gap-3">
+                                    <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform flex-shrink-0">
+                                        <ShoppingBag className="w-5 h-5 transition-transform" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center justify-between gap-2 mb-0.5">
+                                            <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate">Products</h3>
                                         </div>
-                                        <div className="min-w-0 flex-1">
-                                            <div className="flex items-center justify-between gap-2 mb-0.5">
-                                                <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate">Products</h3>
-                                                {/* <div className="flex items-center gap-1 text-[10px] text-emerald-500 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-lg whitespace-nowrap">
-                                                    <Calendar className="w-3 h-3" />
-                                                    Live
-                                                </div> */}
+                                        <div className="flex items-baseline gap-2">
+                                            <div className={cn("text-2xl font-black text-gray-900 tracking-tighter")}>
+                                                {isLoadingProducts ? 0 : products.filter((p: any) => p.status === 'active').length}
                                             </div>
-                                            <div className="flex items-baseline gap-2">
-                                                <div className="text-2xl font-black text-gray-900 tracking-tighter">
-                                                    {products.filter((p: any) => p.status === 'active').length}
-                                                </div>
-                                                <span className="text-[11px] text-gray-400 font-medium truncate mt-1">
-                                                    / {products.filter((p: any) => p.status !== 'active').length} paused
-                                                </span>
-                                            </div>
+                                            <span className="text-[11px] text-gray-400 font-medium truncate mt-1">
+                                                / {isLoadingProducts ? 0 : products.filter((p: any) => p.status !== 'active').length} paused
+                                            </span>
                                         </div>
                                     </div>
-                                </PremiumCard>
-                            )}
+                                </div>
+                            </PremiumCard>
                             <StatCard icon={BarChart3} label="Total Views" value="1.2k" trend="+15% vs last month" isLoading={isLoadingOffers} />
                             <StatCard icon={MousePointer2} label="Audience Engagement" value="48" trend="8 new today" isLoading={isLoadingOffers} />
                             <StatCard icon={Tag} label="Conversion Rate" value="4.8%" trend="+0.5%" isLoading={isLoadingOffers} />
@@ -644,20 +612,20 @@ function DashboardContent() {
                                                     {shops[0].city}
                                                 </div>
                                             </div>
-                                             <div className="grid grid-cols-3 gap-2 w-full mt-4 py-2.5 border-y border-primary/5">
-                                                 <div className="text-center">
-                                                     <div className="text-xs font-bold text-gray-900">{publishedOffers.length}</div>
-                                                     <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Offers</div>
-                                                 </div>
-                                                 <div className="text-center border-x border-primary/5">
-                                                     <div className="text-xs font-bold text-gray-900">{branches.length}</div>
-                                                     <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Branches</div>
-                                                 </div>
-                                                 <div className="text-center">
-                                                     <div className="text-xs font-bold text-gray-900">{products.length}</div>
-                                                     <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Products</div>
-                                                 </div>
-                                             </div>
+                                            <div className="grid grid-cols-3 gap-2 w-full mt-4 py-2.5 border-y border-primary/5">
+                                                <div className="text-center">
+                                                    <div className="text-xs font-bold text-gray-900">{publishedOffers.length}</div>
+                                                    <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Offers</div>
+                                                </div>
+                                                <div className="text-center border-x border-primary/5">
+                                                    <div className="text-xs font-bold text-gray-900">{branches.length}</div>
+                                                    <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Branches</div>
+                                                </div>
+                                                <div className="text-center">
+                                                    <div className="text-xs font-bold text-gray-900">{products.length}</div>
+                                                    <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Products</div>
+                                                </div>
+                                            </div>
                                             <div className="grid grid-cols-2 gap-2 w-full mt-4">
                                                 <Link href={`/shop-manager/${shops[0].id}/branches`} className="w-full cursor-pointer">
                                                     <PremiumButton variant="outline" glow={false} size="sm" className="w-full rounded-xl py-3.5 border-primary/10 hover:border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary gap-1.5 shadow-none cursor-pointer">
@@ -966,16 +934,27 @@ export default function ShopManagerPage() {
 }
 
 function StatCard({ icon: Icon, label, value, trend, isLoading }: { icon: any, label: string, value: string, trend: string, isLoading?: boolean }) {
-    if (isLoading) {
-        return <Skeleton className="h-20 w-full rounded-2xl" />;
-    }
+    const displayValue = isLoading ? (label.toLowerCase().includes("rate") ? "0%" : "0") : value;
+    const displayTrend = isLoading ? (label.toLowerCase().includes("rate") ? "+0.0%" : (label.toLowerCase().includes("views") ? "+0%" : "+0")) : trend;
+
     return (
         <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 transition-all duration-300 rounded-2xl h-full">
             <div className="p-4 flex items-center gap-3 h-full">
-                <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform flex-shrink-0"><Icon className="w-5 h-5" /></div>
+                <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform flex-shrink-0">
+                    <Icon className="w-5 h-5" />
+                </div>
                 <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2 mb-0.5"><h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate">{label}</h3></div>
-                    <div className="flex items-end justify-between gap-2"><div className="text-2xl font-black text-gray-900 tracking-tighter leading-none shrink-0">{value}</div><div className="text-[9px] font-black text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded-lg whitespace-nowrap mb-0.5">{trend}</div></div>
+                    <div className="flex items-center justify-between gap-2 mb-0.5">
+                        <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate">{label}</h3>
+                    </div>
+                    <div className="flex items-end justify-between gap-2">
+                        <div className={cn("text-2xl font-black text-gray-900 tracking-tighter leading-none shrink-0", isLoading && "animate-pulse")}>
+                            {displayValue}
+                        </div>
+                        <div className="text-[9px] font-black text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded-lg whitespace-nowrap mb-0.5">
+                            {displayTrend}
+                        </div>
+                    </div>
                 </div>
             </div>
         </PremiumCard>

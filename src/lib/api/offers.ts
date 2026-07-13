@@ -546,3 +546,41 @@ export async function toggleOfferStatus(id: string, shopId: string) {
         headers: { shopId },
     });
 }
+
+export async function getUserOfferSimilar(
+    id: string | number,
+    query: { latitude?: number | null; longitude?: number | null } = {},
+    cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">
+) {
+    const params = new URLSearchParams();
+    const normalizedLatitude = normalizeOptionalQueryValue(query.latitude);
+    const normalizedLongitude = normalizeOptionalQueryValue(query.longitude);
+    if (normalizedLatitude !== undefined) params.set("latitude", normalizedLatitude);
+    if (normalizedLongitude !== undefined) params.set("longitude", normalizedLongitude);
+
+    const response = await backend.get<any>(
+        `${ENDPOINTS.USER_OFFER.SIMILAR(id)}?${params.toString()}`,
+        {
+            next: { tags: [CACHE_TAGS.OFFERS, CACHE_TAGS.OFFER(id)] },
+            ...cacheOptions,
+        }
+    );
+
+    if (!response.success || !response.data) {
+        return {
+            success: false,
+            data: [],
+            error: response.error || "Failed to fetch similar offers",
+        };
+    }
+
+    const apiData = unwrapApiEnvelope(response.data);
+    const offersArray = Array.isArray(apiData) ? apiData : (Array.isArray(apiData.data) ? apiData.data : []);
+    const mappedOffers = offersArray.map(mapUserOfferToOffer);
+
+    return {
+        success: true,
+        data: mappedOffers,
+    };
+}
+

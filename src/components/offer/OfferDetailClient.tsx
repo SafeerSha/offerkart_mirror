@@ -24,6 +24,7 @@ import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import OfferCard from "@/components/offer/OfferCard";
 import { ConsumerProductModal } from "@/components/offer/ConsumerProductModal";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useLocationContext } from "@/context/LocationContext";
 
 interface OfferDetail {
     id: number | string;
@@ -158,11 +159,14 @@ const SOCIAL_PLATFORMS: Record<string, { label: string; icon: React.ComponentTyp
     [PLATFORMS.WEBSITE]: { label: "Website", icon: LinkIcon, color: "text-indigo-600 hover:text-indigo-600", hoverBg: "hover:bg-indigo-50 border-indigo-100 hover:border-indigo-500" },
 };
 
-export default function OfferDetailClient({ offer: initialOffer, similarOffers, prevOfferId: initialPrevId, nextOfferId: initialNextId }: OfferDetailClientProps) {
+export default function OfferDetailClient({ offer: initialOffer, similarOffers: initialSimilarOffers, prevOfferId: initialPrevId, nextOfferId: initialNextId }: OfferDetailClientProps) {
     const { t } = useTranslation("common");
+    const { location } = useLocationContext();
+    const { latitude, longitude } = location;
 
     // --- Current offer state (can be changed client-side without page reload) ---
     const [offer, setOffer] = useState(initialOffer);
+    const [similarOffers, setSimilarOffers] = useState<SimilarOffer[]>(initialSimilarOffers);
     const [prevOfferId, setPrevOfferId] = useState(initialPrevId);
     const activeSocialLinks = useMemo(() => {
         if (!offer.socialLinks || !Array.isArray(offer.socialLinks)) return [];
@@ -171,6 +175,42 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
     const [nextOfferId, setNextOfferId] = useState(initialNextId);
     const [allOfferIds, setAllOfferIds] = useState<(number | string)[]>([]);
     const [isNavigating, setIsNavigating] = useState(false);
+
+    // --- Similar Offers Client Fetching Effect ---
+    useEffect(() => {
+        const fetchSimilar = async () => {
+            try {
+                const params = new URLSearchParams();
+                if (latitude !== null) params.set("latitude", String(latitude));
+                if (longitude !== null) params.set("longitude", String(longitude));
+
+                const res = await fetch(`/api/user/offer/${offer.id}/similar?${params.toString()}`);
+                const json = await res.json();
+                if (json.success && Array.isArray(json.data)) {
+                    const mappedSimilar = json.data
+                        .filter((o: any) => String(o.id) !== String(offer.id))
+                        .slice(0, 5)
+                        .map((o: any) => ({
+                            id: Number(o.id) || o.id,
+                            shopName: o.shopName || "OfferKart",
+                            offerName: o.offerName || o.title || "Untitled Offer",
+                            image: typeof o.image === "string" ? o.image : o.posters?.[0]?.posterSrc || "/images/shop-registration-bg-light.png",
+                            category: o.category || "Offers",
+                            location: o.location || "Location unavailable",
+                            validFrom: o.validFrom || "",
+                            validTo: o.validTo || "",
+                            discount: o.discount,
+                            branchName: o.branchNames?.[0] || o.branchName,
+                        }));
+                    setSimilarOffers(mappedSimilar);
+                }
+            } catch (err) {
+                console.error("Failed to fetch similar offers client-side:", err);
+            }
+        };
+
+        fetchSimilar();
+    }, [offer.id, latitude, longitude]);
 
     // --- Poster / carousel state ---
     const [posterIndex, setPosterIndex] = useState(0);
@@ -654,45 +694,47 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers, 
             </div>
 
             {/* Similar Offers Carousel (Outside grid, spans full page width) */}
-            <div className="container mx-auto px-4 pb-16">
-                <div>
-                    <div className="flex items-center justify-between mb-6">
-                        <Subheading className="text-2xl font-bold">{t("catalog.similarOffers")}</Subheading>
-                        <div className="flex items-center gap-2">
-                            <PremiumButton
-                                variant="outline"
-                                size="icon"
-                                onClick={() => scrollSimilar("left")}
-                                className="rounded-full border-border/50 h-10 w-10"
-                            >
-                                <ChevronLeft className="w-4 h-4" />
-                            </PremiumButton>
-                            <PremiumButton
-                                variant="outline"
-                                size="icon"
-                                onClick={() => scrollSimilar("right")}
-                                className="rounded-full border-border/50 h-10 w-10"
-                            >
-                                <ChevronRight className="w-4 h-4" />
-                            </PremiumButton>
+            {similarOffers && similarOffers.length > 0 && (
+                <div className="container mx-auto px-4 pb-16">
+                    <div>
+                        <div className="flex items-center justify-between mb-6">
+                            <Subheading className="text-2xl font-bold">{t("catalog.similarOffers")}</Subheading>
+                            <div className="flex items-center gap-2">
+                                <PremiumButton
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => scrollSimilar("left")}
+                                    className="rounded-full border-border/50 h-10 w-10"
+                                >
+                                    <ChevronLeft className="w-4 h-4" />
+                                </PremiumButton>
+                                <PremiumButton
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => scrollSimilar("right")}
+                                    className="rounded-full border-border/50 h-10 w-10"
+                                >
+                                    <ChevronRight className="w-4 h-4" />
+                                </PremiumButton>
+                            </div>
+                        </div>
+
+                        <div
+                            ref={similarCarouselRef}
+                            className="flex gap-1 overflow-x-auto pb-4 scrollbar-hide px-0.5 snap-x snap-mandatory scroll-smooth"
+                        >
+                            {similarOffers.map((o) => (
+                                <div
+                                    key={o.id}
+                                    className="w-[calc((100%-0.5rem)/2)] sm:w-[calc((100%-0.75rem)/2)] md:w-[calc((100%-4rem)/5)] lg:w-[calc((100%-4rem)/5)] flex-shrink-0 snap-start"
+                                >
+                                    <OfferCard {...o} />
+                                </div>
+                            ))}
                         </div>
                     </div>
-
-                    <div
-                        ref={similarCarouselRef}
-                        className="flex gap-1 overflow-x-auto pb-4 scrollbar-hide px-0.5 snap-x snap-mandatory scroll-smooth"
-                    >
-                        {similarOffers.map((o) => (
-                            <div
-                                key={o.id}
-                                className="w-[calc((100%-0.5rem)/2)] sm:w-[calc((100%-0.75rem)/2)] md:w-[calc((100%-4rem)/5)] lg:w-[calc((100%-4rem)/5)] flex-shrink-0 snap-start"
-                            >
-                                <OfferCard {...o} />
-                            </div>
-                        ))}
-                    </div>
                 </div>
-            </div>
+            )}
             <ConsumerProductModal
                 open={isProductModalOpen}
                 onOpenChange={setIsProductModalOpen}

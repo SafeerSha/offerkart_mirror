@@ -25,9 +25,16 @@ import dynamic from "next/dynamic";
 import { addBranch, updateBranch, getBranchDetails } from "@/lib/api/branch";
 import { getShopDetails } from "@/lib/api/shop";
 import { useLocation } from "@/hooks/useLocation";
+import { getStates, getDistrictsByState, getPlacesByDistrict } from "indian_places";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
+import { forwardGeocode, reverseGeocode } from "@/lib/api/geocoding";
 
 const MapPicker = dynamic(() => import("@/components/shared/MapPicker"), {
+    ssr: false,
+    loading: () => <div className="h-48 w-full bg-gray-100 animate-pulse rounded-xl flex items-center justify-center text-gray-400">Loading Map...</div>
+});
+
+const PigeonMapPicker = dynamic(() => import("@/components/shared/PigeonMapPicker"), {
     ssr: false,
     loading: () => <div className="h-48 w-full bg-gray-100 animate-pulse rounded-xl flex items-center justify-center text-gray-400">Loading Map...</div>
 });
@@ -100,6 +107,35 @@ export default function AddBranchForm({ shopId }: AddBranchFormProps) {
 
     const locations = useLocation();
 
+    // Forward Geocode to update map coordinates when user changes location values manually
+    const handleForwardGeocode = useCallback(async (customQuery?: string) => {
+        const address = form.getValues("address") || "";
+        const city = form.getValues("city") || "";
+        const district = form.getValues("district") || "";
+        const state = form.getValues("state") || "";
+
+        let query = "";
+        if (customQuery) {
+            query = customQuery;
+        } else {
+            const parts = [];
+            if (address) parts.push(address.split(",")[0].trim());
+            if (city) parts.push(city);
+            if (district) parts.push(district);
+            if (state) parts.push(state);
+            parts.push("India");
+            query = parts.join(", ");
+        }
+
+        if (!query || query === "India") return;
+
+        const result = await forwardGeocode(query);
+        if (result) {
+            form.setValue("latitude", result.lat);
+            form.setValue("longitude", result.lng);
+        }
+    }, [form]);
+
     // When state changes, load districts instantly (offline)
     const handleStateChange = useCallback((stateName: string) => {
         form.setValue("state", stateName);
@@ -107,7 +143,10 @@ export default function AddBranchForm({ shopId }: AddBranchFormProps) {
         form.setValue("city", "");
         form.setValue("pincode", "");
         locations.selectState(stateName);
-    }, [form, locations]);
+        if (stateName) {
+            handleForwardGeocode(stateName + ", India");
+        }
+    }, [form, locations, handleForwardGeocode]);
 
     // When district changes, load cities (offline)
     const handleDistrictChange = useCallback((districtName: string) => {
@@ -115,7 +154,11 @@ export default function AddBranchForm({ shopId }: AddBranchFormProps) {
         form.setValue("city", "");
         form.setValue("pincode", "");
         locations.selectDistrict(districtName);
-    }, [form, locations]);
+        const currentState = form.getValues("state");
+        if (districtName) {
+            handleForwardGeocode(`${districtName}, ${currentState || ""}, India`);
+        }
+    }, [form, locations, handleForwardGeocode]);
 
     // When city changes, auto-fill pincode
     const handleCityChange = useCallback((cityName: string) => {
@@ -125,6 +168,114 @@ export default function AddBranchForm({ shopId }: AddBranchFormProps) {
             if (pincode) {
                 form.setValue("pincode", pincode);
             }
+            const currentState = form.getValues("state");
+            const currentDistrict = form.getValues("district");
+            handleForwardGeocode(`${cityName}, ${currentDistrict || ""}, ${currentState || ""}, India`);
+        }
+    }, [form, locations, handleForwardGeocode]);
+
+    // Reverse Geocode using Nominatim API to fill out location details
+    const handleReverseGeocode = useCallback(async (lat: number, lng: number) => {
+        // Only allow coordinates inside India bounds
+        if (lat < 6.5 || lat > 35.5 || lng < 68.0 || lng > 97.5) {
+            return;
+        }
+        const result = await reverseGeocode(lat, lng);
+        if (result && result.address) {
+            const addr = result.address;
+
+            // Check if country is India
+            const isCountryIndia =
+                (addr.country_code && addr.country_code.toLowerCase() === "in") ||
+                (addr.country && addr.country.toLowerCase() === "india");
+
+            if (!isCountryIndia) {
+                toast.error("Please select a location inside India.");
+                form.setValue("latitude", undefined);
+                form.setValue("longitude", undefined);
+                return;
+            }
+
+            // 1. Resolve State
+            const rawState = addr.state || "";
+            const stateMatch = locations.states.find(
+                (s) => s.toLowerCase() === rawState.toLowerCase()
+            );
+
+            if (stateMatch) {
+                form.setValue("state", stateMatch);
+                locations.selectState(stateMatch);
+                form.setValue("district", "");
+                form.setValue("city", "");
+                form.setValue("pincode", "");
+
+                // 2. Resolve District & City
+                const rawDistrict = (addr.state_district || addr.district || addr.county || "").replace(/\s*district\s*/i, "").trim();
+                const stateObj = getStates().find(s => s.name.toLowerCase() === stateMatch.toLowerCase());
+                let resolvedCity = "";
+                const rawCity = addr.city || addr.town || addr.village || addr.suburb || "";
+
+                if (stateObj) {
+                    const districtList = getDistrictsByState(stateObj).map(d => d.name);
+                    const districtMatch = districtList.find(
+                        (d) => d.toLowerCase() === rawDistrict.toLowerCase() ||
+                            d.toLowerCase().includes(rawDistrict.toLowerCase()) ||
+                            rawDistrict.toLowerCase().includes(d.toLowerCase())
+                    );
+
+                    if (districtMatch) {
+                        form.setValue("district", districtMatch);
+                        locations.selectDistrict(districtMatch, stateMatch);
+
+                        const districtObj = getDistrictsByState(stateObj).find(d => d.name.toLowerCase() === districtMatch.toLowerCase());
+                        if (districtObj) {
+                            const cityList = getPlacesByDistrict(districtObj).map(p => p.name);
+                            const cityMatch = cityList.find(
+                                (c) => c.toLowerCase() === rawCity.toLowerCase() ||
+                                    c.toLowerCase().includes(rawCity.toLowerCase()) ||
+                                    rawCity.toLowerCase().includes(c.toLowerCase())
+                            );
+
+                            if (cityMatch) {
+                                resolvedCity = cityMatch;
+                            }
+                        }
+                    } else if (rawDistrict) {
+                        form.setValue("district", rawDistrict);
+                    }
+                }
+
+                if (!resolvedCity && rawCity) {
+                    resolvedCity = rawCity;
+                }
+
+                if (resolvedCity) {
+                    form.setValue("city", resolvedCity);
+                }
+            }
+
+            // 3. Resolve Pincode
+            if (addr.postcode) {
+                const cleanPincode = addr.postcode.replace(/\s+/g, "").slice(0, 6);
+                if (/^\d{6}$/.test(cleanPincode)) {
+                    form.setValue("pincode", cleanPincode);
+                }
+            }
+
+            // 4. Resolve Address
+            const addressParts = [];
+            if (addr.road) addressParts.push(addr.road);
+            if (addr.suburb || addr.neighbourhood) addressParts.push(addr.suburb || addr.neighbourhood);
+            if (addr.village || addr.city_district) addressParts.push(addr.village || addr.city_district);
+
+            const constructedAddress = addressParts.join(", ");
+            if (constructedAddress) {
+                form.setValue("address", constructedAddress);
+            } else if (result.display_name) {
+                form.setValue("address", result.display_name.split(",").slice(0, 3).join(",").trim());
+            }
+
+            toast.success("Location details auto-filled from map!");
         }
     }, [form, locations]);
 
@@ -210,9 +361,9 @@ export default function AddBranchForm({ shopId }: AddBranchFormProps) {
 
             if (response.success || (response as any).status === "success") {
                 toast.success(isEditMode ? "Branch updated!" : "Branch added!");
-                
+
                 const isFromOfferPublish = returnTo?.includes("create-offer");
-                
+
                 if (!isEditMode && isFromOfferPublish) {
                     setIsSuccess(true);
                 } else {
@@ -255,15 +406,15 @@ export default function AddBranchForm({ shopId }: AddBranchFormProps) {
                         </div>
 
                         <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
-                            <PremiumButton 
-                                onClick={() => window.close()} 
+                            <PremiumButton
+                                onClick={() => window.close()}
                                 className="rounded-2xl px-10 h-14 text-lg bg-green-600 hover:bg-green-700 shadow-xl shadow-green-200 w-full sm:w-auto"
                                 leftIcon={X}
                             >
                                 Close This Tab
                             </PremiumButton>
-                            
-                            <PremiumButton 
+
+                            <PremiumButton
                                 variant="outline"
                                 onClick={() => {
                                     setIsSuccess(false);
@@ -319,7 +470,7 @@ export default function AddBranchForm({ shopId }: AddBranchFormProps) {
 
     return (
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 {/* Header */}
                 <div className="mb-8">
                     <Breadcrumbs
@@ -350,7 +501,7 @@ export default function AddBranchForm({ shopId }: AddBranchFormProps) {
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     {/* Branch Info */}
                     <PremiumCard padding="none" className="lg:col-span-12 overflow-hidden">
-                        <div className="px-8 py-6 border-b border-gray-100 bg-white">
+                        <div className="px-4 md:px-8 py-6 border-b border-gray-100 bg-white">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center">
                                     <Store className="w-5 h-5 text-orange-600" />
@@ -362,7 +513,7 @@ export default function AddBranchForm({ shopId }: AddBranchFormProps) {
                             </div>
                         </div>
 
-                        <div className="p-8 space-y-6 bg-white">
+                        <div className="p-4 md:p-8 space-y-6 bg-white">
                             <FormField
                                 control={form.control}
                                 name="branch_name"
@@ -510,7 +661,7 @@ export default function AddBranchForm({ shopId }: AddBranchFormProps) {
 
                     {/* Location Details */}
                     <PremiumCard padding="none" className="lg:col-span-12 overflow-hidden">
-                        <div className="px-8 py-6 border-b border-gray-100 bg-white">
+                        <div className="px-4 md:px-8 py-6 border-b border-gray-100 bg-white">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">
                                     <MapPin className="w-5 h-5 text-green-600" />
@@ -522,7 +673,7 @@ export default function AddBranchForm({ shopId }: AddBranchFormProps) {
                             </div>
                         </div>
 
-                        <div className="p-8 space-y-6 bg-white">
+                        <div className="p-4 md:p-8 space-y-6 bg-white">
                             <FormField
                                 control={form.control}
                                 name="address"
@@ -534,6 +685,10 @@ export default function AddBranchForm({ shopId }: AddBranchFormProps) {
                                                 placeholder="Shop no, Building, Street..."
                                                 className="w-full min-h-[100px] px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-orange-500 focus:ring-2 focus:ring-orange-100 transition-all resize-none text-gray-900 placeholder-gray-500"
                                                 {...field}
+                                                onBlur={(e) => {
+                                                    field.onBlur();
+                                                    handleForwardGeocode();
+                                                }}
                                             />
                                         </FormControl>
                                         <FormMessage />
@@ -622,33 +777,59 @@ export default function AddBranchForm({ shopId }: AddBranchFormProps) {
                             </div>
 
                             <div className="p-4 rounded-xl bg-gray-50 border border-gray-200">
-                                <div className="flex items-center gap-2 mb-2 text-gray-700">
-                                    <Globe className="w-4 h-4 text-orange-600" />
-                                    <span className="text-sm font-semibold">Map Picker</span>
+
+                                {/* Leaflet Map */}
+                                {/* <div className="space-y-2">
+                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block">Leaflet Map (Voyager tiles)</label>
+                                        <div className="h-[350px] sm:h-[400px] bg-white rounded-lg overflow-hidden border border-gray-100 shadow-inner">
+                                            <FormField
+                                                control={form.control}
+                                                name="latitude"
+                                                render={() => (
+                                                    <FormControl>
+                                                        <MapPicker
+                                                            value={form.watch("latitude") && form.watch("longitude") ? {
+                                                                lat: form.watch("latitude") as number,
+                                                                lng: form.watch("longitude") as number
+                                                            } : undefined}
+                                                            onChange={(coords) => {
+                                                                form.setValue("latitude", coords.lat);
+                                                                form.setValue("longitude", coords.lng);
+                                                            }}
+                                                        />
+                                                    </FormControl>
+                                                )}
+                                            />
+                                        </div>
+                                    </div> */}
+
+                                {/* Pigeon Maps */}
+                                <div className="space-y-2">
+                                    <div className="h-[350px] sm:h-[400px] bg-white rounded-lg overflow-hidden border border-gray-100 shadow-inner">
+                                        <FormField
+                                            control={form.control}
+                                            name="latitude"
+                                            render={() => (
+                                                <FormControl>
+                                                    <PigeonMapPicker
+                                                        value={form.watch("latitude") && form.watch("longitude") ? {
+                                                            lat: form.watch("latitude") as number,
+                                                            lng: form.watch("longitude") as number
+                                                        } : undefined}
+                                                        onChange={(coords) => {
+                                                            form.setValue("latitude", coords.lat);
+                                                            form.setValue("longitude", coords.lng);
+                                                            handleReverseGeocode(coords.lat, coords.lng);
+                                                        }}
+                                                    />
+                                                </FormControl>
+                                            )}
+                                        />
+                                    </div>
                                 </div>
-                                <div className="h-[350px] sm:h-[400px] bg-white rounded-lg overflow-hidden border border-gray-100 shadow-inner">
-                                    <FormField
-                                        control={form.control}
-                                        name="latitude"
-                                        render={() => (
-                                            <FormControl>
-                                                <MapPicker
-                                                    value={form.getValues("latitude") && form.getValues("longitude") ? {
-                                                        lat: form.getValues("latitude") as number,
-                                                        lng: form.getValues("longitude") as number
-                                                    } : undefined}
-                                                    onChange={(coords) => {
-                                                        form.setValue("latitude", coords.lat);
-                                                        form.setValue("longitude", coords.lng);
-                                                    }}
-                                                />
-                                            </FormControl>
-                                        )}
-                                    />
-                                </div>
-                                <p className="text-[10px] text-gray-500 mt-2 flex items-center gap-1">
-                                    <AlertCircle className="w-3 h-3" />
-                                    Coordinates: {form.watch("latitude")?.toFixed(4) || "0"}, {form.watch("longitude")?.toFixed(4) || "0"}
+
+                                <p className="text-[10px] text-gray-500 mt-3 flex items-center gap-1">
+                                    Active Coordinates: {form.watch("latitude")?.toFixed(6) || "0.000000"}, {form.watch("longitude")?.toFixed(6) || "0.000000"}
                                 </p>
                             </div>
                         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { Search, User, LogIn, Menu, X, PlusCircle, MapPin, ChevronDown, LayoutDashboard, Plus, Loader2, Home, Percent, ShoppingBag, Locate, Package, Tag, ArrowRight } from "lucide-react";
 import Link from "next/link";
@@ -352,6 +352,19 @@ const Header = () => {
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState<SearchResultData | null>(null);
     const [isSearching, setIsSearching] = useState(false);
+
+    const groupedProducts = useMemo(() => {
+        if (!searchResults || !searchResults.products) return {};
+        const groups: Record<string, any[]> = {};
+        searchResults.products.forEach((p: any) => {
+            const cat = p.category || "General";
+            if (!groups[cat]) {
+                groups[cat] = [];
+            }
+            groups[cat].push(p);
+        });
+        return groups;
+    }, [searchResults]);
 
     const { resolveHierarchyById } = useCategoryHierarchy(searchOpen || searchQuery.trim().length > 0);
     const getProductHref = (p: any) => {
@@ -916,37 +929,40 @@ const Header = () => {
                                                             <div className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-orange-500 dark:text-orange-400 bg-slate-50/50 dark:bg-slate-900/30 border-y border-slate-100 dark:border-slate-800/40 mb-2">
                                                                 Products
                                                             </div>
-                                                            <div className="max-h-[240px] overflow-y-auto pr-1 px-2">
-                                                                {searchResults.products.map((p, idx) => (
-                                                                    <Link
-                                                                        key={idx}
-                                                                        href={getProductHref(p)}
-                                                                        onClick={() => {
-                                                                            setSearchOpen(false);
-                                                                            setSearchQuery("");
-                                                                        }}
-                                                                        className="group/item flex items-center justify-between mx-1 px-3 py-1.5 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-900 transition-all duration-200 text-left gap-4"
-                                                                    >
-                                                                        <div className="flex flex-col min-w-0 flex-1">
-                                                                            <div className="text-[10px] text-slate-400 font-normal tracking-wide mb-0.5">
-                                                                                in <span className="text-orange-500 dark:text-orange-400 font-medium">{p.category || "General"}</span>
-                                                                            </div>
-                                                                            <div className="flex items-center gap-1.5 min-w-0">
-                                                                                {/* <ArrowRight className="w-3.5 h-3.5 text-orange-500 shrink-0" /> */}
-                                                                                <span className="font-semibold text-[11.5px] text-slate-800 dark:text-slate-200 truncate leading-tight tracking-wide pl-1" title={p.name}>
-                                                                                    {p.name}
-                                                                                </span>
-                                                                            </div>
+                                                            <div className="max-h-[240px] overflow-y-auto pr-1 px-2 space-y-2">
+                                                                {Object.entries(groupedProducts).map(([categoryName, products]) => (
+                                                                    <div key={categoryName} className="space-y-0.5">
+                                                                        <div className="text-[10.5px] text-slate-400 font-semibold tracking-wide px-3.5 mb-1">
+                                                                            in <span className="text-orange-500 dark:text-orange-400 font-bold">{categoryName}</span>
                                                                         </div>
-                                                                        <div className="flex items-center gap-2.5 shrink-0">
-                                                                            <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-700 dark:text-slate-400 tracking-wide bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded-lg select-none">
-                                                                                <span>{p.totalOfferProducts} {p.totalOfferProducts === 1 ? 'Product' : 'Products'}</span>
-                                                                                <span className="text-slate-300 dark:text-slate-600 font-normal">•</span>
-                                                                                <span>{p.shopCount} {p.shopCount === 1 ? 'Shop' : 'Shops'}</span>
-                                                                            </div>
-                                                                            <ChevronDown className="w-4 h-4 -rotate-90 text-slate-300 dark:text-slate-600 group-hover/item:text-slate-400 transition-colors shrink-0" />
-                                                                        </div>
-                                                                    </Link>
+                                                                        {products.map((p, idx) => (
+                                                                            <Link
+                                                                                key={idx}
+                                                                                href={getProductHref(p)}
+                                                                                onClick={() => {
+                                                                                    setSearchOpen(false);
+                                                                                    setSearchQuery("");
+                                                                                }}
+                                                                                className="group/item flex items-center justify-between mx-1 pl-6 pr-3 py-1.5 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-900 transition-all duration-200 text-left gap-4"
+                                                                            >
+                                                                                <div className="flex flex-col min-w-0 flex-1">
+                                                                                    <div className="flex items-center gap-1.5 min-w-0">
+                                                                                        <span className="font-semibold text-[11.5px] text-slate-800 dark:text-slate-200 truncate leading-tight tracking-wide" title={p.name}>
+                                                                                            {p.name}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                </div>
+                                                                                <div className="flex items-center gap-2.5 shrink-0">
+                                                                                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-700 dark:text-slate-400 tracking-wide bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded-lg select-none">
+                                                                                        <span>{p.totalOfferProducts} {p.totalOfferProducts === 1 ? 'Product' : 'Products'}</span>
+                                                                                        <span className="text-slate-300 dark:text-slate-600 font-normal">•</span>
+                                                                                        <span>{p.shopCount} {p.shopCount === 1 ? 'Shop' : 'Shops'}</span>
+                                                                                    </div>
+                                                                                    <ChevronDown className="w-4 h-4 -rotate-90 text-slate-300 dark:text-slate-600 group-hover/item:text-slate-400 transition-colors shrink-0" />
+                                                                                </div>
+                                                                            </Link>
+                                                                        ))}
+                                                                    </div>
                                                                 ))}
                                                             </div>
                                                         </div>
@@ -1092,36 +1108,40 @@ const Header = () => {
                                                             <div className="px-3 py-1 text-[9px] font-bold uppercase tracking-wider text-orange-500 dark:text-orange-400 bg-slate-50/50 dark:bg-slate-900/30 border-y border-slate-100 dark:border-slate-800/40 mb-1">
                                                                 Products
                                                             </div>
-                                                            <div className="max-h-[200px] overflow-y-auto pr-1 px-1.5">
-                                                                {searchResults.products.map((p, idx) => (
-                                                                    <Link
-                                                                        key={idx}
-                                                                        href={getProductHref(p)}
-                                                                        onClick={() => {
-                                                                            setSearchQuery("");
-                                                                        }}
-                                                                        className="group/item flex items-center justify-between mx-0.5 px-2 py-1 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-900 transition-all duration-200 text-left"
-                                                                    >
-                                                                        <div className="flex flex-col min-w-0 flex-1">
-                                                                            <div className="text-[9.5px] text-slate-400 font-normal tracking-wide mb-0.5">
-                                                                                in <span className="text-orange-500 dark:text-orange-400 font-medium">{p.category || "General"}</span>
-                                                                            </div>
-                                                                            <div className="flex items-center gap-1.5 min-w-0">
-                                                                                <Package className="w-3.5 h-3.5 text-orange-500 shrink-0" />
-                                                                                <span className="font-semibold text-[12.5px] text-slate-800 dark:text-slate-200 truncate leading-tight tracking-wide" title={p.name}>
-                                                                                    {p.name}
-                                                                                </span>
-                                                                            </div>
+                                                            <div className="max-h-[200px] overflow-y-auto pr-1 px-1.5 space-y-2">
+                                                                {Object.entries(groupedProducts).map(([categoryName, products]) => (
+                                                                    <div key={categoryName} className="space-y-0.5">
+                                                                        <div className="text-[10px] text-slate-400 font-semibold tracking-wide px-2.5 mb-1">
+                                                                            in <span className="text-orange-500 dark:text-orange-400 font-bold">{categoryName}</span>
                                                                         </div>
-                                                                        <div className="flex items-center gap-1.5 shrink-0">
-                                                                            <div className="flex items-center gap-1 text-[9px] font-bold text-slate-500 dark:text-slate-400 tracking-wide bg-slate-100 dark:bg-slate-800/80 px-1.5 py-0.5 rounded-md select-none">
-                                                                                <span>{p.totalOfferProducts} {p.totalOfferProducts === 1 ? 'Product' : 'Products'}</span>
-                                                                                <span className="text-slate-300 dark:text-slate-600 font-normal">•</span>
-                                                                                <span>{p.shopCount} {p.shopCount === 1 ? 'Shop' : 'Shops'}</span>
-                                                                            </div>
-                                                                            <ChevronDown className="w-3.5 h-3.5 -rotate-90 text-slate-300 dark:text-slate-600 group-hover/item:text-slate-400 transition-colors shrink-0" />
-                                                                        </div>
-                                                                    </Link>
+                                                                        {products.map((p, idx) => (
+                                                                            <Link
+                                                                                key={idx}
+                                                                                href={getProductHref(p)}
+                                                                                onClick={() => {
+                                                                                    setSearchQuery("");
+                                                                                }}
+                                                                                className="group/item flex items-center justify-between mx-0.5 pl-5 pr-2 py-1 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-900 transition-all duration-200 text-left gap-3"
+                                                                            >
+                                                                                <div className="flex flex-col min-w-0 flex-1">
+                                                                                    <div className="flex items-center gap-1.5 min-w-0">
+                                                                                        <Package className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+                                                                                        <span className="font-semibold text-[12.5px] text-slate-800 dark:text-slate-200 truncate leading-tight tracking-wide" title={p.name}>
+                                                                                            {p.name}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                </div>
+                                                                                <div className="flex items-center gap-1.5 shrink-0">
+                                                                                    <div className="flex items-center gap-1 text-[9px] font-bold text-slate-500 dark:text-slate-400 tracking-wide bg-slate-100 dark:bg-slate-800/80 px-1.5 py-0.5 rounded-md select-none">
+                                                                                        <span>{p.totalOfferProducts} {p.totalOfferProducts === 1 ? 'Product' : 'Products'}</span>
+                                                                                        <span className="text-slate-300 dark:text-slate-600 font-normal">•</span>
+                                                                                        <span>{p.shopCount} {p.shopCount === 1 ? 'Shop' : 'Shops'}</span>
+                                                                                    </div>
+                                                                                    <ChevronDown className="w-3.5 h-3.5 -rotate-90 text-slate-300 dark:text-slate-600 group-hover/item:text-slate-400 transition-colors shrink-0" />
+                                                                                </div>
+                                                                            </Link>
+                                                                        ))}
+                                                                    </div>
                                                                 ))}
                                                             </div>
                                                         </div>

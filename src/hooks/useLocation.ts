@@ -13,7 +13,7 @@ export interface LocationResult {
     districts: string[];
     cities: PlaceInfo[];
     selectState: (stateName: string) => void;
-    selectDistrict: (districtName: string) => void;
+    selectDistrict: (districtName: string, stateName?: string) => void;
     lookupPincode: (cityName: string) => string;
 }
 
@@ -53,11 +53,16 @@ export function useLocation(): LocationResult {
 
     // When a district is selected, get its places/cities (offline)
     const selectDistrict = useCallback(
-        (districtName: string) => {
+        (districtName: string, stateName?: string) => {
             setCities([]);
 
-            if (selectedState) {
-                const districtList = getDistrictsByState(selectedState);
+            const stateList = getStates();
+            const targetState = stateName
+                ? stateList.find((s) => s.name.toLowerCase() === stateName.toLowerCase())
+                : selectedState;
+
+            if (targetState) {
+                const districtList = getDistrictsByState(targetState);
                 const district = districtList.find(
                     (d) => d.name.toLowerCase() === districtName.toLowerCase()
                 );
