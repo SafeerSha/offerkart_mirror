@@ -2,14 +2,15 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Image, { StaticImageData } from "next/image";
-import { ChevronLeft, ChevronRight, Zap, Rocket } from "lucide-react";
+import { ChevronLeft, ChevronRight, Star, Rocket } from "lucide-react";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { Subheading, Text } from "@/components/shared/Typography";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useLocationContext } from "@/context/LocationContext";
 import { Search } from "lucide-react";
+import { useFeaturedOffers } from "@/hooks/useApi";
 
-interface FeaturedShop {
+interface FeaturedOffer {
   id: number;
   name: string;
   offer: string;
@@ -19,75 +20,75 @@ interface FeaturedShop {
 }
 
 interface FeaturedCarouselProps {
-  shops: FeaturedShop[];
+  offers: FeaturedOffer[];
 }
 
-const FeaturedCarousel = ({ shops = [] }: FeaturedCarouselProps) => {
+const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
   const { t } = useTranslation("home");
-  const { location: userLocation } = useLocationContext();
+  const { location: userLocation, hydrated } = useLocationContext();
 
-  const displayShops = useMemo(() => {
-    return shops || [];
-  }, [shops]);
+  const hasLocation = userLocation.latitude !== null && userLocation.longitude !== null;
+  const { data: dynamicData } = useFeaturedOffers(
+    userLocation.latitude,
+    userLocation.longitude,
+    {
+      enabled: hydrated && hasLocation
+    }
+  );
+
+  const displayOffers = useMemo(() => {
+    if (hydrated && hasLocation && dynamicData && dynamicData.success) {
+      return dynamicData.data || [];
+    }
+    return offers || [];
+  }, [hydrated, hasLocation, dynamicData, offers]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
 
+  // Reset index when displayOffers change to avoid out of bounds
+  useEffect(() => {
+    setCurrentIndex(0);
+  }, [displayOffers]);
+
   const nextSlide = useCallback(() => {
-    if (displayShops.length === 0) return;
-    setCurrentIndex((prev) => (prev + 1) % displayShops.length);
-  }, [displayShops.length]);
+    if (displayOffers.length === 0) return;
+    setCurrentIndex((prev) => (prev + 1) % displayOffers.length);
+  }, [displayOffers.length]);
 
   const prevSlide = () => {
-    if (displayShops.length === 0) return;
-    setCurrentIndex((prev) => (prev - 1 + displayShops.length) % displayShops.length);
+    if (displayOffers.length === 0) return;
+    setCurrentIndex((prev) => (prev - 1 + displayOffers.length) % displayOffers.length);
   };
 
   useEffect(() => {
-    if (displayShops.length === 0) return;
+    if (displayOffers.length === 0) return;
     if (!isAutoPlaying) return;
     const interval = setInterval(nextSlide, 5000);
     return () => clearInterval(interval);
-  }, [isAutoPlaying, nextSlide, displayShops.length]);
+  }, [isAutoPlaying, nextSlide, displayOffers.length]);
 
   const getVisibleSlides = () => {
-    if (displayShops.length === 0) return [];
+    if (displayOffers.length === 0) return [];
+    // Only generate as many side-slots as there are extra offers to avoid duplicating the same offer
     const slides = [];
-    for (let i = -1; i <= 2; i++) {
-      const index = (currentIndex + i + displayShops.length) % displayShops.length;
-      slides.push({ ...displayShops[index], position: i });
+    if (displayOffers.length === 1) {
+      // Single offer — show only the centre card
+      slides.push({ ...displayOffers[0], position: 0 });
+    } else {
+      for (let i = -1; i <= 2; i++) {
+        // Skip positions where we'd wrap back to the same offer
+        if (Math.abs(i) >= displayOffers.length) continue;
+        const index = (currentIndex + i + displayOffers.length) % displayOffers.length;
+        slides.push({ ...displayOffers[index], position: i });
+      }
     }
     return slides;
   };
 
-  if (displayShops.length === 0) {
-    return (
-      <section className="py-2 overflow-hidden relative">
-        <div className="container mx-auto px-4 relative">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="p-3 rounded-2xl bg-primary/10 border border-primary/20">
-              <Zap className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <Subheading className="text-3xl font-bold mb-0">
-                {t("featuredOffers.title")}
-              </Subheading>
-              <Text className="text-sm mt-1">{t("featuredOffers.subtitle")}</Text>
-            </div>
-          </div>
-          <div className="py-16 text-center bg-white rounded-3xl border border-slate-100 shadow-sm animate-in fade-in duration-300">
-            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Search className="w-8 h-8 text-slate-400" />
-            </div>
-            <h3 className="text-lg font-bold text-slate-900">No featured offers found</h3>
-            <p className="text-sm text-slate-500 mt-1">Try to change your location preferences</p>
-          </div>
-        </div>
-      </section>
-    );
+  if (displayOffers.length === 0) {
+    return null;
   }
-
-
 
   return (
     <section className="py-2 overflow-hidden relative">
@@ -102,7 +103,7 @@ const FeaturedCarousel = ({ shops = [] }: FeaturedCarouselProps) => {
         <div className="flex items-center justify-between mb-4 gap-4">
           <div className="flex items-center gap-4">
             <div className="p-3 rounded-2xl bg-primary/10 border border-primary/20">
-              <Zap className="w-6 h-6 text-primary" />
+              <Star className="w-6 h-6 text-primary fill-primary/20" />
             </div>
             <div>
               <Subheading className="sm:text-3xl font-bold mb-0">
@@ -112,18 +113,18 @@ const FeaturedCarousel = ({ shops = [] }: FeaturedCarouselProps) => {
             </div>
           </div>
 
-          {displayShops.length > 1 && (
+          {displayOffers.length > 1 && (
             <div className="flex items-center gap-3 shrink-0">
               {/* Progress Bar */}
               <div className="hidden sm:flex items-center gap-2 mr-2">
                 <div className="w-16 h-1 bg-muted rounded-full overflow-hidden">
                   <div
                     className="h-full bg-gradient-to-r from-primary to-secondary transition-all duration-300 ease-linear"
-                    style={{ width: `${((currentIndex + 1) / displayShops.length) * 100}%` }}
+                    style={{ width: `${((currentIndex + 1) / displayOffers.length) * 100}%` }}
                   />
                 </div>
                 <span className="text-xs text-muted-foreground min-w-[3ch]">
-                  {currentIndex + 1}/{displayShops.length}
+                  {currentIndex + 1}/{displayOffers.length}
                 </span>
               </div>
 
@@ -151,13 +152,12 @@ const FeaturedCarousel = ({ shops = [] }: FeaturedCarouselProps) => {
           )}
         </div>
 
-        {displayShops.length === 0 ? (
+        {displayOffers.length === 0 ? (
           <div className="h-72 md:h-80 flex items-center justify-center rounded-2xl border border-dashed border-muted bg-muted/30">
-            <Text className="text-muted-foreground">{t("featuredOffers.empty") || "No featured shops available right now."}</Text>
+            <Text className="text-muted-foreground">{t("featuredOffers.empty") || "No featured offers available right now."}</Text>
           </div>
         ) : (
           <>
-
             <div
               className="relative h-72 md:h-80"
               onMouseEnter={() => setIsAutoPlaying(false)}
@@ -220,9 +220,9 @@ const FeaturedCarousel = ({ shops = [] }: FeaturedCarouselProps) => {
             </div>
 
             {/* Dots Indicator */}
-            {shops.length > 1 && (
+            {offers.length > 1 && (
               <div className="flex justify-center gap-2 mt-6">
-                {shops.map((_, index) => (
+                {offers.map((_, index) => (
                   <button
                     key={index}
                     onClick={() => setCurrentIndex(index)}

@@ -22,7 +22,7 @@ import { Branch, PosterItem } from "@/lib/types";
 import type { PosterPreviewState } from "@/components/shop-manager/PosterCardStack";
 
 // Icons
-import { ArrowRight, X, Clock, FileEdit, Trash2, LayoutGrid, Send, Type, GitBranch } from "@/lib/icons";
+import { ArrowRight, X, Clock, FileEdit, Trash2, LayoutGrid, Send, Type, GitBranch, Star } from "@/lib/icons";
 
 // Local components
 import { PosterCardStack } from "@/components/shop-manager/PosterCardStack";
@@ -67,6 +67,7 @@ function CreateOfferContent() {
     const [offerTitle, setOfferTitle] = useState("");
     const [offerStatus, setOfferStatus] = useState("active");
     const [isActive, setIsActive] = useState(true);
+    const [isFeatured, setIsFeatured] = useState(false);
     const [validFrom, setValidFrom] = useState<Date | undefined>(() => new Date());
     const [validTo, setValidTo] = useState<Date>();
     const [classifiedPosters, setClassifiedPosters] = useState<PosterItem[]>([]);
@@ -342,6 +343,7 @@ function CreateOfferContent() {
                 createdAt: (isUpdateMode && editBatchId && allPosters.find(o => o.batchId === editBatchId)?.createdAt) || new Date().toISOString(),
                 status: isActive ? 'active' : 'paused',
                 isActive: isActive,
+                isFeatured: isFeatured,
                 posters: finalPosters,
                 socialLinks: socialLinks,
                 type: "UPLOAD",
@@ -731,34 +733,51 @@ function CreateOfferContent() {
                 title={isUpdateMode ? "Update Offer" : "Publish Offer"}
                 description={isUpdateMode ? "Review and update your campaign details." : "Give your campaign a name before publishing."}
                 footer={
-                    <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center sm:justify-between w-full">
-                        <div className="flex items-center justify-between sm:justify-start gap-3">
-                            <div className="flex items-center gap-1.5">
-                                <div className={cn(
-                                    "w-2 h-2 rounded-full",
-                                    isActive ? "bg-[#1cc080]" : "bg-gray-400"
-                                )} />
-                                <span className={cn(
-                                    "text-[13px] font-bold uppercase tracking-wider",
-                                    isActive ? "text-slate-800" : "text-gray-500"
-                                )}>
-                                    {isActive ? "Online" : "Paused"}
-                                </span>
-                            </div>
+                    <div className="flex flex-col gap-3 w-full">
+                        <div className="flex items-center gap-2">
                             <StatusToggleButton status={isActive ? "active" : "paused"} onChange={(newStatus) => setIsActive(newStatus === "active")} />
+                            <span className={cn(
+                                "text-[13px] font-bold uppercase tracking-wider",
+                                isActive ? "text-slate-800" : "text-gray-400"
+                            )}>
+                                {isActive ? "Online" : "Paused"}
+                            </span>
+                            <div className="w-px h-5 bg-border mx-1" />
+                            <button
+                                type="button"
+                                role="switch"
+                                aria-checked={isFeatured}
+                                onClick={() => setIsFeatured(f => !f)}
+                                className={cn(
+                                    "relative inline-flex h-6 w-8 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none",
+                                    isFeatured ? "bg-amber-400" : "bg-gray-200"
+                                )}
+                            >
+                                <span className={cn(
+                                    "inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200",
+                                    isFeatured ? "translate-x-6" : "translate-x-1"
+                                )} />
+                            </button>
+                            <span className={cn(
+                                "flex items-center gap-1 text-[13px] font-bold uppercase tracking-wider",
+                                isFeatured ? "text-amber-500" : "text-gray-400"
+                            )}>
+                                <Star className={cn("w-3.5 h-3.5", isFeatured ? "fill-amber-400 text-amber-500" : "")} />
+                                Featured
+                            </span>
                         </div>
-                        <div className="flex flex-col sm:flex-row gap-2.5 sm:justify-end">
+                        <div className="flex gap-2 w-full">
                             <PremiumButton
                                 variant="outline"
                                 onClick={() => setShowPublishModal(false)}
-                                className="rounded-xl w-full sm:w-auto order-3 sm:order-1"
+                                className="rounded-xl flex-1"
                             >
                                 Cancel
                             </PremiumButton>
                             <PremiumButton
                                 onClick={() => handleSaveDraftSubmit()}
                                 isLoading={isPublishing}
-                                className="rounded-xl bg-none bg-yellow-600 hover:bg-yellow-700 text-white shadow-lg shadow-yellow-600/20 border-0 w-full sm:w-auto order-2 sm:order-2"
+                                className="rounded-xl flex-1 bg-none bg-yellow-600 hover:bg-yellow-700 text-white shadow-lg shadow-yellow-600/20 border-0"
                                 disabled={isPublishing}
                             >
                                 Save Draft
@@ -767,7 +786,7 @@ function CreateOfferContent() {
                                 onClick={handlePublishSubmit}
                                 isLoading={isPublishing}
                                 leftIcon={Send}
-                                className="rounded-xl w-full sm:w-auto order-1 sm:order-3"
+                                className="rounded-xl flex-1"
                                 disabled={isPublishing}
                             >
                                 {isUpdateMode ? "Update" : "Publish"}

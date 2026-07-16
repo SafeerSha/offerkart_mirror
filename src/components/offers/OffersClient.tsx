@@ -5,8 +5,8 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { getPaginatedOffers } from "@/lib/api/offers";
 import OfferGrid from "@/components/home/OfferGrid";
 import FilterPanel from "@/components/home/FilterPanel";
-import FeaturedOffers from "@/components/home/FeaturedOffers";
-import { Loader2, Filter, SlidersHorizontal, AlertTriangle } from "lucide-react";
+import FeaturedShops from "@/components/home/FeaturedShops";
+import { Loader2, Filter, SlidersHorizontal, AlertTriangle, Tag } from "lucide-react";
 import {
     Sheet,
     SheetContent,
@@ -211,18 +211,18 @@ export default function OffersClient({
         isFetching,
         isFetchingNextPage,
         error
-    } = useInfiniteUserOffers(8, queryFilters, {
+    } = useInfiniteUserOffers(12, queryFilters, {
         enabled: hydrated,
         initialData: (initialOffers.length > 0 && isInitialState)
             ? {
-                pages: [{ data: initialOffers, page: 1, limit: 8, count: initialOffers.length, hasMore: hasMoreInitial }],
+                pages: [{ data: initialOffers, page: 1, limit: 12, count: initialOffers.length, hasMore: hasMoreInitial }],
                 pageParams: [1],
             }
             : undefined,
     });
 
     // Flatten pages into a single array
-    const offers = data?.pages.flatMap(page => page.data) || initialOffers;
+    const offers = data !== undefined ? data.pages.flatMap(page => page.data) : (isInitialState ? initialOffers : []);
     // Avoid skeleton flicker when server-rendered initialOffers are already present
     const isLoading = isFetching && offers.length === 0;
     const hasMore = hasNextPage;
@@ -349,8 +349,8 @@ export default function OffersClient({
 
                         {featuredShops.length > 0 && (
                             <div className="mb-1">
-                                <FeaturedOffers
-                                    offers={featuredShops}
+                                <FeaturedShops
+                                    shops={featuredShops}
                                     variant="minimal"
                                     activeShopId={activeFilters.shopId}
                                 />
@@ -361,9 +361,10 @@ export default function OffersClient({
                             <div>
                                 <div className="flex flex-col gap-0">
                                     <h3
-                                        className="text-2xl font-bold text-gray-900 truncate max-w-full"
+                                        className="text-2xl font-bold text-gray-900 truncate max-w-full flex items-center gap-2"
                                         title={activeFilters.industry === "All" ? t("catalog.allOffers") : activeFilters.industry}
                                     >
+                                        <Tag className="w-5 h-5 text-orange-500 shrink-0" />
                                         {activeFilters.industry === "All" ? t("catalog.allOffers") : activeFilters.industry + " Offers"}
                                     </h3>
                                     <div className="flex flex-wrap items-center gap-1">

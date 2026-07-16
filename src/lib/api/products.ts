@@ -17,8 +17,8 @@ export function mapUserProductToProduct(item: any): any {
             ? Math.round(((finalOriginalPrice - finalOfferPrice) / finalOriginalPrice) * 100) 
             : 0);
 
-    const shopName = item.shop?.shop_name || item.shop?.name || item.shopName || "Store Partner";
-    const shopLogo = item.shop?.logo_url || item.shop?.logo || item.shopLogo || item.logoUrl || null;
+    const shopName = item.shop_name || item.shopName || item.shop?.shop_name || item.shop?.name || "Store Partner";
+    const shopLogo = item.logo_url || item.logo || item.shop?.logo_url || item.shop?.logo || item.shopLogo || item.logoUrl || null;
 
     return {
         id: item.id,
@@ -259,16 +259,29 @@ export async function getUserProducts(query: {
 
     const mappedProducts = productsArray.map((p: any) => mapUserProductToProduct(p));
 
+    if (!pagination) {
+        const startIndex = (page - 1) * limit;
+        const endIndex = startIndex + limit;
+        const paginatedData = mappedProducts.slice(startIndex, endIndex);
+        return {
+            success: true,
+            data: {
+                data: paginatedData,
+                pagination: {
+                    total: mappedProducts.length,
+                    page,
+                    limit,
+                    totalPages: Math.ceil(mappedProducts.length / limit)
+                }
+            }
+        };
+    }
+
     return {
         success: true,
         data: {
             data: mappedProducts,
-            pagination: pagination || {
-                total: mappedProducts.length,
-                page,
-                limit,
-                totalPages: Math.ceil(mappedProducts.length / limit)
-            }
+            pagination
         }
     };
 }
@@ -317,5 +330,60 @@ export async function getUserProductSimilar(
     return {
         success: true,
         data: mappedProducts,
+    };
+}
+
+export async function getProductShops(
+    latitude?: number | null,
+    longitude?: number | null,
+    categoryId?: number | string | null,
+    subcategoryId?: number | string | null,
+    search?: string | null,
+    cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">
+): Promise<{ success: boolean; data: any[] }> {
+    try {
+        const params = new URLSearchParams();
+        if (latitude !== undefined && latitude !== null) {
+            params.set("latitude", String(latitude));
+        }
+        if (longitude !== undefined && longitude !== null) {
+            params.set("longitude", String(longitude));
+        }
+        if (categoryId !== undefined && categoryId !== null && categoryId !== "") {
+            params.set("categoryId", String(categoryId));
+        }
+        if (subcategoryId !== undefined && subcategoryId !== null && subcategoryId !== "") {
+            params.set("subcategoryId", String(subcategoryId));
+        }
+        if (search !== undefined && search !== null && search !== "") {
+            params.set("search", String(search));
+        }
+        const queryString = params.toString() ? `?${params.toString()}` : "";
+
+        const response = await backend.get<any>(`${ENDPOINTS.USER_OFFER.PRODUCTS_SHOPS}${queryString}`, {
+            next: { tags: [CACHE_TAGS.PRODUCTS, CACHE_TAGS.HOME], revalidate: 60 },
+            ...cacheOptions,
+        });
+
+        if (response && response.success && response.data) {
+            const apiData = response.data;
+            const shops: any[] = Array.isArray(apiData.data) ? apiData.data : (Array.isArray(apiData) ? apiData : []);
+            return {
+                success: true,
+                data: shops.map((shop) => {
+                    return {
+                        id: shop.id,
+                        name: shop.shop_name,
+                        logo: shop.logo_url || null
+                    };
+                })
+            };
+        }
+    } catch (e) {
+        console.error("Failed to fetch product shops from API:", e);
+    }
+    return {
+        success: true,
+        data: [],
     };
 }

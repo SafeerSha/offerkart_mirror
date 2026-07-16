@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles, ArrowRight } from "lucide-react";
+import { Sparkles, ArrowRight, Tag } from "lucide-react";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { Heading, Text } from "@/components/shared/Typography";
 import FilterPanel from "./FilterPanel";
@@ -33,7 +33,7 @@ export default function FilterableOffers({ initialOffers = [], buttonText }: Fil
     }, [userLocation]);
 
     const hasLocation = userLocation.latitude !== null && userLocation.longitude !== null;
-    const { data: dynamicData, isLoading } = useInfiniteUserOffers(10, queryFilters, {
+    const { data: dynamicData, isLoading } = useInfiniteUserOffers(12, queryFilters, {
         enabled: hydrated && hasLocation
     });
 
@@ -95,6 +95,7 @@ export default function FilterableOffers({ initialOffers = [], buttonText }: Fil
             <div className="flex flex-col md:flex-row md:items-end justify-between mb-6 gap-6">
                 <div>
                     <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-500/10 text-orange-600 text-xs font-bold tracking-[0.15em] mb-4 border border-orange-500/15 animate-fade-in">
+                        <Tag className="w-3.5 h-3.5 shrink-0" />
                         <span>Exclusive Offers</span>
                     </div>
                     <Heading className="text-3xl md:text-5xl font-extrabold tracking-tight">

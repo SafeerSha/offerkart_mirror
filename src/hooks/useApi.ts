@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tansta
 import { getMyShops, getShops, getShopDetails, addShop, updateShop } from "@/lib/api/shop";
 import { getBranches, addBranch, updateBranch, deleteBranch, getBranchDetails } from "@/lib/api/branch";
 import { createOffer, updateOffer, deleteOffer, getAllOffers, getOfferById, getFeaturedShops, getFeaturedOffers, getPaginatedOffers, toggleOfferStatus } from "@/lib/api/offers";
-import { getAllProducts, createProduct, updateProduct, deleteProduct, getUserProducts } from "@/lib/api/products";
+import { getAllProducts, createProduct, updateProduct, deleteProduct, getUserProducts, getProductShops } from "@/lib/api/products";
 import { getOfferProductById, toggleOfferProductStatus } from "@/lib/api/offerproduct";
 import { s3Api } from "@/lib/api/s3";
 import { getCategories, getSubCategories } from "@/lib/api/categories";
@@ -24,8 +24,8 @@ export const queryKeys = {
   // Offer keys
   allOffers: (shopId?: string) => ["allOffers", shopId] as const,
   offerDetails: (id: string) => ["offerDetails", id] as const,
-  featuredShops: ["featuredShops"] as const,
-  featuredOffers: ["featuredOffers"] as const,
+  featuredShops: (latitude?: number | null, longitude?: number | null, industryId?: number | string | null) => ["featuredShops", latitude, longitude, industryId] as const,
+  featuredOffers: (latitude?: number | null, longitude?: number | null) => ["featuredOffers", latitude, longitude] as const,
   paginatedOffers: (page: number, limit: number) => ["paginatedOffers", page, limit] as const,
   infiniteUserOffers: (filters: any) => ["infiniteUserOffers", filters] as const,
 
@@ -33,6 +33,8 @@ export const queryKeys = {
   allProducts: (shopId?: string) => ["allProducts", shopId] as const,
   productDetails: (id: string) => ["productDetails", id] as const,
   userProductsFiltered: (filters: any) => ["userProductsFiltered", filters] as const,
+  productShops: (latitude?: number | null, longitude?: number | null, categoryId?: number | string | null, subcategoryId?: number | string | null, search?: string | null) => ["productShops", latitude, longitude, categoryId, subcategoryId, search] as const,
+  infiniteUserProducts: (filters: any) => ["infiniteUserProducts", filters] as const,
 
   // Category keys
   categories: ["categories"] as const,
@@ -162,19 +164,30 @@ export function useOfferById(id: string) {
   });
 }
 
-export function useFeaturedShops() {
+export function useFeaturedShops(
+  latitude?: number | null,
+  longitude?: number | null,
+  industryId?: number | string | null,
+  options: { enabled?: boolean } = {}
+) {
   return useQuery({
-    queryKey: queryKeys.featuredShops,
-    queryFn: getFeaturedShops,
+    queryKey: queryKeys.featuredShops(latitude, longitude, industryId),
+    queryFn: () => getFeaturedShops(latitude, longitude, industryId),
     staleTime: 5 * 60 * 1000,
+    ...options,
   });
 }
 
-export function useFeaturedOffers() {
-  return useQuery<{ success: boolean; data: any[] }>({
-    queryKey: queryKeys.featuredOffers,
-    queryFn: () => getFeaturedOffers(),
+export function useFeaturedOffers(
+  latitude?: number | null,
+  longitude?: number | null,
+  options: { enabled?: boolean } = {}
+) {
+  return useQuery({
+    queryKey: queryKeys.featuredOffers(latitude, longitude),
+    queryFn: () => getFeaturedOffers(latitude, longitude),
     staleTime: 5 * 60 * 1000,
+    ...options,
   });
 }
 
@@ -343,6 +356,42 @@ export function useUserProductsFiltered(filters: any, options: { enabled?: boole
   });
 }
 
+export function useInfiniteUserProducts(limit: number = 12, filters: any = {}, options: { enabled?: boolean; initialData?: any } = {}) {
+  return useInfiniteQuery({
+    queryKey: queryKeys.infiniteUserProducts(filters),
+    enabled: options.enabled ?? true,
+    initialData: options.initialData,
+    queryFn: async ({ pageParam = 1 }) => {
+      const result = await getUserProducts({ ...filters, page: pageParam as number, limit });
+      if (!result.success) throw new Error(result.error || "Failed to load products");
+      return result.data;
+    },
+    getNextPageParam: (lastPage: any) => {
+      const pag = lastPage.pagination;
+      if (!pag) return undefined;
+      return pag.page < pag.totalPages ? pag.page + 1 : undefined;
+    },
+    initialPageParam: 1,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useProductShops(
+  latitude?: number | null,
+  longitude?: number | null,
+  categoryId?: number | string | null,
+  subcategoryId?: number | string | null,
+  search?: string | null,
+  options: { enabled?: boolean } = {}
+) {
+  return useQuery({
+    queryKey: queryKeys.productShops(latitude, longitude, categoryId, subcategoryId, search),
+    queryFn: () => getProductShops(latitude, longitude, categoryId, subcategoryId, search),
+    staleTime: 5 * 60 * 1000,
+    ...options,
+  });
+}
+
 export function useCreateProduct() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -419,15 +468,16 @@ export function useToggleOfferProductStatus() {
 
 // ============ CATEGORY HOOKS ============
 
-export function useCategories(enabled: boolean = true) {
+export function useCategories(enabled: boolean = true, initialData?: any) {
   return useQuery({
     queryKey: queryKeys.categories,
     queryFn: getCategories,
-    staleTime: 24 * 60 * 60 * 1000, // 24 hours
-    gcTime: 24 * 60 * 60 * 1000,    // 24 hours
+    staleTime: 7 * 24 * 60 * 60 * 1000, // 1 week
+    gcTime: 7 * 24 * 60 * 60 * 1000,    // 1 week
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     enabled,
+    initialData,
   });
 }
 
@@ -436,8 +486,8 @@ export function useSubcategories(categoryId: string | number | null) {
     queryKey: categoryId ? queryKeys.subcategories(categoryId) : ["subcategories", "none"],
     queryFn: () => getSubCategories(categoryId!),
     enabled: !!categoryId,
-    staleTime: 24 * 60 * 60 * 1000, // 24 hours
-    gcTime: 24 * 60 * 60 * 1000,    // 24 hours
+    staleTime: 7 * 24 * 60 * 60 * 1000, // 1 week
+    gcTime: 7 * 24 * 60 * 60 * 1000,    // 1 week
     refetchOnWindowFocus: false,
     refetchOnMount: false,
   });
@@ -447,8 +497,8 @@ export function useIndustries(enabled: boolean = true) {
   return useQuery({
     queryKey: queryKeys.industries,
     queryFn: getIndustries,
-    staleTime: 24 * 60 * 60 * 1000, // 24 hours
-    gcTime: 24 * 60 * 60 * 1000,    // 24 hours
+    staleTime: 7 * 24 * 60 * 60 * 1000, // 1 week
+    gcTime: 7 * 24 * 60 * 60 * 1000,    // 1 week
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     enabled,

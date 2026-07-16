@@ -30,6 +30,8 @@ export const ENDPOINTS = {
         PRODUCT_DETAILS: (id: string | number) => `user/offer/products/${id}`,
         PRODUCT_SIMILAR: (id: string | number) => `user/offer/products/${id}/similar`,
         SHOPS: `user/offer/shops`,
+        FEATURED: `user/offer/featured`,
+        PRODUCTS_SHOPS: `user/offer/products/shops`,
     },
     CATEGORY: {
         BASE: `business/category`,

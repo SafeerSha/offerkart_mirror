@@ -16,7 +16,8 @@ import {
     CheckCircle2,
     ArrowLeft,
     Type,
-    Send
+    Send,
+    Star
 } from "lucide-react";
 import { Heading, Text, Subheading } from "@/components/shared/Typography";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
@@ -82,6 +83,7 @@ function EditOfferContent() {
     const [validTo, setValidTo] = useState<Date | undefined>();
     const [selectedBranchIds, setSelectedBranchIds] = useState<string[]>([]);
     const [isActive, setIsActive] = useState(true);
+    const [isFeatured, setIsFeatured] = useState(false);
     const [posters, setPosters] = useState<PosterItem[]>([]);
     const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
 
@@ -191,6 +193,7 @@ function EditOfferContent() {
                     setValidTo(toDate ? new Date(toDate) : undefined);
 
                     setIsActive(offer.status === "active" || offer.isActive || offer.is_active || false);
+                    setIsFeatured(offer.isFeatured || offer.is_featured || false);
                     setSocialLinks(offer.socialLinks || offer.social_links || []);
 
                     // Ultra-resilient branch ID extraction
@@ -422,6 +425,7 @@ function EditOfferContent() {
             const payload = {
                 title: title.trim(),
                 isActive,
+                isFeatured,
                 status: isActive ? "active" : "paused",
                 validFrom: validFrom ? formatDateLocal(validFrom) : "",
                 validTo: validTo ? formatDateLocal(validTo) : "",
@@ -600,27 +604,44 @@ function EditOfferContent() {
                 title="Update Offer"
                 description="Review and update your campaign details."
                 footer={
-                    <div className="flex items-center justify-between w-full">
-                        <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-1.5 hidden sm:flex">
-                                <div className={cn(
-                                    "w-2 h-2 rounded-full",
-                                    isActive ? "bg-[#1cc080]" : "bg-gray-400"
-                                )} />
-                                <span className={cn(
-                                    "text-[13px] font-bold uppercase tracking-wider",
-                                    isActive ? "text-slate-800" : "text-gray-500"
-                                )}>
-                                    {isActive ? "Active" : "Paused"}
-                                </span>
-                            </div>
+                    <div className="flex flex-col gap-3 w-full">
+                        <div className="flex items-center gap-2">
                             <StatusToggleButton status={isActive ? "active" : "paused"} onChange={(newStatus) => setIsActive(newStatus === "active")} />
+                            <span className={cn(
+                                "text-[13px] font-bold uppercase tracking-wider",
+                                isActive ? "text-slate-800" : "text-gray-400"
+                            )}>
+                                {isActive ? "Active" : "Paused"}
+                            </span>
+                            <div className="w-px h-5 bg-border mx-1" />
+                            <button
+                                type="button"
+                                role="switch"
+                                aria-checked={isFeatured}
+                                onClick={() => setIsFeatured(f => !f)}
+                                className={cn(
+                                    "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none",
+                                    isFeatured ? "bg-amber-400" : "bg-gray-200"
+                                )}
+                            >
+                                <span className={cn(
+                                    "inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200",
+                                    isFeatured ? "translate-x-6" : "translate-x-1"
+                                )} />
+                            </button>
+                            <span className={cn(
+                                "flex items-center gap-1 text-[13px] font-bold uppercase tracking-wider",
+                                isFeatured ? "text-amber-500" : "text-gray-400"
+                            )}>
+                                <Star className={cn("w-3.5 h-3.5", isFeatured ? "fill-amber-400 text-amber-500" : "")} />
+                                Featured
+                            </span>
                         </div>
-                        <div className="flex gap-3">
+                        <div className="flex gap-2 w-full">
                             <PremiumButton
                                 variant="outline"
                                 onClick={() => setShowDetailsModal(false)}
-                                className="rounded-xl"
+                                className="rounded-xl flex-1"
                             >
                                 Cancel
                             </PremiumButton>
@@ -628,10 +649,10 @@ function EditOfferContent() {
                                 onClick={handleSave}
                                 isLoading={isSaving}
                                 leftIcon={Send}
-                                className="rounded-xl"
+                                className="rounded-xl flex-1"
                                 disabled={isSaving || isLoading || isBranchesLoading}
                             >
-                                {isSaving ? "Updating Offer..." : (isLoading || isBranchesLoading) ? "Synchronizing... ⏳" : "Update"}
+                                {isSaving ? "Updating..." : (isLoading || isBranchesLoading) ? "Syncing... ⏳" : "Update"}
                             </PremiumButton>
                         </div>
                     </div>

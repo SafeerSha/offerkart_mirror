@@ -1,5 +1,5 @@
 import FeaturedCarousel from "@/components/home/FeaturedCarousel";
-import FeaturedOffers from "@/components/home/FeaturedOffers";
+import FeaturedShops from "@/components/home/FeaturedShops";
 import FilterableOffers from "@/components/home/FilterableOffers";
 import FeaturedProducts from "@/components/home/FeaturedProducts";
 import ShopRegistrationSection from "@/components/home/ShopRegistrationSection";
@@ -16,15 +16,15 @@ export const dynamic = "force-static";
 export const revalidate = false;
 
 export default async function HomePage() {
-  const [featuredShopsRes, featuredOffersRes, allOffersRes, allProducts] = await Promise.all([
-    getFeaturedShops(),
+  const [featuredOffersRes, featuredShopsRes, allOffersRes, allProducts] = await Promise.all([
     getFeaturedOffers(),
-    getPaginatedOffers(1, 10, {}, { next: { tags: [CACHE_TAGS.HOME, CACHE_TAGS.OFFERS] } }),
+    getFeaturedShops(),
+    getPaginatedOffers(1, 12, {}, { next: { tags: [CACHE_TAGS.HOME, CACHE_TAGS.OFFERS] } }),
     getAllProducts(undefined, { next: { tags: [CACHE_TAGS.PRODUCTS] } }),
   ]);
 
-  const featuredShops = featuredShopsRes.success ? (featuredShopsRes.data || []) : [];
   const featuredOffers = featuredOffersRes.success ? (featuredOffersRes.data || []) : [];
+  const featuredShops = featuredShopsRes.success ? (featuredShopsRes.data || []) : [];
   const allOffers = allOffersRes.success ? allOffersRes.data : [];
 
   const { t } = await getTranslations("home");
@@ -34,12 +34,12 @@ export default async function HomePage() {
       {/* Hero Spacer for Fixed Header */}
       <div className="h-40 lg:h-28" />
 
-      {/* Featured Shops Carousel */}
-      <FeaturedCarousel shops={featuredShops} />
+      {/* Featured Offers Carousel */}
+      <FeaturedCarousel offers={featuredOffers} />
 
-      {/* Featured Offers */}
+      {/* Featured Shops */}
       <Suspense fallback={<div className="container mx-auto px-4 py-8 h-20 animate-pulse bg-slate-50 rounded-2xl" />}>
-        <FeaturedOffers offers={featuredOffers} />
+        <FeaturedShops shops={featuredShops} />
       </Suspense>
 
       {/* Offers Section */}

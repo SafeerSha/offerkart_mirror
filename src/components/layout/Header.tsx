@@ -722,21 +722,24 @@ const Header = () => {
                                     {/* Desktop Nav */}
                                     <nav className="hidden lg:flex items-center gap-6 xl:gap-8">
                                         <Link href="/" className={cn(
-                                            "relative transition-all font-medium group text-sm xl:text-base",
+                                            "relative transition-all font-medium group text-sm xl:text-base flex items-center gap-1.5",
                                             pathname === "/" ? "text-orange-500 font-bold" : "text-foreground hover:text-orange-500"
                                         )}>
+                                            <Home className="w-3.5 h-3.5 shrink-0" />
                                             <span className="relative z-10">Home</span>
                                         </Link>
                                         <Link href="/offers" className={cn(
-                                            "relative transition-all font-medium group text-sm xl:text-base",
+                                            "relative transition-all font-medium group text-sm xl:text-base flex items-center gap-1.5",
                                             (pathname === "/offers" || pathname.startsWith('/offer/')) ? "text-orange-500 font-bold" : "text-foreground hover:text-orange-500"
                                         )}>
+                                            <Tag className="w-3.5 h-3.5 shrink-0" />
                                             <span className="relative z-10">Offers</span>
                                         </Link>
                                         <Link href="/products" className={cn(
-                                            "relative transition-all font-medium group text-sm xl:text-base",
+                                            "relative transition-all font-medium group text-sm xl:text-base flex items-center gap-1.5",
                                             pathname.startsWith("/products") ? "text-orange-500 font-bold" : "text-foreground hover:text-orange-500"
                                         )}>
+                                            <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
                                             <span className="relative z-10">Products</span>
                                         </Link>
                                         <button
@@ -970,7 +973,8 @@ const Header = () => {
                                                     {/* Offers Section */}
                                                     {searchResults.offers && searchResults.offers.length > 0 && (
                                                         <div className="mb-1 last:mb-0">
-                                                            <div className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-orange-500 dark:text-orange-400 bg-slate-50/50 dark:bg-slate-900/30 border-y border-slate-100 dark:border-slate-800/40 mb-2">
+                                                            <div className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-orange-500 dark:text-orange-400 bg-slate-50/50 dark:bg-slate-900/30 border-y border-slate-100 dark:border-slate-800/40 mb-2 flex items-center gap-1.5">
+                                                                <Tag className="w-3 h-3 shrink-0" />
                                                                 Offers
                                                             </div>
                                                             <div className="max-h-[240px] overflow-y-auto pr-1 px-2 space-y-0.5">
@@ -1037,7 +1041,7 @@ const Header = () => {
                                                 : "bg-white/40 dark:bg-black/20 border-primary/5 text-muted-foreground hover:bg-white/70 hover:text-foreground"
                                         )}
                                     >
-                                        <Percent className="w-3.5 h-3.5 shrink-0" />
+                                        <Tag className="w-3.5 h-3.5 shrink-0" />
                                         <span>Offers</span>
                                     </Link>
                                     <Link
@@ -1149,7 +1153,8 @@ const Header = () => {
                                                     {/* Offers */}
                                                     {searchResults.offers && searchResults.offers.length > 0 && (
                                                         <div className="mb-1 last:mb-0">
-                                                            <div className="px-3 py-1 text-[9px] font-bold uppercase tracking-wider text-orange-500 dark:text-orange-400 bg-slate-50/50 dark:bg-slate-900/30 border-y border-slate-100 dark:border-slate-800/40 mb-1.5">
+                                                            <div className="px-3 py-1 text-[9px] font-bold uppercase tracking-wider text-orange-500 dark:text-orange-400 bg-slate-50/50 dark:bg-slate-900/30 border-y border-slate-100 dark:border-slate-800/40 mb-1.5 flex items-center gap-1">
+                                                                <Tag className="w-2.5 h-2.5 shrink-0" />
                                                                 Offers
                                                             </div>
                                                             <div className="max-h-[200px] overflow-y-auto pr-1 px-1.5 space-y-0.5">
