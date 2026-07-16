@@ -258,9 +258,51 @@ export async function deleteOffer(id: string, shopId?: string) {
     });
 }
 
-export async function getFeaturedShops() {
+export async function getFeaturedOffers(
+    latitude?: number | null,
+    longitude?: number | null,
+    cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">
+) {
     try {
-        const offersResult = await fetchUserOffersPage({ page: 1, limit: 100 });
+        const params = new URLSearchParams();
+        if (latitude !== undefined && latitude !== null) {
+            params.set("latitude", String(latitude));
+        }
+        if (longitude !== undefined && longitude !== null) {
+            params.set("longitude", String(longitude));
+        }
+        const queryString = params.toString() ? `?${params.toString()}` : "";
+        const response = await backend.get<any>(`${ENDPOINTS.USER_OFFER.FEATURED}${queryString}`, {
+            next: { tags: [CACHE_TAGS.OFFERS, CACHE_TAGS.HOME], revalidate: 60 },
+            ...cacheOptions,
+        });
+
+        if (response && response.success && response.data) {
+            const apiData = response.data;
+            const unwrapped = unwrapApiEnvelope(apiData);
+            const offersArray = Array.isArray(unwrapped.data) ? unwrapped.data : (Array.isArray(unwrapped) ? unwrapped : []);
+
+            const hasFilters = (latitude !== undefined && latitude !== null) || (longitude !== undefined && longitude !== null);
+            if (offersArray.length > 0 || hasFilters) {
+                return {
+                    success: true,
+                    data: offersArray.map((item: any) => ({
+                        id: item.id,
+                        name: item.shop_name || "Unknown Shop",
+                        offer: item.title || "",
+                        image: item.defaultPoster || DEFAULT_USER_OFFER_IMAGE,
+                        badge: "Featured",
+                        rating: 4.5
+                     }))
+                };
+            }
+        }
+    } catch (e) {
+        console.error("Failed to fetch featured offers from new API:", e);
+    }
+
+    try {
+        const offersResult = await fetchUserOffersPage({ page: 1, limit: 100 }, cacheOptions);
         const offers = (offersResult && offersResult.success && Array.isArray(offersResult.data))
             ? offersResult.data
             : [];
@@ -285,7 +327,7 @@ export async function getFeaturedShops() {
             };
         }
     } catch (e) {
-        console.error("Failed to fetch featured shops:", e);
+        console.error("Failed to fetch featured offers fallback:", e);
     }
     return {
         success: true,
@@ -293,28 +335,49 @@ export async function getFeaturedShops() {
     };
 }
 
-export async function getFeaturedOffers(cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">): Promise<{ success: boolean; data: any[] }> {
+export async function getFeaturedShops(
+    latitude?: number | null,
+    longitude?: number | null,
+    industryId?: number | string | null,
+    cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">
+): Promise<{ success: boolean; data: any[] }> {
     try {
-        const response = await backend.get<any>(ENDPOINTS.USER_OFFER.SHOPS, {
+        const params = new URLSearchParams();
+        if (latitude !== undefined && latitude !== null) {
+            params.set("latitude", String(latitude));
+        }
+        if (longitude !== undefined && longitude !== null) {
+            params.set("longitude", String(longitude));
+        }
+        if (industryId !== undefined && industryId !== null && industryId !== "") {
+            params.set("industryId", String(industryId));
+        }
+        const queryString = params.toString() ? `?${params.toString()}` : "";
+        const response = await backend.get<any>(`${ENDPOINTS.USER_OFFER.SHOPS}${queryString}`, {
             next: { tags: [CACHE_TAGS.OFFERS, CACHE_TAGS.HOME], revalidate: 60 },
             ...cacheOptions,
         });
         if (response && response.success && response.data) {
             const apiData = response.data;
-            const shops: Shops[] = Array.isArray(apiData.data) ? apiData.data : (Array.isArray(apiData) ? apiData : []);
-            return {
-                success: true,
-                data: shops.map((shop) => {
-                    return {
-                        id: shop.id,
-                        name: shop.shop_name,
-                        logo: shop.logo_url || null
-                    };
-                })
-            };
+            const unwrapped = unwrapApiEnvelope(apiData);
+            const shopsArray = Array.isArray(unwrapped.data) ? unwrapped.data : (Array.isArray(unwrapped) ? unwrapped : []);
+
+            const hasFilters = (latitude !== undefined && latitude !== null) || (longitude !== undefined && longitude !== null) || (industryId !== undefined && industryId !== null && industryId !== "All");
+            if (shopsArray.length > 0 || hasFilters) {
+                return {
+                    success: true,
+                    data: shopsArray.map((shop: any) => {
+                        return {
+                            id: shop.id,
+                            name: shop.shop_name,
+                            logo: shop.logo_url || null
+                        };
+                    })
+                };
+            }
         }
     } catch (e) {
-        console.error("Failed to fetch shops from API:", e);
+        console.error("Failed to fetch featured shops from API:", e);
     }
 
     try {
@@ -336,7 +399,7 @@ export async function getFeaturedOffers(cacheOptions?: Pick<BackendRequestOption
             };
         }
     } catch (e) {
-        console.error("Failed to fetch featured offers fallback:", e);
+        console.error("Failed to fetch featured shops fallback:", e);
     }
     return {
         success: true,

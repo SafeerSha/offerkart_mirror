@@ -1,4 +1,4 @@
-import { getPaginatedOffers, getFeaturedOffers } from "@/lib/api/offers";
+import { getPaginatedOffers, getFeaturedShops } from "@/lib/api/offers";
 import OffersClient from "@/components/offers/OffersClient";
 import { CACHE_TAGS } from "@/lib/api/cache-tags";
 
@@ -21,14 +21,14 @@ export default async function OffersLoader({ searchParams }: {
         }
     }
 
-    const [offersResult, featuredOffersResult] = await Promise.all([
-        getPaginatedOffers(1, 8, { shopId, industry: industryId, sort, search }, { next: { tags: [CACHE_TAGS.OFFERS] } }),
-        getFeaturedOffers()
+    const [offersResult, featuredShopsResult] = await Promise.all([
+        getPaginatedOffers(1, 12, { shopId, industry: industryId, sort, search }, { next: { tags: [CACHE_TAGS.OFFERS] } }),
+        getFeaturedShops()
     ]);
     return (
         <OffersClient
             initialOffers={offersResult.data}
-            initialFeaturedShops={featuredOffersResult.success ? featuredOffersResult.data : []}
+            initialFeaturedShops={featuredShopsResult.success ? featuredShopsResult.data : []}
             hasMoreInitial={offersResult.hasMore}
         />
     );

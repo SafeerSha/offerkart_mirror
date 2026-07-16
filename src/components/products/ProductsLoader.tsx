@@ -18,42 +18,26 @@ export default async function ProductsLoader({ searchParams }: {
     const search = resolvedParams?.search ? String(resolvedParams.search) : undefined;
     const sort = resolvedParams?.sort ? String(resolvedParams.sort) : "newest";
 
-    // Resolve category / subcategory names -> IDs so the server fetch matches the URL filters
     let categoryId: string | undefined;
     let subcategoryId: string | undefined;
-    if (category && category !== "All") {
-        try {
-            const catsRes = await getCategories();
-            if (catsRes.success && catsRes.data) {
-                const main = catsRes.data.find(
-                    (c) => c.name.toLowerCase() === category.toLowerCase()
-                );
-                if (main) {
-                    categoryId = String(main.id);
-                    if (subcategories.length > 0) {
-                        const sub = main.subcategories?.find((s) =>
-                            subcategories.some((sc) => sc.toLowerCase() === s.name.toLowerCase())
-                        );
-                        if (sub) subcategoryId = String(sub.id);
-                    }
-                }
-            }
-        } catch (e) {
-            console.error("ProductsLoader category resolution failed:", e);
-        }
-    }
 
     const [productsResult] = await Promise.all([
         getUserProducts(
-            { search, categoryId, subcategoryId, shopId, sort, limit: 100 },
+            { search, categoryId, subcategoryId, shopId, sort, limit: 12 },
             { next: { tags: [CACHE_TAGS.PRODUCTS] } }
         ),
     ]);
+
+    const hasMoreInitial = productsResult.success && productsResult.data.pagination
+        ? productsResult.data.pagination.page < productsResult.data.pagination.totalPages
+        : false;
 
     return (
         <ProductsClient
             initialProducts={productsResult.success ? productsResult.data.data : []}
             initialFeaturedShops={[]}
+            initialCategories={[]}
+            hasMoreInitial={hasMoreInitial}
         />
     );
 }

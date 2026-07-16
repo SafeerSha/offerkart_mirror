@@ -6,7 +6,7 @@ import { Filter, SlidersHorizontal, AlertTriangle } from "lucide-react";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import ProductGrid from "@/components/products/ProductGrid";
 import FilterPanel from "@/components/home/FilterPanel";
-import FeaturedOffers from "@/components/home/FeaturedOffers";
+import FeaturedShops from "@/components/home/FeaturedShops";
 import { cn } from "@/lib/utils";
 import {
     Sheet,
@@ -23,17 +23,23 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTranslation } from "@/hooks/useTranslation";
-import { getUserProducts } from "@/lib/api/products";
 import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
-import { useUserProductsFiltered, useFeaturedOffers } from "@/hooks/useApi";
+import { useInfiniteUserProducts, useProductShops } from "@/hooks/useApi";
 import { useLocationContext } from "@/context/LocationContext";
 
 interface ProductsClientProps {
     initialProducts: any[];
     initialFeaturedShops?: any[];
+    initialCategories?: any[];
+    hasMoreInitial: boolean;
 }
 
-export default function ProductsClient({ initialProducts = [], initialFeaturedShops = [] }: ProductsClientProps) {
+export default function ProductsClient({ 
+    initialProducts = [], 
+    initialFeaturedShops = [],
+    initialCategories = [],
+    hasMoreInitial
+}: ProductsClientProps) {
     const { t } = useTranslation("common");
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -45,10 +51,6 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
     const initialSearch = searchParams.get("search") || undefined;
     const initialSort = searchParams.get("sort") || "newest";
 
-    const { data: featuredOffersRes } = useFeaturedOffers();
-    const featuredShops: any[] = (featuredOffersRes as any)?.success
-        ? ((featuredOffersRes as any).data || [])
-        : (initialFeaturedShops || []);
     const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
     const [activeFilters, setActiveFilters] = useState<{
         search?: string;
@@ -64,8 +66,12 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
         shopId: initialShopId || undefined
     });
 
-    const isFirstRender = useRef(true);
-    const { getCategoryId, resolveHierarchyById, categoryLookup } = useCategoryHierarchy();
+    const { getCategoryId, resolveHierarchyById, categoryLookup } = useCategoryHierarchy(
+        true,
+        initialCategories && initialCategories.length > 0
+            ? { success: true, data: initialCategories }
+            : undefined
+    );
 
     // Auto-fix URL if a subcategory was passed as the main category (e.g. from search results)
     useEffect(() => {
@@ -117,40 +123,56 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
     }, [searchParams]);
 
     const handleCategoryChange = useCallback((category: string) => {
-        const params = new URLSearchParams(searchParams.toString());
+        const params = new URLSearchParams(window.location.search);
         if (category === "All") {
             params.delete("category");
         } else {
             params.set("category", category);
         }
         params.delete("subcategory"); // Clear subcategory when category changes
-        router.push(`/products?${params.toString()}`);
-    }, [router, searchParams]);
+        window.history.pushState(null, "", `/products?${params.toString()}`);
+        setActiveFilters(prev => ({
+            ...prev,
+            category,
+            subcategory: []
+        }));
+    }, []);
 
     const handleSubcategoryChange = useCallback((subcategory: string[]) => {
-        const params = new URLSearchParams(searchParams.toString());
+        const params = new URLSearchParams(window.location.search);
         params.delete("subcategory");
         subcategory.forEach(sub => params.append("subcategory", sub));
-        router.push(`/products?${params.toString()}`);
-    }, [router, searchParams]);
+        window.history.pushState(null, "", `/products?${params.toString()}`);
+        setActiveFilters(prev => ({
+            ...prev,
+            subcategory
+        }));
+    }, []);
 
     const handleSortChange = useCallback((sort: string) => {
-        const params = new URLSearchParams(searchParams.toString());
+        const params = new URLSearchParams(window.location.search);
         if (sort === "newest") {
             params.delete("sort");
         } else {
             params.set("sort", sort);
         }
-        router.push(`/products?${params.toString()}`);
-    }, [router, searchParams]);
+        window.history.pushState(null, "", `/products?${params.toString()}`);
+        setActiveFilters(prev => ({
+            ...prev,
+            sort
+        }));
+    }, []);
 
     const handleClearFilters = useCallback(() => {
-        const params = new URLSearchParams(searchParams.toString());
-        params.delete("category");
-        params.delete("subcategory");
-        params.delete("sort");
-        router.push(`/products?${params.toString()}`);
-    }, [router, searchParams]);
+        window.history.pushState(null, "", `/products`);
+        setActiveFilters({
+            search: undefined,
+            category: "All",
+            subcategory: [],
+            sort: "newest",
+            shopId: undefined
+        });
+    }, []);
 
     let mainCatId: number | null = null;
     let subCatId: number | null = null;
@@ -161,6 +183,20 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
             subCatId = getCategoryId(activeFilters.category, activeFilters.subcategory[0]);
         }
     }
+
+    const { data: productShopsRes, isLoading: productShopsLoading } = useProductShops(
+        globalLocation.latitude,
+        globalLocation.longitude,
+        mainCatId,
+        subCatId,
+        activeFilters.search,
+        {
+            enabled: hydrated
+        }
+    );
+    const featuredShops: any[] = productShopsRes?.success
+        ? (productShopsRes.data || [])
+        : (productShopsLoading ? [] : (initialFeaturedShops || []));
 
     const SORT_MAP: Record<string, string> = {
         newest: "newest",
@@ -176,19 +212,49 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
         subcategoryId: subCatId ? String(subCatId) : undefined,
         shopId: activeFilters.shopId,
         sort: mappedSort,
-        limit: 100,
         latitude: globalLocation.latitude !== null ? globalLocation.latitude : undefined,
         longitude: globalLocation.longitude !== null ? globalLocation.longitude : undefined,
     };
 
     const isInitialState = !queryFilters.latitude && !queryFilters.longitude && activeFilters.category === "All" && activeFilters.subcategory.length === 0 && !activeFilters.search && activeFilters.sort === "newest";
 
-    const { data: productsData, isLoading: queryLoading, error, refetch } = useUserProductsFiltered(queryFilters, {
+    const {
+        data,
+        fetchNextPage,
+        hasNextPage,
+        isFetching,
+        isFetchingNextPage,
+        error,
+        refetch
+    } = useInfiniteUserProducts(12, queryFilters, {
         enabled: hydrated,
-        initialData: isInitialState ? initialProducts : undefined
+        initialData: (initialProducts.length > 0 && isInitialState)
+            ? {
+                pages: [{ data: initialProducts, pagination: { total: initialProducts.length, page: 1, limit: 12, totalPages: hasMoreInitial ? 2 : 1 } }],
+                pageParams: [1],
+            }
+            : undefined
     });
-    const filteredProducts = productsData || initialProducts || [];
-    const isLoading = queryLoading && filteredProducts.length === 0;
+
+    const filteredProducts = data !== undefined ? data.pages.flatMap(page => page.data) : (isInitialState ? initialProducts : []);
+    const isLoading = isFetching && filteredProducts.length === 0;
+
+    // Infinite Scroll Observer
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+                    fetchNextPage();
+                }
+            },
+            { threshold: 0.1, rootMargin: "100px" }
+        );
+
+        const target = document.querySelector("#scroll-trigger");
+        if (target) observer.observe(target);
+
+        return () => observer.disconnect();
+    }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
     return (
         <div className="min-h-screen bg-gray-50/50">
@@ -294,12 +360,14 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
                             </div>
                         </div>
 
-                        {featuredShops.length > 0 && (
+                        {(featuredShops.length > 0 || productShopsLoading) && (
                             <div className="mb-1">
-                                <FeaturedOffers
-                                    offers={featuredShops}
+                                <FeaturedShops
+                                    shops={featuredShops}
                                     variant="minimal"
                                     activeShopId={activeFilters.shopId}
+                                    isLoading={productShopsLoading}
+                                    disableDynamicFetch={true}
                                 />
                             </div>
                         )}
@@ -379,6 +447,24 @@ export default function ProductsClient({ initialProducts = [], initialFeaturedSh
                         )}
 
                         <ProductGrid products={filteredProducts} isLoading={isLoading} />
+
+                        {/* Scroll trigger for infinite loading */}
+                        <div id="scroll-trigger" className="w-full py-12 flex items-center justify-center mt-6">
+                            {isFetchingNextPage && (
+                                <div className="flex items-center gap-2 text-sm text-gray-500 font-semibold animate-pulse">
+                                    <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping" />
+                                    <span>Loading more products...</span>
+                                </div>
+                            )}
+                            {!hasNextPage && !isLoading && filteredProducts.length > 0 && (
+                                <div className="text-center py-8">
+                                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 text-gray-500 text-sm font-medium">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+                                        {t("catalog.caughtUpDeals") || "You've caught up with all current deals"}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </main>

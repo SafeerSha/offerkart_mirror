@@ -438,11 +438,14 @@ function DashboardContent() {
                                     <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 transition-all duration-300 rounded-2xl">
                                         <div className="p-3.5 flex items-center gap-3">
                                             <div className="p-2 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform flex-shrink-0">
-                                                <Package className="w-5 h-5" />
+                                                <Tag className="w-5 h-5" />
                                             </div>
                                             <div className="min-w-0 flex-1">
                                                 <div className="flex items-center justify-between gap-2 mb-0.5">
-                                                    <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate">Offers</h3>
+                                                    <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate flex items-center gap-1">
+                                                        <Tag className="w-3 h-3 shrink-0" />
+                                                        Offers
+                                                    </h3>
                                                 </div>
                                                 <div className="flex items-baseline gap-2">
                                                     <div className={cn("text-xl font-black text-gray-900 tracking-tight")}>
@@ -479,7 +482,7 @@ function DashboardContent() {
                                     </PremiumCard>
                                 </div>
                                 <div className="w-[46vw] sm:w-[220px] flex-none shrink-0 snap-center">
-                                    <StatCard icon={BarChart3} label="Total Views" value="1.2k" trend="+15%" isLoading={isLoadingOffers} />
+                                    <StatCard icon={BarChart3} label="Total Views" value="0" trend="+15%" isLoading={isLoadingOffers} />
                                 </div>
                                 <div className="w-[46vw] sm:w-[220px] flex-none shrink-0 snap-center">
                                     <StatCard icon={MousePointer2} label="Engagement" value="48" trend="+8 up" isLoading={isLoadingOffers} />
@@ -495,11 +498,14 @@ function DashboardContent() {
                             <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 transition-all duration-300 rounded-2xl">
                                 <div className="p-4 flex items-center gap-3">
                                     <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform flex-shrink-0">
-                                        <Package className="w-5 h-5 transition-transform" />
+                                        <Tag className="w-5 h-5 transition-transform" />
                                     </div>
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center justify-between gap-2 mb-0.5">
-                                            <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate">Offers</h3>
+                                            <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate flex items-center gap-1">
+                                                <Tag className="w-3 h-3 shrink-0" />
+                                                Offers
+                                            </h3>
                                         </div>
                                         <div className="flex items-baseline gap-2">
                                             <div className={cn("text-2xl font-black text-gray-900 tracking-tighter")}>
@@ -532,9 +538,9 @@ function DashboardContent() {
                                     </div>
                                 </div>
                             </PremiumCard>
-                            <StatCard icon={BarChart3} label="Total Views" value="1.2k" trend="+15% vs last month" isLoading={isLoadingOffers} />
-                            <StatCard icon={MousePointer2} label="Audience Engagement" value="48" trend="8 new today" isLoading={isLoadingOffers} />
-                            <StatCard icon={Tag} label="Conversion Rate" value="4.8%" trend="+0.5%" isLoading={isLoadingOffers} />
+                            <StatCard icon={BarChart3} label="Total Views" value="0" trend="+15% vs last month" isLoading={isLoadingOffers} />
+                            <StatCard icon={MousePointer2} label="Audience Engagement" value="0" trend="8 new today" isLoading={isLoadingOffers} />
+                            <StatCard icon={Tag} label="Conversion Rate" value="" trend="+0.5%" isLoading={isLoadingOffers} />
                         </div>
 
                     </div>
@@ -948,7 +954,7 @@ function StatCard({ icon: Icon, label, value, trend, isLoading }: { icon: any, l
                         <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate">{label}</h3>
                     </div>
                     <div className="flex items-end justify-between gap-2">
-                        <div className={cn("text-2xl font-black text-gray-900 tracking-tighter leading-none shrink-0", isLoading && "animate-pulse")}>
+                        <div className={cn("text-2xl font-black text-gray-900 tracking-tighter leading-none shrink-0")}>
                             {displayValue}
                         </div>
                         <div className="text-[9px] font-black text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded-lg whitespace-nowrap mb-0.5">
