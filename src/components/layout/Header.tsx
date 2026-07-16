@@ -722,9 +722,10 @@ const Header = () => {
                                     {/* Desktop Nav */}
                                     <nav className="hidden lg:flex items-center gap-6 xl:gap-8">
                                         <Link href="/" className={cn(
-                                            "relative transition-all font-medium group text-sm xl:text-base",
+                                            "relative transition-all font-medium group text-sm xl:text-base flex items-center gap-1.5",
                                             pathname === "/" ? "text-orange-500 font-bold" : "text-foreground hover:text-orange-500"
                                         )}>
+                                            <Home className="w-3.5 h-3.5 shrink-0" />
                                             <span className="relative z-10">Home</span>
                                         </Link>
                                         <Link href="/offers" className={cn(
@@ -735,9 +736,10 @@ const Header = () => {
                                             <span className="relative z-10">Offers</span>
                                         </Link>
                                         <Link href="/products" className={cn(
-                                            "relative transition-all font-medium group text-sm xl:text-base",
+                                            "relative transition-all font-medium group text-sm xl:text-base flex items-center gap-1.5",
                                             pathname.startsWith("/products") ? "text-orange-500 font-bold" : "text-foreground hover:text-orange-500"
                                         )}>
+                                            <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
                                             <span className="relative z-10">Products</span>
                                         </Link>
                                         <button
