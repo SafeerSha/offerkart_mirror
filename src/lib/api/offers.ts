@@ -6,7 +6,7 @@ import { CACHE_TAGS } from "./cache-tags";
 import { getUserOffersList, getUserOfferDetails } from "./userOffersService";
 
 const DEFAULT_USER_OFFER_IMAGE = "/images/shop-registration-bg-light.png";
-const DEFAULT_USER_OFFER_LIMIT = 8;
+const DEFAULT_USER_OFFER_LIMIT = 12;
 const MAX_PUBLIC_OFFER_PAGES = 20;
 
 interface UserOfferApiItem {
@@ -26,13 +26,17 @@ interface UserOfferApiItem {
 }
 
 interface UserOfferApiResponse {
-    success: boolean;
-    page: number;
-    limit: number;
-    sort: string;
-    count: number;
     data: UserOfferApiItem[];
-    message?: string;
+    sort?: string;
+    page?: number;
+    limit?: number;
+    count?: number;
+    pagination?: {
+        page?: number;
+        limit?: number;
+        count?: number;
+        totalPages?: number;
+    };
 }
 
 interface UserOfferQuery {
@@ -52,6 +56,7 @@ interface PaginatedOffersResult {
     page: number;
     limit: number;
     count: number;
+    totalPages: number;
     hasMore: boolean;
     error?: string;
 }
@@ -217,6 +222,7 @@ async function fetchUserOffersPage({
             page,
             limit,
             count: 0,
+            totalPages: 0,
             hasMore: false,
         };
     }
@@ -228,15 +234,27 @@ async function fetchUserOffersPage({
 
     const offersArray = Array.isArray(apiData.data) ? apiData.data : [];
     const mappedOffers = offersArray.map(mapUserOfferToOffer);
-    const totalCount = typeof apiData.count === "number" ? apiData.count : mappedOffers.length;
+    
+    // Extract pagination info from the nested pagination object if present
+    const pagination = apiData.pagination || {};
+    const pageNum = pagination.page || apiData.page || page;
+    const limitNum = pagination.limit || apiData.limit || limit;
+    const totalCount = typeof pagination.count === "number"
+        ? pagination.count
+        : (typeof apiData.count === "number" ? apiData.count : mappedOffers.length);
+
+    const totalPages = typeof pagination.totalPages === "number"
+        ? pagination.totalPages
+        : Math.ceil(totalCount / limitNum);
 
     return {
         success: true,
         data: mappedOffers,
-        page: apiData.page || page,
-        limit: apiData.limit || limit,
+        page: pageNum,
+        limit: limitNum,
         count: totalCount,
-        hasMore: (apiData.page || page) * (apiData.limit || limit) < totalCount,
+        totalPages: totalPages,
+        hasMore: pageNum < totalPages,
     };
 }
 
@@ -552,7 +570,7 @@ export async function getUserOfferById(
         }),
         fetchUserOffersPage({ page: 1, limit: 100 }).catch((err) => {
             console.warn(`Listing fetch for offer ID ${id} failed:`, err);
-            return { success: false, data: [], page: 1, limit: 100, count: 0, hasMore: false } as PaginatedOffersResult;
+            return { success: false, data: [], page: 1, limit: 100, count: 0, totalPages: 0, hasMore: false } as PaginatedOffersResult;
         }),
     ]);
 

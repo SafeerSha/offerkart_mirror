@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 import { useState, useEffect, Suspense } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
     CalendarDays,
@@ -69,6 +70,7 @@ function EditOfferContent() {
     const params = useParams();
     const offerId = String(params.id);
     const router = useRouter();
+    const queryClient = useQueryClient();
     const searchParams = useSearchParams();
     const { data: session } = useSession();
 
@@ -283,8 +285,8 @@ function EditOfferContent() {
                             return {
                                 id: String(p.id || i),
                                 previewUrl: p.previewUrl || p.posterSrc || p.poster_src || p.imageUrl || p.image_url || p.url,
-                                type: (marked.length > 0 || p.type === "marked_poster" || p.type === "mark_products") 
-                                    ? "marked_poster" 
+                                type: (marked.length > 0 || p.type === "marked_poster" || p.type === "mark_products")
+                                    ? "marked_poster"
                                     : "just_post",
                                 markedItems: marked,
                                 file: p.file // retain file if it's a local draft
@@ -441,6 +443,14 @@ function EditOfferContent() {
             try {
                 const res = await updateOffer(offerId, payload as any, String(shopId));
                 success = res.success;
+                if (success) {
+                    // Invalidate caches so home and search pages show updated data immediately
+                    queryClient.invalidateQueries({ queryKey: ["infiniteUserOffers"] });
+                    queryClient.invalidateQueries({ queryKey: ["featuredOffers"] });
+                    queryClient.invalidateQueries({ queryKey: ["featuredShops"] });
+                    queryClient.invalidateQueries({ queryKey: ["allOffers"] });
+                    queryClient.invalidateQueries({ queryKey: ["userProductsFiltered"] });
+                }
             } catch (apiErr) {
                 console.warn("API Update failed, updating locally only:", apiErr);
             }
@@ -533,7 +543,7 @@ function EditOfferContent() {
                             )}
 
                             <PremiumCard className={cn(
-                                isEditing ? "p-0 border-0 bg-transparent shadow-none" : "p-4 sm:p-6 overflow-visible"
+                                isEditing ? "p-0 border-0 bg-transparent shadow-none" : "p-3 overflow-visible"
                             )}>
                                 <PosterCardStack
                                     initialPosters={posters}

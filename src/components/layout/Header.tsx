@@ -385,7 +385,7 @@ const Header = () => {
         setIsSearching(true);
         const delayDebounceFn = setTimeout(async () => {
             try {
-                const result = await getGlobalSearch(trimmed);
+                const result = await getGlobalSearch(trimmed, globalLocation.latitude, globalLocation.longitude);
                 if (result.success && result.data) {
                     setSearchResults(result.data);
                 } else {
@@ -400,7 +400,7 @@ const Header = () => {
         }, 300); // 300ms debounce
 
         return () => clearTimeout(delayDebounceFn);
-    }, [searchQuery]);
+    }, [searchQuery, globalLocation.latitude, globalLocation.longitude]);
 
     const { data: session, status } = useSession();
     const isRegistered = status === "authenticated";

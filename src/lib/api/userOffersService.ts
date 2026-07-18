@@ -2,6 +2,7 @@ import { backend, unwrapApiEnvelope } from "./backendClient";
 import { ENDPOINTS } from "./endpoints";
 import { CACHE_TAGS } from "./cache-tags";
 import { SearchResponse } from "../types/search";
+import { Product, PaginatedResponse } from "../types";
 
 // Map shop names to a stable mock shopId (1-indexed based on their index in ALL_OFFERS or predefined)
 export function getShopIdFromShopName(shopName: string): number {
@@ -76,7 +77,7 @@ export async function getUserOffersList(query: {
     sort?: string;
 }) {
     const page = Number(query.page) || 1;
-    const limit = Number(query.limit) || 8;
+    const limit = Number(query.limit) || 12;
     const sort = query.sort || "latest";
     const shopId = query.shopId;
     const latitude = query.latitude;
@@ -137,7 +138,7 @@ export async function getUserOfferProducts(query: {
     limit?: number;
     latitude?: number;
     longitude?: number;
-}) {
+}): Promise<PaginatedResponse<Product>> {
     const page = Number(query.page) || 1;
     const limit = Number(query.limit) || 20;
     const sort = query.sort || "newest";
@@ -177,13 +178,23 @@ export async function getUserOfferProducts(query: {
         };
     }
 
-    return response;
+    return response as PaginatedResponse<Product>;
 }
 
 
 
-export async function getGlobalSearch(search: string): Promise<SearchResponse> {
+export async function getGlobalSearch(
+    search: string,
+    latitude?: number | null,
+    longitude?: number | null
+): Promise<SearchResponse> {
     const params = new URLSearchParams({ search });
+    if (latitude !== undefined && latitude !== null) {
+        params.set("latitude", String(latitude));
+    }
+    if (longitude !== undefined && longitude !== null) {
+        params.set("longitude", String(longitude));
+    }
     
     try {
         const response = await backend.get<any>(`user/offer/search?${params.toString()}`);

@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
         const searchParams = request.nextUrl.searchParams;
         const shopId = searchParams.get("shopId") || undefined;
         const page = Number(searchParams.get("page")) || 1;
-        const limit = Number(searchParams.get("limit")) || 8;
+        const limit = Number(searchParams.get("limit")) || 12;
         const lat = searchParams.get("latitude");
         const lng = searchParams.get("longitude");
         const sort = searchParams.get("sort") || "latest";
