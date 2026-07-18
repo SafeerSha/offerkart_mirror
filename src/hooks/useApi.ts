@@ -225,6 +225,8 @@ export function useCreateOffer() {
       queryClient.invalidateQueries({ queryKey: queryKeys.allOffers(variables?.shopId) });
       // Keep the public, on-demand-ISR offers list fresh without a manual refresh
       queryClient.invalidateQueries({ queryKey: ["infiniteUserOffers"] });
+      queryClient.invalidateQueries({ queryKey: ["featuredOffers"] });
+      queryClient.invalidateQueries({ queryKey: ["featuredShops"] });
       // An offer's validity gates its products' visibility, so refresh the products list too
       queryClient.invalidateQueries({ queryKey: ["userProductsFiltered"] });
     },
@@ -240,6 +242,8 @@ export function useUpdateOffer() {
       queryClient.invalidateQueries({ queryKey: queryKeys.allOffers(shopId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.offerDetails(id) });
       queryClient.invalidateQueries({ queryKey: ["infiniteUserOffers"] });
+      queryClient.invalidateQueries({ queryKey: ["featuredOffers"] });
+      queryClient.invalidateQueries({ queryKey: ["featuredShops"] });
       queryClient.invalidateQueries({ queryKey: ["userProductsFiltered"] });
     },
   });
@@ -252,6 +256,8 @@ export function useDeleteOffer() {
     onSuccess: (_, { shopId, offer }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.allOffers(shopId) });
       queryClient.invalidateQueries({ queryKey: ["infiniteUserOffers"] });
+      queryClient.invalidateQueries({ queryKey: ["featuredOffers"] });
+      queryClient.invalidateQueries({ queryKey: ["featuredShops"] });
       queryClient.invalidateQueries({ queryKey: ["userProductsFiltered"] });
       if (offer) {
         cleanupOfferImages(offer).catch(err => console.error("Failed to cleanup offer images:", err));

@@ -9,9 +9,11 @@ import {
     Check,
     ArrowRight,
     ArrowLeft,
-    RotateCcw,
     Eye,
     EyeOff,
+    RotateCcw,
+    Trash2,
+    X,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Heading, Subheading, Text } from "@/components/shared/Typography";
@@ -354,6 +356,32 @@ export const PosterCardStack = ({
         setPhase("upload");
     };
 
+    const handleRemovePoster = (index: number) => {
+        if (posters.length <= 1) {
+            toast.error("You must have at least one poster.");
+            return;
+        }
+
+        const updated = posters.filter((_, i) => i !== index);
+        setPosters(updated);
+
+        if (existingPostersCount > 0) {
+            if (index < existingPostersCount) {
+                setExistingPostersCount(prev => Math.max(0, prev - 1));
+            }
+        }
+
+        if (currentIndex >= updated.length) {
+            setCurrentIndex(updated.length - 1);
+        } else if (currentIndex === index) {
+            setCurrentIndex(Math.min(currentIndex, updated.length - 1));
+        } else if (currentIndex > index) {
+            setCurrentIndex(currentIndex - 1);
+        }
+
+        toast.success("Poster removed");
+    };
+
     const handleNext = () => {
         const classified = posters.map((p) => {
             const type = p.type === "unclassified" ? ("just_post" as const) : p.type;
@@ -495,9 +523,7 @@ export const PosterCardStack = ({
         const newPostersStartIndex = existingPostersCount;
         const newPostersCount = posters.length - newPostersStartIndex;
         const newPostersCurrentIndex = currentIndex - newPostersStartIndex;
-        const progress = newPostersCount > 0
-            ? (newPostersCurrentIndex / newPostersCount) * 100
-            : ((currentIndex) / posters.length) * 100;
+        const progress = (currentIndex / posters.length) * 100;
 
         const behindCards = posters.slice(currentIndex + 1, currentIndex + 4);
 
@@ -526,7 +552,7 @@ export const PosterCardStack = ({
                             {existingPostersCount > 0 ? `Adding More (${newPostersCount} new)` : "Classifying Posters"}
                         </Text>
                         <Text className="text-xs font-bold text-primary">
-                            {newPostersCount > 0 ? `${newPostersCurrentIndex + 1} of ${newPostersCount}` : `${currentIndex + 1} of ${posters.length}`}
+                            {`${currentIndex + 1} of ${posters.length}`}
                         </Text>
                     </div>
                     <div className="h-1.5 bg-muted rounded-full overflow-hidden">
@@ -548,7 +574,7 @@ export const PosterCardStack = ({
                         return (
                             <div
                                 key={poster.id}
-                                className="absolute rounded-3xl overflow-hidden border border-border/40 bg-card shadow-md"
+                                className="absolute rounded-xl overflow-hidden border border-border/40 bg-card shadow-md"
                                 style={{
                                     top: `${offset}px`,
                                     left: `${(i + 1) * 4}px`,
@@ -578,7 +604,7 @@ export const PosterCardStack = ({
                     {currentPoster && (
                         <div
                             className={cn(
-                                "relative rounded-3xl overflow-hidden border-2 border-primary/30 bg-card shadow-2xl",
+                                "relative rounded-xl overflow-hidden border-2 border-primary/30 bg-card shadow-2xl",
                                 animatingOut === "left" && "animate-slide-out-left",
                                 animatingOut === "right" && "animate-slide-out-right",
                                 !animatingOut && "animate-in zoom-in-95 duration-300"
@@ -612,80 +638,72 @@ export const PosterCardStack = ({
                                 <div className="absolute inset-0 flex flex-col justify-end">
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/10" />
 
-                                    <div className="relative z-10 p-5 flex items-center gap-3">
+                                    <div className="relative z-10 p-4 flex items-center gap-3">
                                         <button
                                             onClick={() => classifyCurrentCard("just_post")}
                                             disabled={!!animatingOut}
-                                            className="flex-1 flex items-center justify-center gap-2.5 py-4 px-4 rounded-2xl bg-white/15 backdrop-blur-xl border border-white/20 hover:bg-white/25 transition-all duration-200 active:scale-95 cursor-pointer group"
+                                            className="flex-1 flex items-center justify-center gap-2 py-3 px-2 rounded-2xl bg-white/15 backdrop-blur-xl border border-white/20 hover:bg-white/25 transition-all duration-200 active:scale-95 cursor-pointer group"
                                         >
-                                            <ImageIcon className="w-5 h-5 text-white/90" />
+                                            <ImageIcon className="w-4 h-4 text-white/90" />
                                             <div className="text-left">
-                                                <span className="text-sm font-bold text-white block">Just Post</span>
-                                                <span className="text-[10px] text-white/50 block leading-tight">Publish as-is</span>
+                                                <span className="text-xs font-bold text-white block">Just Post</span>
+                                                <span className="text-[9px] text-white/50 block leading-tight">Publish as-is</span>
                                             </div>
                                         </button>
 
                                         <button
                                             onClick={() => classifyCurrentCard("marked_poster")}
                                             disabled={!!animatingOut}
-                                            className="flex-1 flex items-center justify-center gap-2.5 py-4 px-4 rounded-2xl bg-primary/30 backdrop-blur-xl border border-primary/40 hover:bg-primary/40 transition-all duration-200 active:scale-95 cursor-pointer group shadow-lg shadow-primary/20"
+                                            className="flex-1 flex items-center justify-center gap-2 py-3 px-2 rounded-2xl bg-primary/30 backdrop-blur-xl border border-primary/40 hover:bg-primary/40 transition-all duration-200 active:scale-95 cursor-pointer group shadow-lg shadow-primary/20"
                                         >
-                                            <MousePointerClick className="w-5 h-5 text-white" />
+                                            <MousePointerClick className="w-4 h-4 text-white" />
                                             <div className="text-left">
-                                                <span className="text-sm font-bold text-white block">Mark Poster</span>
-                                                <span className="text-[10px] text-white/50 block leading-tight">Tag items</span>
+                                                <span className="text-xs font-bold text-white block">Mark Poster</span>
+                                                <span className="text-[9px] text-white/50 block leading-tight">Tag items</span>
                                             </div>
                                         </button>
                                     </div>
                                 </div>
                             )}
 
-                            <div className="absolute top-0 left-0 right-0 p-3 flex items-center justify-between z-30">
+                            <div className="absolute top-0 left-0 right-0 py-2 px-1 flex items-center justify-between z-30">
                                 <div className="flex items-center gap-2">
-                                    {existingPostersCount > 0 ? (
+                                    {existingPostersCount > 0 && (
                                         <button
                                             onClick={() => {
                                                 setPhase("summary");
                                                 setExistingPostersCount(0);
                                             }}
-                                            className="w-9 h-9 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center text-white border border-white/10 hover:bg-black/70 transition-colors"
+                                            className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center text-white border border-white/10 hover:bg-black/70 transition-colors"
                                         >
-                                            <ArrowLeft className="w-4 h-4" />
+                                            <ArrowLeft className="w-3.5 h-3.5 md:w-4 md:h-4" />
                                         </button>
-                                    ) : (
-                                        currentIndex > 0 && (
-                                            <button
-                                                onClick={() => {
-                                                    if (animatingOut || isViewing) return;
-                                                    setCurrentIndex(currentIndex - 1);
-                                                    setPosters((prev) =>
-                                                        prev.map((p, i) => (i === currentIndex - 1 ? { ...p, type: "unclassified" } : p))
-                                                    );
-                                                }}
-                                                className="w-9 h-9 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center text-white border border-white/10 hover:bg-black/70 transition-colors"
-                                            >
-                                                <RotateCcw className="w-4 h-4" />
-                                            </button>
-                                        )
                                     )}
-                                    <div className="px-3 py-1.5 rounded-full bg-black/50 backdrop-blur-md text-white text-xs font-bold border border-white/10">
-                                        {remaining} left
-                                    </div>
                                 </div>
-                                <button
-                                    onClick={() => setIsViewing(!isViewing)}
-                                    className="w-9 h-9 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center text-white border border-white/10 hover:bg-black/70 transition-colors"
-                                >
-                                    {isViewing ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setIsViewing(!isViewing)}
+                                        className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center text-white border border-white/10 hover:bg-black/70 transition-colors"
+                                    >
+                                        {isViewing ? <EyeOff className="w-3.5 h-3.5 md:w-4 md:h-4" /> : <Eye className="w-3.5 h-3.5 md:w-4 md:h-4" />}
+                                    </button>
+                                    {posters.length > 1 && (
+                                        <button
+                                            onClick={() => handleRemovePoster(currentIndex)}
+                                            className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-rose-600/90 backdrop-blur-md flex items-center justify-center text-white border border-rose-500/20 hover:bg-rose-600 transition-colors"
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     )}
                 </div>
 
                 {/* Thumbnail Strip for navigation during classification */}
-                <div className="w-full max-w-sm border-t border-border/30 pt-0">
-                    <div className="flex items-center gap-4 overflow-x-auto py-4 px-2 scrollbar-hide">
+                <div className="w-full max-w-md sm:max-w-xl border-t border-border/30 pt-0 flex items-center gap-2">
+                    <div className="flex-1 flex items-center gap-2 overflow-x-auto py-4 px-2 scrollbar-hide">
                         {posters.map((poster, idx) => {
                             const isDone = poster.type !== "unclassified";
                             const isCurrent = idx === currentIndex;
@@ -698,13 +716,13 @@ export const PosterCardStack = ({
                                         setCurrentIndex(idx);
                                     }}
                                     className={cn(
-                                        "relative w-16 h-20 sm:w-20 sm:h-24 rounded-2xl overflow-visible border transition-all duration-300 shrink-0 group",
+                                        "relative w-16 h-20 sm:w-20 sm:h-24 rounded-xl overflow-visible transition-all duration-300 shrink-0 group",
                                         isCurrent
-                                            ? "border-orange-500 ring-4 ring-orange-500/10 ring-offset-1 ring-offset-background scale-105 z-10 shadow-lg"
-                                            : "border-border/40 hover:border-orange-500/30 opacity-60 hover:opacity-100"
+                                            ? "border border-orange-500 scale-105 z-10 shadow-lg"
+                                            : "opacity-60 hover:opacity-100"
                                     )}
                                 >
-                                    <div className="absolute inset-0 rounded-[14px] overflow-hidden">
+                                    <div className="absolute inset-0 rounded-xl overflow-hidden">
                                         <Image
                                             src={poster.previewUrl}
                                             alt={`Poster ${idx + 1}`}
@@ -717,7 +735,7 @@ export const PosterCardStack = ({
                                         {poster.markedItems && poster.markedItems.map((item) => (
                                             <div
                                                 key={item.id}
-                                                className="absolute border-[1.5px] border-red-500 bg-red-500/12 pointer-events-none z-10"
+                                                className="absolute border-[1px] border-red-500 bg-red-500/12 pointer-events-none z-10"
                                                 style={{
                                                     left: `${item.x * 100}%`,
                                                     top: `${item.y * 100}%`,
@@ -730,7 +748,7 @@ export const PosterCardStack = ({
 
                                     {/* Status Badge */}
                                     <div className={cn(
-                                        "absolute -bottom-2 left-1 right-1 text-[8px] font-black uppercase text-center py-1 rounded-lg backdrop-blur-md shadow-lg border border-white/20 z-20",
+                                        "absolute -bottom-2 left-1 right-1 text-[8px] font-black  text-center py-0.5 rounded-lg backdrop-blur-md shadow-lg border border-white/20 z-20",
                                         poster.type === "marked_poster"
                                             ? "bg-primary text-white"
                                             : poster.type === "just_post"
@@ -742,28 +760,41 @@ export const PosterCardStack = ({
 
                                     {/* Done checkmark icon */}
                                     {isDone && !isCurrent && (
-                                        <div className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center border-2 border-background shadow-md z-30 scale-110">
-                                            <Check className="w-3 h-3 text-white" />
+                                        <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center border-2 border-background shadow-md z-30 scale-110">
+                                            <Check className="w-2.5 h-2.5 text-white" />
+                                        </div>
+                                    )}
+
+                                    {/* Delete Button */}
+                                    {posters.length > 1 && (
+                                        <div
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleRemovePoster(idx);
+                                            }}
+                                            className="absolute -top-1 -left-0 w-3.5 h-3.5 rounded-full bg-rose-500 hover:bg-rose-600 flex items-center justify-center border border-white/20 shadow-md z-30 opacity-90 md:opacity-0 md:group-hover:opacity-100 transition-opacity cursor-pointer scale-110"
+                                        >
+                                            <X className="w-2.5 h-2.5 text-white" />
                                         </div>
                                     )}
                                 </button>
                             );
                         })}
-                        {posters.length < maxPosters && (
-                            <button
-                                onClick={() => {
-                                    setIsAddingMore(true);
-                                    setTimeout(() => {
-                                        fileInputRef.current?.click();
-                                    }, 50);
-                                }}
-                                className="relative w-16 h-20 sm:w-20 sm:h-24 rounded-2xl border border-dashed border-primary/40 hover:border-primary bg-primary/5 hover:bg-primary/10 transition-all duration-300 shrink-0 flex flex-col items-center justify-center gap-1 group cursor-pointer"
-                            >
-                                <Plus className="w-5 h-5 text-primary group-hover:scale-110 transition-transform" />
-                                <span className="text-[9px] font-bold text-primary">Add Poster</span>
-                            </button>
-                        )}
                     </div>
+                    {posters.length < maxPosters && (
+                        <button
+                            onClick={() => {
+                                setIsAddingMore(true);
+                                setTimeout(() => {
+                                    fileInputRef.current?.click();
+                                }, 50);
+                            }}
+                            className="relative w-16 h-20 sm:w-20 sm:h-24 rounded-xl border border-dashed border-primary/40 hover:border-primary bg-primary/5 hover:bg-primary/10 transition-all duration-300 shrink-0 flex flex-col items-center justify-center gap-1 group cursor-pointer"
+                        >
+                            <Plus className="w-5 h-5 text-primary group-hover:scale-110 transition-transform" />
+                            <span className="text-[9px] font-bold text-primary">Add Poster</span>
+                        </button>
+                    )}
                 </div>
 
                 {allClassified && (
@@ -803,7 +834,7 @@ export const PosterCardStack = ({
             {/* Summary cards */}
             <div className="flex flex-wrap items-center gap-3 justify-center w-full max-w-sm">
                 {markPosters.length > 0 && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-primary/5 border border-primary/20">
+                    <div className="flex items-center gap-2 px-2 py-1.5 rounded-2xl bg-primary/5 border border-primary/20">
                         <div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                             <MousePointerClick className="w-3.5 h-3.5 text-primary" />
                         </div>
@@ -815,7 +846,7 @@ export const PosterCardStack = ({
                 )}
 
                 {justPostPosters.length > 0 && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-primary/5 border border-primary/20">
+                    <div className="flex items-center gap-2 px-2 py-1.5 rounded-2xl bg-primary/5 border border-primary/20">
                         <div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                             <ImageIcon className="w-3.5 h-3.5 text-muted-foreground" />
                         </div>

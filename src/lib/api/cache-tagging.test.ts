@@ -31,13 +31,13 @@ describe("API helper cache tagging", () => {
       data: {
         data: [],
         page: 1,
-        limit: 8,
+        limit: 12,
         count: 0,
       },
     });
 
     const { getPaginatedOffers } = await import("./offers");
-    await getPaginatedOffers(1, 8);
+    await getPaginatedOffers(1, 12);
 
     expect(backendGetMock).toHaveBeenCalledWith(
       expect.stringContaining("page=1"),

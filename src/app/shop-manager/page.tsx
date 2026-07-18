@@ -319,7 +319,6 @@ function DashboardContent() {
         }
     }, [searchParams]);
 
-    // Automatically switch active tab back to "offers" if drafts are empty
     useEffect(() => {
         if (allDrafts.length === 0 && activeTab === "drafts") {
             setActiveTab("offers");
@@ -331,8 +330,10 @@ function DashboardContent() {
         signOut({ callbackUrl: "/" });
     };
 
-    // Show skeleton while session or shops are loading
-    if (sessionStatus === "loading" || (sessionStatus === "authenticated" && isLoadingShops)) {
+    if (
+        sessionStatus === "loading" ||
+        (sessionStatus === "authenticated" && (isLoadingShops || (shopsResponse && !shopsResponse.success)))
+    ) {
         return <DashboardSkeleton />;
     }
 

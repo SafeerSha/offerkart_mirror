@@ -9,6 +9,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
+import { useQueryClient } from "@tanstack/react-query";
 
 // UI Components (barrel import)
 import {
@@ -58,6 +59,7 @@ export default function CreateOfferPage() {
 
 function CreateOfferContent() {
     const router = useRouter();
+    const queryClient = useQueryClient();
     const { data: session } = useSession();
     const [drafts, setDrafts] = useState<Draft[]>([]);
     const [isPublishing, setIsPublishing] = useState(false);
@@ -366,6 +368,12 @@ function CreateOfferContent() {
                     } else {
                         await createOffer(payload, String(shopId));
                     }
+                    // Invalidate caches to ensure new offer shows up immediately on home and search pages
+                    queryClient.invalidateQueries({ queryKey: ["infiniteUserOffers"] });
+                    queryClient.invalidateQueries({ queryKey: ["featuredOffers"] });
+                    queryClient.invalidateQueries({ queryKey: ["featuredShops"] });
+                    queryClient.invalidateQueries({ queryKey: ["allOffers"] });
+                    queryClient.invalidateQueries({ queryKey: ["userProductsFiltered"] });
                 }
             } catch (networkError) {
                 console.warn("API Error:", networkError);
@@ -579,7 +587,7 @@ function CreateOfferContent() {
                             )}
 
                             <PremiumCard className={cn(
-                                isEditing ? "p-0 border-0 bg-transparent shadow-none" : "p-4 sm:p-6 overflow-visible"
+                                isEditing ? "p-0 border-0 bg-transparent shadow-none" : "p-3 overflow-visible"
                             )}>
                                 <PosterCardStack
                                     onComplete={handleClassificationComplete}

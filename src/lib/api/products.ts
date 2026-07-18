@@ -1,6 +1,6 @@
 import { backend, type BackendRequestOptions, unwrapApiEnvelope } from './backendClient';
 import { ENDPOINTS } from './endpoints';
-import { OfferProductPayload } from '../types/product';
+import { OfferProductPayload, Product, PaginatedResponse } from '../types';
 import { updateOfferProduct, getAllOfferProducts, deleteOfferProduct } from './offerproduct';
 import { CACHE_TAGS } from './cache-tags';
 import { getUserOfferProducts } from './userOffersService';
@@ -195,7 +195,7 @@ export async function getUserProducts(query: {
     limit?: number;
     latitude?: number;
     longitude?: number;
-}, cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">) {
+}, cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">): Promise<PaginatedResponse<Product>> {
     const page = query.page || 1;
     const limit = query.limit || 20;
     const sort = query.sort || "newest";
@@ -277,11 +277,18 @@ export async function getUserProducts(query: {
         };
     }
 
+    // Ensure totalPages exists in pagination for reliable infinite scrolling
+    const finalPagination = { ...pagination };
+    if (finalPagination.totalPages === undefined && finalPagination.total !== undefined) {
+        const pagLimit = finalPagination.limit || limit;
+        finalPagination.totalPages = Math.ceil(finalPagination.total / pagLimit);
+    }
+
     return {
         success: true,
         data: {
             data: mappedProducts,
-            pagination
+            pagination: finalPagination
         }
     };
 }
