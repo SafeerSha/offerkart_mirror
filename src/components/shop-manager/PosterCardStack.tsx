@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback, useEffect, useImperativeHandle, forwardRef } from "react";
 import {
     Upload,
     Plus,
@@ -57,6 +57,7 @@ interface PosterCardStackProps {
     editorReturnTo?: "create-offer" | "edit-offer";
     editorReturnUrl?: string;
     onSaveDraft?: (posters: PosterItem[]) => void;
+    onPhaseChange?: (phase: Phase) => void;
 }
 
 type Phase = "upload" | "classify" | "summary";
@@ -64,7 +65,10 @@ type Phase = "upload" | "classify" | "summary";
 import { HotspotEditor } from "@/components/shop-manager/HotspotEditor";
 import { PosterOrderGrid } from "@/components/shop-manager/PosterOrderGrid";
 
-export const PosterCardStack = ({
+export const PosterCardStack = forwardRef<
+    { handleCancel: () => boolean },
+    PosterCardStackProps
+>(({
     onComplete,
     onEditingChange,
     onPreviewChange,
@@ -76,7 +80,8 @@ export const PosterCardStack = ({
     editorReturnTo = "create-offer",
     editorReturnUrl,
     onSaveDraft,
-}: PosterCardStackProps) => {
+    onPhaseChange,
+}, ref) => {
     const [phase, setPhase] = useState<Phase>("upload");
     const [posters, setPosters] = useState<PosterItem[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -89,8 +94,28 @@ export const PosterCardStack = ({
     const [hasProcessedInitial, setHasProcessedInitial] = useState(false);
     const [previewIndex, setPreviewIndex] = useState<number | null>(null);
     const [isPreparingRedirection, setIsPreparingRedirection] = useState(false);
+    const [postersBackup, setPostersBackup] = useState<PosterItem[] | null>(null);
     const router = useRouter();
     const searchParams = useSearchParams();
+
+    useImperativeHandle(ref, () => ({
+        handleCancel: () => {
+            if (postersBackup !== null) {
+                setPosters(postersBackup);
+                setPostersBackup(null);
+                setPhase("summary");
+                return true;
+            }
+            if (existingPostersCount > 0) {
+                setPosters((prev) => prev.slice(0, existingPostersCount));
+                setExistingPostersCount(0);
+                setPhase("summary");
+                setIsAddingMore(false);
+                return true;
+            }
+            return false;
+        }
+    }));
 
     // Persistence Effect: Save posters to storage whenever they change in summary phase
     useEffect(() => {
@@ -155,6 +180,27 @@ export const PosterCardStack = ({
             });
         }
     }, [previewIndex, posters, onPreviewChange, isPreparingRedirection]);
+
+    // Auto-close preview panel when leaving the summary phase
+    useEffect(() => {
+        if (phase !== "summary") {
+            setPreviewIndex(null);
+            onPreviewChange?.(null);
+        }
+    }, [phase, onPreviewChange]);
+
+    // Clear posters backup and reset existingPostersCount when entering the summary phase
+    useEffect(() => {
+        if (phase === "summary") {
+            setPostersBackup(null);
+            setExistingPostersCount(0);
+        }
+    }, [phase]);
+
+    // Notify parent when phase changes
+    useEffect(() => {
+        onPhaseChange?.(phase);
+    }, [phase, onPhaseChange]);
 
     // Note: We avoid cleaning up PDF object URLs on unmount here because
     // we need them to persist across navigation to the editor page.
@@ -344,16 +390,20 @@ export const PosterCardStack = ({
     };
 
     const handleReclassify = () => {
+        setPostersBackup(posters);
         setPosters((prev) => prev.map((p) => ({ ...p, type: "unclassified" as const })));
         setCurrentIndex(0);
         setPhase("classify");
-        setIsAddingMore(false);
         setExistingPostersCount(0);
     };
 
-    const handleAddMore = () => {
-        setIsAddingMore(true);
-        setPhase("upload");
+    const handleContinueToSummary = () => {
+        const hasUnclassified = posters.some((p) => p.type === "unclassified");
+        if (hasUnclassified) {
+            toast.warning("Please classify all posters (as Just Post or Mark Poster) before continuing.");
+            return;
+        }
+        setPhase("summary");
     };
 
     const handleRemovePoster = (index: number) => {
@@ -520,9 +570,6 @@ export const PosterCardStack = ({
         const currentPoster = posters[currentIndex];
         const remaining = posters.length - currentIndex;
 
-        const newPostersStartIndex = existingPostersCount;
-        const newPostersCount = posters.length - newPostersStartIndex;
-        const newPostersCurrentIndex = currentIndex - newPostersStartIndex;
         const progress = (currentIndex / posters.length) * 100;
 
         const behindCards = posters.slice(currentIndex + 1, currentIndex + 4);
@@ -549,7 +596,9 @@ export const PosterCardStack = ({
                 <div className="w-full max-w-md">
                     <div className="flex items-center justify-between mb-2">
                         <Text className="text-xs font-bold uppercase tracking-wider opacity-50">
-                            {existingPostersCount > 0 ? `Adding More (${newPostersCount} new)` : "Classifying Posters"}
+                            {existingPostersCount > 0
+                                ? `Adding More (${posters.length - existingPostersCount} new)`
+                                : "Classifying Posters"}
                         </Text>
                         <Text className="text-xs font-bold text-primary">
                             {`${currentIndex + 1} of ${posters.length}`}
@@ -668,11 +717,19 @@ export const PosterCardStack = ({
 
                             <div className="absolute top-0 left-0 right-0 py-2 px-1 flex items-center justify-between z-30">
                                 <div className="flex items-center gap-2">
-                                    {existingPostersCount > 0 && (
+                                    {(existingPostersCount > 0 || postersBackup !== null) && (
                                         <button
                                             onClick={() => {
-                                                setPhase("summary");
-                                                setExistingPostersCount(0);
+                                                if (postersBackup !== null) {
+                                                    setPosters(postersBackup);
+                                                    setPostersBackup(null);
+                                                    setPhase("summary");
+                                                } else {
+                                                    setPosters((prev) => prev.slice(0, existingPostersCount));
+                                                    setExistingPostersCount(0);
+                                                    setPhase("summary");
+                                                    setIsAddingMore(false);
+                                                }
                                             }}
                                             className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center text-white border border-white/10 hover:bg-black/70 transition-colors"
                                         >
@@ -716,7 +773,7 @@ export const PosterCardStack = ({
                                         setCurrentIndex(idx);
                                     }}
                                     className={cn(
-                                        "relative w-16 h-20 sm:w-20 sm:h-24 rounded-xl overflow-visible transition-all duration-300 shrink-0 group",
+                                        "relative w-16 h-20 sm:w-20 sm:h-24 rounded-xl overflow-visible transition-all duration-300 shrink-0 group p-0",
                                         isCurrent
                                             ? "border border-orange-500 scale-105 z-10 shadow-lg"
                                             : "opacity-60 hover:opacity-100"
@@ -797,21 +854,36 @@ export const PosterCardStack = ({
                     )}
                 </div>
 
-                {allClassified && (
-                    <div className="w-full max-w-sm pt-2 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                        <PremiumButton
-                            onClick={() => onComplete?.(posters)}
-                            rightIcon={ArrowRight}
-                            className="w-full h-12 rounded-2xl font-bold text-base shadow-xl shadow-primary/20 group"
-                        >
-                            Next: Offer Details
-                            <span className="ml-1 opacity-50 group-hover:translate-x-1 transition-transform">➔</span>
-                        </PremiumButton>
-                        <p className="text-[10px] text-center mt-3 opacity-40 font-bold uppercase tracking-widest">
-                            {posters.length} posters ready for review
-                        </p>
-                    </div>
-                )}
+                <div className="flex items-center gap-2 w-full max-w-sm pt-2">
+                    <PremiumButton
+                        variant="outline"
+                        onClick={() => {
+                            if (postersBackup !== null) {
+                                setPosters(postersBackup);
+                                setPostersBackup(null);
+                                setPhase("summary");
+                            } else if (existingPostersCount > 0) {
+                                setPosters((prev) => prev.slice(0, existingPostersCount));
+                                setExistingPostersCount(0);
+                                setPhase("summary");
+                                setIsAddingMore(false);
+                            } else {
+                                router.back();
+                            }
+                        }}
+                        leftIcon={ArrowLeft}
+                        className="rounded-2xl flex-1 h-12 text-xs sm:text-sm border-primary/20 text-primary hover:bg-primary/5"
+                    >
+                        Cancel & Go Back
+                    </PremiumButton>
+                    <PremiumButton
+                        onClick={handleContinueToSummary}
+                        rightIcon={ArrowRight}
+                        className="rounded-2xl flex-[1.2] h-12 text-xs sm:text-sm font-bold shadow-xl shadow-primary/20 group"
+                    >
+                        Continue
+                    </PremiumButton>
+                </div>
             </div>
         );
     }
@@ -875,59 +947,46 @@ export const PosterCardStack = ({
             )}
 
             <div className="flex flex-col w-full max-w-sm gap-3 mt-4">
-                <div className="flex items-center gap-2">
-                    {posters.length < maxPosters && (
-                        <PremiumButton
-                            variant="outline"
-                            onClick={handleAddMore}
-                            leftIcon={Plus}
-                            className="rounded-xl flex-1 h-10 text-sm border-primary/20 text-primary hover:bg-primary/5"
-                        >
-                            Add More
-                        </PremiumButton>
-                    )}
+                <div className="flex items-center gap-2 w-full">
                     <PremiumButton
                         variant="outline"
                         onClick={handleReclassify}
                         leftIcon={RotateCcw}
-                        className="rounded-xl flex-1 h-10 text-sm border-primary/20 text-primary hover:bg-primary/5"
+                        className="rounded-xl flex-1 h-10 text-xs sm:text-sm border-primary/20 text-primary hover:bg-primary/5"
                     >
                         Re-classify
                     </PremiumButton>
-                </div>
-
-                <div className="flex gap-2">
-                    {onSaveDraft && (
-                        <PremiumButton
-                            onClick={() => {
-                                const classified = posters.map((p) => {
-                                    const type = p.type === "unclassified" ? ("just_post" as const) : p.type;
-                                    return {
-                                        ...p,
-                                        type,
-                                        markedItems: type === "marked_poster" ? (p.markedItems || []) : [],
-                                    };
-                                });
-                                onSaveDraft(classified);
-                            }}
-                            className="rounded-xl flex-1 h-10 text-sm bg-none bg-yellow-600 hover:bg-yellow-700 text-white shadow-lg shadow-yellow-600/20 border-0"
-                        >
-                            Save Draft
-                        </PremiumButton>
-                    )}
                     <PremiumButton
                         onClick={handleNext}
                         rightIcon={ArrowRight}
-                        className={cn(
-                            "rounded-xl h-10 text-sm font-bold shadow-lg shadow-primary/20",
-                            onSaveDraft ? "flex-1" : "w-full text-base"
-                        )}
+                        className="rounded-xl flex-[1.5] h-10 text-xs sm:text-sm font-bold shadow-lg shadow-primary/20"
                     >
                         {submitButtonText}
                     </PremiumButton>
                 </div>
+
+                {onSaveDraft && (
+                    <PremiumButton
+                        onClick={() => {
+                            const classified = posters.map((p) => {
+                                const type = p.type === "unclassified" ? ("just_post" as const) : p.type;
+                                return {
+                                    ...p,
+                                    type,
+                                    markedItems: type === "marked_poster" ? (p.markedItems || []) : [],
+                                };
+                            });
+                            onSaveDraft(classified);
+                        }}
+                        className="rounded-xl w-full h-10 text-sm bg-none bg-yellow-600 hover:bg-yellow-700 text-white shadow-lg shadow-yellow-600/20 border-0"
+                    >
+                        Save Draft
+                    </PremiumButton>
+                )}
             </div>
         </div>
     );
-};
+});
+
+PosterCardStack.displayName = "PosterCardStack";
 

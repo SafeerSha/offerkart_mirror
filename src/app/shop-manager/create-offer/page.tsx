@@ -3,7 +3,7 @@
 export const dynamic = "force-dynamic";
 
 // Core React imports
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 
 // Next.js
 import { useRouter, useSearchParams } from "next/navigation";
@@ -88,6 +88,8 @@ function CreateOfferContent() {
     const [showDiscardModal, setShowDiscardModal] = useState(false);
     const [draftToDiscard, setDraftToDiscard] = useState<string | null>(null);
     const [previewState, setPreviewState] = useState<PosterPreviewState | null>(null);
+    const [stackPhase, setStackPhase] = useState<"upload" | "classify" | "summary">("upload");
+    const posterStackRef = useRef<{ handleCancel: () => boolean } | null>(null);
 
     // Fetch branches when page loads or session changes
     useEffect(() => {
@@ -590,19 +592,26 @@ function CreateOfferContent() {
                                 isEditing ? "p-0 border-0 bg-transparent shadow-none" : "p-3 overflow-visible"
                             )}>
                                 <PosterCardStack
+                                    ref={posterStackRef}
                                     onComplete={handleClassificationComplete}
                                     onEditingChange={setIsEditing}
                                     onPreviewChange={setPreviewState}
+                                    onPhaseChange={setStackPhase}
                                     submitButtonText={isUpdateMode ? "Continue to Update" : "Publish"}
                                     onSaveDraft={handleSaveDraftSubmit}
                                 />
                             </PremiumCard>
 
-                            {!isEditing && (
+                            {!isEditing && stackPhase !== "classify" && (
                                 <PremiumButton
                                     variant="outline"
                                     className="w-full rounded-2xl h-14"
-                                    onClick={() => router.back()}
+                                    onClick={() => {
+                                        const handled = posterStackRef.current?.handleCancel?.();
+                                        if (!handled) {
+                                            router.back();
+                                        }
+                                    }}
                                     leftIcon={X}
                                 >
                                     Cancel & Go Back

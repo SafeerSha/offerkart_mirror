@@ -286,27 +286,50 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
             }
 
             let processedDataUrl: string;
+            let invertedDataUrl = '';
             if (useFallbackImage) {
                 processedDataUrl = croppedDataUrl;
             } else {
                 processedDataUrl = await preprocessImageForOCR(canvas, ctx);
+                // Create color-inverted canvas for pass 2 to catch colored badges and light-on-dark text
+                const invertCanvas = document.createElement('canvas');
+                invertCanvas.width = canvas.width;
+                invertCanvas.height = canvas.height;
+                const invertCtx = invertCanvas.getContext('2d', { willReadFrequently: true })!;
+                ctx.drawImage(img, x * scaleX, y * scaleY, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
+                const invertData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                for (let i = 0; i < invertData.data.length; i += 4) {
+                    invertData.data[i] = 255 - invertData.data[i];
+                    invertData.data[i + 1] = 255 - invertData.data[i + 1];
+                    invertData.data[i + 2] = 255 - invertData.data[i + 2];
+                }
+                invertCtx.putImageData(invertData, 0, 0);
+                invertedDataUrl = invertCanvas.toDataURL('image/png');
             }
 
             let ocrText = '';
+            let ocrPass1Text = '';
             try {
                 const worker = await createWorker('ara+eng', 1, {
                     logger: m => console.log('OCR Progress:', m),
                 });
 
-                await worker.setParameters({
-                    tessedit_char_whitelist: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\s\u0600-\u06FF\u0750-\u077F.,%+-',
-                });
-
-                const result = await worker.recognize(processedDataUrl);
-                ocrText = result.data.text;
+                // DO NOT set tessedit_char_whitelist — invalid Unicode range syntax breaks digit recognition
+                if (invertedDataUrl) {
+                    const [{ data: { text: ocrPass1, confidence } }, { data: { text: ocrPass2 } }] = await Promise.all([
+                        worker.recognize(processedDataUrl),
+                        worker.recognize(invertedDataUrl),
+                    ]);
+                    ocrPass1Text = ocrPass1;
+                    ocrText = `${ocrPass1}\n${ocrPass2}`;
+                    console.log('OCR Confidence:', confidence, '\nPass1:', ocrPass1, '\nPass2:', ocrPass2);
+                } else {
+                    const result = await worker.recognize(processedDataUrl);
+                    ocrPass1Text = result.data.text;
+                    ocrText = result.data.text;
+                    console.log('OCR Confidence:', result.data.confidence, 'Extracted text:', ocrText);
+                }
                 await worker.terminate();
-
-                console.log('OCR Confidence:', result.data.confidence, 'Extracted text:', ocrText);
             } catch (ocrError) {
                 if (useFallbackImage) {
                     console.warn('CORS blocked image cannot be processed by OCR:', ocrError);
@@ -327,20 +350,40 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
             let extractedOldPrice = 0;
             let extractedOfferPrice = 0;
 
-            extractedName = ocrText.split('\n')[0].trim() || 'Marked Product';
-            extractedDescription = ocrText.trim();
+            // Smart Product Name Filter: require at least 2 letters/Arabic characters, ignore pure digits/noise like "3" or "69"
+            const nameCandidates = ocrPass1Text.split('\n').map(l => l.trim()).filter(l => {
+                if (l.length < 3) return false;
+                if (!/[a-zA-Z\u0600-\u06FF]{2,}/.test(l)) return false;
+                const stripped = l.replace(/[0-9.,%$#@!*()\-_=+/?\\|:[\]{}'"~`₹]/g, '').trim().toLowerCase();
+                if (['qr', 'rs', 'inr', 'aed', 'sar', 'ريال', 'درهم', 'جنيه', 'ر.ق', 'ر.س'].includes(stripped)) return false;
+                return true;
+            });
+            extractedName = nameCandidates[0] || ocrPass1Text.split('\n').map(l => l.trim()).find(l => l.length > 2 && /[a-zA-Z\u0600-\u06FF]/.test(l)) || 'Marked Product';
+            extractedDescription = ocrPass1Text.trim() || ocrText.trim();
 
-            const priceMatches = ocrText.match(/\d+\.\d+/g);
-            if (priceMatches && priceMatches.length > 0) {
-                const prices = priceMatches.map(p => parseFloat(p)).filter(p => !isNaN(p));
-                if (prices.length >= 2) {
-                    const sorted = [...prices].sort((a, b) => b - a);
-                    extractedOldPrice = sorted[0];
-                    extractedOfferPrice = sorted[1];
-                } else {
-                    extractedOfferPrice = prices[0];
-                    extractedOldPrice = prices[0];
-                }
+            // Smart Price Extraction: mask numbers attached to units/specifications (e.g. 7pcs, 7 حبات) so they aren't taken as prices
+            const cleanedTextForPrices = ocrText.replace(/\b(\d+(?:\.\d+)?)\s*(?:pcs?|pieces?|sets?|حبات|حبة|قطع|قطعة|ml|g|kg|l|ltr|cm|mm|inch|pack)\b/gi, '');
+            const priceRegex = /(?:₹|Rs\.?|INR)?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)/g;
+            const rawPriceNumbers: number[] = [];
+            let m: RegExpExecArray | null;
+            while ((m = priceRegex.exec(cleanedTextForPrices)) !== null) {
+                const val = parseFloat(m[1].replace(/,/g, ''));
+                if (!isNaN(val) && val > 0 && val < 1_000_000) rawPriceNumbers.push(val);
+            }
+            const prices = [...new Set(rawPriceNumbers)].sort((a, b) => b - a);
+            const maxPrice = prices.length > 0 ? prices[0] : 0;
+            const validPrices = prices.filter(p => {
+                if (p === maxPrice) return true;
+                if (maxPrice > 20 && p < Math.max(10, maxPrice * 0.15)) return false;
+                return true;
+            });
+
+            if (validPrices.length >= 2) {
+                extractedOldPrice = validPrices[0];
+                extractedOfferPrice = validPrices[1];
+            } else if (validPrices.length === 1) {
+                extractedOfferPrice = validPrices[0];
+                extractedOldPrice = validPrices[0];
             }
 
             const updatedItem: MarkedItemType = {
@@ -460,15 +503,27 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
     };
 
     const handleAIFill = () => {
-        const priceMatches = formData.description.match(/\d+\.\d+/g);
-        if (priceMatches && priceMatches.length > 0) {
-            const prices = priceMatches.map(p => parseFloat(p)).filter(p => !isNaN(p));
-            if (prices.length >= 2) {
-                const sorted = [...prices].sort((a, b) => b - a);
-                setFormData(prev => ({ ...prev, oldPrice: String(sorted[0]), offerPrice: String(sorted[1]) }));
-            } else {
-                setFormData(prev => ({ ...prev, oldPrice: String(prices[0]), offerPrice: String(prices[0]) }));
-            }
+        const cleanedDescription = formData.description.replace(/\b(\d+(?:\.\d+)?)\s*(?:pcs?|pieces?|sets?|حبات|حبة|قطع|قطعة|ml|g|kg|l|ltr|cm|mm|inch|pack)\b/gi, '');
+        const priceRegex = /(?:₹|Rs\.?|INR)?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)/g;
+        const rawPriceNumbers: number[] = [];
+        let m: RegExpExecArray | null;
+        while ((m = priceRegex.exec(cleanedDescription)) !== null) {
+            const val = parseFloat(m[1].replace(/,/g, ''));
+            if (!isNaN(val) && val > 0 && val < 1_000_000) rawPriceNumbers.push(val);
+        }
+        const prices = [...new Set(rawPriceNumbers)].sort((a, b) => b - a);
+        const maxPrice = prices.length > 0 ? prices[0] : 0;
+        const validPrices = prices.filter(p => {
+            if (p === maxPrice) return true;
+            if (maxPrice > 20 && p < Math.max(10, maxPrice * 0.15)) return false;
+            return true;
+        });
+
+        if (validPrices.length >= 2) {
+            setFormData(prev => ({ ...prev, oldPrice: String(validPrices[0]), offerPrice: String(validPrices[1]) }));
+            toast.success("Prices updated from description");
+        } else if (validPrices.length === 1) {
+            setFormData(prev => ({ ...prev, oldPrice: String(validPrices[0]), offerPrice: String(validPrices[0]) }));
             toast.success("Prices updated from description");
         } else {
             toast.error("No prices detected in description");
@@ -639,7 +694,7 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                                     <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
                                         <div className="flex flex-col items-center gap-4 text-white">
                                             <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-                                            <Text className="font-bold">AI Identifying Item...</Text>
+                                            <Text className="font-bold">Identifying Item...</Text>
                                         </div>
                                     </div>
                                 )}
@@ -734,7 +789,7 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                                     </li>
                                     <li className="flex gap-2">
                                         <span className="text-primary font-bold">2.</span>
-                                        <span>OCR will automatically extract name and price from your selection.</span>
+                                        <span>Marking will automatically extract name and price from your selection.</span>
                                     </li>
                                     <li className="flex gap-2">
                                         <span className="text-primary font-bold">3.</span>
@@ -790,10 +845,10 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                                         </div>
                                         <button
                                             type="button"
-                                            onClick={startProductImageUpload}
+                                            // onClick={startProductImageUpload}
                                             className="absolute inset-0 bg-black/40 text-white opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition-all duration-300 rounded-xl"
                                         >
-                                            <RefreshCcw className="w-4 h-4" />
+                                            {/* <RefreshCcw className="w-4 h-4" /> */}
                                         </button>
                                         <input
                                             ref={productFileInputRef}
@@ -980,7 +1035,7 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                                         <AlignLeft className="w-3.5 h-3.5 text-black" /> Full Description
                                     </label>
                                     <textarea
-                                        value={formData.description} rows={2}
+                                        value={formData.description} rows={5}
                                         onChange={(e) => setFormData(p => ({ ...p, description: e.target.value }))}
                                         className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-gray-200 focus:border-gray-300 transition-all text-sm text-black font-medium min-h-[80px] resize-none placeholder:text-gray-400"
                                         placeholder="Add additional item details..."
