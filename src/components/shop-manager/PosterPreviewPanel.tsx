@@ -76,13 +76,13 @@ export function PosterPreviewPanel({
 
     const content = (
         <div className={cn(
-            "flex flex-col bg-white overflow-hidden animate-in fade-in duration-300 shadow-2xl transition-colors",
+            "flex flex-col bg-card overflow-hidden animate-in fade-in duration-300 shadow-2xl transition-colors",
             variant === "overlay" 
                 ? "relative w-full h-[95%] sm:h-[90%] max-w-5xl mx-auto my-auto rounded-3xl border border-zinc-200 p-4 md:p-8 opacity-100" 
-                : "absolute inset-0 p-5 sm:p-7 rounded-[2rem] border border-zinc-100 shadow-sm"
+                : "absolute inset-0 p-5 sm:px-7 sm:pb-2 rounded-[2rem] border border-border shadow-sm"
         )}>
             {/* Header */}
-            <div className="flex items-center justify-between mb-4 shrink-0">
+            <div className="flex items-center justify-between mb-2 shrink-0">
                 <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                         <ImageIcon className="w-4 h-4 text-primary" />
@@ -115,7 +115,7 @@ export function PosterPreviewPanel({
                         onClick={onClose}
                         leftIcon={X}
                         disabled={isPreparing}
-                        className="rounded-xl h-9 text-xs px-4"
+                        className="rounded-xl h-8 text-xs px-4"
                     >
                         Close Preview
                     </PremiumButton>
@@ -156,7 +156,7 @@ export function PosterPreviewPanel({
                                 leftIcon={MousePointerClick}
                                 isLoading={isPreparing}
                                 disabled={isPreparing}
-                                className="rounded-xl h-9 text-xs px-4 w-full sm:w-auto"
+                                className="rounded-xl h-8 text-xs px-4 w-full sm:w-auto"
                             >
                                 {isPreparing ? "Wait..." : "Add Marking"}
                             </PremiumButton>
@@ -166,7 +166,7 @@ export function PosterPreviewPanel({
             </div>
 
             {/* Image Preview */}
-            <div className="relative flex-1 min-h-0 w-full p-2 group bg-muted/5 rounded-2xl">
+            <div className="relative flex-1 min-h-0 w-full group bg-muted/5 rounded-2xl">
                 <MarkedPoster
                     src={poster.previewUrl}
                     alt={`Poster ${currentIndex + 1}`}
@@ -249,17 +249,17 @@ export function PosterPreviewPanel({
             </div>
 
             {/* Thumbnail Navigation Strip */}
-            <div className="mt-4 shrink-0 pb-2">
-                <div className="flex items-center gap-3 overflow-x-auto pb-4 scrollbar-hide px-1">
+            <div className="mt-1 shrink-0">
+                <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide px-1 py-2">
                     {posters.map((p, i) => (
                         <button
                             key={p.id}
                             onClick={() => !isPreparing && setCurrentIndex(i)}
                             disabled={isPreparing}
                             className={cn(
-                                "relative w-14 h-18 sm:w-16 sm:h-20 rounded-xl overflow-hidden border-2 transition-all shrink-0 active:scale-95",
+                                "relative w-14 h-[70px] sm:w-16 sm:h-20 rounded-xl overflow-hidden border-2 transition-all shrink-0 active:scale-95 p-0",
                                 i === currentIndex
-                                    ? "border-orange-500 ring-2 ring-orange-500/30 scale-105 z-10 shadow-lg"
+                                    ? "border-orange-500 ring-1 ring-orange-500/10 scale-105 z-10 shadow-lg"
                                     : "border-gray-100 opacity-60 hover:opacity-100 hover:border-gray-200",
                                 isPreparing && "cursor-not-allowed"
                             )}

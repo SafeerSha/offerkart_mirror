@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -99,6 +99,8 @@ function EditOfferContent() {
     // UI state mirroring create-offer
     const [isEditing, setIsEditing] = useState(false);
     const [previewState, setPreviewState] = useState<PosterPreviewState | null>(null);
+    const [stackPhase, setStackPhase] = useState<"upload" | "classify" | "summary">("summary");
+    const posterStackRef = useRef<{ handleCancel: () => boolean } | null>(null);
 
     // ── Load offer from local storage, list API, or detail API ────────────────
     useEffect(() => {
@@ -546,21 +548,28 @@ function EditOfferContent() {
                                 isEditing ? "p-0 border-0 bg-transparent shadow-none" : "p-3 overflow-visible"
                             )}>
                                 <PosterCardStack
+                                    ref={posterStackRef}
                                     initialPosters={posters}
                                     onComplete={handleFinish}
                                     onEditingChange={setIsEditing}
                                     onPreviewChange={setPreviewState}
+                                    onPhaseChange={setStackPhase}
                                     submitButtonText="Review & Save Updates"
                                     editorReturnTo="edit-offer"
                                     editorReturnUrl={`/shop-manager/edit-offer/${offerId}`}
                                 />
                             </PremiumCard>
 
-                            {!isEditing && (
+                            {!isEditing && stackPhase !== "classify" && (
                                 <PremiumButton
                                     variant="outline"
                                     className="w-full rounded-2xl h-14"
-                                    onClick={() => router.back()}
+                                    onClick={() => {
+                                        const handled = posterStackRef.current?.handleCancel?.();
+                                        if (!handled) {
+                                            router.back();
+                                        }
+                                    }}
                                     leftIcon={ArrowLeft}
                                 >
                                     Cancel & Go Back

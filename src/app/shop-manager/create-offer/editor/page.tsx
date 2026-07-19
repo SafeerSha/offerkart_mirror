@@ -390,7 +390,7 @@ function HotspotEditorContent() {
             const invertedDataUrl = invertCanvas.toDataURL('image/png');
 
             // Run OCR — no char whitelist so the LSTM model operates freely
-            const worker = await createWorker('eng', 1, {
+            const worker = await createWorker('ara+eng', 1, {
                 logger: m => console.log('OCR Progress:', m),
             });
             // DO NOT set tessedit_char_whitelist — invalid Unicode range syntax breaks digit recognition
@@ -405,28 +405,42 @@ function HotspotEditorContent() {
             console.log('OCR Confidence:', confidence, '\nPass1:', ocrPass1, '\nPass2:', ocrPass2);
 
             // Parse OCR text into structured fields
-            // Use first non-empty line from pass1 as product name
-            const extractedName = ocrPass1.split('\n').map(l => l.trim()).find(l => l.length > 1) || 'Marked Product';
-            const extractedDescription = ocrPass1.trim();
+            // Smart Product Name Filter: require at least 2 letters/Arabic characters, ignore pure digits/noise like "3" or "69"
+            const nameCandidates = ocrPass1.split('\n').map(l => l.trim()).filter(l => {
+                if (l.length < 3) return false;
+                if (!/[a-zA-Z\u0600-\u06FF]{2,}/.test(l)) return false;
+                const stripped = l.replace(/[0-9.,%$#@!*()\-_=+/?\\|:[\]{}'"~`₹]/g, '').trim().toLowerCase();
+                if (['qr', 'rs', 'inr', 'aed', 'sar', 'ريال', 'درهم', 'جنيه', 'ر.ق', 'ر.س'].includes(stripped)) return false;
+                return true;
+            });
+            const extractedName = nameCandidates[0] || ocrPass1.split('\n').map(l => l.trim()).find(l => l.length > 2 && /[a-zA-Z\u0600-\u06FF]/.test(l)) || 'Marked Product';
+            const extractedDescription = ocrPass1.trim() || ocrText.trim();
             let extractedOldPrice = 0;
             let extractedOfferPrice = 0;
 
-            // Regex handles: plain integers (666), decimals (99.99), Indian comma-format (1,299)
+            // Smart Price Extraction: mask numbers attached to units/specifications (e.g. 7pcs, 7 حبات) so they aren't taken as prices
+            const cleanedTextForPrices = ocrText.replace(/\b(\d+(?:\.\d+)?)\s*(?:pcs?|pieces?|sets?|حبات|حبة|قطع|قطعة|ml|g|kg|l|ltr|cm|mm|inch|pack)\b/gi, '');
             const priceRegex = /(?:₹|Rs\.?|INR)?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)/g;
             const rawPriceNumbers: number[] = [];
             let m: RegExpExecArray | null;
-            while ((m = priceRegex.exec(ocrText)) !== null) {
+            while ((m = priceRegex.exec(cleanedTextForPrices)) !== null) {
                 const val = parseFloat(m[1].replace(/,/g, ''));
                 if (!isNaN(val) && val > 0 && val < 1_000_000) rawPriceNumbers.push(val);
             }
-            // De-duplicate and sort descending (higher = old/MRP, lower = offer)
             const prices = [...new Set(rawPriceNumbers)].sort((a, b) => b - a);
-            if (prices.length >= 2) {
-                extractedOldPrice = prices[0];
-                extractedOfferPrice = prices[1];
-            } else if (prices.length === 1) {
-                extractedOfferPrice = prices[0];
-                extractedOldPrice = prices[0];
+            const maxPrice = prices.length > 0 ? prices[0] : 0;
+            const validPrices = prices.filter(p => {
+                if (p === maxPrice) return true;
+                if (maxPrice > 20 && p < Math.max(10, maxPrice * 0.15)) return false;
+                return true;
+            });
+
+            if (validPrices.length >= 2) {
+                extractedOldPrice = validPrices[0];
+                extractedOfferPrice = validPrices[1];
+            } else if (validPrices.length === 1) {
+                extractedOfferPrice = validPrices[0];
+                extractedOldPrice = validPrices[0];
             }
 
             const updatedItem: MarkedItemType = {
@@ -516,15 +530,27 @@ function HotspotEditorContent() {
     };
 
     const handleAIFill = () => {
-        const priceMatches = formData.description.match(/\d+\.\d+/g);
-        if (priceMatches && priceMatches.length > 0) {
-            const prices = priceMatches.map(p => parseFloat(p)).filter(p => !isNaN(p));
-            if (prices.length >= 2) {
-                const sorted = [...prices].sort((a, b) => b - a);
-                setFormData(prev => ({ ...prev, oldPrice: String(sorted[0]), offerPrice: String(sorted[1]) }));
-            } else {
-                setFormData(prev => ({ ...prev, oldPrice: String(prices[0]), offerPrice: String(prices[0]) }));
-            }
+        const cleanedDescription = formData.description.replace(/\b(\d+(?:\.\d+)?)\s*(?:pcs?|pieces?|sets?|حبات|حبة|قطع|قطعة|ml|g|kg|l|ltr|cm|mm|inch|pack)\b/gi, '');
+        const priceRegex = /(?:₹|Rs\.?|INR)?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)/g;
+        const rawPriceNumbers: number[] = [];
+        let m: RegExpExecArray | null;
+        while ((m = priceRegex.exec(cleanedDescription)) !== null) {
+            const val = parseFloat(m[1].replace(/,/g, ''));
+            if (!isNaN(val) && val > 0 && val < 1_000_000) rawPriceNumbers.push(val);
+        }
+        const prices = [...new Set(rawPriceNumbers)].sort((a, b) => b - a);
+        const maxPrice = prices.length > 0 ? prices[0] : 0;
+        const validPrices = prices.filter(p => {
+            if (p === maxPrice) return true;
+            if (maxPrice > 20 && p < Math.max(10, maxPrice * 0.15)) return false;
+            return true;
+        });
+
+        if (validPrices.length >= 2) {
+            setFormData(prev => ({ ...prev, oldPrice: String(validPrices[0]), offerPrice: String(validPrices[1]) }));
+            toast.success("Prices updated from description");
+        } else if (validPrices.length === 1) {
+            setFormData(prev => ({ ...prev, oldPrice: String(validPrices[0]), offerPrice: String(validPrices[0]) }));
             toast.success("Prices updated from description");
         } else {
             toast.error("No prices detected in description");
@@ -962,7 +988,7 @@ function HotspotEditorContent() {
                                     <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
                                         <div className="flex flex-col items-center gap-4 text-white">
                                             <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-                                            <Text className="font-bold">AI Identifying Item...</Text>
+                                            <Text className="font-bold">Identifying Item...</Text>
                                         </div>
                                     </div>
                                 )}
@@ -1104,7 +1130,7 @@ function HotspotEditorContent() {
                                     </li>
                                     <li className="flex gap-2">
                                         <span className="text-primary font-bold">2.</span>
-                                        <span>OCR will automatically extract name and price from your selection.</span>
+                                        <span>Marking will automatically extract name and price from your selection.</span>
                                     </li>
                                     <li className="flex gap-2">
                                         <span className="text-primary font-bold">3.</span>
@@ -1160,10 +1186,10 @@ function HotspotEditorContent() {
                                         </div>
                                         <button
                                             type="button"
-                                            onClick={startProductImageUpload}
+                                            // onClick={startProductImageUpload}
                                             className="absolute inset-0 bg-black/40 text-white opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition-all duration-300 rounded-xl"
                                         >
-                                            <RefreshCcw className="w-4 h-4" />
+                                            {/* <RefreshCcw className="w-4 h-4" /> */}
                                         </button>
                                         <input
                                             ref={productFileInputRef}
