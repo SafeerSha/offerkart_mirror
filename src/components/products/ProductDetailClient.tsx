@@ -13,6 +13,8 @@ import ProductCard from "./ProductCard";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
 import { useLocationContext } from "@/context/LocationContext";
+import { useSession } from "next-auth/react";
+import { config } from "@/lib/config";
 
 interface Product {
     id: any;
@@ -110,6 +112,7 @@ export default function ProductDetailClient({ product, similarProducts: initialS
     const { latitude, longitude } = location;
     const [similarProducts, setSimilarProducts] = useState<Product[]>(initialSimilarProducts);
     const similarProductsRef = useRef<HTMLDivElement>(null);
+    const { data: session } = useSession();
 
     // Fetch similar products client-side based on user's browser location
     useEffect(() => {
@@ -131,6 +134,36 @@ export default function ProductDetailClient({ product, similarProducts: initialS
 
         fetchSimilarProducts();
     }, [product.id, latitude, longitude]);
+
+    // Track product click analytics
+    useEffect(() => {
+        const trackProductClick = async () => {
+            if (!product.id) return;
+            try {
+                const bodyPayload: { offerProductId: number; offerId?: number; userId?: number } = {
+                    offerProductId: Number(product.id),
+                };
+                if (product.offerId || offerId) {
+                    bodyPayload.offerId = Number(product.offerId || offerId);
+                }
+                if (session?.user?.id) {
+                    bodyPayload.userId = Number(session.user.id);
+                }
+
+                await fetch(`${config.api.upstreamBaseUrl}/user/analytics/offerproductclick`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(bodyPayload),
+                });
+            } catch (error) {
+                console.error("Error tracking product click analytics:", error);
+            }
+        };
+
+        trackProductClick();
+    }, [product.id, product.offerId, offerId, session]);
 
     const scrollSimilarProducts = (direction: "left" | "right") => {
         if (!similarProductsRef.current) return;

@@ -1,7 +1,7 @@
 import { backend, type BackendRequestOptions, unwrapApiEnvelope } from './backendClient';
 import { ENDPOINTS } from './endpoints';
 import { OfferProductPayload, Product, PaginatedResponse } from '../types';
-import { updateOfferProduct, getAllOfferProducts, deleteOfferProduct } from './offerproduct';
+import { updateOfferProduct, getAllOfferProducts, deleteOfferProduct, BusinessOfferProductsQuery } from './offerproduct';
 import { CACHE_TAGS } from './cache-tags';
 import { getUserOfferProducts } from './userOffersService';
 
@@ -51,6 +51,7 @@ export function mapUserProductToProduct(item: any): any {
 
 export async function getAllProducts(
     shopId?: string,
+    query: BusinessOfferProductsQuery = {},
     cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">
 ) {
     if (!shopId || shopId === "all" || shopId === "undefined" || shopId === "null" || shopId === "") {
@@ -67,7 +68,7 @@ export async function getAllProducts(
 
     try {
         // Try to fetch from backend API first
-        const backendRes = await getAllOfferProducts(shopId, cacheOptions);
+        const backendRes = await getAllOfferProducts(shopId, query, cacheOptions);
         
         if (backendRes.success && backendRes.data) {
             // Backend returns { value: [...], Count: N } envelope

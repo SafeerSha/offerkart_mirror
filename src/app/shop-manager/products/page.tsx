@@ -132,7 +132,7 @@ function ShopProductsContent() {
     const queryClient = useQueryClient();
 
     const [searchQuery, setSearchQuery] = useState("");
-    const [statusFilter, setStatusFilter] = useState<"all" | "active" | "paused" | "drafted">("all");
+    const [statusFilter, setStatusFilter] = useState<"all" | "active" | "paused" | "drafted" | "expired">("all");
 
     const [productToDelete, setProductToDelete] = useState<any | null>(null);
     const [previewLogo, setPreviewLogo] = useState<{ src: string; name: string } | null>(null);
@@ -157,14 +157,106 @@ function ShopProductsContent() {
         return null;
     }, [session, shops]);
 
-    const { data: productsData, isLoading: isLoadingProducts } = useAllProducts(activeShopId || undefined);
-    const allProductsList = useMemo(() => {
-        return (productsData || []) as Product[];
-    }, [productsData]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [accumulatedProducts, setAccumulatedProducts] = useState<any[]>([]);
+    const observerTargetRef = useRef<HTMLDivElement | null>(null);
+    const limit = 12;
 
-    const products = useMemo(() => {
-        return allProductsList.filter((p: any) => !p.isDraft);
-    }, [allProductsList]);
+    useEffect(() => {
+        setCurrentPage(1);
+        setAccumulatedProducts([]);
+    }, [searchQuery, statusFilter, activeShopId]);
+
+    const { data: productsData, isLoading: isLoadingProducts, isFetching: isFetchingProducts } = useAllProducts(
+        activeShopId || undefined,
+        { page: currentPage, limit, search: searchQuery || undefined, status: statusFilter !== "all" ? statusFilter : undefined }
+    );
+
+    const { hasMore, totalPages } = useMemo(() => {
+        if (!productsData) {
+            return { hasMore: false, totalPages: 1 };
+        }
+        const res = productsData as any;
+        if (typeof res?.hasMore === "boolean") {
+            return { hasMore: res.hasMore, totalPages: res.totalPages || (res.hasMore ? currentPage + 1 : currentPage) };
+        }
+        if (typeof res?.pagination?.totalPages === "number" && res.pagination.totalPages > 0) {
+            return {
+                hasMore: currentPage < res.pagination.totalPages,
+                totalPages: res.pagination.totalPages
+            };
+        }
+        if (typeof res?.totalPages === "number" && res.totalPages > 0) {
+            return {
+                hasMore: currentPage < res.totalPages,
+                totalPages: res.totalPages
+            };
+        }
+        const rawList = Array.isArray(res) ? res : (res.data || []);
+        const count = res?.pagination?.totalRecords || res?.pagination?.count || res?.count || res?.total;
+        if (typeof count === "number" && count > 0) {
+            const pages = Math.ceil(count / limit);
+            return { hasMore: currentPage < pages, totalPages: pages };
+        }
+        const calculatedHasMore = rawList.length >= limit;
+        return { hasMore: calculatedHasMore, totalPages: calculatedHasMore ? currentPage + 1 : currentPage };
+    }, [productsData, currentPage, limit]);
+
+    useEffect(() => {
+        if (!productsData) return;
+        const res = productsData as any;
+        const rawList = Array.isArray(res) ? res : (res.data || []);
+
+        if (currentPage === 1) {
+            setAccumulatedProducts(rawList);
+        } else if (rawList.length > 0) {
+            setAccumulatedProducts((prev) => {
+                const existingIds = new Set(prev.map((item) => String(item.id || item.productId)));
+                const newItems = rawList.filter((item: any) => !existingIds.has(String(item.id || item.productId)));
+                return [...prev, ...newItems];
+            });
+        }
+    }, [productsData, currentPage]);
+
+    const allProductsList = accumulatedProducts;
+
+    useEffect(() => {
+        if (!hasMore || isFetchingProducts) return;
+
+        const handleScroll = () => {
+            if (isFetchingProducts || !hasMore) return;
+            const scrollHeight = document.documentElement.scrollHeight;
+            const scrollTop = window.scrollY || document.documentElement.scrollTop;
+            const clientHeight = window.innerHeight;
+
+            if (scrollHeight - scrollTop - clientHeight < 400) {
+                setCurrentPage((prev) => prev + 1);
+            }
+        };
+
+        window.addEventListener("scroll", handleScroll, { passive: true });
+
+        const target = observerTargetRef.current;
+        let observer: IntersectionObserver | null = null;
+        if (target) {
+            observer = new IntersectionObserver(
+                (entries) => {
+                    if (entries[0].isIntersecting && !isFetchingProducts && hasMore) {
+                        setCurrentPage((prev) => prev + 1);
+                    }
+                },
+                { threshold: 0.1, rootMargin: "400px" }
+            );
+            observer.observe(target);
+        }
+
+        handleScroll();
+
+        return () => {
+            window.removeEventListener("scroll", handleScroll);
+            if (observer) observer.disconnect();
+        };
+    }, [isFetchingProducts, hasMore, accumulatedProducts.length]);
 
     const { data: branchesResponse } = useBranches(activeShopId || "");
     const branches = useMemo(() => {
@@ -357,15 +449,25 @@ function ShopProductsContent() {
                 matchesSearch = matchesName || matchesCategory || matchesBranch || matchesDate || matchesPrice;
             }
 
+            const isProductExpired = (item: any) => {
+                if (!item.validTo) return false;
+                const expiryDate = new Date(item.validTo);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                return expiryDate < today;
+            };
+
             const matchesStatus = statusFilter === "all"
-                ? !product.isDraft
+                ? true
                 : statusFilter === "active"
-                    ? (!product.isDraft && product.status === "active")
+                    ? (!product.isDraft && product.status === "active" && !isProductExpired(product))
                     : statusFilter === "paused"
-                        ? (!product.isDraft && product.status === "inactive")
+                        ? (!product.isDraft && product.status === "inactive" && !isProductExpired(product))
                         : statusFilter === "drafted"
                             ? product.isDraft
-                            : true;
+                            : statusFilter === "expired"
+                                ? (!product.isDraft && isProductExpired(product))
+                                : true;
 
             return matchesSearch && matchesStatus;
         });
@@ -433,7 +535,7 @@ function ShopProductsContent() {
                         </div>
 
                         <div className="flex bg-gray-55 p-0.5 rounded-lg gap-0.5 self-start sm:self-auto shrink-0 border border-gray-100 bg-gray-50/50">
-                            {(["all", "active", "paused", "drafted"] as const).map((filter) => (
+                            {(["all", "active", "paused", "drafted", "expired"] as const).map((filter) => (
                                 <button
                                     key={filter}
                                     onClick={() => setStatusFilter(filter)}
@@ -570,7 +672,8 @@ function ShopProductsContent() {
                         </div>
 
                         {filteredProducts.length > 0 ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 sm:gap-3">
+                            <>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 sm:gap-3">
                                 {filteredProducts.map((product: any) => {
                                     const id = String(product.id);
                                     const productImage = product.image || product.imageUrl;
@@ -731,6 +834,24 @@ function ShopProductsContent() {
                                     );
                                 })}
                             </div>
+
+                            {/* Scroll trigger for infinite scroll loading */}
+                            <div id="scroll-trigger" ref={observerTargetRef} className="w-full py-8 flex flex-col items-center justify-center mt-4">
+                                {isFetchingProducts && currentPage > 1 && (
+                                    <div className="flex items-center gap-2 text-xs font-bold text-orange-500 animate-pulse">
+                                        <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping" />
+                                        <span>Loading more products...</span>
+                                    </div>
+                                )}
+                                {!hasMore && !isFetchingProducts && filteredProducts.length > 0 && (
+                                    <div className="text-center py-2">
+                                        <span className="text-xs text-gray-400 font-medium">
+                                            You've reached the end of your products ({filteredProducts.length} total)
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                        </>
                         ) : (
                             <div className="p-12 flex flex-col items-center justify-center bg-white border border-gray-100 rounded-3xl text-center shadow-sm max-w-xl mx-auto">
                                 <div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center mb-4">
@@ -745,6 +866,8 @@ function ShopProductsContent() {
                                         "No paused products"
                                     ) : statusFilter === "drafted" ? (
                                         "No drafted products"
+                                    ) : statusFilter === "expired" ? (
+                                        "No expired products"
                                     ) : (
                                         "No products found"
                                     )}
@@ -753,15 +876,17 @@ function ShopProductsContent() {
                                     {searchQuery ? (
                                         "Try adjusting your search terms or filters to find your product."
                                     ) : statusFilter === "active" ? (
-                                        products.length > 0
+                                        filteredProducts.length > 0
                                             ? "All of your products are currently paused."
                                             : "Your product catalog is empty."
                                     ) : statusFilter === "paused" ? (
-                                        products.length > 0
+                                        filteredProducts.length > 0
                                             ? "All of your products are active and live."
                                             : "Your product catalog is empty."
                                     ) : statusFilter === "drafted" ? (
                                         "You don't have any drafted products at the moment."
+                                    ) : statusFilter === "expired" ? (
+                                        "You don't have any expired products at the moment."
                                     ) : (
                                         "Your product catalog is empty. Let's add your first product now!"
                                     )}

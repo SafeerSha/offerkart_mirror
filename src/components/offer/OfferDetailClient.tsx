@@ -25,6 +25,8 @@ import OfferCard from "@/components/offer/OfferCard";
 import { ConsumerProductModal } from "@/components/offer/ConsumerProductModal";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useLocationContext } from "@/context/LocationContext";
+import { useSession } from "next-auth/react";
+import { config } from "@/lib/config";
 
 interface OfferDetail {
     id: number | string;
@@ -163,6 +165,7 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers: 
     const { t } = useTranslation("common");
     const { location } = useLocationContext();
     const { latitude, longitude } = location;
+    const { data: session } = useSession();
 
     // --- Current offer state (can be changed client-side without page reload) ---
     const [offer, setOffer] = useState(initialOffer);
@@ -211,6 +214,35 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers: 
 
         fetchSimilar();
     }, [offer.id, latitude, longitude]);
+
+    // --- Track offer click analytics when viewed ---
+    useEffect(() => {
+        const trackOfferClick = async () => {
+            if (!offer.id) return;
+            try {
+                const bodyPayload: { offerId: number; userId?: number } = {
+                    offerId: Number(offer.id),
+                };
+
+                // Add optional userId if logged in
+                if (session?.user?.id) {
+                    bodyPayload.userId = Number(session.user.id);
+                }
+
+                await fetch(`${config.api.upstreamBaseUrl}/user/analytics/offerclick`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(bodyPayload),
+                });
+            } catch (error) {
+                console.error("Error tracking offer click analytics:", error);
+            }
+        };
+
+        trackOfferClick();
+    }, [offer.id, session]);
 
     // --- Poster / carousel state ---
     const [posterIndex, setPosterIndex] = useState(0);
@@ -534,6 +566,31 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers: 
                                         if (item.name && item.name !== "Processing...") {
                                             setSelectedItemId(item.id);
                                             setIsProductModalOpen(true);
+
+                                            // Track product click analytics
+                                            (async () => {
+                                                try {
+                                                    const bodyPayload: { offerProductId: number; offerId?: number; userId?: number } = {
+                                                        offerProductId: Number(item.id),
+                                                    };
+                                                    if (offer.id) {
+                                                        bodyPayload.offerId = Number(offer.id);
+                                                    }
+                                                    if (session?.user?.id) {
+                                                        bodyPayload.userId = Number(session.user.id);
+                                                    }
+
+                                                    await fetch(`${config.api.upstreamBaseUrl}/user/analytics/offerproductclick`, {
+                                                        method: "POST",
+                                                        headers: {
+                                                            "Content-Type": "application/json",
+                                                        },
+                                                        body: JSON.stringify(bodyPayload),
+                                                    });
+                                                } catch (error) {
+                                                    console.error("Error tracking product click analytics:", error);
+                                                }
+                                            })();
                                         }
                                     }}
                                     showTopGradient={true}

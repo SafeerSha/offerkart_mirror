@@ -16,13 +16,33 @@ export async function createOfferProduct(payload: OfferProductPayload, shopId: s
     });
 }
 
+export interface BusinessOfferProductsQuery {
+    search?: string;
+    page?: number;
+    limit?: number;
+    status?: "active" | "inactive" | string;
+}
+
 /**
- * Fetches all offer products for the current shop.
+ * Fetches all offer products for the current shop with optional filtering.
  * @param shopId - The optional shop ID to restrict fetch to
+ * @param query - Optional search/filter/pagination params
+ * @param cacheOptions - Optional Next.js cache options
  * @returns Promise<ApiResponse<any[]>>
  */
-export async function getAllOfferProducts(shopId?: string, cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">): Promise<ApiResponse<any[]>> {
-    return backend.get<any[]>(ENDPOINTS.OFFER_PRODUCT.BASE, {
+export async function getAllOfferProducts(
+    shopId?: string,
+    query: BusinessOfferProductsQuery = {},
+    cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">
+): Promise<ApiResponse<any[]>> {
+    const params = new URLSearchParams();
+    if (query.page !== undefined) params.set("page", String(query.page));
+    if (query.limit !== undefined) params.set("limit", String(query.limit));
+    if (query.search) params.set("search", query.search);
+    if (query.status) params.set("status", query.status);
+    const queryString = params.toString() ? `?${params.toString()}` : "";
+
+    return backend.get<any[]>(`${ENDPOINTS.OFFER_PRODUCT.BASE}${queryString}`, {
         headers: shopId ? { shopId } : {},
         next: { tags: [CACHE_TAGS.PRODUCTS] },
         ...cacheOptions,

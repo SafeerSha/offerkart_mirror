@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Image, { StaticImageData } from "next/image";
+import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, Star, Rocket } from "lucide-react";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { Subheading, Text } from "@/components/shared/Typography";
@@ -25,6 +26,7 @@ interface FeaturedCarouselProps {
 
 const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
   const { t } = useTranslation("home");
+  const router = useRouter();
   const { location: userLocation, hydrated } = useLocationContext();
 
   const hasLocation = userLocation.latitude !== null && userLocation.longitude !== null;
@@ -178,7 +180,10 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
                             : "opacity-0 scale-90"
                       }`}
                   >
-                      <div className="relative w-full h-full rounded-2xl overflow-hidden shadow-2xl group cursor-pointer border border-primary/20 group-hover:border-primary/40 transition-colors duration-300 bg-black flex items-center justify-center">
+                      <div 
+                        className="relative w-full h-full rounded-2xl overflow-hidden shadow-2xl group cursor-pointer border border-primary/20 group-hover:border-primary/40 transition-colors duration-300 bg-black flex items-center justify-center"
+                        onClick={() => router.push(`/offer/${offer.id}`)}
+                      >
                         {/* Ambient Blur Background inside the A4 card */}
                         <div className="absolute inset-0 select-none pointer-events-none overflow-hidden">
                           <img

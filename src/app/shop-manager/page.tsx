@@ -104,12 +104,18 @@ function DashboardContent() {
     }, [activeShopId, queryClient]);
 
     // 2. Fetch Offers for current shop
-    const { data: offersResponse, isLoading: isLoadingOffers } = useAllOffers(activeShopId || undefined);
+    const { data: offersResponse, isLoading: isLoadingOffers } = useAllOffers(activeShopId || undefined, { limit: 50 });
     const publishedOffers = useMemo(() => {
         if (!offersResponse?.success || !offersResponse?.data) return [] as any[];
         const result = offersResponse.data as any;
         const offersArray = Array.isArray(result) ? result : (result.data || []);
         return offersArray.filter((offer: any) => !offer.isDraft) as any[];
+    }, [offersResponse]);
+
+    const totalOffersCount = useMemo(() => {
+        if (!offersResponse?.success || !offersResponse?.data) return 0;
+        const res = offersResponse.data as any;
+        return res?.pagination?.totalRecords || res?.pagination?.count || res?.count || res?.total || (Array.isArray(res) ? res.length : (res.data?.length || 0));
     }, [offersResponse]);
 
     const draftedOffers = useMemo(() => {
@@ -120,10 +126,16 @@ function DashboardContent() {
     }, [offersResponse]);
 
     // 3. Fetch Products
-    const { data: productsData, isLoading: isLoadingProducts } = useAllProducts(activeShopId || undefined);
+    const { data: productsData, isLoading: isLoadingProducts } = useAllProducts(activeShopId || undefined, { limit: 50 });
     const products = useMemo(() => {
         const prods = (productsData || []) as Product[];
         return prods.filter((p: any) => !p.isDraft);
+    }, [productsData]);
+
+    const totalProductsCount = useMemo(() => {
+        if (!productsData) return 0;
+        const res = productsData as any;
+        return res?.pagination?.totalRecords || res?.pagination?.count || res?.count || res?.total || (Array.isArray(res) ? res.length : (res.data?.length || 0));
     }, [productsData]);
 
     const draftedProducts = useMemo(() => {
@@ -378,7 +390,7 @@ function DashboardContent() {
                                     if (branches.length === 0) {
                                         setShowNoBranchModal(true);
                                     } else {
-                                        router.push("/shop-manager/create-offer");
+                                        router.push("/shop-manager/create-offer?source=dashboard");
                                     }
                                 }}
                                 className="rounded-full shadow-lg shadow-primary/20 w-full md:w-auto justify-center px-1 sm:px-3 md:px-4 py-1.5 md:py-2.5 h-auto text-[11px] sm:text-xs md:text-sm"
@@ -795,6 +807,7 @@ function DashboardContent() {
                                             <OffersTab
                                                 isLoadingOffers={isLoadingOffers}
                                                 publishedOffers={publishedOffers}
+                                                totalOffersCount={totalOffersCount}
                                                 openEditModal={openEditModal}
                                                 setOfferToDelete={setOfferToDelete}
                                                 handleToggleOfferStatus={handleToggleOfferStatus}
@@ -803,7 +816,7 @@ function DashboardContent() {
                                                     if (branches.length === 0) {
                                                         setShowNoBranchModal(true);
                                                     } else {
-                                                        router.push("/shop-manager/create-offer");
+                                                        router.push("/shop-manager/create-offer?source=dashboard");
                                                     }
                                                 }}
                                             />
@@ -812,6 +825,7 @@ function DashboardContent() {
                                             <ProductsTab
                                                 isLoadingProducts={isLoadingProducts}
                                                 products={products || []}
+                                                totalProductsCount={totalProductsCount}
                                                 branchNameMap={branchNameMap}
                                                 handleEditProduct={handleEditProduct}
                                                 setProductToDelete={setProductToDelete}

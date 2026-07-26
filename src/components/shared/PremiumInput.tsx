@@ -35,7 +35,7 @@ export const PremiumInput = React.forwardRef<HTMLInputElement, PremiumInputProps
                     />
                 </div>
                 {error && (
-                    <p className="text-xs font-medium text-destructive ml-1 animate-in fade-in slide-in-from-top-1">
+                    <p className="text-xs font-medium text-red-500 text-destructive ml-1 animate-in fade-in slide-in-from-top-1">
                         {error}
                     </p>
                 )}

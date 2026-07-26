@@ -57,6 +57,24 @@ interface LocationModalProps {
     handleSearch: (val: string) => void;
 }
 
+const isLocationSelected = (loc: string, selectedLocation: string) => {
+    if (!loc || !selectedLocation) return false;
+    const l1 = loc.trim().toLowerCase();
+    const l2 = selectedLocation.trim().toLowerCase();
+    if (l1 === l2) return true;
+
+    const parts1 = l1.split(',').map(p => p.trim()).filter(Boolean);
+    const parts2 = l2.split(',').map(p => p.trim()).filter(Boolean);
+
+    if (parts1[0] === parts2[0]) {
+        if (parts1.length === 1 || parts2.length === 1) return true;
+        if (parts1.length > 1 && parts2.length > 1 && parts1[1] === parts2[1]) return true;
+        if (l1.includes(l2) || l2.includes(l1)) return true;
+    }
+
+    return false;
+};
+
 const LocationModal = ({
     open,
     onOpenChange,
@@ -70,6 +88,13 @@ const LocationModal = ({
     const { location: globalLocation, isLocationSet, setLocation } = useLocationContext();
     const selectedLocation = globalLocation.name;
     const [detectingLocation, setDetectingLocation] = useState(false);
+
+    useEffect(() => {
+        if (open) {
+            setLocationSearch("");
+            handleSearch("");
+        }
+    }, [open]);
 
     const handleDetectLocation = () => {
         if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -91,6 +116,8 @@ const LocationModal = ({
                         const locationName = data.display_name || address.city || address.town || address.village || address.suburb;
                         if (locationName) {
                             setLocation(locationName, latitude, longitude);
+                            setLocationSearch("");
+                            handleSearch("");
                             onOpenChange(false);
                         } else {
                             alert("Could not determine location name from coordinates.");
@@ -223,6 +250,7 @@ const LocationModal = ({
                             const subtitle = parts.length > 1
                                 ? parts.slice(1).map(p => p.trim()).filter(p => p !== "India" && !/^\d+$/.test(p)).slice(0, 2).join(", ")
                                 : "Kerala";
+                            const isSelected = isLocationSelected(loc, selectedLocation);
 
                             return (
                                 <button
@@ -230,24 +258,29 @@ const LocationModal = ({
                                     onClick={() => {
                                         const coords = locationCoordsMap[loc] || { lat: null, lon: null };
                                         setLocation(loc, coords.lat, coords.lon);
+                                        setLocationSearch("");
+                                        handleSearch("");
                                         onOpenChange(false);
                                     }}
                                     className={cn(
-                                        "rounded-xl cursor-pointer py-2.5 px-3 transition-all duration-200 flex items-center justify-between w-[calc(100%-1rem)] text-left border-0 outline-none bg-transparent",
-                                        selectedLocation === loc
-                                            ? "bg-primary/10 text-primary font-semibold"
-                                            : "hover:bg-primary/5 focus:bg-primary/5"
+                                        "rounded-xl cursor-pointer py-2.5 px-3 transition-all duration-200 flex items-center justify-between w-[calc(100%-1rem)] text-left border-0 outline-none bg-transparent mx-2 my-0.5",
+                                        isSelected
+                                            ? "bg-primary/10 text-primary font-semibold shadow-sm"
+                                            : "hover:bg-primary/5 focus:bg-primary/5 text-slate-800 dark:text-slate-200"
                                     )}
                                 >
                                     <div className="flex items-center w-full min-w-0">
                                         <div className={cn(
-                                            "w-8 h-8 rounded-lg flex items-center justify-center transition-colors shrink-0",
-                                            selectedLocation === loc ? "bg-primary/20" : "bg-secondary"
+                                            "w-8 h-8 rounded-lg flex items-center justify-center transition-colors shrink-0 mr-2.5",
+                                            isSelected ? "bg-primary/20 text-primary" : "bg-secondary text-muted-foreground"
                                         )}>
-                                            <MapPin className={cn("w-4 h-4", selectedLocation === loc ? "text-primary" : "text-muted-foreground")} />
+                                            <MapPin className={cn("w-4 h-4", isSelected ? "text-primary" : "text-muted-foreground")} />
                                         </div>
                                         <div className="flex items-baseline min-w-0 text-left gap-1.5 flex-1">
-                                            <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[65%]" title={loc}>
+                                            <span className={cn(
+                                                "text-sm font-semibold truncate max-w-[65%]",
+                                                isSelected ? "text-primary font-bold" : "text-slate-800 dark:text-slate-200"
+                                            )} title={loc}>
                                                 {mainName}
                                             </span>
                                             {subtitle && (
@@ -256,8 +289,8 @@ const LocationModal = ({
                                                 </span>
                                             )}
                                         </div>
-                                        {selectedLocation === loc && (
-                                            <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary animate-pulse shrink-0 ml-2" />
+                                        {isSelected && (
+                                            <div className="ml-auto w-2 h-2 rounded-full bg-primary animate-pulse shrink-0 ml-2" />
                                         )}
                                     </div>
                                 </button>
@@ -744,11 +777,12 @@ const Header = () => {
                                         </Link>
                                         <button
                                             onClick={() => setLocationOpen(true)}
-                                            className="relative text-foreground hover:text-primary transition-all font-medium flex items-center gap-2 group border-0 outline-none select-none"
+                                            className="relative text-foreground hover:text-primary transition-all font-medium flex items-center gap-1.5 group border-0 outline-none select-none max-w-[220px] xl:max-w-[320px] min-w-0"
+                                            title={selectedLocation}
                                         >
-                                            <MapPin className="w-4 h-4 text-orange-500 group-hover:scale-110 transition-transform" />
-                                            <span className="relative z-10">{selectedLocation.split(',')[0]}</span>
-                                            <ChevronDown className="w-4 h-4 transition-transform group-hover:scale-110" />
+                                            <MapPin className="w-4 h-4 text-orange-500 group-hover:scale-110 transition-transform shrink-0" />
+                                            <span className="relative z-10 truncate text-sm font-semibold">{selectedLocation.split(',')[0]}</span>
+                                            <ChevronDown className="w-4 h-4 transition-transform group-hover:scale-110 shrink-0" />
                                             <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-primary to-secondary group-hover:w-full transition-all duration-300" />
                                         </button>
                                     </nav>
@@ -757,11 +791,12 @@ const Header = () => {
                                     <div className="lg:hidden">
                                         <button
                                             onClick={() => setLocationOpen(true)}
-                                            className="relative text-foreground hover:text-primary transition-all font-medium flex items-center gap-2 group border-0 outline-none focus:ring-0 focus:ring-offset-0 focus:outline-none select-none"
+                                            className="relative text-foreground hover:text-primary transition-all font-medium flex items-center gap-1.5 group border-0 outline-none focus:ring-0 focus:ring-offset-0 focus:outline-none select-none max-w-[150px] sm:max-w-[220px] min-w-0"
+                                            title={selectedLocation}
                                         >
-                                            <MapPin className="w-4 h-4 text-orange-500 group-hover:scale-110 transition-transform" />
-                                            <span className="relative z-10">{selectedLocation.split(',')[0]}</span>
-                                            <ChevronDown className="w-4 h-4 transition-transform group-hover:scale-110" />
+                                            <MapPin className="w-4 h-4 text-orange-500 group-hover:scale-110 transition-transform shrink-0" />
+                                            <span className="relative z-10 truncate text-xs sm:text-sm font-semibold">{selectedLocation.split(',')[0]}</span>
+                                            <ChevronDown className="w-3.5 h-3.5 transition-transform group-hover:scale-110 shrink-0" />
                                             <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-primary to-secondary group-hover:w-full transition-all duration-300" />
                                         </button>
                                     </div>

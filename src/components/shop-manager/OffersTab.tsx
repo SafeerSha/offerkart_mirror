@@ -12,6 +12,7 @@ import { SwipeableCard } from "./SwipeableCard";
 interface OffersTabProps {
     isLoadingOffers: boolean;
     publishedOffers: any[];
+    totalOffersCount?: number;
     openEditModal: (offer: any) => void;
     setOfferToDelete: (offer: any) => void;
     handleToggleOfferStatus: (offer: any) => void;
@@ -22,6 +23,7 @@ interface OffersTabProps {
 export function OffersTab({
     isLoadingOffers,
     publishedOffers,
+    totalOffersCount,
     openEditModal,
     setOfferToDelete,
     handleToggleOfferStatus,
@@ -71,7 +73,7 @@ export function OffersTab({
         <>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar p-1">
                 {publishedOffers.length > 0 ? (
-                    publishedOffers.slice(0, 15).map((offer, idx) => {
+                    publishedOffers.slice(0, 8).map((offer, idx) => {
                         const id = offer.offerId || offer.batchId || idx;
                         const offerImage = offer.posters?.[0]?.posterSrc || offer.posterSrc;
                         return (
@@ -223,7 +225,7 @@ export function OffersTab({
                             glow={false}
                             className="w-full sm:w-auto rounded-xl py-1 px-6 border-primary/10 hover:border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary gap-1.5 shadow-none cursor-pointer text-xs font-bold uppercase tracking-wider"
                         >
-                            <span>View All ({publishedOffers.length})</span>
+                            <span>View All ({typeof totalOffersCount === "number" ? totalOffersCount : publishedOffers.length})</span>
                             <ArrowRight className="w-2.5 h-2.5" />
                         </PremiumButton>
                     </Link>

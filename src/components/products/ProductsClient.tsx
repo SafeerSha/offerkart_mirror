@@ -247,7 +247,7 @@ export default function ProductsClient({
                     fetchNextPage();
                 }
             },
-            { threshold: 0.1, rootMargin: "100px" }
+            { threshold: 0.1, rootMargin: "800px" }
         );
 
         const target = document.querySelector("#scroll-trigger");

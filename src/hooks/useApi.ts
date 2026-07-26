@@ -1,9 +1,9 @@
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import { getMyShops, getShops, getShopDetails, addShop, updateShop } from "@/lib/api/shop";
 import { getBranches, addBranch, updateBranch, deleteBranch, getBranchDetails } from "@/lib/api/branch";
-import { createOffer, updateOffer, deleteOffer, getAllOffers, getOfferById, getFeaturedShops, getFeaturedOffers, getPaginatedOffers, toggleOfferStatus } from "@/lib/api/offers";
+import { createOffer, updateOffer, deleteOffer, getAllOffers, getOfferById, getFeaturedShops, getFeaturedOffers, getPaginatedOffers, toggleOfferStatus, BusinessOffersQuery } from "@/lib/api/offers";
 import { getAllProducts, createProduct, updateProduct, deleteProduct, getUserProducts, getProductShops } from "@/lib/api/products";
-import { getOfferProductById, toggleOfferProductStatus } from "@/lib/api/offerproduct";
+import { getOfferProductById, toggleOfferProductStatus, BusinessOfferProductsQuery } from "@/lib/api/offerproduct";
 import { s3Api } from "@/lib/api/s3";
 import { getCategories, getSubCategories } from "@/lib/api/categories";
 import { getIndustries } from "@/lib/api/industry";
@@ -22,7 +22,7 @@ export const queryKeys = {
   branchDetails: (shopId: string, branchId: string) => ["branchDetails", shopId, branchId] as const,
   
   // Offer keys
-  allOffers: (shopId?: string) => ["allOffers", shopId] as const,
+  allOffers: (shopId?: string, query?: BusinessOffersQuery) => ["allOffers", shopId, query] as const,
   offerDetails: (id: string) => ["offerDetails", id] as const,
   featuredShops: (latitude?: number | null, longitude?: number | null, industryId?: number | string | null) => ["featuredShops", latitude, longitude, industryId] as const,
   featuredOffers: (latitude?: number | null, longitude?: number | null) => ["featuredOffers", latitude, longitude] as const,
@@ -30,7 +30,7 @@ export const queryKeys = {
   infiniteUserOffers: (filters: any) => ["infiniteUserOffers", filters] as const,
 
   // Product keys
-  allProducts: (shopId?: string) => ["allProducts", shopId] as const,
+  allProducts: (shopId?: string, query?: BusinessOfferProductsQuery) => ["allProducts", shopId, query] as const,
   productDetails: (id: string) => ["productDetails", id] as const,
   userProductsFiltered: (filters: any) => ["userProductsFiltered", filters] as const,
   productShops: (latitude?: number | null, longitude?: number | null, categoryId?: number | string | null, subcategoryId?: number | string | null, search?: string | null) => ["productShops", latitude, longitude, categoryId, subcategoryId, search] as const,
@@ -147,10 +147,11 @@ export function useDeleteBranch() {
 
 // ============ OFFER HOOKS ============
 
-export function useAllOffers(shopId?: string) {
+export function useAllOffers(shopId?: string, query: BusinessOffersQuery = {}) {
   return useQuery({
-    queryKey: queryKeys.allOffers(shopId),
-    queryFn: () => getAllOffers(shopId),
+    queryKey: queryKeys.allOffers(shopId, query),
+    queryFn: () => getAllOffers(shopId, query),
+    enabled: !!shopId,
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -328,10 +329,10 @@ export function useDeleteImage() {
 
 // ============ PRODUCT HOOKS ============
 
-export function useAllProducts(shopId?: string) {
+export function useAllProducts(shopId?: string, query: BusinessOfferProductsQuery = {}) {
   return useQuery({
-    queryKey: queryKeys.allProducts(shopId),
-    queryFn: () => getAllProducts(shopId),
+    queryKey: queryKeys.allProducts(shopId, query),
+    queryFn: () => getAllProducts(shopId, query),
     enabled: !!shopId && shopId !== "all" && shopId !== "undefined" && shopId !== "null",
     staleTime: 5 * 60 * 1000,
   });
