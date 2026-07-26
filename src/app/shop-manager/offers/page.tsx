@@ -17,7 +17,7 @@ import Breadcrumbs from "@/components/shared/Breadcrumbs";
 
 import {
     Clock, Eye, Package, Plus, Search, Tag, Trash2, Calendar,
-    Pencil, ArrowLeft, GitBranch, ShoppingBag, Loader2, ArrowRight, AlertTriangle, Check, Power, ListChecks, Play, Pause
+    Pencil, ArrowLeft, GitBranch, ShoppingBag, Loader2, ArrowRight, AlertTriangle, Check, Power, ListChecks, Play, Pause, ChevronLeft, ChevronRight
 } from "@/lib/icons";
 
 import { queryKeys } from "@/hooks/useApi";
@@ -131,7 +131,7 @@ function ShopOffersContent() {
     const queryClient = useQueryClient();
 
     const [searchQuery, setSearchQuery] = useState("");
-    const [statusFilter, setStatusFilter] = useState<"all" | "active" | "paused" | "drafted">("all");
+    const [statusFilter, setStatusFilter] = useState<"all" | "active" | "paused" | "drafted" | "expired">("all");
     const [offerToDelete, setOfferToDelete] = useState<any | null>(null);
     const [previewLogo, setPreviewLogo] = useState<{ src: string; name: string } | null>(null);
     const [selectedOffers, setSelectedOffers] = useState<Set<string>>(new Set());
@@ -155,12 +155,107 @@ function ShopOffersContent() {
         return null;
     }, [session, shops]);
 
-    const { data: offersResponse, isLoading: isLoadingOffers } = useAllOffers(activeShopId || undefined);
-    const allOffersList = useMemo(() => {
-        if (!offersResponse?.success || !offersResponse?.data) return [] as any[];
-        const result = offersResponse.data as any;
-        return Array.isArray(result) ? result : (result.data || []);
-    }, [offersResponse]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [accumulatedOffers, setAccumulatedOffers] = useState<any[]>([]);
+    const observerTargetRef = useRef<HTMLDivElement | null>(null);
+    const limit = 12;
+
+    useEffect(() => {
+        setCurrentPage(1);
+        setAccumulatedOffers([]);
+    }, [searchQuery, statusFilter, activeShopId]);
+
+    const { data: offersResponse, isLoading: isLoadingOffers, isFetching: isFetchingOffers } = useAllOffers(
+        activeShopId || undefined,
+        { page: currentPage, limit, search: searchQuery || undefined, status: statusFilter !== "all" ? statusFilter : undefined }
+    );
+
+    const { hasMore, totalPages } = useMemo(() => {
+        if (!offersResponse?.success || !offersResponse?.data) {
+            return { hasMore: false, totalPages: 1 };
+        }
+        const res = offersResponse.data as any;
+        if (typeof res?.hasMore === "boolean") {
+            return { hasMore: res.hasMore, totalPages: res.totalPages || (res.hasMore ? currentPage + 1 : currentPage) };
+        }
+        if (typeof res?.pagination?.totalPages === "number" && res.pagination.totalPages > 0) {
+            return {
+                hasMore: currentPage < res.pagination.totalPages,
+                totalPages: res.pagination.totalPages
+            };
+        }
+        if (typeof res?.totalPages === "number" && res.totalPages > 0) {
+            return {
+                hasMore: currentPage < res.totalPages,
+                totalPages: res.totalPages
+            };
+        }
+        const rawList = Array.isArray(res) ? res : (res.data || []);
+        const count = res?.pagination?.totalRecords || res?.pagination?.count || res?.count || res?.total;
+        if (typeof count === "number" && count > 0) {
+            const pages = Math.ceil(count / limit);
+            return { hasMore: currentPage < pages, totalPages: pages };
+        }
+        const calculatedHasMore = rawList.length >= limit;
+        return { hasMore: calculatedHasMore, totalPages: calculatedHasMore ? currentPage + 1 : currentPage };
+    }, [offersResponse, currentPage, limit]);
+
+    useEffect(() => {
+        if (!offersResponse?.success || !offersResponse?.data) return;
+        const res = offersResponse.data as any;
+        const rawList = Array.isArray(res) ? res : (res.data || []);
+
+        if (currentPage === 1) {
+            setAccumulatedOffers(rawList);
+        } else if (rawList.length > 0) {
+            setAccumulatedOffers((prev) => {
+                const existingIds = new Set(prev.map((item) => String(item.offerId || item.id || item.batchId)));
+                const newItems = rawList.filter((item: any) => !existingIds.has(String(item.offerId || item.id || item.batchId)));
+                return [...prev, ...newItems];
+            });
+        }
+    }, [offersResponse, currentPage]);
+
+    const allOffersList = accumulatedOffers;
+
+    useEffect(() => {
+        if (!hasMore || isFetchingOffers) return;
+
+        const handleScroll = () => {
+            if (isFetchingOffers || !hasMore) return;
+            const scrollHeight = document.documentElement.scrollHeight;
+            const scrollTop = window.scrollY || document.documentElement.scrollTop;
+            const clientHeight = window.innerHeight;
+
+            if (scrollHeight - scrollTop - clientHeight < 400) {
+                setCurrentPage((prev) => prev + 1);
+            }
+        };
+
+        window.addEventListener("scroll", handleScroll, { passive: true });
+
+        const target = observerTargetRef.current;
+        let observer: IntersectionObserver | null = null;
+        if (target) {
+            observer = new IntersectionObserver(
+                (entries) => {
+                    if (entries[0].isIntersecting && !isFetchingOffers && hasMore) {
+                        setCurrentPage((prev) => prev + 1);
+                    }
+                },
+                { threshold: 0.1, rootMargin: "400px" }
+            );
+            observer.observe(target);
+        }
+
+        // Immediate check if page height is shorter than screen or near bottom
+        handleScroll();
+
+        return () => {
+            window.removeEventListener("scroll", handleScroll);
+            if (observer) observer.disconnect();
+        };
+    }, [isFetchingOffers, hasMore, accumulatedOffers.length]);
 
     const publishedOffers = useMemo(() => {
         return allOffersList.filter((offer: any) => !offer.isDraft) as any[];
@@ -356,15 +451,25 @@ function ShopOffersContent() {
                 matchesSearch = matchesTitle || matchesType || matchesCategory || matchesBranch || matchesDate || matchesPrice;
             }
 
+            const isOfferExpired = (item: any) => {
+                if (!item.validTo) return false;
+                const expiryDate = new Date(item.validTo);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                return expiryDate < today;
+            };
+
             const matchesStatus = statusFilter === "all"
-                ? !offer.isDraft
+                ? true
                 : statusFilter === "active"
-                    ? (!offer.isDraft && offer.status === "active")
+                    ? (!offer.isDraft && offer.status === "active" && !isOfferExpired(offer))
                     : statusFilter === "paused"
-                        ? (!offer.isDraft && offer.status === "inactive")
+                        ? (!offer.isDraft && offer.status === "inactive" && !isOfferExpired(offer))
                         : statusFilter === "drafted"
                             ? offer.isDraft
-                            : true;
+                            : statusFilter === "expired"
+                                ? (!offer.isDraft && isOfferExpired(offer))
+                                : true;
 
             return matchesSearch && matchesStatus;
         });
@@ -420,7 +525,7 @@ function ShopOffersContent() {
                                     if (branches.length === 0) {
                                         setShowNoBranchModal(true);
                                     } else {
-                                        router.push("/shop-manager/create-offer");
+                                        router.push("/shop-manager/create-offer?source=offers");
                                     }
                                 }}
                                 className="w-8 h-8 rounded-lg flex sm:hidden items-center justify-center shrink-0"
@@ -431,7 +536,7 @@ function ShopOffersContent() {
                         </div>
 
                         <div className="flex bg-gray-55 p-0.5 rounded-lg gap-0.5 self-start sm:self-auto shrink-0 border border-gray-100 bg-gray-50/50">
-                            {(["all", "active", "paused", "drafted"] as const).map((filter) => (
+                            {(["all", "active", "paused", "drafted", "expired"] as const).map((filter) => (
                                 <button
                                     key={filter}
                                     onClick={() => setStatusFilter(filter)}
@@ -471,7 +576,7 @@ function ShopOffersContent() {
                                 if (branches.length === 0) {
                                     setShowNoBranchModal(true);
                                 } else {
-                                    router.push("/shop-manager/create-offer");
+                                    router.push("/shop-manager/create-offer?source=offers");
                                 }
                             }}
                             className="rounded-lg h-7 px-3 text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1 shrink-0 self-start sm:self-auto"
@@ -568,7 +673,8 @@ function ShopOffersContent() {
                         </div>
 
                         {filteredOffers.length > 0 ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 sm:gap-3">
+                            <>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 sm:gap-3">
                                 {filteredOffers.map((offer: any, idx: number) => {
                                     const id = String(offer.offerId || offer.id || offer.batchId || idx);
                                     const offerImage = offer.posters?.[0]?.posterSrc || offer.posterSrc;
@@ -731,6 +837,24 @@ function ShopOffersContent() {
                                     );
                                 })}
                             </div>
+
+                            {/* Scroll trigger for infinite scroll loading */}
+                            <div id="scroll-trigger" ref={observerTargetRef} className="w-full py-8 flex flex-col items-center justify-center mt-4">
+                                {isFetchingOffers && currentPage > 1 && (
+                                    <div className="flex items-center gap-2 text-xs font-bold text-orange-500 animate-pulse">
+                                        <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping" />
+                                        <span>Loading more campaigns...</span>
+                                    </div>
+                                )}
+                                {!hasMore && !isFetchingOffers && filteredOffers.length > 0 && (
+                                    <div className="text-center py-2">
+                                        <span className="text-xs text-gray-400 font-medium">
+                                            You've reached the end of your offers ({filteredOffers.length} total)
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                        </>
                         ) : (
                             <div className="p-12 flex flex-col items-center justify-center bg-white border border-gray-100 rounded-3xl text-center shadow-sm max-w-xl mx-auto">
                                 <div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center mb-4">
@@ -745,6 +869,8 @@ function ShopOffersContent() {
                                         "No paused campaigns"
                                     ) : statusFilter === "drafted" ? (
                                         "No drafted campaigns"
+                                    ) : statusFilter === "expired" ? (
+                                        "No expired campaigns"
                                     ) : (
                                         "No campaigns found"
                                     )}
@@ -762,12 +888,14 @@ function ShopOffersContent() {
                                             : "You haven't published any campaigns yet."
                                     ) : statusFilter === "drafted" ? (
                                         "You don't have any drafted campaigns at the moment."
+                                    ) : statusFilter === "expired" ? (
+                                        "You don't have any expired campaigns at the moment."
                                     ) : (
                                         "You haven't published any campaigns yet. Let's create one now!"
                                     )}
                                 </p>
                                 {allOffersList.length === 0 && (
-                                    <Link href="/shop-manager/create-offer">
+                                    <Link href="/shop-manager/create-offer?source=offers">
                                         <PremiumButton className="rounded-xl shadow-lg shadow-primary/20 border-0 cursor-pointer">
                                             Create New Offer
                                         </PremiumButton>

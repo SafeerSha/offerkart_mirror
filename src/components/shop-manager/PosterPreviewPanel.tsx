@@ -76,10 +76,10 @@ export function PosterPreviewPanel({
 
     const content = (
         <div className={cn(
-            "flex flex-col bg-card overflow-hidden animate-in fade-in duration-300 shadow-2xl transition-colors",
+            "flex flex-col bg-white text-zinc-900 overflow-hidden animate-in fade-in duration-300 shadow-2xl transition-colors",
             variant === "overlay" 
-                ? "relative w-full h-[95%] sm:h-[90%] max-w-5xl mx-auto my-auto rounded-3xl border border-zinc-200 p-4 md:p-8 opacity-100" 
-                : "absolute inset-0 p-5 sm:px-7 sm:pb-2 rounded-[2rem] border border-border shadow-sm"
+                ? "relative w-full h-[95%] sm:h-[90%] max-w-5xl mx-auto my-auto rounded-3xl border border-zinc-200 p-4 md:p-8 opacity-100 bg-white" 
+                : "absolute inset-0 p-5 sm:px-7 sm:pb-2 rounded-[2rem] border border-border shadow-sm bg-white"
         )}>
             {/* Header */}
             <div className="flex items-center justify-between mb-2 shrink-0">

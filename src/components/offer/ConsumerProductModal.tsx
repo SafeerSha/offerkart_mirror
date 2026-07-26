@@ -438,7 +438,7 @@ export const ConsumerProductModal = ({
                             </div>
 
                             {/* Store Locations Section */}
-                            <div className="pt-6 border-t border-slate-100 dark:border-zinc-900/60 mt-6 space-y-3">
+                            <div className="pt-6 border-t border-slate-100 dark:border-zinc-900/60  space-y-3">
                                 <div className="flex items-center gap-2 text-foreground">
                                     <MapPin className="w-4 h-4 text-orange-500" />
                                     <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">

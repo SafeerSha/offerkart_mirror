@@ -2,7 +2,7 @@
 // Run: npm run generate-barrels
 
 export {
-  ArrowRight, ArrowLeft, ArrowUpRight, ChevronRight, ChevronDown, ChevronUp,
+  ArrowRight, ArrowLeft, ArrowUpRight, ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
   X, Plus, Minus, Search, Filter, Settings, Loader2,
   Eye, EyeOff, Check, AlertTriangle, Info, Clock, Power, ListChecks, Play, Pause,
   LogOut, LayoutDashboard, MoreVertical, MousePointer2,

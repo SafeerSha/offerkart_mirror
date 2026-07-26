@@ -156,8 +156,8 @@ export function PremiumDatePicker({
                 disabled={minDate && format(new Date(), 'yyyy-MM-dd') < format(minDate, 'yyyy-MM-dd')}
                 className={cn(
                   "text-sm font-medium transition-colors",
-                  minDate && format(new Date(), 'yyyy-MM-dd') < format(minDate, 'yyyy-MM-dd') 
-                    ? "text-gray-300 cursor-not-allowed" 
+                  minDate && format(new Date(), 'yyyy-MM-dd') < format(minDate, 'yyyy-MM-dd')
+                    ? "text-gray-300 cursor-not-allowed"
                     : "text-orange-500 hover:text-orange-600"
                 )}
               >
@@ -177,7 +177,7 @@ export function PremiumDatePicker({
       </Popover>
 
       {error && (
-        <p className="text-xs font-medium text-destructive ml-1 animate-in fade-in slide-in-from-top-1">
+        <p className="text-xs font-medium text-red-500 text-destructive ml-1 animate-in fade-in slide-in-from-top-1">
           {error}
         </p>
       )}

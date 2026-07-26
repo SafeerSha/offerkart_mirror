@@ -425,8 +425,22 @@ export async function getFeaturedShops(
     };
 }
 
-export async function getAllOffers(shopId?: string) {
-    return backend.get<Offer[]>(ENDPOINTS.OFFER.BASE, {
+export interface BusinessOffersQuery {
+    search?: string;
+    page?: number;
+    limit?: number;
+    status?: "active" | "inactive" | string;
+}
+
+export async function getAllOffers(shopId?: string, query: BusinessOffersQuery = {}) {
+    const params = new URLSearchParams();
+    if (query.page !== undefined) params.set("page", String(query.page));
+    if (query.limit !== undefined) params.set("limit", String(query.limit));
+    if (query.search) params.set("search", query.search);
+    if (query.status) params.set("status", query.status);
+    const queryString = params.toString() ? `?${params.toString()}` : "";
+
+    return backend.get<any>(`${ENDPOINTS.OFFER.BASE}${queryString}`, {
         headers: shopId ? { shopId } : {},
     });
 }

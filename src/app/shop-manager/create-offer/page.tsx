@@ -81,6 +81,16 @@ function CreateOfferContent() {
     const isUpdateMode = !!editBatchId;
     const [existingPosters, setExistingPosters] = useState<any[]>([]);
 
+    // Track referrer source in sessionStorage
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const urlSource = searchParams.get('source');
+            if (urlSource) {
+                sessionStorage.setItem("create_offer_source", urlSource);
+            }
+        }
+    }, [searchParams]);
+
     const [branches, setBranches] = useState<Branch[]>([]);
     const [selectedBranchIds, setSelectedBranchIds] = useState<string[]>([]);
     const [isBranchesLoading, setIsBranchesLoading] = useState(false);
@@ -387,7 +397,17 @@ function CreateOfferContent() {
             classifiedPosters.forEach((p) => URL.revokeObjectURL(p.previewUrl));
             toast.success("All posters published successfully!");
             setShowPublishModal(false);
-            router.push("/shop-manager");
+            const source = typeof window !== "undefined" ? sessionStorage.getItem("create_offer_source") : null;
+            if (source) {
+                sessionStorage.removeItem("create_offer_source");
+            }
+            if (isUpdateMode || source === "dashboard") {
+                router.push("/shop-manager");
+            } else if (source === "offers") {
+                router.push("/shop-manager/offers");
+            } else {
+                window.location.reload();
+            }
         } catch (err) {
             console.error("Publish error:", err);
             toast.error("Failed to publish");
@@ -495,7 +515,17 @@ function CreateOfferContent() {
             activePosters.forEach((p) => URL.revokeObjectURL(p.previewUrl));
             toast.success("Draft saved successfully!", { id: toastId });
             setShowPublishModal(false);
-            router.push("/shop-manager");
+            const source = typeof window !== "undefined" ? sessionStorage.getItem("create_offer_source") : null;
+            if (source) {
+                sessionStorage.removeItem("create_offer_source");
+            }
+            if (isUpdateMode || source === "dashboard") {
+                router.push("/shop-manager");
+            } else if (source === "offers") {
+                router.push("/shop-manager/offers");
+            } else {
+                window.location.reload();
+            }
         } catch (err) {
             console.error("Draft save error:", err);
             toast.error("Failed to save draft", { id: toastId });
@@ -766,20 +796,21 @@ function CreateOfferContent() {
                                 aria-checked={isFeatured}
                                 onClick={() => setIsFeatured(f => !f)}
                                 className={cn(
-                                    "relative inline-flex h-6 w-8 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none",
+                                    "relative flex items-center w-[38px] h-5 rounded-full cursor-pointer transition-all duration-300 shadow-inner shrink-0 outline-none hover:ring-2 hover:ring-amber-400/20",
                                     isFeatured ? "bg-amber-400" : "bg-gray-200"
                                 )}
                             >
-                                <span className={cn(
-                                    "inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200",
-                                    isFeatured ? "translate-x-6" : "translate-x-1"
-                                )} />
+                                <div
+                                    className={cn(
+                                        "absolute left-0.5 w-[16px] h-[16px] bg-white rounded-full shadow-[0_1px_3px_rgba(0,0,0,0.2)] transform transition-transform duration-300",
+                                        isFeatured ? "translate-x-[18px]" : "translate-x-0"
+                                    )}
+                                />
                             </button>
                             <span className={cn(
-                                "flex items-center gap-1 text-[13px] font-bold uppercase tracking-wider",
+                                "text-[13px] font-bold uppercase tracking-wider",
                                 isFeatured ? "text-amber-500" : "text-gray-400"
                             )}>
-                                <Star className={cn("w-3.5 h-3.5", isFeatured ? "fill-amber-400 text-amber-500" : "")} />
                                 Featured
                             </span>
                         </div>
@@ -896,7 +927,7 @@ function CreateOfferContent() {
                             />
                         )}
                         {publishErrors.branch && (
-                            <p className="text-xs font-medium text-destructive ml-1 animate-in fade-in slide-in-from-top-1">
+                            <p className="text-xs font-medium text-red-500 text-destructive ml-1 animate-in fade-in slide-in-from-top-1">
                                 {publishErrors.branch}
                             </p>
                         )}

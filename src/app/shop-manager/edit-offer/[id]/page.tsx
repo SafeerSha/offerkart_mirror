@@ -639,20 +639,21 @@ function EditOfferContent() {
                                 aria-checked={isFeatured}
                                 onClick={() => setIsFeatured(f => !f)}
                                 className={cn(
-                                    "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none",
+                                    "relative flex items-center w-[38px] h-5 rounded-full cursor-pointer transition-all duration-300 shadow-inner shrink-0 outline-none hover:ring-2 hover:ring-amber-400/20",
                                     isFeatured ? "bg-amber-400" : "bg-gray-200"
                                 )}
                             >
-                                <span className={cn(
-                                    "inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200",
-                                    isFeatured ? "translate-x-6" : "translate-x-1"
-                                )} />
+                                <div 
+                                    className={cn(
+                                        "absolute left-0.5 w-[16px] h-[16px] bg-white rounded-full shadow-[0_1px_3px_rgba(0,0,0,0.2)] transform transition-transform duration-300",
+                                        isFeatured ? "translate-x-[18px]" : "translate-x-0"
+                                    )}
+                                />
                             </button>
                             <span className={cn(
-                                "flex items-center gap-1 text-[13px] font-bold uppercase tracking-wider",
+                                "text-[13px] font-bold uppercase tracking-wider",
                                 isFeatured ? "text-amber-500" : "text-gray-400"
                             )}>
-                                <Star className={cn("w-3.5 h-3.5", isFeatured ? "fill-amber-400 text-amber-500" : "")} />
                                 Featured
                             </span>
                         </div>

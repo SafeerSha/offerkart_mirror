@@ -12,6 +12,7 @@ import { SwipeableCard } from "./SwipeableCard";
 interface ProductsTabProps {
     isLoadingProducts: boolean;
     products: any[];
+    totalProductsCount?: number;
     branchNameMap: Record<string, string>;
     handleEditProduct: (product: any) => void;
     setProductToDelete: (product: any) => void;
@@ -23,6 +24,7 @@ interface ProductsTabProps {
 export function ProductsTab({
     isLoadingProducts,
     products,
+    totalProductsCount,
     branchNameMap,
     handleEditProduct,
     setProductToDelete,
@@ -49,7 +51,7 @@ export function ProductsTab({
                         ))}
                     </>
                 ) : products && products.length > 0 ? (
-                    products.slice(0, 15).map((product) => (
+                    products.slice(0, 8).map((product) => (
                         <SwipeableCard
                             key={product.id}
                             onEdit={() => handleEditProduct(product)}
@@ -200,7 +202,7 @@ export function ProductsTab({
                             glow={false}
                             className="w-full sm:w-auto rounded-xl py-1 px-6 border-primary/10 hover:border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary gap-1.5 shadow-none cursor-pointer text-xs font-bold uppercase tracking-wider"
                         >
-                            <span>View All ({products.length})</span>
+                            <span>View All ({typeof totalProductsCount === "number" ? totalProductsCount : products.length})</span>
                             <ArrowRight className="w-2.5 h-2.5" />
                         </PremiumButton>
                     </Link>
