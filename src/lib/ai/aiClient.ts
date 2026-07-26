@@ -49,7 +49,7 @@ async function compressImageIfNeeded(dataUrl: string, maxDim = 800, quality = 0.
     });
 }
 
-export function askAI<T = any>(
+export async function askAI<T = any>(
     text: string,
     role: string,
     image?: string
@@ -57,42 +57,37 @@ export function askAI<T = any>(
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-    const imagePromise = image ? compressImageIfNeeded(image) : Promise.resolve(undefined);
+    try {
+        const processedImage = image ? await compressImageIfNeeded(image) : undefined;
+        const payload = processedImage ? { text, role, image: processedImage } : { text, role };
 
-    return imagePromise
-        .then((processedImage) => {
-            const payload = processedImage ? { text, role, image: processedImage } : { text, role };
+        const response = await fetch('/api/ai/vision', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            signal: controller.signal,
+        });
 
-            return fetch('/api/ai/vision', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-                signal: controller.signal,
-            });
-        })
-        .then((response) => {
-            if (!response.ok) {
-                return response.json().catch(() => ({})).then((errorData) => {
-                    return {
-                        success: false,
-                        error: errorData.error || `AI request failed with status ${response.status}`,
-                    };
-                });
-            }
-
-            return response.json().then((result) => {
-                clearTimeout(timeoutId);
-                return { success: true, data: result.data as T };
-            });
-        })
-        .catch((error: any) => {
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
             clearTimeout(timeoutId);
-            logger.error('AI Client Error:', error);
             return {
                 success: false,
-                error: error.name === 'AbortError'
-                    ? 'Request timed out. Please try again.'
-                    : error.message || 'Failed to connect to AI service',
+                error: errorData.error || `AI request failed with status ${response.status}`,
             };
-        });
+        }
+
+        const result = await response.json();
+        clearTimeout(timeoutId);
+        return { success: true, data: result.data as T };
+    } catch (error: any) {
+        clearTimeout(timeoutId);
+        logger.error('AI Client Error:', error);
+        return {
+            success: false,
+            error: error.name === 'AbortError'
+                ? 'Request timed out. Please try again.'
+                : error.message || 'Failed to connect to AI service',
+        };
+    }
 }
