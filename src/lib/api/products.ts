@@ -51,12 +51,32 @@ export function mapUserProductToProduct(item: any): any {
 
 export async function getAllProducts(
     shopId?: string,
-    query: BusinessOfferProductsQuery = {},
     cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">
-) {
+): Promise<any[]>;
+export async function getAllProducts(
+    shopId?: string,
+    query?: BusinessOfferProductsQuery,
+    cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">
+): Promise<any[]>;
+export async function getAllProducts(
+    shopId?: string,
+    queryOrCacheOptions?: BusinessOfferProductsQuery | Pick<BackendRequestOptions, "next" | "tags" | "revalidate">,
+    cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">
+): Promise<any[]> {
+    let query: BusinessOfferProductsQuery = {};
+    let finalCacheOptions = cacheOptions;
+
+    if (queryOrCacheOptions) {
+        if ('next' in queryOrCacheOptions || 'tags' in queryOrCacheOptions || 'revalidate' in queryOrCacheOptions) {
+            finalCacheOptions = queryOrCacheOptions as Pick<BackendRequestOptions, "next" | "tags" | "revalidate">;
+        } else {
+            query = queryOrCacheOptions as BusinessOfferProductsQuery;
+        }
+    }
+
     if (!shopId || shopId === "all" || shopId === "undefined" || shopId === "null" || shopId === "") {
         try {
-            const userProductsRes = await getUserProducts({ limit: 100 }, cacheOptions);
+            const userProductsRes = await getUserProducts({ limit: 100 }, finalCacheOptions);
             if (userProductsRes && userProductsRes.success && userProductsRes.data && userProductsRes.data.data) {
                 return userProductsRes.data.data;
             }
@@ -68,7 +88,7 @@ export async function getAllProducts(
 
     try {
         // Try to fetch from backend API first
-        const backendRes = await getAllOfferProducts(shopId, query, cacheOptions);
+        const backendRes = await getAllOfferProducts(shopId, query, finalCacheOptions);
         
         if (backendRes.success && backendRes.data) {
             // Backend returns { value: [...], Count: N } envelope

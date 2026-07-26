@@ -143,8 +143,8 @@ export default function ProductDetailClient({ product, similarProducts: initialS
                 const bodyPayload: { offerProductId: number; offerId?: number; userId?: number } = {
                     offerProductId: Number(product.id),
                 };
-                if (product.offerId || offerId) {
-                    bodyPayload.offerId = Number(product.offerId || offerId);
+                if (product.offerId) {
+                    bodyPayload.offerId = Number(product.offerId);
                 }
                 if (session?.user?.id) {
                     bodyPayload.userId = Number(session.user.id);
@@ -163,7 +163,7 @@ export default function ProductDetailClient({ product, similarProducts: initialS
         };
 
         trackProductClick();
-    }, [product.id, product.offerId, offerId, session]);
+    }, [product.id, product.offerId, session]);
 
     const scrollSimilarProducts = (direction: "left" | "right") => {
         if (!similarProductsRef.current) return;
