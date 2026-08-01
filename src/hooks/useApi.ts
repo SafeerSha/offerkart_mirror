@@ -7,8 +7,8 @@ import { getOfferProductById, toggleOfferProductStatus, BusinessOfferProductsQue
 import { s3Api } from "@/lib/api/s3";
 import { getCategories, getSubCategories } from "@/lib/api/categories";
 import { getIndustries } from "@/lib/api/industry";
+import { getDashboardAnalytics } from "@/lib/api/analytics";
 import { cleanupOfferImages, cleanupProductImages } from "@/lib/imageUtils";
-
 
 // Query Keys
 export const queryKeys = {
@@ -40,6 +40,7 @@ export const queryKeys = {
   categories: ["categories"] as const,
   subcategories: (categoryId: string | number) => ["subcategories", categoryId] as const,
   industries: ["industries"] as const,
+  dashboardAnalytics: (shopId: string) => ["dashboardAnalytics", shopId] as const,
 };
 
 
@@ -509,5 +510,14 @@ export function useIndustries(enabled: boolean = true) {
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     enabled,
+  });
+}
+
+export function useDashboardAnalytics(shopId: string) {
+  return useQuery({
+    queryKey: queryKeys.dashboardAnalytics(shopId),
+    queryFn: () => getDashboardAnalytics(shopId),
+    enabled: !!shopId,
+    staleTime: 5 * 60 * 1000,
   });
 }

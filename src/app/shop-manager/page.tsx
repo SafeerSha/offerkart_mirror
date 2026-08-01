@@ -56,10 +56,9 @@ import {
     useMyShops, useBranches, useAllOffers, useAllProducts,
     useDeleteOffer, useToggleOfferStatus, useCreateProduct,
     useUpdateProduct, useDeleteProduct, useToggleOfferProductStatus,
-    useIsMobile
+    useIsMobile, useDashboardAnalytics
 } from "@/hooks";
 
-// API functions
 import { getOfferProductById } from "@/lib/api";
 
 
@@ -167,6 +166,15 @@ function DashboardContent() {
         });
         return map;
     }, [branches]);
+
+    const { data: analyticsResponse, isLoading: isLoadingAnalytics } = useDashboardAnalytics(activeShopId || "");
+    const dashboardAnalytics = useMemo(() => {
+        if (!analyticsResponse?.success || !analyticsResponse?.data) return { offerCount: 0, standaloneOfferProductCount: 0, offerViews: 0, offerProductViews: 0 };
+        const res = analyticsResponse.data as any;
+        return res.data || res;
+    }, [analyticsResponse]);
+
+    const totalViews = (Number(dashboardAnalytics.offerViews) || 0) + (Number(dashboardAnalytics.offerProductViews) || 0);
 
     // ================= MUTATIONS =================
     const { mutateAsync: deleteOfferMutation } = useDeleteOffer();
@@ -494,20 +502,14 @@ function DashboardContent() {
                                         </div>
                                     </PremiumCard>
                                 </div>
-                                <div className="w-[46vw] sm:w-[220px] flex-none shrink-0 snap-center">
-                                    <StatCard icon={BarChart3} label="Total Views" value="0" trend="+15%" isLoading={isLoadingOffers} />
-                                </div>
-                                <div className="w-[46vw] sm:w-[220px] flex-none shrink-0 snap-center">
-                                    <StatCard icon={MousePointer2} label="Engagement" value="48" trend="+8 up" isLoading={isLoadingOffers} />
-                                </div>
-                                <div className="w-[46vw] sm:w-[220px] flex-none shrink-0 snap-center">
-                                    <StatCard icon={Tag} label="Conv. Rate" value="4.8%" trend="+0.5%" isLoading={isLoadingOffers} />
+                                <div className="w-[55vw] sm:w-[220px] flex-none shrink-0 snap-center">
+                                    <ViewsCard analytics={dashboardAnalytics} isLoading={isLoadingAnalytics} />
                                 </div>
                             </div>
 
                         </div>
 
-                        <div className="hidden md:grid grid-cols-2 xl:grid-cols-5 gap-4">
+                        <div className="hidden md:grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-4">
                             <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 transition-all duration-300 rounded-2xl">
                                 <div className="p-4 flex items-center gap-3">
                                     <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform flex-shrink-0">
@@ -516,7 +518,6 @@ function DashboardContent() {
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center justify-between gap-2 mb-0.5">
                                             <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate flex items-center gap-1">
-                                                <Tag className="w-3 h-3 shrink-0" />
                                                 Offers
                                             </h3>
                                         </div>
@@ -551,9 +552,7 @@ function DashboardContent() {
                                     </div>
                                 </div>
                             </PremiumCard>
-                            <StatCard icon={BarChart3} label="Total Views" value="0" trend="+15% vs last month" isLoading={isLoadingOffers} />
-                            <StatCard icon={MousePointer2} label="Audience Engagement" value="0" trend="8 new today" isLoading={isLoadingOffers} />
-                            <StatCard icon={Tag} label="Conversion Rate" value="" trend="+0.5%" isLoading={isLoadingOffers} />
+                            <ViewsCard analytics={dashboardAnalytics} isLoading={isLoadingAnalytics} />
                         </div>
 
                     </div>
@@ -782,7 +781,7 @@ function DashboardContent() {
                             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                                 <PremiumCard variant="glass" padding="none" className="overflow-hidden">
                                     <div className="p-4 pb-0 border-b border-primary/5">
-                                        <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-3 mb-2">
+                                        <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-2 mb-2">
                                             <TabsList className="bg-primary/5 p-1 gap-1 w-full xs:w-auto">
                                                 <TabsTrigger value="offers" className="flex-1 xs:flex-none data-[state=active]:bg-orange-500 data-[state=active]:text-white gap-2 transition-all">
                                                     <Tag className="w-4 h-4" /> Offers
@@ -802,7 +801,7 @@ function DashboardContent() {
                                         </div>
                                     </div>
 
-                                    <div className="p-4">
+                                    <div className="p-2">
                                         <TabsContent value="offers" className="mt-0 space-y-3 focus-visible:ring-0">
                                             <OffersTab
                                                 isLoadingOffers={isLoadingOffers}
@@ -982,6 +981,37 @@ function StatCard({ icon: Icon, label, value, trend, isLoading }: { icon: any, l
     );
 }
 
+function ViewsCard({ analytics, isLoading }: { analytics: any, isLoading?: boolean }) {
+    const offerViews = Number(analytics?.offerViews) || 0;
+    const productViews = Number(analytics?.offerProductViews) || 0;
+
+    return (
+        <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 transition-all duration-300 rounded-2xl h-full">
+            <div className="p-3 sm:p-4 flex items-center gap-2.5 sm:gap-4 h-full">
+                <div className="p-2 sm:p-2.5 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform flex-shrink-0 self-start sm:self-center mt-1 sm:mt-0">
+                    <MousePointer2 className="w-4 h-4 sm:w-6 sm:h-6" />
+                </div>
+                <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2 mb-0.5">
+                        <h3 className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate flex items-center gap-1 mb-1">
+                            Audience Engagement
+                        </h3>
+                    </div>
+                    <div className="flex items-center w-full">
+                        <div className="flex-1 flex items-center justify-start gap-1.5 sm:gap-2" title="Offers viewed">
+                            <Tag className="w-3.5 h-3.5 sm:w-4 h-4 text-primary/70 shrink-0" />
+                            <span className="text-lg sm:text-[24px] font-black text-gray-900 tracking-tighter leading-none">{isLoading ? 0 : offerViews}</span>
+                        </div>
+                        <div className="flex-1 flex items-center justify-end sm:justify-center gap-1.5 sm:gap-2" title="Products viewed">
+                            <Package className="w-3.5 h-3.5 sm:w-4 h-4 text-primary/70 shrink-0" />
+                            <span className="text-lg sm:text-[24px] font-black text-gray-900 tracking-tighter leading-none">{isLoading ? 0 : productViews}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </PremiumCard>
+    );
+}
 
 function ActionButton({ icon: Icon, label, href, className, variant = "default", onClick }: { icon: any, label: string, href?: string, className?: string, variant?: "default" | "grid", onClick?: () => void }) {
     const isGrid = variant === "grid";

@@ -91,13 +91,19 @@ export async function getAllProducts(
         const backendRes = await getAllOfferProducts(shopId, query, finalCacheOptions);
         
         if (backendRes.success && backendRes.data) {
-            // Backend returns { value: [...], Count: N } envelope
-            const rawData = backendRes.data;
-            const items: any[] = Array.isArray(rawData)
-                ? rawData
-                : Array.isArray((rawData as any).value)
-                    ? (rawData as any).value
-                    : [];
+            let rawData = backendRes.data as any;
+
+            if (rawData && typeof rawData === 'object' && !Array.isArray(rawData)) {
+                if (Array.isArray(rawData.data)) {
+                    rawData = rawData.data;
+                } else if (Array.isArray(rawData.value)) {
+                    rawData = rawData.value;
+                } else if (Array.isArray(rawData.items)) {
+                    rawData = rawData.items;
+                }
+            }
+
+            const items: any[] = Array.isArray(rawData) ? rawData : [];
 
             // Use shared mapper, then extend with business-specific fields
             const backendProducts = items.map((item: any) => {

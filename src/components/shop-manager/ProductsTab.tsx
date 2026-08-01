@@ -33,10 +33,9 @@ export function ProductsTab({
     onAddProduct,
 }: ProductsTabProps) {
     const router = useRouter();
-
     return (
         <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar p-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar p-1">
                 {isLoadingProducts ? (
                     <>
                         {[1, 2, 3, 4].map((i) => (
@@ -59,7 +58,7 @@ export function ProductsTab({
                             editTitle="Edit product"
                             deleteTitle="Delete product"
                         >
-                            <div className="group relative flex items-start gap-3 p-3 rounded-xl bg-gray-50/50 border border-gray-100 hover:border-primary/20 hover:bg-white hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 overflow-hidden">
+                            <div className="group relative flex items-start gap-2 p-2 rounded-xl bg-white shadow-xs border border-gray-100 hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 overflow-hidden">
 
                                 <div
                                     className={`group/img relative w-16 h-16 rounded-lg bg-white overflow-hidden shrink-0 border border-gray-100 shadow-sm z-10 transition-all duration-300 ${product.image ? 'cursor-pointer active:scale-95' : ''}`}
@@ -200,7 +199,7 @@ export function ProductsTab({
                         <PremiumButton
                             variant="outline"
                             glow={false}
-                            className="w-full sm:w-auto rounded-xl py-1 px-6 border-primary/10 hover:border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary gap-1.5 shadow-none cursor-pointer text-xs font-bold uppercase tracking-wider"
+                            className="w-full sm:w-auto rounded-xl py-1 px-6 border-primary/10 hover:border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary gap-1 shadow-none cursor-pointer text-xs font-bold capitalize tracking-wider"
                         >
                             <span>View All ({typeof totalProductsCount === "number" ? totalProductsCount : products.length})</span>
                             <ArrowRight className="w-2.5 h-2.5" />
