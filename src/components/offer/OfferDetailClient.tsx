@@ -23,6 +23,7 @@ import { FaLinkedin } from "react-icons/fa";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import OfferCard from "@/components/offer/OfferCard";
 import { ConsumerProductModal } from "@/components/offer/ConsumerProductModal";
+import { useSimilarOffers } from "@/hooks/useApi";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useLocationContext } from "@/context/LocationContext";
 import { useSession } from "next-auth/react";
@@ -169,7 +170,8 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers: 
 
     // --- Current offer state (can be changed client-side without page reload) ---
     const [offer, setOffer] = useState(initialOffer);
-    const [similarOffers, setSimilarOffers] = useState<SimilarOffer[]>(initialSimilarOffers);
+    const { data: fetchedSimilarOffers } = useSimilarOffers(offer.id, latitude, longitude);
+    const similarOffers: SimilarOffer[] = fetchedSimilarOffers && fetchedSimilarOffers.length > 0 ? fetchedSimilarOffers : initialSimilarOffers;
     const [prevOfferId, setPrevOfferId] = useState(initialPrevId);
     const activeSocialLinks = useMemo(() => {
         if (!offer.socialLinks || !Array.isArray(offer.socialLinks)) return [];
@@ -178,42 +180,6 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers: 
     const [nextOfferId, setNextOfferId] = useState(initialNextId);
     const [allOfferIds, setAllOfferIds] = useState<(number | string)[]>([]);
     const [isNavigating, setIsNavigating] = useState(false);
-
-    // --- Similar Offers Client Fetching Effect ---
-    useEffect(() => {
-        const fetchSimilar = async () => {
-            try {
-                const params = new URLSearchParams();
-                if (latitude !== null) params.set("latitude", String(latitude));
-                if (longitude !== null) params.set("longitude", String(longitude));
-
-                const res = await fetch(`/api/user/offer/${offer.id}/similar?${params.toString()}`);
-                const json = await res.json();
-                if (json.success && Array.isArray(json.data)) {
-                    const mappedSimilar = json.data
-                        .filter((o: any) => String(o.id) !== String(offer.id))
-                        .slice(0, 5)
-                        .map((o: any) => ({
-                            id: Number(o.id) || o.id,
-                            shopName: o.shopName || "OfferKart",
-                            offerName: o.offerName || o.title || "Untitled Offer",
-                            image: typeof o.image === "string" ? o.image : o.posters?.[0]?.posterSrc || "/images/shop-registration-bg-light.png",
-                            category: o.category || "Offers",
-                            location: o.location || "Location unavailable",
-                            validFrom: o.validFrom || "",
-                            validTo: o.validTo || "",
-                            discount: o.discount,
-                            branchName: o.branchNames?.[0] || o.branchName,
-                        }));
-                    setSimilarOffers(mappedSimilar);
-                }
-            } catch (err) {
-                console.error("Failed to fetch similar offers client-side:", err);
-            }
-        };
-
-        fetchSimilar();
-    }, [offer.id, latitude, longitude]);
 
     // --- Track offer click analytics when viewed ---
     useEffect(() => {

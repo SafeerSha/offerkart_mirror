@@ -16,7 +16,7 @@ export function StatusToggleButton({
     onChange,
     className
 }: StatusToggleButtonProps) {
-    const isActive = status === OfferStatus.ACTIVE;
+    const isActive = status === OfferStatus.ACTIVE || status === "active" || status === "ACTIVE" || (status as any) === true;
     
     return (
         <button

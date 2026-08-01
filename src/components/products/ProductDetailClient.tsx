@@ -15,6 +15,7 @@ import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
 import { useLocationContext } from "@/context/LocationContext";
 import { useSession } from "next-auth/react";
 import { config } from "@/lib/config";
+import { useSimilarProducts } from "@/hooks/useApi";
 
 interface Product {
     id: any;
@@ -110,30 +111,10 @@ export default function ProductDetailClient({ product, similarProducts: initialS
     const { t } = useTranslation("common");
     const { location } = useLocationContext();
     const { latitude, longitude } = location;
-    const [similarProducts, setSimilarProducts] = useState<Product[]>(initialSimilarProducts);
+    const { data: fetchedSimilarProducts } = useSimilarProducts(product.id, latitude, longitude);
+    const similarProducts: Product[] = fetchedSimilarProducts && fetchedSimilarProducts.length > 0 ? fetchedSimilarProducts : initialSimilarProducts;
     const similarProductsRef = useRef<HTMLDivElement>(null);
     const { data: session } = useSession();
-
-    // Fetch similar products client-side based on user's browser location
-    useEffect(() => {
-        const fetchSimilarProducts = async () => {
-            try {
-                const params = new URLSearchParams();
-                if (latitude !== null) params.set("latitude", String(latitude));
-                if (longitude !== null) params.set("longitude", String(longitude));
-
-                const res = await fetch(`/api/user/offer/products/${product.id}/similar?${params.toString()}`);
-                const json = await res.json();
-                if (json.success && Array.isArray(json.data)) {
-                    setSimilarProducts(json.data.slice(0, 5));
-                }
-            } catch (err) {
-                console.error("Failed to fetch similar products client-side:", err);
-            }
-        };
-
-        fetchSimilarProducts();
-    }, [product.id, latitude, longitude]);
 
     // Track product click analytics
     useEffect(() => {

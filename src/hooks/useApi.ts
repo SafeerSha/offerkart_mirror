@@ -7,7 +7,7 @@ import { getOfferProductById, toggleOfferProductStatus, BusinessOfferProductsQue
 import { s3Api } from "@/lib/api/s3";
 import { getCategories, getSubCategories } from "@/lib/api/categories";
 import { getIndustries } from "@/lib/api/industry";
-import { getDashboardAnalytics } from "@/lib/api/analytics";
+import { getDashboardAnalytics, getOfferViewsAnalytics, getProductViewsAnalytics, ViewsAnalyticsQuery } from "@/lib/api/analytics";
 import { cleanupOfferImages, cleanupProductImages } from "@/lib/imageUtils";
 
 // Query Keys
@@ -41,6 +41,12 @@ export const queryKeys = {
   subcategories: (categoryId: string | number) => ["subcategories", categoryId] as const,
   industries: ["industries"] as const,
   dashboardAnalytics: (shopId: string) => ["dashboardAnalytics", shopId] as const,
+  offerViewsAnalytics: (shopId: string, query?: ViewsAnalyticsQuery) => ["offerViewsAnalytics", shopId, query] as const,
+  productViewsAnalytics: (shopId: string, query?: ViewsAnalyticsQuery) => ["productViewsAnalytics", shopId, query] as const,
+
+  // Similar keys
+  similarOffers: (offerId: string | number, latitude?: number | null, longitude?: number | null) => ["similarOffers", offerId, latitude, longitude] as const,
+  similarProducts: (productId: string | number, latitude?: number | null, longitude?: number | null) => ["similarProducts", productId, latitude, longitude] as const,
 };
 
 
@@ -273,35 +279,43 @@ export function useToggleOfferStatus() {
   return useMutation({
     mutationFn: ({ id, shopId }: { id: string; shopId: string }) => toggleOfferStatus(id, shopId),
     onMutate: async ({ id, shopId }) => {
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: queryKeys.allOffers(shopId) });
+      await queryClient.cancelQueries({ queryKey: ["allOffers"] });
 
-      // Snapshot the previous value
-      const previousOffers = queryClient.getQueryData(queryKeys.allOffers(shopId));
+      const updateOfferList = (old: any) => {
+        if (!old) return old;
+        if (Array.isArray(old)) {
+          return old.map((offer: any) => {
+            const currentId = String(offer.offerId || offer.id || offer.batchId);
+            if (currentId === String(id)) {
+              const nextStatus = (offer.status === 'active' || offer.status === 'ACTIVE') ? 'inactive' : 'active';
+              return { ...offer, status: nextStatus, isActive: nextStatus === 'active' };
+            }
+            return offer;
+          });
+        }
+        if (old.data && Array.isArray(old.data)) {
+          return {
+            ...old,
+            data: old.data.map((offer: any) => {
+              const currentId = String(offer.offerId || offer.id || offer.batchId);
+              if (currentId === String(id)) {
+                const nextStatus = (offer.status === 'active' || offer.status === 'ACTIVE') ? 'inactive' : 'active';
+                return { ...offer, status: nextStatus, isActive: nextStatus === 'active' };
+              }
+              return offer;
+            })
+          };
+        }
+        return old;
+      };
 
-      // Optimistically update the cache
-      queryClient.setQueryData(queryKeys.allOffers(shopId), (old: any) => {
-        if (!Array.isArray(old)) return old;
-        return old.map((offer: any) => {
-          const currentId = String(offer.offerId || offer.id || offer.batchId);
-          return currentId === String(id) 
-            ? { ...offer, status: offer.status === 'active' ? 'inactive' : 'active' } 
-            : offer;
-        });
-      });
-
-      return { previousOffers };
-    },
-    onError: (err, { shopId }, context: any) => {
-      // If failed, roll back
-      if (context?.previousOffers) {
-        queryClient.setQueryData(queryKeys.allOffers(shopId), context.previousOffers);
-      }
+      queryClient.setQueriesData({ queryKey: ["allOffers"] }, updateOfferList);
     },
     onSettled: (_, __, { shopId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.allOffers(shopId) });
+      queryClient.invalidateQueries({ queryKey: ["allOffers"] });
       queryClient.invalidateQueries({ queryKey: ["infiniteUserOffers"] });
       queryClient.invalidateQueries({ queryKey: ["userProductsFiltered"] });
+      queryClient.invalidateQueries({ queryKey: ["allProducts"] });
     },
   });
 }
@@ -443,33 +457,40 @@ export function useToggleOfferProductStatus() {
   return useMutation({
     mutationFn: ({ id, shopId }: { id: string; shopId?: string }) => toggleOfferProductStatus(id),
     onMutate: async ({ id, shopId }) => {
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: queryKeys.allProducts(shopId) });
+      await queryClient.cancelQueries({ queryKey: ["allProducts"] });
 
-      // Snapshot the previous value
-      const previousProducts = queryClient.getQueryData(queryKeys.allProducts(shopId));
+      const updateProductList = (old: any) => {
+        if (!old) return old;
+        if (Array.isArray(old)) {
+          return old.map((product: any) => {
+            if (String(product.id) === String(id)) {
+              const nextStatus = (product.status === 'active' || product.status === 'ACTIVE') ? 'inactive' : 'active';
+              return { ...product, status: nextStatus, isActive: nextStatus === 'active' };
+            }
+            return product;
+          });
+        }
+        if (old.data && Array.isArray(old.data)) {
+          return {
+            ...old,
+            data: old.data.map((product: any) => {
+              if (String(product.id) === String(id)) {
+                const nextStatus = (product.status === 'active' || product.status === 'ACTIVE') ? 'inactive' : 'active';
+                return { ...product, status: nextStatus, isActive: nextStatus === 'active' };
+              }
+              return product;
+            })
+          };
+        }
+        return old;
+      };
 
-      // Optimistically update the cache
-      queryClient.setQueryData(queryKeys.allProducts(shopId), (old: any) => {
-        if (!Array.isArray(old)) return old;
-        return old.map((product: any) => 
-          String(product.id) === String(id) 
-            ? { ...product, status: product.status === 'active' ? 'inactive' : 'active' } 
-            : product
-        );
-      });
-
-      return { previousProducts };
-    },
-    onError: (err, { shopId }, context: any) => {
-      // If failed, roll back to previous state
-      if (context?.previousProducts) {
-        queryClient.setQueryData(queryKeys.allProducts(shopId), context.previousProducts);
-      }
+      queryClient.setQueriesData({ queryKey: ["allProducts"] }, updateProductList);
     },
     onSettled: (_, __, { shopId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.allProducts(shopId) });
+      queryClient.invalidateQueries({ queryKey: ["allProducts"] });
       queryClient.invalidateQueries({ queryKey: ["userProductsFiltered"] });
+      queryClient.invalidateQueries({ queryKey: ["allOffers"] });
     },
   });
 }
@@ -518,6 +539,90 @@ export function useDashboardAnalytics(shopId: string) {
     queryKey: queryKeys.dashboardAnalytics(shopId),
     queryFn: () => getDashboardAnalytics(shopId),
     enabled: !!shopId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useOfferViewsAnalytics(shopId: string, query: ViewsAnalyticsQuery = {}) {
+  return useQuery({
+    queryKey: queryKeys.offerViewsAnalytics(shopId, query),
+    queryFn: () => getOfferViewsAnalytics(shopId, query),
+    enabled: !!shopId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useProductViewsAnalytics(shopId: string, query: ViewsAnalyticsQuery = {}) {
+  return useQuery({
+    queryKey: queryKeys.productViewsAnalytics(shopId, query),
+    queryFn: () => getProductViewsAnalytics(shopId, query),
+    enabled: !!shopId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+// ============ SIMILAR ITEMS HOOKS ============
+
+export function useSimilarOffers(
+  offerId: string | number,
+  latitude?: number | null,
+  longitude?: number | null,
+  options: { enabled?: boolean } = {}
+) {
+  return useQuery({
+    queryKey: queryKeys.similarOffers(offerId, latitude, longitude),
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (latitude !== null && latitude !== undefined) params.set("latitude", String(latitude));
+      if (longitude !== null && longitude !== undefined) params.set("longitude", String(longitude));
+
+      const res = await fetch(`/api/user/offer/${offerId}/similar?${params.toString()}`);
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        return json.data
+          .filter((o: any) => String(o.id) !== String(offerId))
+          .slice(0, 5)
+          .map((o: any) => ({
+            id: Number(o.id) || o.id,
+            shopName: o.shopName || "OfferKart",
+            offerName: o.offerName || o.title || "Untitled Offer",
+            image: typeof o.image === "string" ? o.image : o.posters?.[0]?.posterSrc || "/images/shop-registration-bg-light.png",
+            category: o.category || "Offers",
+            location: o.location || "Location unavailable",
+            validFrom: o.validFrom || "",
+            validTo: o.validTo || "",
+            discount: o.discount,
+            branchName: o.branchNames?.[0] || o.branchName,
+          }));
+      }
+      return [];
+    },
+    enabled: !!offerId && (options.enabled ?? true),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useSimilarProducts(
+  productId: string | number,
+  latitude?: number | null,
+  longitude?: number | null,
+  options: { enabled?: boolean } = {}
+) {
+  return useQuery({
+    queryKey: queryKeys.similarProducts(productId, latitude, longitude),
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (latitude !== null && latitude !== undefined) params.set("latitude", String(latitude));
+      if (longitude !== null && longitude !== undefined) params.set("longitude", String(longitude));
+
+      const res = await fetch(`/api/user/offer/products/${productId}/similar?${params.toString()}`);
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        return json.data.slice(0, 5);
+      }
+      return [];
+    },
+    enabled: !!productId && (options.enabled ?? true),
     staleTime: 5 * 60 * 1000,
   });
 }

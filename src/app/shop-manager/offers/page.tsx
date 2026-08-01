@@ -209,9 +209,11 @@ function ShopOffersContent() {
             setAccumulatedOffers(rawList);
         } else if (rawList.length > 0) {
             setAccumulatedOffers((prev) => {
-                const existingIds = new Set(prev.map((item) => String(item.offerId || item.id || item.batchId)));
-                const newItems = rawList.filter((item: any) => !existingIds.has(String(item.offerId || item.id || item.batchId)));
-                return [...prev, ...newItems];
+                const map = new Map(prev.map((item) => [String(item.offerId || item.id || item.batchId), item]));
+                rawList.forEach((item: any) => {
+                    map.set(String(item.offerId || item.id || item.batchId), item);
+                });
+                return Array.from(map.values());
             });
         }
     }, [offersResponse, currentPage]);
@@ -302,18 +304,42 @@ function ShopOffersContent() {
     };
 
     const handleToggleOfferStatus = async (offer: any) => {
+        if (offer.isDraft) {
+            toast.error("Draft offers cannot be activated. Please publish it first.");
+            return;
+        }
+
+        const targetId = String(offer.offerId || offer.id || offer.batchId);
+        const oldStatus = offer.status || 'active';
+        const nextStatus = oldStatus === 'active' ? 'inactive' : 'active';
+
+        // Optimistically update local accumulated offers state
+        setAccumulatedOffers((prev) =>
+            prev.map((o) => {
+                const currentId = String(o.offerId || o.id || o.batchId);
+                return currentId === targetId ? { ...o, status: nextStatus, isActive: nextStatus === 'active' } : o;
+            })
+        );
+
         try {
             if (activeShopId) {
                 const idToUse = offer.offerId || offer.id || offer.batchId;
                 const res = await toggleStatusMutation({ id: String(idToUse), shopId: activeShopId });
                 if (res.success) {
-                    toast.success(`Offer ${offer.status === 'active' ? 'paused' : 'resumed'} successfully`);
+                    toast.success(`Offer ${nextStatus === 'active' ? 'resumed' : 'paused'} successfully`);
                 } else {
                     throw new Error("Failed to toggle status");
                 }
             }
         } catch (err: any) {
             console.error("Toggle error:", err);
+            // Rollback local state on error
+            setAccumulatedOffers((prev) =>
+                prev.map((o) => {
+                    const currentId = String(o.offerId || o.id || o.batchId);
+                    return currentId === targetId ? { ...o, status: oldStatus, isActive: oldStatus === 'active' } : o;
+                })
+            );
             toast.error(`Failed to update status: ${err.message}`);
         }
     };
@@ -621,12 +647,12 @@ function ShopOffersContent() {
                     </div>
                 </div>
 
-                <div className="flex items-center justify-between text-xs font-semibold text-gray-500 mb-4 px-1">
-                    <span className="flex items-center gap-1.5">
+                <div className="flex items-center justify-between text-xs font-semibold text-gray-500 mb-1 px-1">
+                    <span className="flex items-center gap-1">
                         <span>Showing</span>
-                        <span className="px-2 py-0.5 rounded-md bg-orange-500/10 text-orange-600 font-extrabold text-xs inline-flex items-center justify-center min-w-[24px] min-h-[22px]">
+                        <span className="px-1 py-0.5 rounded-md bg-orange-500/10 text-orange-600 font-extrabold text-xs inline-flex items-center justify-center min-w-[24px] min-h-[22px]">
                             {isLoadingOffers || isFetchingOffers ? (
-                                <Loader2 className="w-3 h-3 text-orange-500 animate-spin" />
+                                <Loader2 className="w-2.5 h-2.5 text-orange-500 animate-spin" />
                             ) : (
                                 filteredOffers.length
                             )}
@@ -638,7 +664,7 @@ function ShopOffersContent() {
                 </div>
 
                 {isLoadingOffers ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
                         {[1, 2, 3, 4, 5, 6].map((i) => (
                             <div key={i} className="flex items-center gap-2 p-2 rounded-xl bg-white border border-gray-50 animate-pulse shadow-sm">
                                 <div className="w-16 h-16 rounded-lg bg-gray-100 shrink-0" />
@@ -725,7 +751,7 @@ function ShopOffersContent() {
 
                         {filteredOffers.length > 0 ? (
                             <>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 sm:gap-1">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
                                     {filteredOffers.map((offer: any, idx: number) => {
                                         const id = String(offer.offerId || offer.id || offer.batchId || idx);
                                         const offerImage = offer.posters?.[0]?.posterSrc || offer.posterSrc;
