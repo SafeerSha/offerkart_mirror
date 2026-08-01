@@ -71,7 +71,7 @@ export function OffersTab({
 
     return (
         <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar p-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar p-1">
                 {publishedOffers.length > 0 ? (
                     publishedOffers.slice(0, 8).map((offer, idx) => {
                         const id = offer.offerId || offer.batchId || idx;
@@ -84,7 +84,7 @@ export function OffersTab({
                                 editTitle="Edit offer"
                                 deleteTitle="Delete offer"
                             >
-                                <div className="group relative flex items-start gap-3 p-3 rounded-xl bg-gray-50/50 border border-gray-100 hover:border-primary/20 hover:bg-white hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 overflow-hidden">
+                                <div className="group relative flex items-start gap-2 p-3 rounded-xl bg-white shadow-md border border-gray-100 hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 overflow-hidden">
                                     <div
                                         className={`group/img relative w-16 h-16 rounded-lg bg-white overflow-hidden shrink-0 border border-gray-100 shadow-sm z-10 transition-all duration-300 ${offerImage ? 'cursor-pointer active:scale-95' : ''}`}
                                         onClick={(e) => {
@@ -218,12 +218,12 @@ export function OffersTab({
             </div>
 
             {publishedOffers.length > 0 && (
-                <div className="flex justify-center pt-2 pb-2 border-t border-gray-50">
+                <div className="flex justify-center pt-1 pb-2 border-t border-gray-50">
                     <Link href="/shop-manager/offers" className="w-full sm:w-auto">
                         <PremiumButton
                             variant="outline"
                             glow={false}
-                            className="w-full sm:w-auto rounded-xl py-1 px-6 border-primary/10 hover:border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary gap-1.5 shadow-none cursor-pointer text-xs font-bold uppercase tracking-wider"
+                            className="w-full sm:w-auto rounded-xl py-1 px-6 border-primary/10 hover:border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary gap-1 shadow-none cursor-pointer text-xs font-bold capitalize tracking-wider"
                         >
                             <span>View All ({typeof totalOffersCount === "number" ? totalOffersCount : publishedOffers.length})</span>
                             <ArrowRight className="w-2.5 h-2.5" />

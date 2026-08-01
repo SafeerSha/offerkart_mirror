@@ -475,27 +475,62 @@ function ShopOffersContent() {
         });
     }, [allOffersList, searchQuery, statusFilter]);
 
+    const statusCounts = useMemo(() => {
+        const isOfferExpired = (item: any) => {
+            if (!item.validTo) return false;
+            const expiryDate = new Date(item.validTo);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            return expiryDate < today;
+        };
+
+        const counts = {
+            all: allOffersList.length,
+            active: 0,
+            paused: 0,
+            drafted: 0,
+            expired: 0,
+        };
+
+        allOffersList.forEach((offer: any) => {
+            if (offer.isDraft) {
+                counts.drafted++;
+            } else if (isOfferExpired(offer)) {
+                counts.expired++;
+            } else if (offer.status === "active") {
+                counts.active++;
+            } else if (offer.status === "inactive") {
+                counts.paused++;
+            }
+        });
+
+        return counts;
+    }, [allOffersList]);
+
     return (
         <main className="min-h-screen pt-20 lg:pt-24 pb-12 bg-[radial-gradient(circle_at_top_right,hsl(var(--color-primary)/0.05)_0%,transparent_50%)]">
             <div className="container mx-auto px-4 max-w-6xl">
-                <Breadcrumbs
-                    items={[
-                        { label: "Dashboard", href: "/shop-manager" },
-                        { label: "Manage Offers" }
-                    ]}
-                />
+                <div className="flex items-center justify-between gap-4">
+                    <Breadcrumbs
+                        items={[
+                            { label: "Dashboard", href: "/shop-manager" },
+                            { label: "Manage Offers" }
+                        ]}
+                    />
 
-                <div className="mb-5 mt-4 p-1.5 rounded-xl border border-gray-100 bg-white/50 backdrop-blur-sm flex flex-col sm:flex-row gap-2.5 sm:items-center sm:justify-between shadow-sm">
-                    <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center flex-1 max-w-2xl">
-                        <div className="flex items-center gap-2 w-full sm:w-auto flex-1">
-                            <div className="relative flex-1 sm:w-56 sm:flex-none flex items-center bg-gray-55 rounded-lg px-2 py-1 focus-within:bg-gray-100/80 transition-all border border-transparent focus-within:border-gray-200">
-                                <Search className="w-3 h-3 text-gray-400 shrink-0 mr-1.5" />
+                </div>
+
+                <div className="mb-2 mt-1 p-2 rounded-xl border border-gray-100 bg-white/80 backdrop-blur-sm flex flex-col md:flex-row gap-2.5 md:items-center md:justify-between shadow-sm min-w-0 overflow-hidden">
+                    <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center flex-1 min-w-0">
+                        <div className="flex items-center gap-2 w-full sm:w-auto min-w-0">
+                            <div className="relative flex-1 sm:w-48 md:w-56 sm:flex-none flex items-center bg-gray-50 rounded-lg px-2.5 py-1 focus-within:bg-white focus-within:border-gray-300 transition-all border border-gray-100">
+                                <Search className="w-3.5 h-3.5 text-gray-400 shrink-0 mr-1.5" />
                                 <input
                                     type="text"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    placeholder="Search campaigns..."
-                                    className="bg-transparent w-full text-xs font-semibold text-gray-700 outline-none placeholder-gray-400/80 h-6"
+                                    placeholder="Search offers..."
+                                    className="bg-transparent w-full text-xs font-semibold text-gray-700 outline-none placeholder-gray-400 h-6"
                                 />
                                 {searchQuery && (
                                     <button onClick={() => setSearchQuery("")} className="text-gray-400 hover:text-gray-600 text-xs font-bold cursor-pointer border-0 bg-transparent px-1">×</button>
@@ -528,22 +563,22 @@ function ShopOffersContent() {
                                         router.push("/shop-manager/create-offer?source=offers");
                                     }
                                 }}
-                                className="w-8 h-8 rounded-lg flex sm:hidden items-center justify-center shrink-0"
+                                className="w-8 h-8 rounded-lg flex sm:hidden items-center justify-center shrink-0 p-0"
                                 title="Add Offer"
                             >
                                 <Plus className="w-4 h-4 text-white" />
                             </PremiumButton>
                         </div>
 
-                        <div className="flex bg-gray-55 p-0.5 rounded-lg gap-0.5 self-start sm:self-auto shrink-0 border border-gray-100 bg-gray-50/50">
+                        <div className="flex bg-gray-50 p-0.5 rounded-lg gap-0.5 self-start sm:self-auto shrink-0 border border-gray-100 max-w-full overflow-x-auto no-scrollbar">
                             {(["all", "active", "paused", "drafted", "expired"] as const).map((filter) => (
                                 <button
                                     key={filter}
                                     onClick={() => setStatusFilter(filter)}
                                     className={cn(
-                                        "px-3 py-1 text-[9px] font-bold uppercase tracking-wider rounded-md transition-all cursor-pointer border-0 bg-transparent whitespace-nowrap h-6 flex items-center justify-center",
+                                        "px-3 py-1 text-[9px] font-bold uppercase tracking-wider rounded-md transition-all cursor-pointer border-0 bg-transparent whitespace-nowrap h-6 flex items-center justify-center shrink-0",
                                         statusFilter === filter
-                                            ? "bg-white text-orange-600 shadow-sm font-black border border-gray-100"
+                                            ? "bg-white text-orange-600 shadow-xs font-black border border-gray-100"
                                             : "text-gray-400 hover:text-gray-700"
                                     )}
                                 >
@@ -562,7 +597,7 @@ function ShopOffersContent() {
                                 setIsBulkMode(!isBulkMode);
                             }}
                             className={cn(
-                                "rounded-lg h-7 px-3 text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer border",
+                                "rounded-lg h-7 px-3 text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer border shrink-0",
                                 isBulkMode
                                     ? "bg-red-500 text-white border-red-500 shadow-sm shadow-red-500/10"
                                     : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
@@ -579,17 +614,33 @@ function ShopOffersContent() {
                                     router.push("/shop-manager/create-offer?source=offers");
                                 }
                             }}
-                            className="rounded-lg h-7 px-3 text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1 shrink-0 self-start sm:self-auto"
+                            className="rounded-lg h-7 px-3 text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1 shrink-0 whitespace-nowrap"
                         >
-                            <Plus className="w-3.5 h-3.5" /> Add Offer
+                            <Plus className="w-3.5 h-3.5" /> Create Offer
                         </PremiumButton>
                     </div>
                 </div>
 
+                <div className="flex items-center justify-between text-xs font-semibold text-gray-500 mb-4 px-1">
+                    <span className="flex items-center gap-1.5">
+                        <span>Showing</span>
+                        <span className="px-2 py-0.5 rounded-md bg-orange-500/10 text-orange-600 font-extrabold text-xs inline-flex items-center justify-center min-w-[24px] min-h-[22px]">
+                            {isLoadingOffers || isFetchingOffers ? (
+                                <Loader2 className="w-3 h-3 text-orange-500 animate-spin" />
+                            ) : (
+                                filteredOffers.length
+                            )}
+                        </span>
+                        <span className="capitalize">
+                            {statusFilter} {(!isLoadingOffers && !isFetchingOffers && filteredOffers.length === 1) ? "offer" : "offers"}
+                        </span>
+                    </span>
+                </div>
+
                 {isLoadingOffers ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                         {[1, 2, 3, 4, 5, 6].map((i) => (
-                            <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-white border border-gray-50 animate-pulse shadow-sm">
+                            <div key={i} className="flex items-center gap-2 p-2 rounded-xl bg-white border border-gray-50 animate-pulse shadow-sm">
                                 <div className="w-16 h-16 rounded-lg bg-gray-100 shrink-0" />
                                 <div className="min-w-0 flex-1 space-y-2">
                                     <div className="h-3.5 w-1/3 bg-gray-100 rounded" />
@@ -674,205 +725,198 @@ function ShopOffersContent() {
 
                         {filteredOffers.length > 0 ? (
                             <>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 sm:gap-3">
-                                {filteredOffers.map((offer: any, idx: number) => {
-                                    const id = String(offer.offerId || offer.id || offer.batchId || idx);
-                                    const offerImage = offer.posters?.[0]?.posterSrc || offer.posterSrc;
-                                    const isSelected = selectedOffers.has(id);
-                                    console.log("Card ID:", id, "isSelected:", isSelected, "selectedSet:", Array.from(selectedOffers));
-                                    return (
-                                        <div
-                                            key={id}
-                                            className="relative"
-                                            onClick={(e) => {
-                                                if (isBulkMode && !offer.isDraft) {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    handleSelectOffer(id);
-                                                }
-                                            }}
-                                        >
-                                            <SwipeableCard
-                                                onEdit={() => (offer.isDraft && offer.type === "BUILDER") ? router.push(`/shop-manager/poster-designer?draftId=${offer.batchId || offer.id}`) : openEditModal(offer)}
-                                                onDelete={() => setOfferToDelete(offer)}
-                                                editTitle="Edit"
-                                                deleteTitle="Delete"
-                                            >
-                                                <div className="group relative flex items-start gap-3 p-3 rounded-xl bg-white border border-gray-100 hover:border-primary/20 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 overflow-hidden shadow-sm">
-                                                    <div
-                                                        className="group/img relative w-16 h-16 rounded-lg bg-white overflow-hidden shrink-0 border border-gray-100 shadow-sm z-10 transition-all duration-300"
-                                                    >
-                                                        {offerImage ? (
-                                                            <>
-                                                                <Image src={offerImage} alt={offer.title || "Offer"} fill unoptimized className="object-cover group-hover:scale-110 transition-transform duration-500" />
-                                                                <div
-                                                                    className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-[1px] cursor-pointer"
-                                                                    onClick={(e) => {
-                                                                        e.preventDefault();
-                                                                        e.stopPropagation();
-                                                                        setPreviewLogo({ src: offerImage, name: offer.title || "Offer Preview" });
-                                                                    }}
-                                                                >
-                                                                    <div className="bg-white/90 p-1.5 rounded-full shadow-lg scale-75 group-hover/img:scale-100 transition-transform duration-300">
-                                                                        <Eye className="w-4 h-4 text-primary" />
-                                                                    </div>
-                                                                </div>
-                                                            </>
-                                                        ) : (
-                                                            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-primary/5 group-hover/img:from-orange-500/15 group-hover/img:via-amber-500/10 transition-all duration-300">
-                                                                <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-white/80 shadow-[0_4px_12px_rgba(249,115,22,0.08)] border border-orange-100/50 group-hover/img:scale-110 group-hover/img:shadow-[0_6px_16px_rgba(249,115,22,0.12)] transition-all duration-300">
-                                                                    <Tag className="w-5 h-5 text-orange-500/85 group-hover:text-primary transition-colors rotate-12 group-hover/img:rotate-0 transition-transform duration-300" />
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    <div className="min-w-0 flex-1 z-10 flex flex-col justify-center gap-1 self-stretch py-0.5">
-                                                        <div>
-                                                            <h4 className="font-black text-sm text-gray-900 truncate group-hover:text-primary transition-colors leading-tight">
-                                                                {offer.title || "Untitled Offer"}
-                                                            </h4>
-                                                            <div className="flex items-center gap-1.5 mt-0.5">
-                                                                <span className="text-[10px] font-bold text-orange-500 uppercase tracking-widest leading-none">
-                                                                    {offer.type ? `${offer.type}` : 'Builder'}
-                                                                </span>
-                                                                {offer.isDraft && (
-                                                                    <span className="bg-amber-50 text-amber-700 border border-amber-200 px-1 py-0.2 rounded font-bold text-[8px] uppercase tracking-wider scale-90 origin-left shrink-0">
-                                                                        Draft
-                                                                    </span>
-                                                                )}
-                                                                {(() => {
-                                                                    if (!offer.validTo) return null;
-                                                                    const expiryDate = new Date(offer.validTo);
-                                                                    const today = new Date();
-                                                                    today.setHours(0, 0, 0, 0);
-                                                                    if (expiryDate < today) {
-                                                                        return (
-                                                                            <span className="bg-rose-50 text-rose-700 border border-rose-200 px-1 py-0.2 rounded font-bold text-[8px] tracking-wider scale-90 origin-left shrink-0">
-                                                                                Expired
-                                                                            </span>
-                                                                        );
-                                                                    }
-                                                                    return null;
-                                                                })()}
-                                                            </div>
-                                                        </div>
-
-                                                        {(offer.validFrom || offer.validTo || (offer.branches && offer.branches.length > 0) || offer.branchNames || offer.branchName) && (
-                                                            <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                                                                {(offer.validFrom || offer.validTo) && (
-                                                                    <span className="bg-gray-50 border border-gray-100 text-gray-600 px-2 py-0.5 rounded-md flex items-center gap-1 font-bold text-[9px] uppercase tracking-wide">
-                                                                        <Calendar className="w-3 h-3 text-gray-400 shrink-0" />
-                                                                        <span>
-                                                                            {offer.validFrom ? new Date(offer.validFrom).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' }) : "n/a"}{offer.validTo ? ` - ${new Date(offer.validTo).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}` : ""}
-                                                                        </span>
-                                                                    </span>
-                                                                )}
-                                                                {((offer.branches && offer.branches.length > 0) || offer.branchNames || offer.branchName) && (
-                                                                    <span className="bg-primary/5 text-primary border border-primary/10 px-2 py-0.5 rounded-md font-bold text-[9px] uppercase tracking-wide flex items-center gap-1">
-                                                                        <GitBranch className="w-3 h-3 shrink-0" />
-                                                                        <span className="truncate max-w-[120px]">
-                                                                            {offer.branches ? (
-                                                                                offer.branches.length > 1 ? `${offer.branches[0].branchName} +${offer.branches.length - 1}` : offer.branches[0].branchName
-                                                                            ) : (
-                                                                                offer.branchNames ? offer.branchNames[0] : offer.branchName
-                                                                            )}
-                                                                        </span>
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    <div className="relative z-20 flex flex-col items-end justify-between self-stretch shrink-0 py-0.5">
-                                                        {!offer.isDraft ? (
-                                                            <div className="scale-75 origin-right">
-                                                                <StatusToggleButton
-                                                                    status={offer.status || 'active'}
-                                                                    onChange={() => handleToggleOfferStatus(offer)}
-                                                                />
-                                                            </div>
-                                                        ) : (
-                                                            <div className="h-6" />
-                                                        )}
-
-                                                        <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400">
-                                                            <Clock className="w-3 h-3 shrink-0" />
-                                                            <span>{getRelativeTime(offer.createdAt || offer.validFrom) ? getRelativeTime(offer.createdAt || offer.validFrom) : "Active"}</span>
-                                                        </div>
-
-                                                        <div className="hidden sm:flex flex-row gap-1 items-center">
-                                                            <button onClick={() => openEditModal(offer)} className="flex items-center justify-center p-2 rounded-xl bg-white border border-gray-100 text-gray-500 hover:text-primary hover:border-primary hover:bg-primary/5 transition-all shadow-sm cursor-pointer" title="Edit offer"><Pencil className="w-3.5 h-3.5" /></button>
-                                                            <button onClick={() => setOfferToDelete(offer)} className="flex items-center justify-center p-2 rounded-xl bg-white border border-gray-100 text-gray-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all shadow-sm cursor-pointer" title="Delete offer"><Trash2 className="w-3.5 h-3.5" /></button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </SwipeableCard>
-                                            {isBulkMode && offer.isDraft && (
-                                                <div
-                                                    className="absolute top-2 left-2 z-20 w-5 h-5 rounded-md bg-gray-50 border border-gray-200 flex items-center justify-center cursor-not-allowed opacity-50"
-                                                    title="Drafts cannot be selected for bulk actions"
-                                                >
-                                                    <Check className="w-3 h-3 text-gray-400" />
-                                                </div>
-                                            )}
-                                            {isBulkMode && !offer.isDraft && (
-                                                <button
-                                                    onClick={(e) => {
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 sm:gap-1">
+                                    {filteredOffers.map((offer: any, idx: number) => {
+                                        const id = String(offer.offerId || offer.id || offer.batchId || idx);
+                                        const offerImage = offer.posters?.[0]?.posterSrc || offer.posterSrc;
+                                        const isSelected = selectedOffers.has(id);
+                                        console.log("Card ID:", id, "isSelected:", isSelected, "selectedSet:", Array.from(selectedOffers));
+                                        return (
+                                            <div
+                                                key={id}
+                                                className="relative"
+                                                onClick={(e) => {
+                                                    if (isBulkMode && !offer.isDraft) {
+                                                        e.preventDefault();
                                                         e.stopPropagation();
                                                         handleSelectOffer(id);
-                                                    }}
-                                                    className={cn(
-                                                        "absolute top-2 left-2 z-20 w-5 h-5 rounded-md border transition-all cursor-pointer flex items-center justify-center",
-                                                        isSelected
-                                                            ? "bg-orange-400 border-orange-400"
-                                                            : "bg-white/90 backdrop-blur border-gray-255 hover:border-primary hover:bg-white shadow-sm"
-                                                    )}
-                                                    title={isSelected ? "Deselect" : "Select"}
+                                                    }
+                                                }}
+                                            >
+                                                <SwipeableCard
+                                                    onEdit={() => (offer.isDraft && offer.type === "BUILDER") ? router.push(`/shop-manager/poster-designer?draftId=${offer.batchId || offer.id}`) : openEditModal(offer)}
+                                                    onDelete={() => setOfferToDelete(offer)}
+                                                    editTitle="Edit"
+                                                    deleteTitle="Delete"
                                                 >
-                                                    {isSelected && <Check className="w-4 h-4 text-white mx-auto" />}
-                                                </button>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                                                    <div className="group relative flex items-start gap-2 p-3 sm:p-2 rounded-xl bg-white border border-gray-100 hover:border-primary/20 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 overflow-hidden shadow-sm">
+                                                        <div
+                                                            className="group/img relative w-16 h-16 rounded-lg bg-white overflow-hidden shrink-0 border border-gray-100 shadow-sm z-10 transition-all duration-300"
+                                                        >
+                                                            {offerImage ? (
+                                                                <>
+                                                                    <Image src={offerImage} alt={offer.title || "Offer"} fill unoptimized className="object-cover group-hover:scale-110 transition-transform duration-500" />
+                                                                    <div
+                                                                        className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-[1px] cursor-pointer"
+                                                                        onClick={(e) => {
+                                                                            e.preventDefault();
+                                                                            e.stopPropagation();
+                                                                            setPreviewLogo({ src: offerImage, name: offer.title || "Offer Preview" });
+                                                                        }}
+                                                                    >
+                                                                        <div className="bg-white/90 p-1.5 rounded-full shadow-lg scale-75 group-hover/img:scale-100 transition-transform duration-300">
+                                                                            <Eye className="w-4 h-4 text-primary" />
+                                                                        </div>
+                                                                    </div>
+                                                                </>
+                                                            ) : (
+                                                                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-primary/5 group-hover/img:from-orange-500/15 group-hover/img:via-amber-500/10 transition-all duration-300">
+                                                                    <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-white/80 shadow-[0_4px_12px_rgba(249,115,22,0.08)] border border-orange-100/50 group-hover/img:scale-110 group-hover/img:shadow-[0_6px_16px_rgba(249,115,22,0.12)] transition-all duration-300">
+                                                                        <Tag className="w-5 h-5 text-orange-500/85 group-hover:text-primary transition-colors rotate-12 group-hover/img:rotate-0 transition-transform duration-300" />
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
 
-                            {/* Scroll trigger for infinite scroll loading */}
-                            <div id="scroll-trigger" ref={observerTargetRef} className="w-full py-8 flex flex-col items-center justify-center mt-4">
-                                {isFetchingOffers && currentPage > 1 && (
-                                    <div className="flex items-center gap-2 text-xs font-bold text-orange-500 animate-pulse">
-                                        <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping" />
-                                        <span>Loading more campaigns...</span>
-                                    </div>
-                                )}
-                                {!hasMore && !isFetchingOffers && filteredOffers.length > 0 && (
-                                    <div className="text-center py-2">
-                                        <span className="text-xs text-gray-400 font-medium">
-                                            You've reached the end of your offers ({filteredOffers.length} total)
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
-                        </>
+                                                        <div className="min-w-0 flex-1 z-10 flex flex-col justify-center gap-1 self-stretch py-0.5">
+                                                            <div>
+                                                                <h4 className="font-black text-sm text-gray-900 truncate group-hover:text-primary transition-colors leading-tight">
+                                                                    {offer.title || "Untitled Offer"}
+                                                                </h4>
+                                                                <div className="flex items-center gap-1.5 mt-0.5">
+                                                                    <span className="text-[9px] font-bold text-orange-500 capitalize tracking-widest leading-none">
+                                                                        {offer.type ? `${offer.type}` : 'Builder'}
+                                                                    </span>
+                                                                    {offer.isDraft && (
+                                                                        <span className="bg-amber-50 text-amber-700 border border-amber-200 px-1 py-0.2 rounded font-bold text-[8px] tracking-wider scale-90 origin-left shrink-0">
+                                                                            Draft
+                                                                        </span>
+                                                                    )}
+                                                                    {(() => {
+                                                                        if (!offer.validTo) return null;
+                                                                        const expiryDate = new Date(offer.validTo);
+                                                                        const today = new Date();
+                                                                        today.setHours(0, 0, 0, 0);
+                                                                        if (expiryDate < today) {
+                                                                            return (
+                                                                                <span className="bg-rose-50 text-rose-700 border border-rose-200 px-1 py-0.2 rounded font-bold text-[8px] tracking-wider scale-90 origin-left shrink-0">
+                                                                                    Expired
+                                                                                </span>
+                                                                            );
+                                                                        }
+                                                                        return null;
+                                                                    })()}
+                                                                </div>
+                                                            </div>
+
+                                                            {(offer.validFrom || offer.validTo || (offer.branches && offer.branches.length > 0) || offer.branchNames || offer.branchName) && (
+                                                                <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                                                                    {(offer.validFrom || offer.validTo) && (
+                                                                        <span className="bg-gray-50 border border-gray-100 text-gray-600 px-1 py-0.5 rounded-md flex items-center gap-1 font-bold text-[9px] tracking-wide">
+                                                                            <Calendar className="w-2.5 h-2.5 text-gray-400 shrink-0" />
+                                                                            <span>
+                                                                                {offer.validFrom ? new Date(offer.validFrom).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' }) : "n/a"}{offer.validTo ? ` - ${new Date(offer.validTo).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}` : ""}
+                                                                            </span>
+                                                                        </span>
+                                                                    )}
+                                                                    {((offer.branches && offer.branches.length > 0) || offer.branchNames || offer.branchName) && (
+                                                                        <span className="bg-primary/5 text-primary border border-primary/10 px-2 py-0.5 rounded-md font-bold text-[8px] capitalize tracking-wide flex items-center gap-1">
+                                                                            <GitBranch className="w-2.5 h-2.5 shrink-0" />
+                                                                            <span className="truncate max-w-[120px]">
+                                                                                {offer.branches ? (
+                                                                                    offer.branches.length > 1 ? `${offer.branches[0].branchName} +${offer.branches.length - 1}` : offer.branches[0].branchName
+                                                                                ) : (
+                                                                                    offer.branchNames ? offer.branchNames[0] : offer.branchName
+                                                                                )}
+                                                                            </span>
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="relative z-20 flex flex-col items-end justify-between self-stretch shrink-0 py-0.5">
+                                                            {!offer.isDraft ? (
+                                                                <div className="scale-75 origin-right">
+                                                                    <StatusToggleButton
+                                                                        status={offer.status || 'active'}
+                                                                        onChange={() => handleToggleOfferStatus(offer)}
+                                                                    />
+                                                                </div>
+                                                            ) : (
+                                                                <div className="h-6" />
+                                                            )}
+
+                                                            <div className="flex items-center gap-1 text-[8.5px] font-bold text-dark-400">
+                                                                <Clock className="w-2.5 h-2.5 shrink-0" />
+                                                                <span>{getRelativeTime(offer.createdAt || offer.validFrom) ? getRelativeTime(offer.createdAt || offer.validFrom) : "Active"}</span>
+                                                            </div>
+
+                                                            <div className="hidden sm:flex flex-row gap-1 items-center">
+                                                                <button onClick={() => openEditModal(offer)} className="flex items-center justify-center px-2 py-1 rounded-lg bg-white border border-gray-100 text-gray-500 hover:text-primary hover:border-primary hover:bg-primary/5 transition-all shadow-sm cursor-pointer" title="Edit offer"><Pencil className="w-3 h-3" /></button>
+                                                                <button onClick={() => setOfferToDelete(offer)} className="flex items-center justify-center px-2 py-1 rounded-lg bg-white border border-gray-100 text-gray-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all shadow-sm cursor-pointer" title="Delete offer"><Trash2 className="w-3 h-3" /></button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </SwipeableCard>
+                                                {isBulkMode && offer.isDraft && (
+                                                    <div
+                                                        className="absolute top-2 left-2 z-20 w-5 h-5 rounded-md bg-gray-50 border border-gray-200 flex items-center justify-center cursor-not-allowed opacity-50"
+                                                        title="Drafts cannot be selected for bulk actions"
+                                                    >
+                                                        <Check className="w-3 h-3 text-gray-400" />
+                                                    </div>
+                                                )}
+                                                {isBulkMode && !offer.isDraft && (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleSelectOffer(id);
+                                                        }}
+                                                        className={cn(
+                                                            "absolute top-2 left-2 z-20 w-5 h-5 rounded-md border transition-all cursor-pointer flex items-center justify-center",
+                                                            isSelected
+                                                                ? "bg-orange-400 border-orange-400"
+                                                                : "bg-white/90 backdrop-blur border-gray-255 hover:border-primary hover:bg-white shadow-sm"
+                                                        )}
+                                                        title={isSelected ? "Deselect" : "Select"}
+                                                    >
+                                                        {isSelected && <Check className="w-4 h-4 text-white mx-auto" />}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Scroll trigger for infinite scroll loading */}
+                                <div id="scroll-trigger" ref={observerTargetRef} className="w-full py-8 flex flex-col items-center justify-center mt-4">
+                                    {isFetchingOffers && currentPage > 1 && (
+                                        <div className="flex items-center gap-2 text-xs font-bold text-orange-500 animate-pulse">
+                                            <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping" />
+                                            <span>Loading more offers...</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </>
                         ) : (
-                            <div className="p-12 flex flex-col items-center justify-center bg-white border border-gray-100 rounded-3xl text-center shadow-sm max-w-xl mx-auto">
+                            <div className="p-12 flex flex-col items-center justify-center bg-white border border-gray-100 rounded-3xl text-center shadow-sm mx-auto">
                                 <div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center mb-4">
                                     <Tag className="w-8 h-8 text-primary/20" />
                                 </div>
                                 <p className="text-lg font-black text-gray-900">
                                     {searchQuery ? (
-                                        "No matching campaigns"
+                                        "No matching offers"
                                     ) : statusFilter === "active" ? (
-                                        "No active campaigns"
+                                        "No active offers"
                                     ) : statusFilter === "paused" ? (
-                                        "No paused campaigns"
+                                        "No paused offers"
                                     ) : statusFilter === "drafted" ? (
-                                        "No drafted campaigns"
+                                        "No drafted offers"
                                     ) : statusFilter === "expired" ? (
-                                        "No expired campaigns"
+                                        "No expired offers"
                                     ) : (
-                                        "No campaigns found"
+                                        "No offers found"
                                     )}
                                 </p>
                                 <p className="text-xs text-gray-500 max-w-xs mt-1 mb-6">
@@ -880,18 +924,18 @@ function ShopOffersContent() {
                                         "Try adjusting your search terms to find what you're looking for."
                                     ) : statusFilter === "active" ? (
                                         publishedOffers.length > 0
-                                            ? "All of your campaigns are currently paused or drafted."
-                                            : "You haven't published any campaigns yet."
+                                            ? "All of your offers are currently paused or drafted."
+                                            : "You haven't published any offers yet."
                                     ) : statusFilter === "paused" ? (
                                         publishedOffers.length > 0
-                                            ? "All of your campaigns are active and running."
-                                            : "You haven't published any campaigns yet."
+                                            ? "All of your offers are active and running."
+                                            : "You haven't published any offers yet."
                                     ) : statusFilter === "drafted" ? (
-                                        "You don't have any drafted campaigns at the moment."
+                                        "You don't have any drafted offers at the moment."
                                     ) : statusFilter === "expired" ? (
-                                        "You don't have any expired campaigns at the moment."
+                                        "You don't have any expired offers at the moment."
                                     ) : (
-                                        "You haven't published any campaigns yet. Let's create one now!"
+                                        "You haven't published any offers yet. Let's create one now!"
                                     )}
                                 </p>
                                 {allOffersList.length === 0 && (

@@ -473,6 +473,38 @@ function ShopProductsContent() {
         });
     }, [allProductsList, searchQuery, statusFilter, branchNameMap]);
 
+    const statusCounts = useMemo(() => {
+        const isProductExpired = (item: any) => {
+            if (!item.validTo) return false;
+            const expiryDate = new Date(item.validTo);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            return expiryDate < today;
+        };
+
+        const counts = {
+            all: allProductsList.length,
+            active: 0,
+            paused: 0,
+            drafted: 0,
+            expired: 0,
+        };
+
+        allProductsList.forEach((product: any) => {
+            if (product.isDraft) {
+                counts.drafted++;
+            } else if (isProductExpired(product)) {
+                counts.expired++;
+            } else if (product.status === "active") {
+                counts.active++;
+            } else if (product.status === "inactive") {
+                counts.paused++;
+            }
+        });
+
+        return counts;
+    }, [allProductsList]);
+
     return (
         <main className="min-h-screen pt-20 lg:pt-24 pb-12 bg-[radial-gradient(circle_at_top_right,hsl(var(--color-primary)/0.05)_0%,transparent_50%)]">
             <div className="container mx-auto px-4 max-w-6xl">
@@ -483,17 +515,17 @@ function ShopProductsContent() {
                     ]}
                 />
 
-                <div className="mb-5 mt-4 p-1.5 rounded-xl border border-gray-100 bg-white/50 backdrop-blur-sm flex flex-col sm:flex-row gap-2.5 sm:items-center sm:justify-between shadow-sm">
-                    <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center flex-1 max-w-2xl">
-                        <div className="flex items-center gap-2 w-full sm:w-auto flex-1">
-                            <div className="relative flex-1 sm:w-56 sm:flex-none flex items-center bg-gray-50 rounded-lg px-2 py-1 focus-within:bg-gray-100/80 transition-all border border-transparent focus-within:border-gray-200">
-                                <Search className="w-3 h-3 text-gray-400 shrink-0 mr-1.5" />
+                <div className="mb-3 mt-4 p-2 rounded-xl border border-gray-100 bg-white/80 backdrop-blur-sm flex flex-col md:flex-row gap-2.5 md:items-center md:justify-between shadow-sm min-w-0 overflow-hidden">
+                    <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center flex-1 min-w-0">
+                        <div className="flex items-center gap-2 w-full sm:w-auto min-w-0">
+                            <div className="relative flex-1 sm:w-48 md:w-56 sm:flex-none flex items-center bg-gray-50 rounded-lg px-2.5 py-1 focus-within:bg-white focus-within:border-gray-300 transition-all border border-gray-100">
+                                <Search className="w-3.5 h-3.5 text-gray-400 shrink-0 mr-1.5" />
                                 <input
                                     type="text"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     placeholder="Search products..."
-                                    className="bg-transparent w-full text-xs font-semibold text-gray-700 outline-none placeholder-gray-400/80 h-6"
+                                    className="bg-transparent w-full text-xs font-semibold text-gray-700 outline-none placeholder-gray-400 h-6"
                                 />
                                 {searchQuery && (
                                     <button onClick={() => setSearchQuery("")} className="text-gray-400 hover:text-gray-600 text-xs font-bold cursor-pointer border-0 bg-transparent px-1">×</button>
@@ -527,22 +559,22 @@ function ShopProductsContent() {
                                         router.push("/shop-manager/products/add");
                                     }
                                 }}
-                                className="w-8 h-8 rounded-lg flex sm:hidden items-center justify-center shrink-0 animate-none"
+                                className="w-8 h-8 rounded-lg flex sm:hidden items-center justify-center shrink-0 animate-none p-0"
                                 title="Add Product"
                             >
                                 <Plus className="w-4 h-4 text-white" />
                             </PremiumButton>
                         </div>
 
-                        <div className="flex bg-gray-55 p-0.5 rounded-lg gap-0.5 self-start sm:self-auto shrink-0 border border-gray-100 bg-gray-50/50">
+                        <div className="flex bg-gray-50 p-0.5 rounded-lg gap-0.5 self-start sm:self-auto shrink-0 border border-gray-100 max-w-full overflow-x-auto no-scrollbar">
                             {(["all", "active", "paused", "drafted", "expired"] as const).map((filter) => (
                                 <button
                                     key={filter}
                                     onClick={() => setStatusFilter(filter)}
                                     className={cn(
-                                        "px-3 py-1 text-[9px] font-bold uppercase tracking-wider rounded-md transition-all cursor-pointer border-0 bg-transparent whitespace-nowrap h-6 flex items-center justify-center",
+                                        "px-3 py-1 text-[9px] font-bold uppercase tracking-wider rounded-md transition-all cursor-pointer border-0 bg-transparent whitespace-nowrap h-6 flex items-center justify-center shrink-0",
                                         statusFilter === filter
-                                            ? "bg-white text-orange-600 shadow-sm font-black border border-gray-100"
+                                            ? "bg-white text-orange-600 shadow-xs font-black border border-gray-100"
                                             : "text-gray-400 hover:text-gray-700"
                                     )}
                                 >
@@ -561,7 +593,7 @@ function ShopProductsContent() {
                                 setIsBulkMode(!isBulkMode);
                             }}
                             className={cn(
-                                "rounded-lg h-7 px-3 text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer border",
+                                "rounded-lg h-7 px-3 text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer border shrink-0",
                                 isBulkMode
                                     ? "bg-red-500 text-white border-red-500 shadow-sm shadow-red-500/10"
                                     : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
@@ -578,11 +610,27 @@ function ShopProductsContent() {
                                     router.push("/shop-manager/products/add");
                                 }
                             }}
-                            className="rounded-lg h-7 px-3 text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1 shrink-0 self-start sm:self-auto"
+                            className="rounded-lg h-7 px-3 text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1 shrink-0 whitespace-nowrap"
                         >
                             <Plus className="w-3.5 h-3.5" /> Add Product
                         </PremiumButton>
                     </div>
+                </div>
+
+                <div className="flex items-center justify-between text-xs font-semibold text-gray-500 mb-4 px-1">
+                    <span className="flex items-center gap-1.5">
+                        <span>Showing</span>
+                        <span className="px-2 py-0.5 rounded-md bg-orange-500/10 text-orange-600 font-extrabold text-xs inline-flex items-center justify-center min-w-[24px] min-h-[22px]">
+                            {isLoadingProducts || isFetchingProducts ? (
+                                <Loader2 className="w-3 h-3 text-orange-500 animate-spin" />
+                            ) : (
+                                filteredProducts.length
+                            )}
+                        </span>
+                        <span className="capitalize">
+                            {statusFilter} {(!isLoadingProducts && !isFetchingProducts && filteredProducts.length === 1) ? "product" : "products"}
+                        </span>
+                    </span>
                 </div>
 
                 {isLoadingProducts ? (

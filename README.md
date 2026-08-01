@@ -1,6 +1,6 @@
 # OfferKart
 
-**Discover Local Deals & Offers** - A modern full-stack platform connecting local businesses with customers through dynamic offer posters and campaigns.
+**Discover Local Deals & Offers** - A modern full-stack platform connecting local businesses with customers through dynamic offer posters and offers.
 
 ---
 
@@ -30,14 +30,14 @@ OfferKart is a comprehensive B2C marketplace platform that enables local shops a
 
 - Create and manage promotional offers
 - Design eye-catching posters using a powerful visual designer
-- Publish campaigns across multiple branches
+- Publish offers across multiple branches
 - Reach local customers with targeted deals
 - Leverage AI-powered tools for marketing content generation
 
 ### Core User Flows
 
 1. **Customer Flow**: Browse offers → Filter by location/category → View offer details → Discover shops
-2. **Merchant Flow**: Register shop → Manage branches → Create offers → Upload posters → Classify products → Publish campaigns → Track performance
+2. **Merchant Flow**: Register shop → Manage branches → Create offers → Upload posters → Classify products → Publish offers → Track performance
 3. **Designer Flow**: Select template → Customize layout → Add products → Apply branding → Export poster
 
 ---
@@ -46,33 +46,33 @@ OfferKart is a comprehensive B2C marketplace platform that enables local shops a
 
 ### Frontend
 
-| Technology | Purpose | Version |
-|------------|---------|---------|
-| **Next.js** | React framework with App Router | 16.1.6 |
-| **TypeScript** | Type safety | 5.x |
-| **React** | UI library | 19.2.3 |
-| **Tailwind CSS** | Utility-first CSS | 4.x |
-| **Radix UI** | Unstyled accessible components | Latest |
-| **TanStack Query** | Server state management | 5.90.19 |
-| **NextAuth.js** | Authentication | 4.24.13 |
-| **react-hook-form** | Form handling | 7.71.21 |
-| **Zod** | Schema validation | 3.25.76 |
-| **Shadcn/ui** | Component library | Custom build |
-| **Sonner** | Toast notifications | 2.0.7 |
-| **Lucide React** | Icon library | 0.562.0 |
-| **html2canvas** | Poster generation | 1.4.1 |
+| Technology          | Purpose                         | Version      |
+| ------------------- | ------------------------------- | ------------ |
+| **Next.js**         | React framework with App Router | 16.1.6       |
+| **TypeScript**      | Type safety                     | 5.x          |
+| **React**           | UI library                      | 19.2.3       |
+| **Tailwind CSS**    | Utility-first CSS               | 4.x          |
+| **Radix UI**        | Unstyled accessible components  | Latest       |
+| **TanStack Query**  | Server state management         | 5.90.19      |
+| **NextAuth.js**     | Authentication                  | 4.24.13      |
+| **react-hook-form** | Form handling                   | 7.71.21      |
+| **Zod**             | Schema validation               | 3.25.76      |
+| **Shadcn/ui**       | Component library               | Custom build |
+| **Sonner**          | Toast notifications             | 2.0.7        |
+| **Lucide React**    | Icon library                    | 0.562.0      |
+| **html2canvas**     | Poster generation               | 1.4.1        |
 
 ### Backend & External Services
 
-| Service | Purpose |
-|---------|---------|
-| **Next.js API Routes** | Serverless API endpoints |
-| **NextAuth.js** | Session management & JWT |
-| **Upstream API** | Backend proxy (`https://offersnearu.vercel.app/api`) |
-| **S3/Cloud Storage** | Poster image hosting |
-| **OpenRouter** | AI text generation (taglines, palettes) |
-| **HuggingFace** | Vision AI for product extraction |
-| **Tesseract.js** | OCR preprocessing |
+| Service                | Purpose                                              |
+| ---------------------- | ---------------------------------------------------- |
+| **Next.js API Routes** | Serverless API endpoints                             |
+| **NextAuth.js**        | Session management & JWT                             |
+| **Upstream API**       | Backend proxy (`https://offersnearu.vercel.app/api`) |
+| **S3/Cloud Storage**   | Poster image hosting                                 |
+| **OpenRouter**         | AI text generation (taglines, palettes)              |
+| **HuggingFace**        | Vision AI for product extraction                     |
+| **Tesseract.js**       | OCR preprocessing                                    |
 
 ---
 
@@ -217,6 +217,7 @@ offerKart/
 #### **Backend Proxying Pattern**
 
 All business API calls go through `backendClient.ts`, which:
+
 - Uses server-direct fetch on Next.js server (direct to upstream API)
 - Uses client-side proxy on browser (`/api/backend/[...path]`)
 - Automatically injects JWT tokens from NextAuth session
@@ -226,8 +227,9 @@ All business API calls go through `backendClient.ts`, which:
 
 ```typescript
 // Client-side example
-backend.post<Offer>("/business/offer", offerPayload)
-  .then(res => { /* ... */ });
+backend.post<Offer>("/business/offer", offerPayload).then((res) => {
+  /* ... */
+});
 
 // Server-side (direct)
 // Request goes to: https://offersnearu.vercel.app/api/business/offer
@@ -237,6 +239,7 @@ backend.post<Offer>("/business/offer", offerPayload)
 #### **Template-Driven Design System**
 
 Poster templates are JSON-driven configuration objects (`TemplateConfig`) that define:
+
 - Canvas dimensions & background
 - Header/footer layout with positioning
 - Item grid (columns, rows, spacing, styling)
@@ -247,13 +250,13 @@ See `src/lib/posterTemplateSchema.ts` for full type definition.
 
 #### **State Management Strategy**
 
-| State | Storage | Usage |
-|-------|---------|-------|
-| Server State | TanStack Query + ISR | Offers, products, shops, branches |
-| UI State | React `useState` | Modals, tabs, form inputs |
-| Draft Data | `localStorage` (`storage.ts`) | Offer drafts, poster stacks |
-| Auth State | NextAuth Session | User data, tokens |
-| Global UI | Context (`Providers.tsx`) | Theme, toasts |
+| State        | Storage                       | Usage                             |
+| ------------ | ----------------------------- | --------------------------------- |
+| Server State | TanStack Query + ISR          | Offers, products, shops, branches |
+| UI State     | React `useState`              | Modals, tabs, form inputs         |
+| Draft Data   | `localStorage` (`storage.ts`) | Offer drafts, poster stacks       |
+| Auth State   | NextAuth Session              | User data, tokens                 |
+| Global UI    | Context (`Providers.tsx`)     | Theme, toasts                     |
 
 ---
 
@@ -262,6 +265,7 @@ See `src/lib/posterTemplateSchema.ts` for full type definition.
 ### Customer-Facing
 
 #### 1. **Smart Homepage**
+
 - Featured shops carousel with infinite scroll
 - Curated offers grid with filtering
 - Category-based browsing
@@ -269,6 +273,7 @@ See `src/lib/posterTemplateSchema.ts` for full type definition.
 - Responsive design (mobile-first)
 
 #### 2. **Advanced Offer Discovery**
+
 - Keyword search
 - Filter by category, location, discount
 - Sort by popularity, date, distance
@@ -276,6 +281,7 @@ See `src/lib/posterTemplateSchema.ts` for full type definition.
 - Real-time updates via ISR
 
 #### 3. **Offer Details**
+
 - Full poster display
 - Shop information & branch locations
 - Valid date countdown
@@ -285,26 +291,30 @@ See `src/lib/posterTemplateSchema.ts` for full type definition.
 ### Merchant Dashboard
 
 #### 4. **Shop Management**
+
 - Register new shop
 - Add/update shop details
 - Upload logo & branding
 - Manage multiple branches
 
 #### 5. **Offer Lifecycle**
+
 - Create new offers (batch upload)
 - Classify poster products with AI assistance
-- Edit existing campaigns
+- Edit existing offers
 - Activate/pause offers
-- Delete campaigns
+- Delete offers
 - Preview before publishing
 
 #### 6. **Product Catalog**
+
 - View all products
 - Edit product details
 - Delete products
 - Category organization
 
 #### 7. **Visual Poster Designer**
+
 - Drag-and-drop canvas
 - 10+ pre-built templates
 - Customizable backgrounds, colors, fonts
@@ -315,6 +325,7 @@ See `src/lib/posterTemplateSchema.ts` for full type definition.
 - Save custom posters
 
 #### 8. **AI Studio**
+
 - Generate marketing taglines
 - Extract products from poster images (OCR + vision)
 - Suggest color palettes
@@ -326,29 +337,29 @@ See `src/lib/posterTemplateSchema.ts` for full type definition.
 
 ### Public Routes
 
-| Route | Component | Type | Description |
-|-------|-----------|------|-------------|
-| `/` | `page.tsx` | Server | Homepage with featured offers |
-| `/offers` | `offers/page.tsx` | Hybrid | Browse all offers with filters |
-| `/offer/[id]` | `offer/[id]/page.tsx` | Server | Single offer detail |
-| `/products` | `products/page.tsx` | Hybrid | Browse all products |
-| `/login` | `login/page.tsx` | Client | Authentication |
-| `/forgot-password` | `forgot-password/page.tsx` | Client | Password reset request |
-| `/shop-registration` | `shop-registration/page.tsx` | Client | Shop signup |
+| Route                | Component                    | Type   | Description                    |
+| -------------------- | ---------------------------- | ------ | ------------------------------ |
+| `/`                  | `page.tsx`                   | Server | Homepage with featured offers  |
+| `/offers`            | `offers/page.tsx`            | Hybrid | Browse all offers with filters |
+| `/offer/[id]`        | `offer/[id]/page.tsx`        | Server | Single offer detail            |
+| `/products`          | `products/page.tsx`          | Hybrid | Browse all products            |
+| `/login`             | `login/page.tsx`             | Client | Authentication                 |
+| `/forgot-password`   | `forgot-password/page.tsx`   | Client | Password reset request         |
+| `/shop-registration` | `shop-registration/page.tsx` | Client | Shop signup                    |
 
 ### Merchant Routes (Protected)
 
-| Route | Component | Description |
-|-------|-----------|-------------|
-| `/shop-manager` | `page.tsx` | Main dashboard |
-| `/shop-manager/create-offer` | `page.tsx` | Upload & classify posters |
-| `/shop-manager/create-offer/editor` | `editor/page.tsx` | Mark products on poster |
-| `/shop-manager/edit-offer/[id]` | `[id]/page.tsx` | Edit existing offer |
-| `/shop-manager/poster-designer` | `poster-designer/page.tsx` | Visual designer |
-| `/shop-manager/shop-settings` | `shop-settings/page.tsx` | Shop profile |
-| `/shop-manager/add-shop` | `add-shop/page.tsx` | Register new shop |
-| `/shop-manager/[shopId]/branches` | `[shopId]/branches/page.tsx` | Branch listing |
-| `/shop-manager/[shopId]/add-branch` | `[shopId]/add-branch/page.tsx` | Add branch |
+| Route                               | Component                      | Description               |
+| ----------------------------------- | ------------------------------ | ------------------------- |
+| `/shop-manager`                     | `page.tsx`                     | Main dashboard            |
+| `/shop-manager/create-offer`        | `page.tsx`                     | Upload & classify posters |
+| `/shop-manager/create-offer/editor` | `editor/page.tsx`              | Mark products on poster   |
+| `/shop-manager/edit-offer/[id]`     | `[id]/page.tsx`                | Edit existing offer       |
+| `/shop-manager/poster-designer`     | `poster-designer/page.tsx`     | Visual designer           |
+| `/shop-manager/shop-settings`       | `shop-settings/page.tsx`       | Shop profile              |
+| `/shop-manager/add-shop`            | `add-shop/page.tsx`            | Register new shop         |
+| `/shop-manager/[shopId]/branches`   | `[shopId]/branches/page.tsx`   | Branch listing            |
+| `/shop-manager/[shopId]/add-branch` | `[shopId]/add-branch/page.tsx` | Add branch                |
 
 ### API Routes
 
@@ -374,65 +385,65 @@ All components follow the **Compound Component** and **Headless UI** patterns wh
 
 Reusable UI building blocks:
 
-| Component | Purpose | Props |
-|-----------|---------|-------|
-| `PremiumCard` | Styled card container | `variant`, `padding`, `className` |
-| `PremiumButton` | Branded button | `variant`, `size`, `icon` |
-| `PremiumInput` | Styled input | `label`, `icon`, `error` |
-| `PremiumDatePicker` | Date range picker | `label`, `date`, `setDate` |
-| `AppModal` | Generic modal | `open`, `onOpenChange`, `title` |
-| `ImagePreviewModal` | Image lightbox | `src`, `isOpen`, `onClose` |
-| `SearchableSelect` | Single-select dropdown | `options`, `value`, `onChange` |
-| `MultiSearchableSelect` | Multi-select dropdown | `options`, `selectedValues`, `onChange` |
-| `StatusToggleButton` | Active/pause toggle | `status`, `onChange` |
-| `FileUpload` | Drag & drop upload | `onUpload`, `accept`, `multiple` |
-| `Breadcrumbs` | Navigation breadcrumb | `items` |
-| `Typography` | Styled text (Heading, Text, Subheading) | `as`, `className`, `children` |
+| Component               | Purpose                                 | Props                                   |
+| ----------------------- | --------------------------------------- | --------------------------------------- |
+| `PremiumCard`           | Styled card container                   | `variant`, `padding`, `className`       |
+| `PremiumButton`         | Branded button                          | `variant`, `size`, `icon`               |
+| `PremiumInput`          | Styled input                            | `label`, `icon`, `error`                |
+| `PremiumDatePicker`     | Date range picker                       | `label`, `date`, `setDate`              |
+| `AppModal`              | Generic modal                           | `open`, `onOpenChange`, `title`         |
+| `ImagePreviewModal`     | Image lightbox                          | `src`, `isOpen`, `onClose`              |
+| `SearchableSelect`      | Single-select dropdown                  | `options`, `value`, `onChange`          |
+| `MultiSearchableSelect` | Multi-select dropdown                   | `options`, `selectedValues`, `onChange` |
+| `StatusToggleButton`    | Active/pause toggle                     | `status`, `onChange`                    |
+| `FileUpload`            | Drag & drop upload                      | `onUpload`, `accept`, `multiple`        |
+| `Breadcrumbs`           | Navigation breadcrumb                   | `items`                                 |
+| `Typography`            | Styled text (Heading, Text, Subheading) | `as`, `className`, `children`           |
 
 #### **Homepage Components** (`src/components/home/`)
 
-| Component | Purpose |
-|-----------|---------|
-| `FeaturedCarousel` | Horizontal scroll of featured shops |
-| `FeaturedOffers` | Spotlight offers grid |
-| `OfferGrid` | Main offers display with lazy loading |
-| `FilterPanel` | Search & filter controls |
-| `ShopRegistrationSection` | CTA for shop owners |
+| Component                 | Purpose                               |
+| ------------------------- | ------------------------------------- |
+| `FeaturedCarousel`        | Horizontal scroll of featured shops   |
+| `FeaturedOffers`          | Spotlight offers grid                 |
+| `OfferGrid`               | Main offers display with lazy loading |
+| `FilterPanel`             | Search & filter controls              |
+| `ShopRegistrationSection` | CTA for shop owners                   |
 
 #### **Shop Manager Components** (`src/components/shop-manager/`)
 
-| Component | Purpose |
-|-----------|---------|
-| `PosterCardStack` | Poster upload & classification UI |
-| `PosterDesigner` | Advanced visual canvas editor |
-| `PosterTemplateSelector` | Template gallery modal |
-| `TemplateThumbnail` | Dynamic template preview |
-| `PosterPreviewPanel` | Poster carousel with marking controls |
-| `HotspotEditor` | Visual product marking on poster |
-| `CreateOfferForm` | Offer metadata form |
-| `AddShopForm` | Shop registration form |
-| `AddBranchForm` | Branch creation form |
-| `ShopSettingsForm` | Shop profile update |
-| `BranchListPage` | Branch management table |
-| `MarkedPoster` | Marked poster display |
-| `PosterOrderGrid` | Poster ordering interface |
+| Component                | Purpose                               |
+| ------------------------ | ------------------------------------- |
+| `PosterCardStack`        | Poster upload & classification UI     |
+| `PosterDesigner`         | Advanced visual canvas editor         |
+| `PosterTemplateSelector` | Template gallery modal                |
+| `TemplateThumbnail`      | Dynamic template preview              |
+| `PosterPreviewPanel`     | Poster carousel with marking controls |
+| `HotspotEditor`          | Visual product marking on poster      |
+| `CreateOfferForm`        | Offer metadata form                   |
+| `AddShopForm`            | Shop registration form                |
+| `AddBranchForm`          | Branch creation form                  |
+| `ShopSettingsForm`       | Shop profile update                   |
+| `BranchListPage`         | Branch management table               |
+| `MarkedPoster`           | Marked poster display                 |
+| `PosterOrderGrid`        | Poster ordering interface             |
 
 #### **Product & Offer Components**
 
-| Component | Purpose |
-|-----------|---------|
-| `OfferCard` | Single offer display card |
-| `OffersClient` | Offers page client logic |
-| `OfferDetailClient` | Offer detail page logic |
-| `ProductCard` | Single product display |
-| `ProductGrid` | Product listing grid |
-| `ProductsClient` | Products page client |
+| Component           | Purpose                   |
+| ------------------- | ------------------------- |
+| `OfferCard`         | Single offer display card |
+| `OffersClient`      | Offers page client logic  |
+| `OfferDetailClient` | Offer detail page logic   |
+| `ProductCard`       | Single product display    |
+| `ProductGrid`       | Product listing grid      |
+| `ProductsClient`    | Products page client      |
 
 #### **Layout Components** (`src/components/layout/`)
 
-| Component | Purpose |
-|-----------|---------|
-| `Header` | Main site header |
+| Component           | Purpose                             |
+| ------------------- | ----------------------------------- |
+| `Header`            | Main site header                    |
 | `ConditionalHeader` | Header that hides on merchant pages |
 
 ---
@@ -448,10 +459,12 @@ Proxy routes forward requests to the upstream API with authentication automatica
 **Authentication**: Required for most routes (except public paths like login/register)
 
 **Headers Automatically Added**:
+
 - `Authorization: Bearer <jwt_token>`
 - `shopId: <current_shop_id>`
 
 **Public Paths** (no auth required):
+
 - `business/auth/login`
 - `business/auth/register`
 
@@ -459,11 +472,11 @@ Proxy routes forward requests to the upstream API with authentication automatica
 
 ```typescript
 // Client-side code
-import { backend } from '@/lib/api/backendClient';
+import { backend } from "@/lib/api/backendClient";
 
-const response = await backend.post<Shop>('/business/shop/my-shops');
+const response = await backend.post<Shop>("/business/shop/my-shops");
 if (response.success) {
-    console.log(response.data);
+  console.log(response.data);
 }
 ```
 
@@ -471,12 +484,13 @@ if (response.success) {
 
 #### Authentication (`/business/auth/`)
 
-| Method | Endpoint | Body | Response | Description |
-|--------|----------|------|----------|-------------|
+| Method | Endpoint    | Body                  | Response        | Description       |
+| ------ | ----------- | --------------------- | --------------- | ----------------- |
 | `POST` | `/register` | `RegisterShopRequest` | `LoginResponse` | Register new shop |
-| `POST` | `/login` | `LoginShopRequest` | `LoginResponse` | Authenticate user |
+| `POST` | `/login`    | `LoginShopRequest`    | `LoginResponse` | Authenticate user |
 
 **LoginResponse**:
+
 ```typescript
 {
   status: "success";
@@ -486,42 +500,43 @@ if (response.success) {
     email: string;
     business_name: string;
     token: string;
-  };
+  }
 }
 ```
 
 #### Shops (`/business/shop/`)
 
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| `GET` | `/my-shops` | Required | Get all shops for current user |
-| `GET` | `/:id` | Required | Get single shop details |
-| `POST` | `/` | Required | Create new shop |
-| `PUT` | `/:id` | Required | Update shop |
-| `DELETE` | `/:id` | Required | Delete shop |
+| Method   | Endpoint    | Auth     | Description                    |
+| -------- | ----------- | -------- | ------------------------------ |
+| `GET`    | `/my-shops` | Required | Get all shops for current user |
+| `GET`    | `/:id`      | Required | Get single shop details        |
+| `POST`   | `/`         | Required | Create new shop                |
+| `PUT`    | `/:id`      | Required | Update shop                    |
+| `DELETE` | `/:id`      | Required | Delete shop                    |
 
 #### Branches (`/business/shop/:shopId/branches`)
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/` | List all branches for shop |
-| `GET` | `/:id` | Get single branch |
-| `POST` | `/` | Create branch |
-| `PUT` | `/:id` | Update branch |
-| `DELETE` | `/:id` | Delete branch |
+| Method   | Endpoint | Description                |
+| -------- | -------- | -------------------------- |
+| `GET`    | `/`      | List all branches for shop |
+| `GET`    | `/:id`   | Get single branch          |
+| `POST`   | `/`      | Create branch              |
+| `PUT`    | `/:id`   | Update branch              |
+| `DELETE` | `/:id`   | Delete branch              |
 
 #### Offers (`/business/offer/`)
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/` | Get all offers (merchant's) |
-| `GET` | `/:id` | Get single offer |
-| `POST` | `/` | Create new offer (batch) |
-| `PUT` | `/:id` | Update offer |
-| `DELETE` | `/:id` | Delete offer |
-| `PATCH` | `/inactivate/:id` | Toggle active/paused |
+| Method   | Endpoint          | Description                 |
+| -------- | ----------------- | --------------------------- |
+| `GET`    | `/`               | Get all offers (merchant's) |
+| `GET`    | `/:id`            | Get single offer            |
+| `POST`   | `/`               | Create new offer (batch)    |
+| `PUT`    | `/:id`            | Update offer                |
+| `DELETE` | `/:id`            | Delete offer                |
+| `PATCH`  | `/inactivate/:id` | Toggle active/paused        |
 
 **Offer Payload** (`OfferPayload`):
+
 ```typescript
 {
   batchId: string;
@@ -540,6 +555,7 @@ if (response.success) {
 ```
 
 **Poster**:
+
 ```typescript
 {
   id: string;
@@ -551,19 +567,19 @@ if (response.success) {
 
 #### User Offers (`/user/offer/`)
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/` | Public offers feed |
-| `GET` | `/featured` | Featured offers |
-| `GET` | `/paginated?page=X&limit=Y` | Paginated results |
+| Method | Endpoint                    | Description        |
+| ------ | --------------------------- | ------------------ |
+| `GET`  | `/`                         | Public offers feed |
+| `GET`  | `/featured`                 | Featured offers    |
+| `GET`  | `/paginated?page=X&limit=Y` | Paginated results  |
 
 #### Images (`/business/image/`)
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/upload` | Upload image to S3 |
-| `GET` | `/` | List uploaded images |
-| `DELETE` | `/` | Delete image (JSON body: `{ url: string }`) |
+| Method   | Endpoint  | Description                                 |
+| -------- | --------- | ------------------------------------------- |
+| `POST`   | `/upload` | Upload image to S3                          |
+| `GET`    | `/`       | List uploaded images                        |
+| `DELETE` | `/`       | Delete image (JSON body: `{ url: string }`) |
 
 ### AI Endpoints
 
@@ -572,6 +588,7 @@ if (response.success) {
 Generates marketing content using OpenRouter with fallback to HuggingFace.
 
 **Request**:
+
 ```json
 {
   "type": "taglines" | "palette",
@@ -583,6 +600,7 @@ Generates marketing content using OpenRouter with fallback to HuggingFace.
 ```
 
 **Response**:
+
 ```json
 {
   "content": "Generated text content"
@@ -594,6 +612,7 @@ Generates marketing content using OpenRouter with fallback to HuggingFace.
 Extracts structured product data from poster images.
 
 **Request**:
+
 ```json
 {
   "text": "Optional OCR pre-extracted text",
@@ -603,6 +622,7 @@ Extracts structured product data from poster images.
 ```
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -617,6 +637,7 @@ Extracts structured product data from poster images.
 ```
 
 **Available Roles**:
+
 - `product_extraction` - Extract product details from image
 
 #### `/api/chat` - Chat Assistant
@@ -624,15 +645,15 @@ Extracts structured product data from poster images.
 Interactive chat with AI assistant for customer support.
 
 **Request**:
+
 ```json
 {
-  "messages": [
-    { "role": "user", "content": "Hello" }
-  ]
+  "messages": [{ "role": "user", "content": "Hello" }]
 }
 ```
 
 **Response**:
+
 ```json
 {
   "content": "AI response",
@@ -703,21 +724,21 @@ interface Offer {
   description?: string;
   status?: "active" | "paused" | "expired";
   isActive: boolean;
-  
+
   // Timing
   validFrom?: string;
   validTo?: string;
   createdAt?: string;
   lastEdited?: string;
-  
+
   // Classification
   branchIds?: (number | string)[];
   branchNames?: string[];
   branchCity?: string;
-  
+
   // Media
   posters?: Poster[];
-  
+
   // Metadata
   batchId?: string;
   isFeatured?: boolean;
@@ -737,7 +758,7 @@ interface Poster {
 
 interface MarkedItem {
   id: string;
-  x: number;         // Position on poster (0-100 %)
+  x: number; // Position on poster (0-100 %)
   y: number;
   width: number;
   height: number;
@@ -899,11 +920,13 @@ AWS_S3_BUCKET="..."
 ### Local Development Setup
 
 1. Copy the example env file (if provided):
+
    ```bash
    cp .env.example .env.local
    ```
 
 2. Fill in required values. For quick local testing:
+
    ```env
    NEXTAUTH_SECRET="dev-secret-that-is-at-least-32-characters-long"
    UPSTREAM_API_BASE_URL="https://offersnearu.vercel.app/api"
@@ -919,6 +942,7 @@ AWS_S3_BUCKET="..."
 ### `backendClient.ts` - Centralized API Client
 
 Abstracts all HTTP calls with:
+
 - Environment-aware URL resolution
 - Token injection from NextAuth session
 - Payload sanitization (XSS prevention)
@@ -927,44 +951,47 @@ Abstracts all HTTP calls with:
 - Request/response logging
 
 Usage:
+
 ```typescript
-import { backend } from '@/lib/api/backendClient';
+import { backend } from "@/lib/api/backendClient";
 
 // GET
-const res = await backend.get<User>('/business/shop/my-shops');
+const res = await backend.get<User>("/business/shop/my-shops");
 
 // POST with body
-const res = await backend.post<Offer>('/business/offer', offerPayload);
+const res = await backend.post<Offer>("/business/offer", offerPayload);
 
 // With Zod schema validation
 const res = await backend.get<Shop[]>(
-  '/business/shop/my-shops',
-  {}, 
-  z.array(ShopSchema)
+  "/business/shop/my-shops",
+  {},
+  z.array(ShopSchema),
 );
 ```
 
 ### `storage.ts` - LocalStorage Abstraction
 
 Type-safe localStorage wrapper with:
+
 - JSON serialization/deserialization
 - Automatic error handling
 - Expiry support (if needed)
 
 ```typescript
-import { storage } from '@/lib/storage';
+import { storage } from "@/lib/storage";
 
 // Set item
-await storage.setItem('offerDrafts', drafts);
+await storage.setItem("offerDrafts", drafts);
 
 // Get item
-const drafts = await storage.getItem<Draft[]>('offerDrafts');
+const drafts = await storage.getItem<Draft[]>("offerDrafts");
 
 // Remove item
-storage.removeItem('key');
+storage.removeItem("key");
 ```
 
 Stored keys used in app:
+
 - `markedPosters` - Published offers
 - `currentEditingPoster` - Current draft
 - `offerDrafts` - Saved drafts
@@ -973,6 +1000,7 @@ Stored keys used in app:
 ### `posterTemplates.ts` - Template Registry
 
 JSON-driven poster template definitions:
+
 - 15+ pre-built templates across categories: retail, food, tech, fashion, general
 - Each template defines canvas config, fonts, colors, grid layout
 - Used by `TemplateThumbnail` for preview rendering
@@ -981,6 +1009,7 @@ JSON-driven poster template definitions:
 ### `designPresets.ts` - Design Tokens
 
 Contains:
+
 - Premium gradient palettes (18 curated)
 - Aspect ratio presets (A4, Instagram, Story, Banner)
 - Google Fonts list
@@ -993,14 +1022,15 @@ Contains:
 
 ### ISR (Incremental Static Regeneration)
 
-| Page | Revalidate Interval |
-|------|---------------------|
-| Homepage (`/`) | 300s (5 min) |
-| Offers listing (`/offers`) | 300s |
+| Page                         | Revalidate Interval          |
+| ---------------------------- | ---------------------------- |
+| Homepage (`/`)               | 300s (5 min)                 |
+| Offers listing (`/offers`)   | 300s                         |
 | Offer detail (`/offer/[id]`) | On-demand via revalidate tag |
-| Products (`/products`) | 300s |
+| Products (`/products`)       | 300s                         |
 
 **Manual Revalidation Trigger**:
+
 ```bash
 curl -X POST \
   "https://your-domain.com/api/revalidate?secret=${REVALIDATION_SECRET}&path=/offers"
@@ -1016,6 +1046,7 @@ curl -X POST \
 ### Caching Strategy
 
 TanStack Query default config (`providers.tsx`):
+
 ```typescript
 {
   staleTime: 5 * 60 * 1000,    // 5 minutes
@@ -1046,6 +1077,7 @@ TanStack Query default config (`providers.tsx`):
 ### Payload Sanitization
 
 All POST/PUT/PATCH requests are sanitized before sending to backend via `sanitizePayload()`:
+
 - Strips HTML tags from strings
 - Removes script elements recursively
 - Prevents XSS in user-generated content
@@ -1059,12 +1091,14 @@ All POST/PUT/PATCH requests are sanitized before sending to backend via `sanitiz
 ### Rate Limiting
 
 Applied on AI endpoints (`/api/ai`, `/api/ai/vision`, `/api/chat`):
+
 - 10 requests per minute per IP
 - In-memory storage (replace with Redis in production)
 
 ### CSRF Protection
 
 NextAuth's built-in CSRF token validation:
+
 - Origin & referer checking in auth route
 - Vercel preview deployment allowances
 
@@ -1122,6 +1156,7 @@ pnpm test:coverage
 4. Deploy
 
 **Automatic optimizations**:
+
 - Edge caching for ISR pages
 - Image optimization
 - SSL/TLS
@@ -1231,6 +1266,7 @@ hotfix/*      → Urgent production fixes
 ## Support
 
 For questions or issues:
+
 - **GitHub Issues**: Report bugs & feature requests
 - **Documentation**: See inline JSDoc comments in complex files
 - **Architecture Diagram**: See `ARCHITECTURE.md` if separate
