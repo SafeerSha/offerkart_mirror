@@ -211,9 +211,11 @@ function ShopProductsContent() {
             setAccumulatedProducts(rawList);
         } else if (rawList.length > 0) {
             setAccumulatedProducts((prev) => {
-                const existingIds = new Set(prev.map((item) => String(item.id || item.productId)));
-                const newItems = rawList.filter((item: any) => !existingIds.has(String(item.id || item.productId)));
-                return [...prev, ...newItems];
+                const map = new Map(prev.map((item) => [String(item.id || item.productId), item]));
+                rawList.forEach((item: any) => {
+                    map.set(String(item.id || item.productId), item);
+                });
+                return Array.from(map.values());
             });
         }
     }, [productsData, currentPage]);
@@ -307,15 +309,32 @@ function ShopProductsContent() {
     };
 
     const handleToggleProductStatus = async (product: any) => {
+        const targetId = String(product.id);
+        const oldStatus = product.status || 'active';
+        const nextStatus = oldStatus === 'active' ? 'inactive' : 'active';
+
+        // Optimistically update local accumulated products state
+        setAccumulatedProducts((prev) =>
+            prev.map((p) =>
+                String(p.id) === targetId ? { ...p, status: nextStatus, isActive: nextStatus === 'active' } : p
+            )
+        );
+
         try {
             const res = await toggleProductStatusMutation({ id: product.id, shopId: activeShopId || undefined });
             if (res.success) {
-                toast.success(`Product ${product.status === 'active' ? 'paused' : 'activated'} successfully`);
+                toast.success(`Product ${nextStatus === 'active' ? 'activated' : 'paused'} successfully`);
             } else {
                 throw new Error("Failed to toggle product status");
             }
         } catch (err: any) {
             console.error("Toggle product status error:", err);
+            // Rollback local state on error
+            setAccumulatedProducts((prev) =>
+                prev.map((p) =>
+                    String(p.id) === targetId ? { ...p, status: oldStatus, isActive: oldStatus === 'active' } : p
+                )
+            );
             toast.error(`Failed to update product status: ${err.message}`);
         }
     };
@@ -617,12 +636,12 @@ function ShopProductsContent() {
                     </div>
                 </div>
 
-                <div className="flex items-center justify-between text-xs font-semibold text-gray-500 mb-4 px-1">
+                <div className="flex items-center justify-between text-xs font-semibold text-gray-500 mb-1 px-1">
                     <span className="flex items-center gap-1.5">
                         <span>Showing</span>
-                        <span className="px-2 py-0.5 rounded-md bg-orange-500/10 text-orange-600 font-extrabold text-xs inline-flex items-center justify-center min-w-[24px] min-h-[22px]">
+                        <span className="px-1 py-0.5 rounded-md bg-orange-500/10 text-orange-600 font-extrabold text-xs inline-flex items-center justify-center min-w-[24px] min-h-[22px]">
                             {isLoadingProducts || isFetchingProducts ? (
-                                <Loader2 className="w-3 h-3 text-orange-500 animate-spin" />
+                                <Loader2 className="w-2.5 h-2.5 text-orange-500 animate-spin" />
                             ) : (
                                 filteredProducts.length
                             )}
@@ -634,7 +653,7 @@ function ShopProductsContent() {
                 </div>
 
                 {isLoadingProducts ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
                         {[1, 2, 3, 4, 5, 6].map((i) => (
                             <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-white border border-gray-50 animate-pulse shadow-sm">
                                 <div className="w-16 h-16 rounded-lg bg-gray-100 shrink-0" />
@@ -721,185 +740,178 @@ function ShopProductsContent() {
 
                         {filteredProducts.length > 0 ? (
                             <>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 sm:gap-3">
-                                {filteredProducts.map((product: any) => {
-                                    const id = String(product.id);
-                                    const productImage = product.image || product.imageUrl;
-                                    const isSelected = selectedProducts.has(id);
-                                    return (
-                                        <div
-                                            key={id}
-                                            className="relative"
-                                            onClick={(e) => {
-                                                if (isBulkMode && !product.isDraft) {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    handleSelectProduct(id);
-                                                }
-                                            }}
-                                        >
-                                            <SwipeableCard
-                                                onEdit={() => handleEditProduct(product)}
-                                                onDelete={() => setProductToDelete(product)}
-                                                editTitle="Edit"
-                                                deleteTitle="Delete"
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
+                                    {filteredProducts.map((product: any) => {
+                                        const id = String(product.id);
+                                        const productImage = product.image || product.imageUrl;
+                                        const isSelected = selectedProducts.has(id);
+                                        return (
+                                            <div
+                                                key={id}
+                                                className="relative"
+                                                onClick={(e) => {
+                                                    if (isBulkMode && !product.isDraft) {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        handleSelectProduct(id);
+                                                    }
+                                                }}
                                             >
-                                                <div className="group relative flex items-start gap-3 p-3 rounded-xl bg-white border border-gray-100 hover:border-primary/20 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 overflow-hidden shadow-sm">
-                                                    <div
-                                                        className={`group/img relative w-16 h-16 rounded-lg bg-white overflow-hidden shrink-0 border border-gray-100 shadow-sm z-10 transition-all duration-300 ${productImage ? 'cursor-pointer active:scale-95' : ''}`}
-                                                        onClick={(e) => {
-                                                            if (productImage) {
-                                                                e.preventDefault();
-                                                                e.stopPropagation();
-                                                                setPreviewLogo({ src: productImage, name: product.name || "Product Preview" });
-                                                            }
-                                                        }}
-                                                        title={productImage ? "View large image" : undefined}
-                                                    >
-                                                        {productImage ? (
-                                                            <>
-                                                                <Image src={productImage} alt={product.name} fill unoptimized className="object-cover group-hover:scale-110 transition-transform duration-500" />
-                                                                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-[1px]">
-                                                                    <div className="bg-white/90 p-1.5 rounded-full shadow-lg scale-75 group-hover/img:scale-100 transition-transform duration-300">
-                                                                        <Eye className="w-4 h-4 text-primary" />
+                                                <SwipeableCard
+                                                    onEdit={() => handleEditProduct(product)}
+                                                    onDelete={() => setProductToDelete(product)}
+                                                    editTitle="Edit"
+                                                    deleteTitle="Delete"
+                                                >
+                                                    <div className="group relative flex items-start gap-3 p-3 rounded-xl bg-white border border-gray-100 hover:border-primary/20 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 overflow-hidden shadow-sm">
+                                                        <div
+                                                            className={`group/img relative w-16 h-16 rounded-lg bg-white overflow-hidden shrink-0 border border-gray-100 shadow-sm z-10 transition-all duration-300 ${productImage ? 'cursor-pointer active:scale-95' : ''}`}
+                                                            onClick={(e) => {
+                                                                if (productImage) {
+                                                                    e.preventDefault();
+                                                                    e.stopPropagation();
+                                                                    setPreviewLogo({ src: productImage, name: product.name || "Product Preview" });
+                                                                }
+                                                            }}
+                                                            title={productImage ? "View large image" : undefined}
+                                                        >
+                                                            {productImage ? (
+                                                                <>
+                                                                    <Image src={productImage} alt={product.name} fill unoptimized className="object-cover group-hover:scale-110 transition-transform duration-500" />
+                                                                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-[1px]">
+                                                                        <div className="bg-white/90 p-1.5 rounded-full shadow-lg scale-75 group-hover/img:scale-100 transition-transform duration-300">
+                                                                            <Eye className="w-4 h-4 text-primary" />
+                                                                        </div>
+                                                                    </div>
+                                                                </>
+                                                            ) : (
+                                                                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-primary/5 group-hover/img:from-orange-500/15 group-hover/img:via-amber-500/10 transition-all duration-300">
+                                                                    <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-white/80 shadow-[0_4px_12px_rgba(249,115,22,0.08)] border border-orange-100/50 group-hover/img:scale-110 group-hover/img:shadow-[0_6px_16px_rgba(249,115,22,0.12)] transition-all duration-300">
+                                                                        <ShoppingBag className="w-4.5 h-4.5 text-orange-500/85 group-hover:text-primary transition-colors group-hover/img:scale-110 transition-transform duration-300" />
                                                                     </div>
                                                                 </div>
-                                                            </>
-                                                        ) : (
-                                                            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-primary/5 group-hover/img:from-orange-500/15 group-hover/img:via-amber-500/10 transition-all duration-300">
-                                                                <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-white/80 shadow-[0_4px_12px_rgba(249,115,22,0.08)] border border-orange-100/50 group-hover/img:scale-110 group-hover/img:shadow-[0_6px_16px_rgba(249,115,22,0.12)] transition-all duration-300">
-                                                                    <ShoppingBag className="w-4.5 h-4.5 text-orange-500/85 group-hover:text-primary transition-colors group-hover/img:scale-110 transition-transform duration-300" />
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    <div className="min-w-0 flex-1 z-10 flex flex-col justify-center gap-1 self-stretch py-0.5">
-                                                        <div>
-                                                            <h4 className="font-black text-sm text-gray-900 truncate group-hover:text-primary transition-colors leading-tight">
-                                                                {product.name || "Untitled Product"}
-                                                            </h4>
-                                                            <div className="flex items-center gap-1.5 mt-0.5">
-                                                                <span className="text-[10px] font-bold text-orange-500 uppercase tracking-widest leading-none">
-                                                                    {product.category || "General"}
-                                                                </span>
-                                                                {product.isDraft && (
-                                                                    <span className="bg-amber-50 text-amber-700 border border-amber-200 px-1 py-0.2 rounded font-bold text-[8px] uppercase tracking-wider scale-90 origin-left shrink-0">
-                                                                        Draft
-                                                                    </span>
-                                                                )}
-                                                                {(() => {
-                                                                    if (!product.validTo) return null;
-                                                                    const expiryDate = new Date(product.validTo);
-                                                                    const today = new Date();
-                                                                    today.setHours(0, 0, 0, 0);
-                                                                    if (expiryDate < today) {
-                                                                        return (
-                                                                            <span className="bg-rose-50 text-rose-700 border border-rose-200 px-1 py-0.2 rounded font-bold text-[8px] tracking-wider scale-90 origin-left shrink-0">
-                                                                                Expired
-                                                                            </span>
-                                                                        );
-                                                                    }
-                                                                    return null;
-                                                                })()}
-                                                            </div>
-                                                        </div>
-
-                                                        {(product.validFrom || (product.branchIds && product.branchIds.length > 0)) && (
-                                                            <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                                                                {product.validFrom && (
-                                                                    <span className="bg-gray-50 border border-gray-100 text-gray-600 px-2 py-0.5 rounded-md flex items-center gap-1 font-bold text-[9px] uppercase tracking-wide">
-                                                                        <Calendar className="w-3 h-3 text-gray-400 shrink-0" />
-                                                                        <span>
-                                                                            {new Date(product.validFrom).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}{product.validTo ? ` - ${new Date(product.validTo).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}` : " onwards"}
-                                                                        </span>
-                                                                    </span>
-                                                                )}
-                                                                {product.branchIds && product.branchIds.length > 0 && (
-                                                                    <span className="bg-primary/5 text-primary border border-primary/10 px-2 py-0.5 rounded-md font-bold text-[9px] uppercase tracking-wide flex items-center gap-1">
-                                                                        <GitBranch className="w-3 h-3 shrink-0" />
-                                                                        <span className="truncate max-w-[120px]">
-                                                                            {product.branchIds.length > 1 ? `${product.branchIds.length} branches` : (branchNameMap[String(product.branchIds[0])] || `Branch ${product.branchIds[0]}`)}
-                                                                        </span>
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    <div className="relative z-20 flex flex-col items-end justify-between self-stretch shrink-0 py-0.5">
-                                                        <div className="scale-75 origin-right">
-                                                            <StatusToggleButton
-                                                                status={product.status || 'active'}
-                                                                onChange={() => handleToggleProductStatus(product)}
-                                                            />
-                                                        </div>
-
-                                                        <div className="flex items-baseline gap-1 my-1">
-                                                            <span className="text-sm font-black text-gray-900 tracking-tighter leading-none">
-                                                                ₹{product.price}
-                                                            </span>
-                                                            {product.originalPrice && (
-                                                                <span className="text-[10px] text-red-500 line-through font-medium">
-                                                                    ₹{product.originalPrice}
-                                                                </span>
                                                             )}
                                                         </div>
 
-                                                        <div className="hidden sm:flex flex-row gap-1 items-center">
-                                                            <button onClick={() => handleEditProduct(product)} className="flex items-center justify-center p-2 rounded-xl bg-white border border-gray-100 text-gray-500 hover:text-primary hover:border-primary hover:bg-primary/5 transition-all shadow-sm cursor-pointer" title="Edit product"><Pencil className="w-3.5 h-3.5" /></button>
-                                                            <button onClick={() => setProductToDelete(product)} className="flex items-center justify-center p-2 rounded-xl bg-white border border-gray-100 text-gray-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all shadow-sm cursor-pointer" title="Delete product"><Trash2 className="w-3.5 h-3.5" /></button>
+                                                        <div className="min-w-0 flex-1 z-10 flex flex-col justify-center gap-1 self-stretch py-0.5">
+                                                            <div>
+                                                                <h4 className="font-black text-sm text-gray-900 truncate group-hover:text-primary transition-colors leading-tight">
+                                                                    {product.name || "Untitled Product"}
+                                                                </h4>
+                                                                <div className="flex items-center gap-1.5 mt-0.5">
+                                                                    <span className="text-[10px] font-bold text-orange-500 uppercase tracking-widest leading-none">
+                                                                        {product.category || "General"}
+                                                                    </span>
+                                                                    {product.isDraft && (
+                                                                        <span className="bg-amber-50 text-amber-700 border border-amber-200 px-1 py-0.2 rounded font-bold text-[8px] uppercase tracking-wider scale-90 origin-left shrink-0">
+                                                                            Draft
+                                                                        </span>
+                                                                    )}
+                                                                    {(() => {
+                                                                        if (!product.validTo) return null;
+                                                                        const expiryDate = new Date(product.validTo);
+                                                                        const today = new Date();
+                                                                        today.setHours(0, 0, 0, 0);
+                                                                        if (expiryDate < today) {
+                                                                            return (
+                                                                                <span className="bg-rose-50 text-rose-700 border border-rose-200 px-1 py-0.2 rounded font-bold text-[8px] tracking-wider scale-90 origin-left shrink-0">
+                                                                                    Expired
+                                                                                </span>
+                                                                            );
+                                                                        }
+                                                                        return null;
+                                                                    })()}
+                                                                </div>
+                                                            </div>
+
+                                                            {(product.validFrom || (product.branchIds && product.branchIds.length > 0)) && (
+                                                                <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                                                                    {product.validFrom && (
+                                                                        <span className="bg-gray-50 border border-gray-100 text-gray-600 px-2 py-0.5 rounded-md flex items-center gap-1 font-bold text-[9px] uppercase tracking-wide">
+                                                                            <Calendar className="w-3 h-3 text-gray-400 shrink-0" />
+                                                                            <span>
+                                                                                {new Date(product.validFrom).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}{product.validTo ? ` - ${new Date(product.validTo).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}` : " onwards"}
+                                                                            </span>
+                                                                        </span>
+                                                                    )}
+                                                                    {product.branchIds && product.branchIds.length > 0 && (
+                                                                        <span className="bg-primary/5 text-primary border border-primary/10 px-2 py-0.5 rounded-md font-bold text-[9px] uppercase tracking-wide flex items-center gap-1">
+                                                                            <GitBranch className="w-3 h-3 shrink-0" />
+                                                                            <span className="truncate max-w-[120px]">
+                                                                                {product.branchIds.length > 1 ? `${product.branchIds.length} branches` : (branchNameMap[String(product.branchIds[0])] || `Branch ${product.branchIds[0]}`)}
+                                                                            </span>
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="relative z-20 flex flex-col items-end justify-between self-stretch shrink-0 py-0.5">
+                                                            <div className="scale-75 origin-right">
+                                                                <StatusToggleButton
+                                                                    status={product.status || 'active'}
+                                                                    onChange={() => handleToggleProductStatus(product)}
+                                                                />
+                                                            </div>
+
+                                                            <div className="flex items-baseline gap-1 my-1">
+                                                                <span className="text-sm font-black text-gray-900 tracking-tighter leading-none">
+                                                                    ₹{product.price}
+                                                                </span>
+                                                                {product.originalPrice && (
+                                                                    <span className="text-[10px] text-red-500 line-through font-medium">
+                                                                        ₹{product.originalPrice}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+
+                                                            <div className="hidden sm:flex flex-row gap-1 items-center">
+                                                                <button onClick={() => handleEditProduct(product)} className="flex items-center justify-center px-2 py-1 rounded-lg bg-white border border-gray-100 text-gray-500 hover:text-primary hover:border-primary hover:bg-primary/5 transition-all shadow-sm cursor-pointer" title="Edit product"><Pencil className="w-3 h-3" /></button>
+                                                                <button onClick={() => setProductToDelete(product)} className="flex items-center justify-center px-2 py-1 rounded-lg bg-white border border-gray-100 text-gray-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 transition-all shadow-sm cursor-pointer" title="Delete product"><Trash2 className="w-3 h-3" /></button>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            </SwipeableCard>
-                                            {isBulkMode && product.isDraft && (
-                                                <div
-                                                    className="absolute top-2 left-2 z-20 w-5 h-5 rounded-md bg-gray-55 border border-gray-200 flex items-center justify-center cursor-not-allowed opacity-50"
-                                                    title="Drafts cannot be selected for bulk actions"
-                                                >
-                                                    <Check className="w-3 h-3 text-gray-400" />
-                                                </div>
-                                            )}
-                                            {isBulkMode && !product.isDraft && (
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleSelectProduct(id);
-                                                    }}
-                                                    className={cn(
-                                                        "absolute top-2 left-2 z-20 w-5 h-5 rounded-md border transition-all cursor-pointer flex items-center justify-center",
-                                                        isSelected
-                                                            ? "bg-orange-400 border-orange-400 animate-none"
-                                                            : "bg-white/90 backdrop-blur border-gray-255 hover:border-primary hover:bg-white shadow-sm animate-none"
-                                                    )}
-                                                    title={isSelected ? "Deselect" : "Select"}
-                                                >
-                                                    {isSelected && <Check className="w-4 h-4 text-white mx-auto" />}
-                                                </button>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                                                </SwipeableCard>
+                                                {isBulkMode && product.isDraft && (
+                                                    <div
+                                                        className="absolute top-2 left-2 z-20 w-5 h-5 rounded-md bg-gray-55 border border-gray-200 flex items-center justify-center cursor-not-allowed opacity-50"
+                                                        title="Drafts cannot be selected for bulk actions"
+                                                    >
+                                                        <Check className="w-3 h-3 text-gray-400" />
+                                                    </div>
+                                                )}
+                                                {isBulkMode && !product.isDraft && (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleSelectProduct(id);
+                                                        }}
+                                                        className={cn(
+                                                            "absolute top-2 left-2 z-20 w-5 h-5 rounded-md border transition-all cursor-pointer flex items-center justify-center",
+                                                            isSelected
+                                                                ? "bg-orange-400 border-orange-400 animate-none"
+                                                                : "bg-white/90 backdrop-blur border-gray-255 hover:border-primary hover:bg-white shadow-sm animate-none"
+                                                        )}
+                                                        title={isSelected ? "Deselect" : "Select"}
+                                                    >
+                                                        {isSelected && <Check className="w-4 h-4 text-white mx-auto" />}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
 
-                            {/* Scroll trigger for infinite scroll loading */}
-                            <div id="scroll-trigger" ref={observerTargetRef} className="w-full py-8 flex flex-col items-center justify-center mt-4">
-                                {isFetchingProducts && currentPage > 1 && (
-                                    <div className="flex items-center gap-2 text-xs font-bold text-orange-500 animate-pulse">
-                                        <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping" />
-                                        <span>Loading more products...</span>
-                                    </div>
-                                )}
-                                {!hasMore && !isFetchingProducts && filteredProducts.length > 0 && (
-                                    <div className="text-center py-2">
-                                        <span className="text-xs text-gray-400 font-medium">
-                                            You've reached the end of your products ({filteredProducts.length} total)
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
-                        </>
+                                {/* Scroll trigger for infinite scroll loading */}
+                                <div id="scroll-trigger" ref={observerTargetRef} className="w-full py-8 flex flex-col items-center justify-center mt-4">
+                                    {isFetchingProducts && currentPage > 1 && (
+                                        <div className="flex items-center gap-2 text-xs font-bold text-orange-500 animate-pulse">
+                                            <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping" />
+                                            <span>Loading more products...</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </>
                         ) : (
                             <div className="p-12 flex flex-col items-center justify-center bg-white border border-gray-100 rounded-3xl text-center shadow-sm max-w-xl mx-auto">
                                 <div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center mb-4">

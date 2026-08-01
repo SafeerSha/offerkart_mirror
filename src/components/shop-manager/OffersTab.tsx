@@ -189,7 +189,7 @@ export function OffersTab({
                                         </div>
 
                                         <div className="flex items-baseline gap-1 my-1 text-[8px] font-semibold text-slate-400">
-                                            <Clock className="w-2.5 h-2.5 shrink-0" />
+                                            <Clock className="w-2 h-2 shrink-0" />
                                             <span>{getRelativeTime(offer.createdAt || offer.validFrom) ? getRelativeTime(offer.createdAt || offer.validFrom) : "Active"}</span>
                                         </div>
 

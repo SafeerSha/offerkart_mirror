@@ -7,7 +7,7 @@ export {
   useDeleteOffer, useToggleOfferStatus, useCreateProduct,
   useUpdateProduct, useDeleteProduct, useToggleOfferProductStatus,
   useCategories, useSubcategories, useProductDetails,
-  useDashboardAnalytics
+  useDashboardAnalytics, useOfferViewsAnalytics, useProductViewsAnalytics
 } from './useApi';
 export { useIsMobile } from './use-mobile';
 export { useCategoryHierarchy } from './useCategoryHierarchy';

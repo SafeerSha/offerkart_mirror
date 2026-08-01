@@ -97,7 +97,6 @@ function DashboardContent() {
     useEffect(() => {
         if (!activeShopId) return;
         queryClient.invalidateQueries({ queryKey: queryKeys.allOffers(activeShopId) });
-        queryClient.invalidateQueries({ queryKey: queryKeys.myShops });
         queryClient.invalidateQueries({ queryKey: queryKeys.allProducts(activeShopId) });
         queryClient.invalidateQueries({ queryKey: queryKeys.branches(activeShopId) });
     }, [activeShopId, queryClient]);
@@ -679,7 +678,7 @@ function DashboardContent() {
                                     <div className="grid grid-cols-3 gap-2.5">
                                         <ActionButton icon={Settings} label="Business" href="/shop-manager/shop-settings" variant="grid" />
                                         <ActionButton icon={Paintbrush} label="Designer" href="/shop-manager/poster-designer" variant="grid" />
-                                        <ActionButton icon={BarChart3} label="Analysis" variant="grid" />
+                                        <ActionButton icon={BarChart3} label="Analysis" href="/shop-manager/analytics" variant="grid" />
                                     </div>
                                 </div>
                             </PremiumCard>
@@ -994,17 +993,19 @@ function ViewsCard({ analytics, isLoading }: { analytics: any, isLoading?: boole
                 <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2 mb-0.5">
                         <h3 className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate flex items-center gap-1 mb-1">
-                            Audience Engagement
+                            Audience Engaged On
                         </h3>
                     </div>
                     <div className="flex items-center w-full">
-                        <div className="flex-1 flex items-center justify-start gap-1.5 sm:gap-2" title="Offers viewed">
-                            <Tag className="w-3.5 h-3.5 sm:w-4 h-4 text-primary/70 shrink-0" />
+                        <div className="flex-1 flex items-end justify-start gap-1.5 sm:gap-2" title="Offers viewed">
+                            <Tag className="md:hidden w-3.5 h-3.5 sm:w-4 h-4 text-primary/70 shrink-0" />
                             <span className="text-lg sm:text-[24px] font-black text-gray-900 tracking-tighter leading-none">{isLoading ? 0 : offerViews}</span>
+                            <span className="hidden md:inline text-xs font-semibold text-gray-500">Offers</span>
                         </div>
-                        <div className="flex-1 flex items-center justify-end sm:justify-center gap-1.5 sm:gap-2" title="Products viewed">
-                            <Package className="w-3.5 h-3.5 sm:w-4 h-4 text-primary/70 shrink-0" />
+                        <div className="flex-1 flex items-end justify-end sm:justify-center gap-1.5 sm:gap-2" title="Products viewed">
+                            <Package className="md:hidden w-3.5 h-3.5 sm:w-4 h-4 text-primary/70 shrink-0" />
                             <span className="text-lg sm:text-[24px] font-black text-gray-900 tracking-tighter leading-none">{isLoading ? 0 : productViews}</span>
+                            <span className="hidden md:inline text-xs font-semibold text-gray-500">Products</span>
                         </div>
                     </div>
                 </div>
