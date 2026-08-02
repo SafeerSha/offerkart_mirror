@@ -28,6 +28,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { useLocationContext } from "@/context/LocationContext";
 import { useSession } from "next-auth/react";
 import { config } from "@/lib/config";
+import { getVisitorId } from "@/lib/visitorId";
 
 interface OfferDetail {
     id: number | string;
@@ -186,13 +187,19 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers: 
         const trackOfferClick = async () => {
             if (!offer.id) return;
             try {
-                const bodyPayload: { offerId: number; userId?: number } = {
+                const bodyPayload: { offerId: number; userId?: number; visitorId?: string } = {
                     offerId: Number(offer.id),
                 };
 
                 // Add optional userId if logged in
                 if (session?.user?.id) {
                     bodyPayload.userId = Number(session.user.id);
+                }
+
+                // Add visitor ID for anonymous tracking
+                const visitorId = getVisitorId();
+                if (visitorId) {
+                    bodyPayload.visitorId = visitorId;
                 }
 
                 await fetch(`${config.api.upstreamBaseUrl}/user/analytics/offerclick`, {
@@ -536,7 +543,7 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers: 
                                             // Track product click analytics
                                             (async () => {
                                                 try {
-                                                    const bodyPayload: { offerProductId: number; offerId?: number; userId?: number } = {
+                                                    const bodyPayload: { offerProductId: number; offerId?: number; userId?: number; visitorId?: string } = {
                                                         offerProductId: Number(item.id),
                                                     };
                                                     if (offer.id) {
@@ -544,6 +551,10 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers: 
                                                     }
                                                     if (session?.user?.id) {
                                                         bodyPayload.userId = Number(session.user.id);
+                                                    }
+                                                    const visitorId = getVisitorId();
+                                                    if (visitorId) {
+                                                        bodyPayload.visitorId = visitorId;
                                                     }
 
                                                     await fetch(`${config.api.upstreamBaseUrl}/user/analytics/offerproductclick`, {
