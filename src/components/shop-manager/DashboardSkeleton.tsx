@@ -2,7 +2,7 @@
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { PremiumCard } from "@/components/shared";
-import { Tag, ShoppingBag, MousePointer2, Package, ChevronRight, Store, Plus } from "@/lib/icons";
+import { Tag, ShoppingBag, MousePointer2, ChevronRight } from "@/lib/icons";
 
 export function DashboardSkeleton() {
     return (
@@ -70,14 +70,12 @@ export function DashboardSkeleton() {
                                         <MousePointer2 className="w-5 h-5" />
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                        <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest truncate mb-1">Audience Engaged On</h3>
+                                        <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest truncate mb-0.5">Audience Engaged On</h3>
                                         <div className="flex items-center gap-3.5 sm:gap-5">
                                             <div className="flex items-center gap-1.5 sm:gap-2">
-                                                <Tag className="w-3.5 h-3.5 sm:w-4 h-4 text-primary/70 shrink-0" />
                                                 <span className="text-lg font-black text-gray-900 tracking-tighter leading-none">0</span>
                                             </div>
                                             <div className="flex items-center gap-1.5 sm:gap-2">
-                                                <Package className="w-3.5 h-3.5 sm:w-4 h-4 text-primary/70 shrink-0" />
                                                 <span className="text-lg font-black text-gray-900 tracking-tighter leading-none">0</span>
                                             </div>
                                         </div>
@@ -126,15 +124,13 @@ export function DashboardSkeleton() {
                                 <MousePointer2 className="w-4 h-4 sm:w-6 sm:h-6" />
                             </div>
                             <div className="min-w-0 flex-1">
-                                <h3 className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate flex items-center gap-1 mb-1">Audience Engaged On</h3>
+                                <h3 className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate flex items-center gap-1 mb-0.5">Audience Engaged On</h3>
                                 <div className="flex items-center gap-3.5 sm:gap-5">
-                                    <div className="flex items-center gap-1.5 sm:gap-2">
-                                        <Tag className="w-3.5 h-3.5 sm:w-4 h-4 text-primary/70 shrink-0" />
+                                    <div className="flex items-end gap-1.5 sm:gap-2">
                                         <span className="text-lg sm:text-[24px] font-black text-gray-900 tracking-tighter leading-none">0</span>
                                         <span className="hidden md:inline text-xs font-semibold text-gray-500">Offers</span>
                                     </div>
-                                    <div className="flex items-center gap-1.5 sm:gap-2">
-                                        <Package className="w-3.5 h-3.5 sm:w-4 h-4 text-primary/70 shrink-0" />
+                                    <div className="flex items-end gap-1.5 sm:gap-2">
                                         <span className="text-lg sm:text-[24px] font-black text-gray-900 tracking-tighter leading-none">0</span>
                                         <span className="hidden md:inline text-xs font-semibold text-gray-500">Products</span>
                                     </div>

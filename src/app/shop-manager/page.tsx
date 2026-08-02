@@ -991,17 +991,17 @@ function ViewsCard({ analytics, isLoading }: { analytics: any, isLoading?: boole
                     <MousePointer2 className="w-6 h-6" />
                 </div>
                 <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2 mb-1">
+                    <div className="flex items-center justify-between gap-2 mb-0.5">
                         <h3 className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate flex items-center gap-1 mb-1">
                             Audience Engaged On
                         </h3>
                     </div>
                     <div className="flex items-center gap-5">
-                        <div className="flex items-end gap-1.5 sm:gap-2" title="Offers viewed">
+                        <div className="flex items-end gap-2" title="Offers viewed">
                             <span className="text-lg sm:text-[24px] font-black text-gray-900 tracking-tighter leading-none">{isLoading ? 0 : offerViews}</span>
                             <span className="inline text-[10px] sm:text-xs font-semibold text-gray-500">Offers</span>
                         </div>
-                        <div className="flex items-end gap-1.5 sm:gap-2" title="Products viewed">
+                        <div className="flex items-end gap-2" title="Products viewed">
                             <span className="text-lg sm:text-[24px] font-black text-gray-900 tracking-tighter leading-none">{isLoading ? 0 : productViews}</span>
                             <span className="inline text-[10px] sm:text-xs font-semibold text-gray-500">Products</span>
                         </div>
