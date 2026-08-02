@@ -15,6 +15,7 @@ import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
 import { useLocationContext } from "@/context/LocationContext";
 import { useSession } from "next-auth/react";
 import { config } from "@/lib/config";
+import { getVisitorId } from "@/lib/visitorId";
 import { useSimilarProducts } from "@/hooks/useApi";
 
 interface Product {
@@ -121,7 +122,7 @@ export default function ProductDetailClient({ product, similarProducts: initialS
         const trackProductClick = async () => {
             if (!product.id) return;
             try {
-                const bodyPayload: { offerProductId: number; offerId?: number; userId?: number } = {
+                const bodyPayload: { offerProductId: number; offerId?: number; userId?: number; visitorId?: string } = {
                     offerProductId: Number(product.id),
                 };
                 if (product.offerId) {
@@ -129,6 +130,10 @@ export default function ProductDetailClient({ product, similarProducts: initialS
                 }
                 if (session?.user?.id) {
                     bodyPayload.userId = Number(session.user.id);
+                }
+                const visitorId = getVisitorId();
+                if (visitorId) {
+                    bodyPayload.visitorId = visitorId;
                 }
 
                 await fetch(`${config.api.upstreamBaseUrl}/user/analytics/offerproductclick`, {
