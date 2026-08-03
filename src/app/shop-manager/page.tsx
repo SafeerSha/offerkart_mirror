@@ -985,30 +985,34 @@ function ViewsCard({ analytics, isLoading }: { analytics: any, isLoading?: boole
     const productViews = Number(analytics?.offerProductViews) || 0;
 
     return (
-        <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 transition-all duration-300 rounded-2xl h-full">
-            <div className="p-3 sm:p-4 flex items-center gap-2.5 sm:gap-4 h-full">
-                <div className="p-2 sm:p-2.5 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform flex-shrink-0 self-start sm:self-center mt-1 sm:mt-0">
-                    <MousePointer2 className="w-6 h-6" />
-                </div>
-                <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2 mb-0.5">
-                        <h3 className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate flex items-center gap-1 mb-1">
-                            Audience Engaged On
-                        </h3>
+        <Link href="/shop-manager/analytics" className="block h-full cursor-pointer">
+            <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 hover:shadow-md transition-all duration-300 rounded-2xl h-full">
+                <div className="p-3 sm:p-4 flex items-center gap-2.5 sm:gap-4 h-full">
+                    <div className="p-2 sm:p-2.5 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform flex-shrink-0 self-start sm:self-center mt-1 sm:mt-0">
+                        <MousePointer2 className="w-5 h-5 sm:w-6 sm:h-6" />
                     </div>
-                    <div className="flex items-center gap-5">
-                        <div className="flex items-end gap-2" title="Offers viewed">
-                            <span className="text-lg sm:text-[24px] font-black text-gray-900 tracking-tighter leading-none">{isLoading ? 0 : offerViews}</span>
-                            <span className="inline text-[10px] sm:text-xs font-semibold text-gray-500">Offers</span>
+                    <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2 mb-0.5">
+                            <h3 className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate flex items-center gap-1 mb-1">
+                                Audience Engaged On
+                            </h3>
                         </div>
-                        <div className="flex items-end gap-2" title="Products viewed">
-                            <span className="text-lg sm:text-[24px] font-black text-gray-900 tracking-tighter leading-none">{isLoading ? 0 : productViews}</span>
-                            <span className="inline text-[10px] sm:text-xs font-semibold text-gray-500">Products</span>
+                        <div className="flex items-end gap-3.5 sm:gap-5">
+                            <div className="flex items-end gap-1.5 sm:gap-2" title="Offers viewed">
+                                <Tag className="w-3 h-3 sm:hidden text-primary/70 shrink-0" />
+                                <span className="flex items-end text-xl sm:text-[24px] font-black text-gray-900 tracking-tighter leading-none">{isLoading ? 0 : offerViews}</span>
+                                <span className="hidden sm:inline text-xs font-semibold text-gray-500">Offers</span>
+                            </div>
+                            <div className="flex items-end sm:items-end gap-1.5 sm:gap-2" title="Products viewed">
+                                <ShoppingBag className="w-4 h-4 sm:hidden text-primary/70 shrink-0" />
+                                <span className="flex items-end text-xl sm:text-[24px] font-black text-gray-900 tracking-tighter leading-none">{isLoading ? 0 : productViews}</span>
+                                <span className="hidden sm:inline text-xs font-semibold text-gray-500">Products</span>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </PremiumCard>
+            </PremiumCard>
+        </Link>
     );
 }
 
