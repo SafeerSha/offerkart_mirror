@@ -1,23 +1,50 @@
 "use client";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { PremiumCard } from "@/components/shared";
+import { Heading, Text, PremiumCard, PremiumButton } from "@/components/shared";
+import Breadcrumbs from "@/components/shared/Breadcrumbs";
+import Link from "next/link";
 import { Tag, ShoppingBag, MousePointer2, ChevronRight } from "@/lib/icons";
 
 export function DashboardSkeleton() {
     return (
-        <main className="container mx-auto px-4 pt-24 sm:pt-28 pb-16 min-h-screen">
-            {/* Header Skeleton */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 sm:mb-8">
-                <div className="space-y-2">
-                    <Skeleton className="h-4 w-32 rounded-full" />
-                    <Skeleton className="h-8 w-48 sm:w-64 rounded-xl" />
+        <main className="min-h-screen pt-20 lg:pt-22 pb-12 bg-[radial-gradient(circle_at_top_right,hsl(var(--color-primary)/0.05)_0%,transparent_50%)]">
+            <div className="container mx-auto px-4">
+                <Breadcrumbs items={[{ label: "Shop Dashboard" }]} />
+
+                {/* Header Section */}
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-6 sm:mb-12">
+                    <div>
+                        <Heading className="text-3xl md:text-4xl lg:text-5xl mb-3">
+                            Welcome <span className="text-gradient"></span>
+                        </Heading>
+                        <Text className="max-w-2xl opacity-80">
+                            Manage your shop, list new offers, offer products and track your business performance all in one place.
+                        </Text>
+                    </div>
+                    <div className="grid grid-cols-3 md:flex md:flex-wrap lg:flex-nowrap items-center gap-2 md:gap-3 w-full md:w-auto">
+                        <PremiumButton variant="outline" asChild className="rounded-full w-full md:w-auto justify-center px-1 sm:px-3 md:px-4 py-1.5 md:py-2.5 h-auto text-[11px] sm:text-xs md:text-sm">
+                            <Link href="/">
+                                <span className="hidden sm:inline">Go Home</span>
+                                <span className="sm:hidden">Home</span>
+                            </Link>
+                        </PremiumButton>
+
+                        <PremiumButton
+                            className="rounded-full shadow-lg shadow-primary/20 w-full md:w-auto justify-center px-1 sm:px-3 md:px-4 py-1.5 md:py-2.5 h-auto text-[11px] sm:text-xs md:text-sm"
+                        >
+                            <span className="hidden sm:inline">Add Offer</span>
+                            <span className="sm:hidden">Offer +</span>
+                        </PremiumButton>
+
+                        <PremiumButton
+                            className="rounded-full shadow-lg shadow-primary/20 w-full md:w-auto justify-center px-1 sm:px-3 md:px-4 py-1.5 md:py-2.5 h-auto text-[11px] sm:text-xs md:text-sm"
+                        >
+                            <span className="hidden sm:inline">Add Product</span>
+                            <span className="sm:hidden">Product +</span>
+                        </PremiumButton>
+                    </div>
                 </div>
-                <div className="flex items-center gap-3 w-full md:w-auto">
-                    <Skeleton className="h-10 w-36 rounded-xl" />
-                    <Skeleton className="h-10 w-32 rounded-xl" />
-                </div>
-            </div>
 
             {/* Quick Stats Skeleton */}
             <div className="mb-6 sm:mb-8">
@@ -64,24 +91,28 @@ export function DashboardSkeleton() {
                             </PremiumCard>
                         </div>
                         <div className="w-[55vw] sm:w-[220px] flex-none shrink-0 snap-center">
-                            <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 transition-all duration-300 rounded-2xl h-full">
-                                <div className="p-3.5 flex items-center gap-3 h-full">
-                                    <div className="p-2 rounded-xl bg-primary/10 text-primary flex-shrink-0">
-                                        <MousePointer2 className="w-5 h-5" />
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                        <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest truncate mb-0.5">Audience Engaged On</h3>
-                                        <div className="flex items-center gap-3.5 sm:gap-5">
-                                            <div className="flex items-center gap-1.5 sm:gap-2">
-                                                <span className="text-lg font-black text-gray-900 tracking-tighter leading-none">0</span>
-                                            </div>
-                                            <div className="flex items-center gap-1.5 sm:gap-2">
-                                                <span className="text-lg font-black text-gray-900 tracking-tighter leading-none">0</span>
+                            <Link href="/shop-manager/analytics" className="block h-full cursor-pointer">
+                                <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 hover:shadow-md transition-all duration-300 rounded-2xl h-full">
+                                    <div className="p-3.5 flex items-center gap-3 h-full">
+                                        <div className="p-2 rounded-xl bg-primary/10 text-primary flex-shrink-0">
+                                            <MousePointer2 className="w-5 h-5" />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest truncate mb-0.5">Audience Engaged On</h3>
+                                            <div className="flex items-center gap-3.5 sm:gap-5">
+                                                <div className="flex items-center gap-1.5 sm:gap-2">
+                                                    <Tag className="w-3.5 h-3.5 text-primary/70 shrink-0" />
+                                                    <span className="text-lg font-black text-gray-900 tracking-tighter leading-none">0</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5 sm:gap-2">
+                                                    <ShoppingBag className="w-3.5 h-3.5 text-primary/70 shrink-0" />
+                                                    <span className="text-lg font-black text-gray-900 tracking-tighter leading-none">0</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                            </PremiumCard>
+                                </PremiumCard>
+                            </Link>
                         </div>
                     </div>
                 </div>
@@ -118,26 +149,30 @@ export function DashboardSkeleton() {
                         </div>
                     </PremiumCard>
 
-                    <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 transition-all duration-300 rounded-2xl h-full">
-                        <div className="p-3 sm:p-4 flex items-center gap-2.5 sm:gap-4 h-full">
-                            <div className="p-2 sm:p-2.5 rounded-xl bg-primary/10 text-primary flex-shrink-0 self-start sm:self-center mt-1 sm:mt-0">
-                                <MousePointer2 className="w-4 h-4 sm:w-6 sm:h-6" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                                <h3 className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate flex items-center gap-1 mb-0.5">Audience Engaged On</h3>
-                                <div className="flex items-center gap-3.5 sm:gap-5">
-                                    <div className="flex items-end gap-1.5 sm:gap-2">
-                                        <span className="text-lg sm:text-[24px] font-black text-gray-900 tracking-tighter leading-none">0</span>
-                                        <span className="hidden md:inline text-xs font-semibold text-gray-500">Offers</span>
-                                    </div>
-                                    <div className="flex items-end gap-1.5 sm:gap-2">
-                                        <span className="text-lg sm:text-[24px] font-black text-gray-900 tracking-tighter leading-none">0</span>
-                                        <span className="hidden md:inline text-xs font-semibold text-gray-500">Products</span>
+                    <Link href="/shop-manager/analytics" className="block h-full cursor-pointer">
+                        <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 hover:shadow-md transition-all duration-300 rounded-2xl h-full">
+                            <div className="p-3 sm:p-4 flex items-center gap-2.5 sm:gap-4 h-full">
+                                <div className="p-2 sm:p-2.5 rounded-xl bg-primary/10 text-primary flex-shrink-0 self-start sm:self-center mt-1 sm:mt-0">
+                                    <MousePointer2 className="w-4 h-4 sm:w-6 sm:h-6" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <h3 className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-widest truncate flex items-center gap-1 mb-0.5">Audience Engaged On</h3>
+                                    <div className="flex items-center gap-3.5 sm:gap-5">
+                                        <div className="flex items-center sm:items-end gap-1.5 sm:gap-2">
+                                            <Tag className="w-3.5 h-3.5 sm:hidden text-primary/70 shrink-0" />
+                                            <span className="text-lg sm:text-[24px] font-black text-gray-900 tracking-tighter leading-none">0</span>
+                                            <span className="hidden sm:inline text-xs font-semibold text-gray-500">Offers</span>
+                                        </div>
+                                        <div className="flex items-center sm:items-end gap-1.5 sm:gap-2">
+                                            <ShoppingBag className="w-3.5 h-3.5 sm:hidden text-primary/70 shrink-0" />
+                                            <span className="text-lg sm:text-[24px] font-black text-gray-900 tracking-tighter leading-none">0</span>
+                                            <span className="hidden sm:inline text-xs font-semibold text-gray-500">Products</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    </PremiumCard>
+                        </PremiumCard>
+                    </Link>
                 </div>
             </div>
 
@@ -171,7 +206,8 @@ export function DashboardSkeleton() {
                     </div>
                 </div>
             </div>
-        </main>
+        </div>
+    </main>
     );
 }
 
