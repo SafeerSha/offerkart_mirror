@@ -308,11 +308,6 @@ function AnalyticsContent() {
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 mb-2">
                     <div>
-                        <div className="flex items-center gap-3 mb-2">
-                            <Link href="/shop-manager" className="p-2 rounded-xl border border-gray-200 hover:border-primary/30 hover:bg-primary/5 transition-all duration-200 sm:hidden">
-                                <ArrowLeft className="w-4 h-4 text-gray-600" />
-                            </Link>
-                        </div>
                         <Heading className="text-2xl sm:text-3xl md:text-4xl mb-1">
                             Audience <span className="text-orange-500">Engagements</span>
                         </Heading>

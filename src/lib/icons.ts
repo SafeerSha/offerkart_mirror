@@ -5,7 +5,7 @@ export {
   ArrowRight, ArrowLeft, ArrowUpRight, ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
   X, Plus, Minus, Search, Filter, Settings, Loader2,
   Eye, EyeOff, Check, AlertTriangle, Info, Clock, Power, ListChecks, Play, Pause,
-  LogOut, LayoutDashboard, MoreVertical, MousePointer2,
+  LogOut, LayoutDashboard, MoreVertical, MousePointer2, MousePointerClick,
   Store, ShoppingBag, GitBranch, MapPin, BarChart3,
   Paintbrush, Palette, Layers, Grid3X3, LayoutGrid, Move, RotateCcw,
   AlignLeft, AlignCenter, AlignRight, Share, Heart, Star,
