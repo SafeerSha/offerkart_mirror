@@ -20,7 +20,7 @@ import {
     Eye, Filter, Info, LayoutDashboard, LogOut, MapPin,
     MoreVertical, Package, Plus, Power, Search, Settings,
     Store, Tag, Ticket, Loader2, Trash2, Calendar,
-    MousePointer2, Pencil, ArrowRight, GitBranch, Paintbrush, ShoppingBag
+    MousePointerClick, Pencil, ArrowRight, GitBranch, Paintbrush, ShoppingBag
 } from "@/lib/icons";
 
 // UI Libraries
@@ -989,7 +989,7 @@ function ViewsCard({ analytics, isLoading }: { analytics: any, isLoading?: boole
             <PremiumCard variant="glass" padding="none" className="overflow-hidden group hover:border-primary/30 hover:shadow-md transition-all duration-300 rounded-2xl h-full">
                 <div className="p-3 sm:p-4 flex items-center gap-2.5 sm:gap-4 h-full">
                     <div className="p-2 sm:p-2.5 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform flex-shrink-0 self-start sm:self-center mt-1 sm:mt-0">
-                        <MousePointer2 className="w-5 h-5 sm:w-6 sm:h-6" />
+                        <MousePointerClick className="w-5 h-5 sm:w-6 sm:h-6" />
                     </div>
                     <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2 mb-0.5">
@@ -999,7 +999,7 @@ function ViewsCard({ analytics, isLoading }: { analytics: any, isLoading?: boole
                         </div>
                         <div className="flex items-end gap-3.5 sm:gap-5">
                             <div className="flex items-end gap-1.5 sm:gap-2" title="Offers viewed">
-                                <Tag className="w-3 h-3 sm:hidden text-primary/70 shrink-0" />
+                                <Tag className="w-4 h-4 sm:hidden text-primary/70 shrink-0" />
                                 <span className="flex items-end text-xl sm:text-[24px] font-black text-gray-900 tracking-tighter leading-none">{isLoading ? 0 : offerViews}</span>
                                 <span className="hidden sm:inline text-xs font-semibold text-gray-500">Offers</span>
                             </div>
