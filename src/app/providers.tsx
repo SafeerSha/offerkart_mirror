@@ -10,6 +10,17 @@ import { LanguageProvider } from "@/components/i18n/LanguageProvider";
 import { Locale } from "@/lib/i18n/config";
 import { LocationProvider } from "@/context/LocationContext";
 
+// Filter out false-positive React 19 warning caused by next-themes injecting inline anti-flash script tag
+if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+  const originalError = console.error;
+  console.error = (...args: unknown[]) => {
+    if (typeof args[0] === "string" && args[0].includes("Encountered a script tag")) {
+      return;
+    }
+    originalError.apply(console, args);
+  };
+}
+
 export function Providers({ children, locale = "en", dictionary }: { children: React.ReactNode; locale?: Locale; dictionary: Record<string, any> }) {
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {

@@ -6,13 +6,14 @@ const ProxyImageQuerySchema = z.object({
 });
 
 const TRUSTED_DOMAINS = [
-  '.amazonaws.com',
-  '.unsplash.com',
-  '.vercel.app',
+  'amazonaws.com',
+  'unsplash.com',
+  'vercel.app',
 ];
 
 function isTrustedDomain(hostname: string): boolean {
-  return TRUSTED_DOMAINS.some(domain => hostname === domain || hostname.endsWith(domain));
+  const lowerHost = hostname.toLowerCase();
+  return TRUSTED_DOMAINS.some(domain => lowerHost === domain || lowerHost.endsWith('.' + domain));
 }
 
 export async function GET(req: NextRequest) {

@@ -15,7 +15,6 @@ import {
 import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
 import { useSubcategories } from "@/hooks/useApi";
 import Image from "next/image";
-import { createWorker, Worker } from 'tesseract.js';
 import { Heading, Subheading, Text } from "@/components/shared/Typography";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import { PremiumCard } from "@/components/shared/PremiumCard";
@@ -195,21 +194,34 @@ function HotspotEditorContent() {
 
     // Initial Load — support both multi-poster and single-poster
     useEffect(() => {
+        // Prevent accidental page reloads
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            e.preventDefault();
+            e.returnValue = '';
+            return '';
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+
         const loadInitialData = async () => {
             const multiData = await storage.getItem<any[]>('currentEditingPosters');
             const singleData = await storage.getItem<any>('currentEditingPoster');
 
             if (multiData) {
-                setAllPosters(multiData);
+                // Recreate Blob URLs in case of page reload where old blobs are dead
+                const restoredMultiData = multiData.map((p: any) => ({
+                    ...p,
+                    posterSrc: p.file ? URL.createObjectURL(p.file) : p.posterSrc
+                }));
+                setAllPosters(restoredMultiData);
 
                 // Load the specifically requested poster if fromPreview, otherwise find first interactive
-                const targetIndex = (fromPreview && posterIndex >= 0 && posterIndex < multiData.length)
+                const targetIndex = (fromPreview && posterIndex >= 0 && posterIndex < restoredMultiData.length)
                     ? posterIndex
-                    : (multiData.findIndex((p: any) => p.type === 'mark_products') >= 0
-                        ? multiData.findIndex((p: any) => p.type === 'mark_products')
+                    : (restoredMultiData.findIndex((p: any) => p.type === 'mark_products') >= 0
+                        ? restoredMultiData.findIndex((p: any) => p.type === 'mark_products')
                         : 0);
 
-                const activePoster = multiData[targetIndex];
+                const activePoster = restoredMultiData[targetIndex];
                 setActivePosterIndex(targetIndex);
                 console.log('Standalone Editor Initial Load:', {
                     posterIndex: targetIndex,
@@ -225,13 +237,21 @@ function HotspotEditorContent() {
                 });
                 if (activePoster.title) setOfferTitle(activePoster.title);
             } else if (singleData) {
-                setPosterData(singleData);
-                if (singleData.title) setOfferTitle(singleData.title);
+                const restoredSingle = {
+                    ...singleData,
+                    posterSrc: singleData.file ? URL.createObjectURL(singleData.file) : singleData.posterSrc
+                };
+                setPosterData(restoredSingle);
+                if (restoredSingle.title) setOfferTitle(restoredSingle.title);
             } else {
                 router.push('/shop-manager/create-offer');
             }
         };
         loadInitialData();
+
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
     }, [router]);
 
     // Switch poster — saves current marked items before switching
@@ -258,6 +278,30 @@ function HotspotEditorContent() {
         });
         setHighlightedId(null);
     };
+
+    // --- Auto Save to Storage ---
+    useEffect(() => {
+        setAllPosters((prev) => {
+            if (!prev.length || activePosterIndex < 0 || activePosterIndex >= prev.length) return prev;
+            
+            // Prevent unnecessary updates
+            const currentMarkedItems = prev[activePosterIndex].markedItems || [];
+            if (JSON.stringify(currentMarkedItems) === JSON.stringify(posterData.markedItems)) {
+                return prev;
+            }
+
+            const updated = prev.map((p, i) =>
+                i === activePosterIndex
+                    ? { ...p, markedItems: posterData.markedItems }
+                    : p
+            );
+            
+            // Instantly save to IndexedDB
+            storage.setItem('currentEditingPosters', updated).catch(console.error);
+            
+            return updated;
+        });
+    }, [posterData.markedItems, activePosterIndex]);
 
     // Jump functionality is now handled by Popover buttons
 
@@ -390,6 +434,7 @@ function HotspotEditorContent() {
             const invertedDataUrl = invertCanvas.toDataURL('image/png');
 
             // Run OCR — no char whitelist so the LSTM model operates freely
+            const { createWorker } = await import('tesseract.js');
             const worker = await createWorker('ara+eng', 1, {
                 logger: m => console.log('OCR Progress:', m),
             });
@@ -1404,7 +1449,7 @@ function HotspotEditorContent() {
                                 <button
                                     type="button"
                                     onClick={() => handleDeleteItem(currentMarkedItem.id)}
-                                    className="w-full py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] text-red-400 hover:text-white hover:bg-red-500 transition-all rounded-xl flex items-center justify-center gap-2 border border-red-100/50 hover:border-red-500"
+                                    className="w-full py-2.5 text-[10px] font-bold capitalize tracking-[0.2em] text-red-400 hover:text-white hover:bg-red-500 transition-all rounded-xl flex items-center justify-center gap-2 border border-red-100/50 hover:border-red-500"
                                 >
                                     <Trash2 className="w-3.5 h-3.5" /> Remove Item from Poster
                                 </button>

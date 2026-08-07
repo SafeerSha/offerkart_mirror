@@ -1,8 +1,6 @@
 import { logger, createStructuredLogger } from "@/lib/logger";
 
 export const OPENROUTER_MODELS = [
-  "google/gemini-2.0-flash-exp:free",
-  "google/gemini-2.0-flash-lite-preview-02-05:free",
   "meta-llama/llama-3.2-3b-instruct:free",
   "google/gemma-3-12b-it:free",
   "mistralai/mistral-7b-instruct:free",
