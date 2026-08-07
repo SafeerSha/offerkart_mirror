@@ -202,6 +202,20 @@ export const PosterCardStack = forwardRef<
         onPhaseChange?.(phase);
     }, [phase, onPhaseChange]);
 
+    // Prevent accidental page reloads if user has uploaded posters
+    useEffect(() => {
+        if (posters.length === 0) return;
+
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            e.preventDefault();
+            e.returnValue = '';
+            return '';
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [posters.length]);
+
     // Note: We avoid cleaning up PDF object URLs on unmount here because
     // we need them to persist across navigation to the editor page.
     // They will be cleaned up when the browser session ends or if explicitly handled.
@@ -407,8 +421,13 @@ export const PosterCardStack = forwardRef<
     };
 
     const handleRemovePoster = (index: number) => {
-        if (posters.length <= 1) {
-            toast.error("You must have at least one poster.");
+        if (posters.length === 1) {
+            setPosters([]);
+            setPhase("upload");
+            setCurrentIndex(0);
+            setExistingPostersCount(0);
+            setPostersBackup(null);
+            toast.success("Poster removed");
             return;
         }
 
@@ -479,6 +498,7 @@ export const PosterCardStack = forwardRef<
             const editorFormatted = currentPosters.map((p) => ({
                 id: p.id,
                 posterSrc: p.previewUrl,
+                file: p.file,
                 markedItems: p.type === "marked_poster" ? (p.markedItems || []) : [],
                 type: p.type === "marked_poster" ? "mark_products" : "promotion_only",
                 title: (p as any).title || ""
@@ -744,14 +764,12 @@ export const PosterCardStack = forwardRef<
                                     >
                                         {isViewing ? <EyeOff className="w-3.5 h-3.5 md:w-4 md:h-4" /> : <Eye className="w-3.5 h-3.5 md:w-4 md:h-4" />}
                                     </button>
-                                    {posters.length > 1 && (
                                         <button
                                             onClick={() => handleRemovePoster(currentIndex)}
                                             className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-rose-600/90 backdrop-blur-md flex items-center justify-center text-white border border-rose-500/20 hover:bg-rose-600 transition-colors"
                                         >
                                             <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
                                         </button>
-                                    )}
                                 </div>
                             </div>
                         </div>
@@ -823,17 +841,15 @@ export const PosterCardStack = forwardRef<
                                     )}
 
                                     {/* Delete Button */}
-                                    {posters.length > 1 && (
-                                        <div
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleRemovePoster(idx);
-                                            }}
-                                            className="absolute -top-1 -left-0 w-3.5 h-3.5 rounded-full bg-rose-500 hover:bg-rose-600 flex items-center justify-center border border-white/20 shadow-md z-30 opacity-90 md:opacity-0 md:group-hover:opacity-100 transition-opacity cursor-pointer scale-110"
-                                        >
-                                            <X className="w-2.5 h-2.5 text-white" />
-                                        </div>
-                                    )}
+                                    <div
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleRemovePoster(idx);
+                                        }}
+                                        className="absolute -top-1 -left-0 w-3.5 h-3.5 rounded-full bg-rose-500 hover:bg-rose-600 flex items-center justify-center border border-white/20 shadow-md z-30 opacity-90 md:opacity-0 md:group-hover:opacity-100 transition-opacity cursor-pointer scale-110"
+                                    >
+                                        <X className="w-2.5 h-2.5 text-white" />
+                                    </div>
                                 </button>
                             );
                         })}

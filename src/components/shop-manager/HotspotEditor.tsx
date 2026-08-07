@@ -23,47 +23,7 @@ import { MarkedItem } from "@/lib/types/offer";
 import { toast } from "sonner";
 import { storage } from "@/lib/storage";
 import { MarkedItem as MarkedItemType } from "@/lib/types/offer";
-
-async function preprocessImageForOCR(
-    canvas: HTMLCanvasElement,
-    ctx: CanvasRenderingContext2D
-): Promise<string> {
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const data = imageData.data;
-    let minGray = 255;
-    let maxGray = 0;
-
-    for (let i = 0; i < data.length; i += 4) {
-        const gray = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
-        if (gray < minGray) minGray = gray;
-        if (gray > maxGray) maxGray = gray;
-    }
-
-    const range = maxGray - minGray || 1;
-
-    for (let i = 0; i < data.length; i += 4) {
-        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-
-        let normalized = ((gray - minGray) / range) * 255;
-        normalized = Math.pow(normalized / 255, 0.8) * 255;
-
-        const threshold = 128;
-        const isText = normalized < threshold;
-
-        if (normalized < 60) {
-            normalized = normalized * 0.7;
-        } else if (normalized > 200) {
-            normalized = normalized * 0.9 + 25;
-        }
-
-        data[i] = normalized;
-        data[i + 1] = normalized;
-        data[i + 2] = normalized;
-    }
-
-    ctx.putImageData(imageData, 0, 0);
-    return canvas.toDataURL('image/png', 1.0);
-}
+import { extractProductFromImage } from "@/lib/ai/aiClient";
 
 interface PosterData {
     posterSrc: string;
@@ -140,12 +100,6 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
 
     // Keep state in sync with props
     useEffect(() => {
-        console.log('HotspotEditor Received Poster:', {
-            id: poster.id,
-            totalMarked: poster.markedItems?.length,
-            markedItems: poster.markedItems
-        });
-
         setPosterData({
             posterSrc: poster.posterSrc,
             markedItems: poster.markedItems || [],
@@ -161,7 +115,6 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
         // This prevents flickering/disappearing hotspots if the parent re-renders 
         // with the same poster but different metadata.
         if (posterData.posterSrc !== poster.posterSrc) {
-            console.log('Poster source changed, resetting image size');
             setImageSize({ width: 0, height: 0 });
         }
 
@@ -271,138 +224,66 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
             ctx.drawImage(img, x * scaleX, y * scaleY, sw, sh, 0, 0, sw, sh);
 
             let croppedDataUrl: string;
-            let useFallbackImage = false;
             try {
-                croppedDataUrl = canvas.toDataURL();
+                croppedDataUrl = canvas.toDataURL('image/png');
             } catch (e) {
                 if (e instanceof DOMException && e.name === 'SecurityError') {
-                    console.warn('Image source blocks CORS - falling back to source image for OCR');
-                    croppedDataUrl = posterData.posterSrc;
-                    useFallbackImage = true;
-                } else {
-                    throw e;
-                }
-            }
-
-            let processedDataUrl: string;
-            let invertedDataUrl = '';
-            if (useFallbackImage) {
-                processedDataUrl = croppedDataUrl;
-            } else {
-                processedDataUrl = await preprocessImageForOCR(canvas, ctx);
-                // Create color-inverted canvas for pass 2 to catch colored badges and light-on-dark text
-                const invertCanvas = document.createElement('canvas');
-                invertCanvas.width = canvas.width;
-                invertCanvas.height = canvas.height;
-                const invertCtx = invertCanvas.getContext('2d', { willReadFrequently: true })!;
-                ctx.drawImage(img, x * scaleX, y * scaleY, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
-                const invertData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                for (let i = 0; i < invertData.data.length; i += 4) {
-                    invertData.data[i] = 255 - invertData.data[i];
-                    invertData.data[i + 1] = 255 - invertData.data[i + 1];
-                    invertData.data[i + 2] = 255 - invertData.data[i + 2];
-                }
-                invertCtx.putImageData(invertData, 0, 0);
-                invertedDataUrl = invertCanvas.toDataURL('image/png');
-            }
-
-            let ocrText = '';
-            let ocrPass1Text = '';
-            try {
-                const { createWorker } = await import('tesseract.js');
-                const worker = await createWorker('ara+eng', 1, {
-                    logger: m => console.log('OCR Progress:', m),
-                });
-
-                // DO NOT set tessedit_char_whitelist — invalid Unicode range syntax breaks digit recognition
-                if (invertedDataUrl) {
-                    const [{ data: { text: ocrPass1, confidence } }, { data: { text: ocrPass2 } }] = await Promise.all([
-                        worker.recognize(processedDataUrl),
-                        worker.recognize(invertedDataUrl),
-                    ]);
-                    ocrPass1Text = ocrPass1;
-                    ocrText = `${ocrPass1}\n${ocrPass2}`;
-                    console.log('OCR Confidence:', confidence, '\nPass1:', ocrPass1, '\nPass2:', ocrPass2);
-                } else {
-                    const result = await worker.recognize(processedDataUrl);
-                    ocrPass1Text = result.data.text;
-                    ocrText = result.data.text;
-                    console.log('OCR Confidence:', result.data.confidence, 'Extracted text:', ocrText);
-                }
-                await worker.terminate();
-            } catch (ocrError) {
-                if (useFallbackImage) {
-                    console.warn('CORS blocked image cannot be processed by OCR:', ocrError);
+                    console.warn('Image source blocks CORS — cannot crop for AI extraction.');
                     toast.error('Cannot process cross-origin images. Please enter details manually.');
                     setIsProcessing(false);
                     handleEditItem(tempItem);
                     return;
                 }
-                console.warn("Tesseract OCR initialization failed:", ocrError);
-                toast.error("OCR failed. Please enter product details manually.");
-                setIsProcessing(false);
+                throw e;
+            }
+
+            // --- Gemini Vision Extraction ---
+            const result = await extractProductFromImage(croppedDataUrl, 'image/png');
+
+            if (result.success && result.data) {
+                const d = result.data;
+                const displayName = d.brand && d.productName
+                    ? `${d.brand} ${d.productName}`
+                    : d.productName || d.brand || 'Marked Product';
+
+                let validMainCategory = '';
+                let validSubcategories: string[] = [];
+
+                if (d.mainCategory && mainCategories.includes(d.mainCategory)) {
+                    validMainCategory = d.mainCategory;
+
+                    if (Array.isArray(d.subcategories)) {
+                        validSubcategories = d.subcategories.filter((sub: string) =>
+                            categoryHierarchy[validMainCategory]?.includes(sub)
+                        );
+                    }
+                }
+
+                const updatedItem: MarkedItemType = {
+                    ...tempItem,
+                    name: displayName,
+                    description: d.description || '',
+                    productImage: croppedDataUrl,
+                    oldPrice: d.oldPrice || 0,
+                    offerPrice: d.offerPrice || 0,
+                    mainCategory: validMainCategory,
+                    subcategories: validSubcategories,
+                };
+
+                setPosterData(prev => ({
+                    ...prev,
+                    markedItems: prev.markedItems.map(item => item.id === id ? updatedItem : item)
+                }));
+
+                toast.success(`Extracted: ${displayName}`);
+                handleEditItem(updatedItem);
+            } else {
+                console.warn('[HotspotEditor] Gemini extraction failed:', result.error);
+                toast.error(result.error || 'AI extraction failed. Please enter details manually.');
                 handleEditItem(tempItem);
-                return;
             }
-
-            let extractedName = '';
-            let extractedDescription = '';
-            let extractedOldPrice = 0;
-            let extractedOfferPrice = 0;
-
-            // Smart Product Name Filter: require at least 2 letters/Arabic characters, ignore pure digits/noise like "3" or "69"
-            const nameCandidates = ocrPass1Text.split('\n').map(l => l.trim()).filter(l => {
-                if (l.length < 3) return false;
-                if (!/[a-zA-Z\u0600-\u06FF]{2,}/.test(l)) return false;
-                const stripped = l.replace(/[0-9.,%$#@!*()\-_=+/?\\|:[\]{}'"~`₹]/g, '').trim().toLowerCase();
-                if (['qr', 'rs', 'inr', 'aed', 'sar', 'ريال', 'درهم', 'جنيه', 'ر.ق', 'ر.س'].includes(stripped)) return false;
-                return true;
-            });
-            extractedName = nameCandidates[0] || ocrPass1Text.split('\n').map(l => l.trim()).find(l => l.length > 2 && /[a-zA-Z\u0600-\u06FF]/.test(l)) || 'Marked Product';
-            extractedDescription = ocrPass1Text.trim() || ocrText.trim();
-
-            // Smart Price Extraction: mask numbers attached to units/specifications (e.g. 7pcs, 7 حبات) so they aren't taken as prices
-            const cleanedTextForPrices = ocrText.replace(/\b(\d+(?:\.\d+)?)\s*(?:pcs?|pieces?|sets?|حبات|حبة|قطع|قطعة|ml|g|kg|l|ltr|cm|mm|inch|pack)\b/gi, '');
-            const priceRegex = /(?:₹|Rs\.?|INR)?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)/g;
-            const rawPriceNumbers: number[] = [];
-            let m: RegExpExecArray | null;
-            while ((m = priceRegex.exec(cleanedTextForPrices)) !== null) {
-                const val = parseFloat(m[1].replace(/,/g, ''));
-                if (!isNaN(val) && val > 0 && val < 1_000_000) rawPriceNumbers.push(val);
-            }
-            const prices = [...new Set(rawPriceNumbers)].sort((a, b) => b - a);
-            const maxPrice = prices.length > 0 ? prices[0] : 0;
-            const validPrices = prices.filter(p => {
-                if (p === maxPrice) return true;
-                if (maxPrice > 20 && p < Math.max(10, maxPrice * 0.15)) return false;
-                return true;
-            });
-
-            if (validPrices.length >= 2) {
-                extractedOldPrice = validPrices[0];
-                extractedOfferPrice = validPrices[1];
-            } else if (validPrices.length === 1) {
-                extractedOfferPrice = validPrices[0];
-                extractedOldPrice = validPrices[0];
-            }
-
-            const updatedItem: MarkedItemType = {
-                ...tempItem,
-                name: extractedName || 'Marked Product',
-                description: extractedDescription,
-                productImage: croppedDataUrl,
-                oldPrice: extractedOldPrice,
-                offerPrice: extractedOfferPrice
-            };
-
-            setPosterData(prev => ({
-                ...prev,
-                markedItems: prev.markedItems.map(item => item.id === id ? updatedItem : item)
-            }));
-
-            handleEditItem(updatedItem);
         } catch (err) {
-            console.error("OCR Error:", err);
+            console.error("Extraction Error:", err);
             toast.error("AI extraction failed. Please enter details manually.");
             handleEditItem(tempItem);
         } finally {
@@ -502,31 +383,37 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
         setHighlightedId(null);
     };
 
-    const handleAIFill = () => {
-        const cleanedDescription = formData.description.replace(/\b(\d+(?:\.\d+)?)\s*(?:pcs?|pieces?|sets?|حبات|حبة|قطع|قطعة|ml|g|kg|l|ltr|cm|mm|inch|pack)\b/gi, '');
-        const priceRegex = /(?:₹|Rs\.?|INR)?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)/g;
-        const rawPriceNumbers: number[] = [];
-        let m: RegExpExecArray | null;
-        while ((m = priceRegex.exec(cleanedDescription)) !== null) {
-            const val = parseFloat(m[1].replace(/,/g, ''));
-            if (!isNaN(val) && val > 0 && val < 1_000_000) rawPriceNumbers.push(val);
+    const handleAIFill = async () => {
+        if (!currentMarkedItem?.productImage) {
+            toast.error('No product image available for re-extraction.');
+            return;
         }
-        const prices = [...new Set(rawPriceNumbers)].sort((a, b) => b - a);
-        const maxPrice = prices.length > 0 ? prices[0] : 0;
-        const validPrices = prices.filter(p => {
-            if (p === maxPrice) return true;
-            if (maxPrice > 20 && p < Math.max(10, maxPrice * 0.15)) return false;
-            return true;
-        });
+        setIsProcessing(true);
+        try {
+            const result = await extractProductFromImage(currentMarkedItem.productImage, 'image/png');
+            if (result.success && result.data) {
+                const d = result.data;
+                const displayName = d.brand && d.productName
+                    ? `${d.brand} ${d.productName}`
+                    : d.productName || d.brand || formData.name;
 
-        if (validPrices.length >= 2) {
-            setFormData(prev => ({ ...prev, oldPrice: String(validPrices[0]), offerPrice: String(validPrices[1]) }));
-            toast.success("Prices updated from description");
-        } else if (validPrices.length === 1) {
-            setFormData(prev => ({ ...prev, oldPrice: String(validPrices[0]), offerPrice: String(validPrices[0]) }));
-            toast.success("Prices updated from description");
-        } else {
-            toast.error("No prices detected in description");
+                setFormData(prev => ({
+                    ...prev,
+                    name: displayName || prev.name,
+                    description: d.description || prev.description,
+                    oldPrice: d.oldPrice ? String(d.oldPrice) : prev.oldPrice,
+                    offerPrice: d.offerPrice ? String(d.offerPrice) : prev.offerPrice,
+                    mainCategory: d.mainCategory || prev.mainCategory,
+                    subcategories: d.subcategories?.length ? d.subcategories : prev.subcategories,
+                }));
+                toast.success('Form updated with AI extraction');
+            } else {
+                toast.error(result.error || 'AI re-extraction failed.');
+            }
+        } catch (err) {
+            toast.error('AI re-extraction failed.');
+        } finally {
+            setIsProcessing(false);
         }
     };
 
@@ -1065,7 +952,7 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                                 <button
                                     type="button"
                                     onClick={() => handleDeleteItem(currentMarkedItem.id)}
-                                    className="w-full py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] text-red-400 hover:text-white hover:bg-red-500 transition-all rounded-xl flex items-center justify-center gap-2 border border-red-100/50 hover:border-red-500"
+                                    className="w-full py-2.5 text-[10px] font-bold capitalize tracking-[0.2em] text-red-400 hover:text-white hover:bg-red-500 transition-all rounded-xl flex items-center justify-center gap-2 border border-red-100/50 hover:border-red-500"
                                 >
                                     <Trash2 className="w-3.5 h-3.5" /> Remove Item from Poster
                                 </button>
