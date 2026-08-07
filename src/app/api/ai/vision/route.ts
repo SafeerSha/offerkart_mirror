@@ -139,7 +139,7 @@ export async function POST(req: NextRequest) {
         }
 
         // 2. Rate limit check by User Identity (more secure than IP)
-        const userId = session.user?.email || session.user?.id || 'anonymous';
+        const userId = String(session.user?.email || session.user?.id || 'anonymous');
         if (!checkRateLimit(userId)) {
             return NextResponse.json(
                 { error: 'Too many requests. Please try again later.' },
