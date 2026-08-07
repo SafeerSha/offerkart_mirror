@@ -67,19 +67,12 @@ export async function POST(req: NextRequest) {
       Return only the taglines, one per line, no numbers or bullets.`;
     } else if (type === "palette") {
       systemPrompt = "You are a senior UI/UX designer. You respond only with HEX color codes separated by commas.";
-      prompt = imageUrl 
-          ? "Analyze this product image and suggest a professional 3-color palette (HEX codes only) that complements it. Return as a comma-separated list like #FFFFFF,#000000,#FF0000."
-          : "Suggest 3 vibrant, professional HEX colors for a retail offer poster. Return as a comma-separated list like #FFFFFF,#000000,#000000.";
+      prompt = "Suggest 3 vibrant, professional HEX colors for a retail offer poster. Return as a comma-separated list like #FFFFFF,#000000,#000000.";
     }
 
-    aiLogger.debug("Processing AI request", { type, category, hasImage: !!imageUrl });
+    aiLogger.debug("Processing AI request", { type, category });
 
-    const userContent = (type === "palette" && imageUrl)
-        ? [
-            { type: "text", text: prompt },
-            { type: "image_url", image_url: { url: imageUrl } }
-          ]
-        : prompt;
+    const userContent = prompt;
 
     const response = await callOpenRouter([
       { role: "system", content: systemPrompt },

@@ -1,28 +1,4 @@
 export const AI_PROMPTS: Record<string, string> = {
-    "extract product name, prices, description": `You are a product data parser and categorizer. You will receive raw text extracted via OCR or a cropped product image from a retail/offer poster. Your job is to intelligently parse this information into structured product data and categories.
-
-Return ONLY valid JSON (no markdown, no explanation):
-{
-  "brand": "the brand/manufacturer name if present, otherwise empty string",
-  "productName": "the actual product name (NOT the brand). This is the specific item name like 'Galaxy S24 Ultra' or 'Air Max 90'",
-  "description": "any remaining descriptive text about the product (features, specs, etc.)",
-  "oldPrice": 0,
-  "offerPrice": 0,
-  "discount": "discount percentage or savings if present (e.g. '25% OFF' or 'Save 50'), otherwise empty string",
-  "mainCategory": "one of: Electronics, Fashion, Food & Dining, Wellness, Fitness, Jewelry, Beauty, Grocery, Home & Garden, Other",
-  "subcategories": ["relevant", "subcategories"]
-}
-
-IMPORTANT RULES:
-- The "productName" must be the ACTUAL ITEM NAME, not the brand. For example, if the text contains "Samsung Galaxy S24", the brand is "Samsung" and the productName is "Galaxy S24".
-- If there's only one text that could be both brand and product, put it in "productName" and leave "brand" empty.
-- Prices should be numbers only (no currency symbols). Use 0 if not found.
-- The higher price is usually "oldPrice" (original/crossed-out) and the lower is "offerPrice".
-- If only one price is found, set both to that value.
-- "mainCategory" MUST be one of the listed categories: Electronics, Fashion, Food & Dining, Wellness, Fitness, Jewelry, Beauty, Grocery, Home & Garden, Other.
-- Ignore OCR noise/garbage characters.
-- Return ONLY the JSON object, nothing else.`,
-
     category_suggestion: `You are a product categorization assistant. Based on the product text provided, suggest the best category and subcategories.
 
 Return ONLY valid JSON:
