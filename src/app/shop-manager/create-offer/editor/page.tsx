@@ -15,7 +15,6 @@ import {
 import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
 import { useSubcategories } from "@/hooks/useApi";
 import Image from "next/image";
-import { createWorker, Worker } from 'tesseract.js';
 import { Heading, Subheading, Text } from "@/components/shared/Typography";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import { PremiumCard } from "@/components/shared/PremiumCard";
@@ -390,6 +389,7 @@ function HotspotEditorContent() {
             const invertedDataUrl = invertCanvas.toDataURL('image/png');
 
             // Run OCR — no char whitelist so the LSTM model operates freely
+            const { createWorker } = await import('tesseract.js');
             const worker = await createWorker('ara+eng', 1, {
                 logger: m => console.log('OCR Progress:', m),
             });

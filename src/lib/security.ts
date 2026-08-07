@@ -1,13 +1,12 @@
 export function sanitizeInput(value: string): string {
     if (typeof value !== "string") return value;
 
-    const clean = value.replace(/<[^>]*>?/gm, "");
-    return clean
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+    // Strip executable HTML tags and script/style tags, while keeping standard text untouched.
+    // React handles JSX entity escaping automatically upon rendering.
+    return value
+        .replace(/<script\b[^<]*>(?:[\s\S]*?<\/script>)?/gi, "")
+        .replace(/<style\b[^<]*>(?:[\s\S]*?<\/style>)?/gi, "")
+        .replace(/<[^>]*>/g, "");
 }
 
 export function hasSuspiciousPattern(value: string): boolean {
@@ -15,13 +14,13 @@ export function hasSuspiciousPattern(value: string): boolean {
 
     const patterns = [
         /(\s|^)OR\s+['"]?1['"]?\s*=\s*['"]?1['"]?/i,
-        /UNION\s+SELECT/i,
+        /UNION\s+ALL\s+SELECT|UNION\s+SELECT/i,
         /DROP\s+TABLE/i,
         /DELETE\s+FROM/i,
-        /--/g,
-        /;/g,
-        /\/\*/g,
+        /INSERT\s+INTO/i,
+        /UPDATE\s+\w+\s+SET/i,
         /xp_cmdshell/i,
+        /<script/i,
     ];
 
     return patterns.some(pattern => pattern.test(value));

@@ -12,7 +12,6 @@ import Image from "next/image";
 
 import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
 import { useSubcategories } from "@/hooks/useApi";
-import { createWorker, Worker } from 'tesseract.js';
 import { Heading, Subheading, Text } from "@/components/shared/Typography";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import { PremiumCard } from "@/components/shared/PremiumCard";
@@ -310,6 +309,7 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
             let ocrText = '';
             let ocrPass1Text = '';
             try {
+                const { createWorker } = await import('tesseract.js');
                 const worker = await createWorker('ara+eng', 1, {
                     logger: m => console.log('OCR Progress:', m),
                 });

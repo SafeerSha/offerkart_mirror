@@ -7,6 +7,7 @@ const IS_SERVER = typeof window === "undefined";
 const BACKEND_PROXY_PREFIX = config.api.proxyPrefix;
 const UPSTREAM_API_BASE_URL = config.api.upstreamBaseUrl;
 
+const PUBLIC_PREFIXES = ["user/offer", "user/analytics", "business/category"];
 const PUBLIC_PATHS = new Set([
     "business/auth/login",
     "business/auth/register",
@@ -14,7 +15,7 @@ const PUBLIC_PATHS = new Set([
 ]);
 
 function isPublicPath(pathname: string) {
-    return pathname.startsWith("user/") || pathname.startsWith("business/category") || PUBLIC_PATHS.has(pathname);
+    return PUBLIC_PREFIXES.some(prefix => pathname === prefix || pathname.startsWith(prefix + "/") || pathname.startsWith(prefix + "?")) || PUBLIC_PATHS.has(pathname);
 }
 
 type NextCacheOptions = { tags?: string[]; revalidate?: number | false };
