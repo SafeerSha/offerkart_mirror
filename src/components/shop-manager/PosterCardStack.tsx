@@ -552,34 +552,34 @@ export const PosterCardStack = forwardRef<
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
                     className={cn(
-                        "relative flex flex-col items-center justify-center cursor-pointer transition-all duration-300",
-                        "min-h-[380px] sm:min-h-[400px] rounded-3xl overflow-hidden py-8 px-6 sm:py-10 sm:px-8",
-                        "border-2 border-dashed",
+                        "relative flex flex-col items-center justify-center cursor-pointer transition-colors duration-200",
+                        "min-h-[300px] sm:min-h-[360px] rounded-xl py-8 px-6 sm:py-10 sm:px-8",
+                        "border border-border bg-card shadow-sm",
                         isDragging
-                            ? "border-primary bg-primary/10 scale-[1.01] shadow-glow"
-                            : "border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/40"
+                            ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                            : "hover:border-primary/40 hover:bg-zinc-50/50 dark:hover:bg-zinc-900/50"
                     )}
                 >
                     <div className={cn(
-                        "w-20 h-20 rounded-2xl flex items-center justify-center transition-all duration-500 mb-5",
-                        isDragging ? "bg-primary text-white rotate-12 scale-110" : "bg-primary/10 text-primary"
+                        "w-16 h-16 rounded-full flex items-center justify-center transition-colors duration-200 mb-4",
+                        isDragging ? "bg-primary text-white" : "bg-primary/10 text-primary"
                     )}>
-                        {isDragging ? <Upload className="w-10 h-10 animate-bounce" /> : <Plus className="w-10 h-10" />}
+                        <Upload className="w-8 h-8" />
                     </div>
 
-                    <Text className="font-bold text-xl mb-1 text-center">
+                    <Text className="font-semibold text-lg mb-1 text-center text-foreground">
                         {isDragging ? "Drop your files here" : "Upload Offer Posters"}
                     </Text>
-                    <Text className="opacity-50 text-sm mb-5 max-w-xs text-center">
-                        Drag & drop images or PDF here
+                    <Text className="text-muted-foreground text-sm mb-6 max-w-xs text-center">
+                        Drag and drop your images or PDF here
                     </Text>
 
-                    <div className="px-6 py-3 rounded-2xl gradient-primary text-white text-sm font-bold uppercase tracking-wider shadow-lg shadow-primary/20">
+                    <div className="px-5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium shadow-sm hover:bg-primary/90 transition-colors">
                         Select Files
                     </div>
 
-                    <Text className="text-[10px] sm:text-xs opacity-50 mt-5 px-4 text-center leading-relaxed font-medium">
-                        PDF, JPG, PNG, WEBP — Max {maxSizeMB}MB each — Up to {maxPosters} posters
+                    <Text className="text-xs text-muted-foreground mt-6 px-4 text-center">
+                        PDF, JPG, PNG, WEBP (Max {maxSizeMB}MB each, Up to {maxPosters} posters)
                     </Text>
                 </div>
             </>

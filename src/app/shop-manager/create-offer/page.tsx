@@ -581,12 +581,9 @@ function CreateOfferContent() {
         <div className="min-h-screen bg-background">
             <div className="h-20 lg:h-24" />
 
-            <main className="w-full relative overflow-hidden bg-background min-h-screen">
-                <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-[500px] h-[500px] bg-primary/5 rounded-full blur-3xl pointer-events-none" />
-                <div className="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/2 w-[400px] h-[400px] bg-secondary/5 rounded-full blur-3xl pointer-events-none" />
-
+            <main className="w-full relative bg-background min-h-screen border-t border-border/40">
                 <div className={cn(
-                    "mx-auto relative px-4 lg:px-8 py-6 md:py-12 transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]",
+                    "mx-auto relative px-4 lg:px-8 py-8 md:py-12 transition-all duration-300",
                     isEditing ? "max-w-[1400px]" : previewState ? "max-w-full" : "max-w-6xl"
                 )}>
                     {!isEditing && (
@@ -604,22 +601,23 @@ function CreateOfferContent() {
                         !isEditing && (previewState ? "lg:items-stretch" : "lg:items-start")
                     )}>
                         <div className={cn(
-                            "space-y-6 flex flex-col min-h-0 transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] w-full",
+                            "space-y-6 flex flex-col min-h-0 w-full transition-all duration-300",
                             isEditing ? "w-full" : previewState ? "lg:flex-1" : "lg:flex-[2]"
                         )}>
                             {!isEditing && (
-                                <div className="space-y-1">
-                                    <Heading className="text-gradient font-bold tracking-tight">
+                                <div className="space-y-1 border-b border-border/40 pb-4 mb-2">
+                                    <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-gradient">
                                         {isUpdateMode ? "Update Offer" : "Create Offer"}
-                                    </Heading>
-                                    <Text className="opacity-50 text-base">
+                                    </h1>
+                                    <p className="text-muted-foreground text-base">
                                         {isUpdateMode ? "Upload additional posters, classify them, and save." : "Upload posters, classify them, and publish."}
-                                    </Text>
+                                    </p>
                                 </div>
                             )}
 
-                            <PremiumCard className={cn(
-                                isEditing ? "p-0 border-0 bg-transparent shadow-none" : "p-3 overflow-visible"
+                            <div className={cn(
+                                "transition-all duration-300",
+                                isEditing ? "p-0 bg-transparent" : "p-0 rounded-xl bg-card border border-border shadow-sm overflow-hidden"
                             )}>
                                 <PosterCardStack
                                     ref={posterStackRef}
@@ -630,7 +628,7 @@ function CreateOfferContent() {
                                     submitButtonText={isUpdateMode ? "Continue to Update" : "Publish"}
                                     onSaveDraft={handleSaveDraftSubmit}
                                 />
-                            </PremiumCard>
+                            </div>
 
                             {!isEditing && stackPhase !== "classify" && (
                                 <PremiumButton
@@ -668,16 +666,14 @@ function CreateOfferContent() {
                                     </div>
                                 ) : (
                                     <>
-                                        <div className="flex items-center justify-between">
+                                        <div className="flex items-center justify-between border-b border-border/40 pb-4 mb-2">
                                             <div className="flex items-center gap-2">
-                                                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                                                    <Clock className="w-4 h-4 text-primary" />
-                                                </div>
-                                                <Subheading className="whitespace-nowrap">
+                                                <Clock className="w-5 h-5 text-muted-foreground" />
+                                                <h2 className="text-lg font-semibold text-foreground whitespace-nowrap">
                                                     Drafted Posters
-                                                </Subheading>
+                                                </h2>
                                             </div>
-                                            <span className="text-xs font-bold uppercase tracking-widest text-primary/60 bg-primary/5 px-3 py-1 rounded-full border border-primary/10">
+                                            <span className="text-xs font-medium text-muted-foreground bg-muted px-2.5 py-0.5 rounded-full border border-border">
                                                 {drafts.length}
                                             </span>
                                         </div>
@@ -687,17 +683,15 @@ function CreateOfferContent() {
                                                 drafts.map((draft) => (
                                                     <div
                                                         key={draft.id}
-                                                        className="group relative flex gap-4 p-4 rounded-3xl bg-card border border-border/50 hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 overflow-hidden"
+                                                        className="group relative flex gap-4 p-4 rounded-xl bg-card border border-border hover:border-primary/30 transition-colors shadow-sm overflow-hidden"
                                                     >
-                                                        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-
-                                                        <div className="relative w-24 h-24 rounded-2xl overflow-hidden shrink-0 border border-border/50">
+                                                        <div className="relative w-20 h-20 rounded-lg overflow-hidden shrink-0 border border-border">
                                                             <Image
                                                                 src={draft.posterSrc}
                                                                 alt={draft.title}
                                                                 fill
                                                                 unoptimized
-                                                                className="object-cover group-hover:scale-110 transition-transform duration-500"
+                                                                className="object-cover"
                                                             />
                                                         </div>
 
@@ -721,18 +715,18 @@ function CreateOfferContent() {
                                                                     onClick={() =>
                                                                         handleResumeDraft(draft)
                                                                     }
-                                                                    className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary hover:text-primary/70 transition-colors"
+                                                                    className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
                                                                 >
-                                                                    <FileEdit className="w-3 h-3" />
+                                                                    <FileEdit className="w-3.5 h-3.5" />
                                                                     Resume
                                                                 </button>
                                                                 <button
                                                                     onClick={() =>
                                                                         handleDiscardClick(draft.id)
                                                                     }
-                                                                    className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-destructive hover:text-destructive/70 transition-colors"
+                                                                    className="flex items-center gap-1.5 text-xs font-medium text-destructive hover:text-destructive/80 transition-colors"
                                                                 >
-                                                                    <Trash2 className="w-3 h-3" />
+                                                                    <Trash2 className="w-3.5 h-3.5" />
                                                                     Discard
                                                                 </button>
                                                             </div>
@@ -751,16 +745,16 @@ function CreateOfferContent() {
                                                     </div>
                                                 ))
                                             ) : (
-                                                <div className="p-8 rounded-3xl border-2 border-dashed border-primary/10 bg-primary/5 flex flex-col items-center justify-center text-center space-y-3">
-                                                    <div className="w-12 h-12 rounded-full bg-background flex items-center justify-center shadow-sm">
-                                                        <LayoutGrid className="w-6 h-6 text-primary/40" />
+                                                <div className="p-8 rounded-xl border border-border bg-card flex flex-col items-center justify-center text-center space-y-3 shadow-sm">
+                                                    <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                                                        <LayoutGrid className="w-6 h-6 text-muted-foreground" />
                                                     </div>
-                                                    <Text className="text-sm font-semibold opacity-60">
+                                                    <p className="text-sm font-semibold text-foreground">
                                                         No drafts yet
-                                                    </Text>
-                                                    <Text className="text-xs opacity-30">
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground max-w-[200px]">
                                                         Posters marked for product tagging will appear here
-                                                    </Text>
+                                                    </p>
                                                 </div>
                                             )}
                                         </div>
