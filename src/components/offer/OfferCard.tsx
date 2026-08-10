@@ -65,6 +65,7 @@ const OfferCard = ({
 
   return (
     <PremiumCard
+      data-navigate-card="true"
       variant="default"
       padding="none"
       className="group cursor-pointer h-full flex flex-col border border-slate-100 dark:border-slate-800 overflow-hidden hover:border-orange-500/40 hover:shadow-[0_0_30px_rgba(249,115,22,0.15)] transition-all duration-500 rounded-t-xl rounded-b-xl mx-auto w-full max-w-full !bg-white dark:!bg-[#1c2018]"
