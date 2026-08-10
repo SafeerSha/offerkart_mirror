@@ -42,7 +42,7 @@ export function GlobalLoaderProvider({ children }: { children: React.ReactNode }
         setIsNavigating(false);
     }, []);
 
-    // Global click listener to intercept navigation link & button clicks
+    // Global click listener to intercept navigation link & page-navigating card clicks
     useEffect(() => {
         if (typeof window === "undefined") return;
 
@@ -50,9 +50,10 @@ export function GlobalLoaderProvider({ children }: { children: React.ReactNode }
             const target = event.target as HTMLElement | null;
             if (!target) return;
 
-            // Find closest anchor tag or clickable button
+            // Find closest anchor tag, button with loader trigger, or navigation card container
             const anchor = target.closest("a") as HTMLAnchorElement | null;
             const button = target.closest("button") as HTMLButtonElement | null;
+            const navCard = target.closest("[data-navigate-card], [data-href], [data-navigate]") as HTMLElement | null;
 
             if (anchor && anchor.href) {
                 const url = new URL(anchor.href, window.location.origin);
@@ -66,8 +67,13 @@ export function GlobalLoaderProvider({ children }: { children: React.ReactNode }
                         setCustomText("Navigating...");
                     }
                 }
+            } else if (navCard) {
+                // Intercept cards (OfferCard, ProductCard, ShopCard) that navigate to detail pages
+                const loaderText = navCard.getAttribute("data-loader-text");
+                setIsNavigating(true);
+                setCustomText(loaderText || "Loading...");
             } else if (button) {
-                // If button has data-loader attribute or trigger-loader class
+                // Only if button explicitly requests loader via data-loader-text or trigger-loader class
                 const loaderText = button.getAttribute("data-loader-text");
                 if (loaderText || button.classList.contains("trigger-loader")) {
                     setIsNavigating(true);
@@ -92,7 +98,7 @@ export function GlobalLoaderProvider({ children }: { children: React.ReactNode }
     const isLoading = isNavigating || manualCount > 0 || isMutating > 0;
 
     // Determine current display text
-    const activeText = customText || (isNavigating ? "Navigating..." : isMutating > 0 ? "Updating..." : "Loading...");
+    const activeText = customText || (isNavigating ? "Loading..." : isMutating > 0 ? "Updating..." : "Loading...");
 
     return (
         <GlobalLoaderContext.Provider value={{ isLoading, loadingText: activeText, showLoader, hideLoader }}>
@@ -105,7 +111,7 @@ export function GlobalLoaderProvider({ children }: { children: React.ReactNode }
                 <div
                     aria-live="polite"
                     aria-busy="true"
-                    className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[99999] pointer-events-none select-none animate-in slide-in-from-bottom-4 fade-in duration-200"
+                    className="fixed bottom-5 left-5 z-[99999] pointer-events-none select-none animate-in slide-in-from-bottom-4 fade-in duration-200"
                 >
                     <div className="flex items-center gap-0.5 px-4 py-1.5 rounded-full text-orange-600 bg-white/70 border border-orange-400/30 border-b-[2.5px] border-b-orange-500/40">
                         <span className=" text-[9px] sm:text-[11px] font-bold text-orange-600 tracking-wide font-sans ">

@@ -58,6 +58,7 @@ const ProductCard = ({
 
     return (
         <PremiumCard
+            data-navigate-card={clickEnable ? "true" : undefined}
             variant="default"
             padding="none"
             className={cn(
