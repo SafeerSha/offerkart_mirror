@@ -9,6 +9,7 @@ import { SessionProvider } from "next-auth/react";
 import { LanguageProvider } from "@/components/i18n/LanguageProvider";
 import { Locale } from "@/lib/i18n/config";
 import { LocationProvider } from "@/context/LocationContext";
+import { GlobalLoaderProvider } from "@/context/GlobalLoaderContext";
 
 // Filter out false-positive React 19 warning caused by next-themes injecting inline anti-flash script tag
 if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
@@ -38,16 +39,18 @@ export function Providers({ children, locale = "en", dictionary }: { children: R
       <SessionProvider>
         <LanguageProvider locale={locale} dictionary={dictionary}>
           <LocationProvider>
-            <ThemeProvider
-              attribute="class"
-              defaultTheme="light"
-              enableSystem
-              disableTransitionOnChange
-            >
-              {children}
-              <Toaster />
-              <Sonner />
-            </ThemeProvider>
+            <GlobalLoaderProvider>
+              <ThemeProvider
+                attribute="class"
+                defaultTheme="light"
+                enableSystem
+                disableTransitionOnChange
+              >
+                {children}
+                <Toaster />
+                <Sonner />
+              </ThemeProvider>
+            </GlobalLoaderProvider>
           </LocationProvider>
         </LanguageProvider>
       </SessionProvider>
