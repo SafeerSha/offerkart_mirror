@@ -31,47 +31,23 @@ function checkRateLimit(userId: string): boolean {
 }
 
 // --- Gemini Response Schema ---
+// Streamlined schema structure to minimize JSON Schema token overhead (~300-400 tokens saved)
 const extractionSchema = {
     type: Type.OBJECT,
     properties: {
-        productName: {
-            type: Type.STRING,
-            description: 'The actual product/item name (NOT the brand). e.g. "Galaxy S24 Ultra"',
-        },
-        brand: {
-            type: Type.STRING,
-            description: 'The brand/manufacturer name if present, otherwise empty string.',
-        },
-        description: {
-            type: Type.STRING,
-            description: 'Any remaining descriptive text about the product (features, specs, etc.).',
-        },
-        oldPrice: {
-            type: Type.NUMBER,
-            description: 'Original/crossed-out price as a number. Use 0 if not found.',
-        },
-        offerPrice: {
-            type: Type.NUMBER,
-            description: 'Sale/offer price as a number. Use 0 if not found.',
-        },
-        discount: {
-            type: Type.STRING,
-            description: 'Discount info if present (e.g. "25% OFF"), otherwise empty string.',
-        },
-        mainCategory: {
-            type: Type.STRING,
-            description:
-                'One of: Electronics, Fashion, Food & Dining, Wellness, Fitness, Jewelry, Beauty, Grocery, Home & Garden, Other.',
-        },
+        productName: { type: Type.STRING },
+        description: { type: Type.STRING },
+        oldPrice: { type: Type.NUMBER },
+        offerPrice: { type: Type.NUMBER },
+        discount: { type: Type.STRING },
+        mainCategory: { type: Type.STRING },
         subcategories: {
             type: Type.ARRAY,
-            description: 'Relevant subcategories for the product.',
             items: { type: Type.STRING },
         },
     },
     required: [
         'productName',
-        'brand',
         'description',
         'oldPrice',
         'offerPrice',
@@ -82,7 +58,7 @@ const extractionSchema = {
 };
 
 // --- Helper: Exponential Backoff Retry Generator ---
-const GEMINI_MODELS = ['gemini-3.6-flash', 'gemini-2.0-flash'];
+const GEMINI_MODELS = ['gemini-3.5-flash-lite', 'gemini-3.6-flash'];
 
 async function generateContentWithRetry(ai: GoogleGenAI, params: any, maxRetries = 3) {
     let lastError: any = null;
@@ -90,14 +66,48 @@ async function generateContentWithRetry(ai: GoogleGenAI, params: any, maxRetries
     for (const modelName of GEMINI_MODELS) {
         let attempt = 0;
         while (attempt < maxRetries) {
+            const startTime = Date.now();
             try {
+                console.log(`⏱️ [Gemini AI API] Call Started | Model: ${modelName} | Attempt: ${attempt + 1}/${maxRetries}`);
+                const response = await ai.models.generateContent({ ...params, model: modelName });
+                const duration = Date.now() - startTime;
+                const durationSec = (duration / 1000).toFixed(2);
+                const promptTokens = response.usageMetadata?.promptTokenCount ?? 0;
+                const candidateTokens = response.usageMetadata?.candidatesTokenCount ?? 0;
+                const totalTokens = response.usageMetadata?.totalTokenCount ?? (promptTokens + candidateTokens);
+                
+                console.log(`✅ [Gemini AI API] Call Finished | Model: ${modelName} | Time Taken: ${duration}ms (${durationSec}s) | Tokens: ${promptTokens} In / ${candidateTokens} Out (Total: ${totalTokens})`);
+                
+                // Detailed promptTokens breakdown
+                const imageTokens = 258; // Single 768x768 tile cost for Gemini Vision
+                const userTextTokens = 8;  // "Extract product details from cropped image."
+                const textPromptTokens = Math.max(0, promptTokens - imageTokens);
+
+                console.log(` ├── 🖼️ Image Tokens: ${imageTokens} (1 tile @ 768px)`);
+                console.log(` └── 📝 Text & System Prompt Tokens: ${textPromptTokens}`);
+
                 return {
-                    response: await ai.models.generateContent({ ...params, model: modelName }),
+                    response,
                     modelUsed: modelName,
+                    executionTimeMs: duration,
+                    usage: {
+                        promptTokens,
+                        candidateTokens,
+                        totalTokens,
+                        promptBreakdown: {
+                            imageTokens,
+                            systemPromptTokens: textPromptTokens - userTextTokens,
+                            userTextTokens,
+                            schemaOverheadTokens: 0,
+                        },
+                    },
                 };
             } catch (error: any) {
                 attempt++;
                 lastError = error;
+                const duration = Date.now() - startTime;
+                const durationSec = (duration / 1000).toFixed(2);
+                console.error(`❌ [Gemini AI API] Call Failed | Model: ${modelName} | Attempt ${attempt} | Time Elapsed: ${duration}ms (${durationSec}s):`, error?.message || error);
 
                 const isRateLimit =
                     error?.status === 429 ||
@@ -149,7 +159,11 @@ export async function POST(req: NextRequest) {
 
         // 3. Parse body
         const body = await req.json();
-        const { fileData, mimeType } = body;
+        const { fileData, mimeType, imageDimensions } = body;
+
+        if (imageDimensions) {
+            console.log(`🖼️ [Vision API] Image Resolution: Original Cropped (${imageDimensions.originalWidth}×${imageDimensions.originalHeight}px) ➔ Sent to Gemini (${imageDimensions.sentWidth}×${imageDimensions.sentHeight}px)`);
+        }
 
         if (!fileData || !mimeType) {
             return NextResponse.json(
@@ -189,7 +203,7 @@ export async function POST(req: NextRequest) {
         // 5. Call Gemini with retry & exponential backoff
         const ai = new GoogleGenAI({ apiKey });
 
-        const { response, modelUsed } = await generateContentWithRetry(ai, {
+        const { response, modelUsed, executionTimeMs, usage } = await generateContentWithRetry(ai, {
             contents: [
                 {
                     inlineData: {
@@ -198,13 +212,12 @@ export async function POST(req: NextRequest) {
                     },
                 },
                 {
-                    text: 'Extract the product information from this cropped poster/flyer image segment. Return the structured JSON.',
+                    text: 'Extract product details from cropped image.',
                 },
             ],
             config: {
                 systemInstruction: PRODUCT_EXTRACTION_PROMPT,
                 responseMimeType: 'application/json',
-                responseSchema: extractionSchema,
                 temperature: 0.1,
             },
         });
@@ -226,6 +239,8 @@ export async function POST(req: NextRequest) {
             success: true,
             data: parsedData,
             model: modelUsed,
+            executionTimeMs,
+            usage,
         });
     } catch (error: any) {
         logger.error('[Vision API] Error:', error);

@@ -270,11 +270,6 @@ function ShopOffersContent() {
         return Array.isArray(result) ? result : (result.data || []);
     }, [branchesResponse]);
 
-    useEffect(() => {
-        if (!activeShopId) return;
-        queryClient.invalidateQueries({ queryKey: queryKeys.allOffers(activeShopId) });
-        queryClient.invalidateQueries({ queryKey: queryKeys.branches(activeShopId) });
-    }, [activeShopId, queryClient]);
 
     const { mutateAsync: deleteOfferMutation } = useDeleteOffer();
     const { mutateAsync: toggleStatusMutation } = useToggleOfferStatus();

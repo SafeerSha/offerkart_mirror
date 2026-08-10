@@ -27,7 +27,7 @@ export function Providers({ children, locale = "en", dictionary }: { children: R
       queries: {
         staleTime: 5 * 60 * 1000,
         gcTime: 10 * 60 * 1000,
-        refetchOnWindowFocus: true,
+        refetchOnWindowFocus: false,
         retry: 1,
       },
     },

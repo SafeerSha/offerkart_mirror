@@ -91,7 +91,7 @@ const FeaturedShops = ({
 
   const isComponentLoading = propsLoading !== undefined 
     ? propsLoading 
-    : (queryLoading && hydrated && (hasLocation || !!industryId));
+    : (queryLoading && hydrated && (hasLocation || !!industryId) && (!shops || shops.length === 0));
 
   const filteredShops = useMemo(() => {
     if (disableDynamicFetch) {
@@ -101,7 +101,7 @@ const FeaturedShops = ({
       if (dynamicData && dynamicData.success) {
         return dynamicData.data || [];
       }
-      return []; // Return empty array during fetch to prevent blinking with old shops
+      return shops || [];
     }
     return shops || [];
   }, [hydrated, hasLocation, industryId, dynamicData, shops, disableDynamicFetch]);

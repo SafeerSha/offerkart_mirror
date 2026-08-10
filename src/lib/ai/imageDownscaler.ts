@@ -16,7 +16,13 @@ export interface DownscaleResult {
 }
 
 /**
- * Estimates Gemini Vision token cost based on the 768×768 tile grid algorithm.
+ * Estimated text prompt tokens for system instructions and user request text (~130 tokens).
+ */
+export const ESTIMATED_PROMPT_SCHEMA_OVERHEAD_TOKENS = 130;
+
+/**
+ * Estimates Gemini Vision image tokens based on the 768×768 tile grid algorithm.
+ * Note: This estimates the IMAGE portion of tokens (258 tokens per 768px tile).
  */
 export function estimateGeminiTokens(width: number, height: number): number {
     if (width <= 0 || height <= 0) return 0;

@@ -94,12 +94,6 @@ function DashboardContent() {
         return null;
     }, [session, shops]);
 
-    useEffect(() => {
-        if (!activeShopId) return;
-        queryClient.invalidateQueries({ queryKey: queryKeys.allOffers(activeShopId) });
-        queryClient.invalidateQueries({ queryKey: queryKeys.allProducts(activeShopId) });
-        queryClient.invalidateQueries({ queryKey: queryKeys.branches(activeShopId) });
-    }, [activeShopId, queryClient]);
 
     // 2. Fetch Offers for current shop
     const { data: offersResponse, isLoading: isLoadingOffers } = useAllOffers(activeShopId || undefined, { limit: 50 });

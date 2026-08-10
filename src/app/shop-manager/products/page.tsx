@@ -277,11 +277,6 @@ function ShopProductsContent() {
         return map;
     }, [branches]);
 
-    useEffect(() => {
-        if (!activeShopId) return;
-        queryClient.invalidateQueries({ queryKey: queryKeys.allProducts(activeShopId) });
-        queryClient.invalidateQueries({ queryKey: queryKeys.branches(activeShopId) });
-    }, [activeShopId, queryClient]);
 
     const { mutateAsync: createProductMutation } = useCreateProduct();
     const { mutateAsync: updateProductMutation } = useUpdateProduct();
