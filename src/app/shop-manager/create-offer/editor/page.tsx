@@ -1640,7 +1640,7 @@ function HotspotEditorContent() {
                 )}
 
             {/* Back Warning Modal */}
-            < AppModal
+            <AppModal
                 open={showBackWarning}
                 onOpenChange={setShowBackWarning}
                 title="Unsaved Changes"
@@ -1676,6 +1676,7 @@ function HotspotEditorContent() {
                         </PremiumButton>
                     </div>
                 </div>
+            </AppModal>
             {/* Fullscreen Product Image Zoom Lightbox */}
             {zoomedImageSrc && typeof window !== "undefined" && createPortal(
                 <div 
@@ -1780,7 +1781,7 @@ function HotspotEditorContent() {
                 </div>,
                 document.body
             )}
-        </div >
+        </div>
     );
 }
 

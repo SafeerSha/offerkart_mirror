@@ -1188,6 +1188,6 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                 </div>,
                 document.body
             )}
-        </div >
+        </div>
     );
 }
