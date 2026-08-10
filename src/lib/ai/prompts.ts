@@ -1,16 +1,20 @@
-export const PRODUCT_EXTRACTION_PROMPT = `You are an expert product data extraction engine specialized in retail offer posters and flyers.
+export const PRODUCT_EXTRACTION_PROMPT = `Extract product details from the cropped retail poster into a valid JSON object.
 
-Analyze the provided cropped image segment from a retail/offer poster and extract structured product information.
+Return ONLY a valid JSON object matching this exact structure:
+{
+  "productName": "product name without brand (e.g. Nutri Oil Shampoo)",
+  "description": "brief product specs or features from text",
+  "oldPrice": 0,
+  "offerPrice": 0,
+  "discount": "discount text like 25% OFF or empty string",
+  "mainCategory": "one of: Electronics, Fashion, Food & Dining, Wellness, Fitness, Jewelry, Beauty, Grocery, Home & Garden, Other",
+  "subcategories": ["subcategory1", "subcategory2"]
+}
 
-Guidelines:
-1. Extract the product name (NOT the brand). If the text contains "Samsung Galaxy S24", the brand is "Samsung" and the productName is "Galaxy S24".
-2. Extract the brand/manufacturer separately. If only one text could be both, put it in productName and leave brand empty.
-3. Extract prices as numbers only (no currency symbols). The higher price is usually the original/crossed-out price (oldPrice). The lower price is the offer/sale price (offerPrice). If only one price is found, set offerPrice to that value and set oldPrice to 0. Use 0 if not found.
-4. Extract any discount information (e.g. "25% OFF", "Save 50").
-5. Determine the best mainCategory from EXACTLY one of: Electronics, Fashion, Food & Dining, Wellness, Fitness, Jewelry, Beauty, Grocery, Home & Garden, Other.
-6. Suggest relevant subcategories as an array of strings.
-7. Extract a brief product description from any visible descriptive text (features, specs, etc).
-8. Ignore OCR noise, watermarks, and garbage characters.`;
+Rules:
+- productName: item name without brand.
+- oldPrice & offerPrice: numeric values without currency symbols (use 0 if missing).
+- Return ONLY the JSON object. Do not include markdown codeblocks or extra text.`;
 
 export const AI_PROMPTS: Record<string, string> = {
     category_suggestion: `You are a product categorization assistant. Based on the product text provided, suggest the best category and subcategories.
