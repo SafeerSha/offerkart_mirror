@@ -108,13 +108,13 @@ export function GlobalLoaderProvider({ children }: { children: React.ReactNode }
                     className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[99999] pointer-events-none select-none animate-in slide-in-from-bottom-4 fade-in duration-200"
                 >
                     <div className="flex items-center gap-0.5 px-4 py-1.5 rounded-full text-orange-600 bg-white/70 border border-orange-400/30 border-b-[2.5px] border-b-orange-500/40">
-                        <span className="text-[11px] font-bold text-orange-600 tracking-wide font-sans ">
+                        <span className=" text-[9px] sm:text-[11px] font-bold text-orange-600 tracking-wide font-sans ">
                             {activeText.replace(/\.\.\.$/, "")}
                         </span>
                         <div className="flex items-baseline gap-0.5 ml-1">
-                            <span className="w-1 h-1 rounded-full bg-orange-500 shadow-[0_1px_2px_rgba(249,115,22,0.5)] animate-bounce [animation-delay:-0.3s]"></span>
-                            <span className="w-1 h-1 rounded-full bg-orange-500 shadow-[0_1px_2px_rgba(249,115,22,0.5)] animate-bounce [animation-delay:-0.15s]"></span>
-                            <span className="w-1 h-1 rounded-full bg-orange-500 shadow-[0_1px_2px_rgba(249,115,22,0.5)] animate-bounce"></span>
+                            <span className="w-0.5 h-0.5 sm:w-1 sm:h-1 rounded-full bg-orange-500 shadow-[0_1px_2px_rgba(249,115,22,0.5)] animate-bounce [animation-delay:-0.3s]"></span>
+                            <span className="w-0.5 h-0.5 sm:w-1 sm:h-1 rounded-full bg-orange-500 shadow-[0_1px_2px_rgba(249,115,22,0.5)] animate-bounce [animation-delay:-0.15s]"></span>
+                            <span className="w-0.5 h-0.5 sm:w-1 sm:h-1 rounded-full bg-orange-500 shadow-[0_1px_2px_rgba(249,115,22,0.5)] animate-bounce"></span>
                         </div>
                     </div>
                 </div>
