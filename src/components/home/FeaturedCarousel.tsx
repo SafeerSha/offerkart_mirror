@@ -3,12 +3,12 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Image, { StaticImageData } from "next/image";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Star, Rocket } from "lucide-react";
+import { ChevronLeft, ChevronRight, Star } from "lucide-react";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { Subheading, Text } from "@/components/shared/Typography";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useLocationContext } from "@/context/LocationContext";
-import { Search } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useFeaturedOffers } from "@/hooks/useApi";
 
 interface FeaturedOffer {
@@ -38,11 +38,11 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
     }
   );
 
-  const displayOffers = useMemo(() => {
+  const displayOffers: FeaturedOffer[] = useMemo(() => {
     if (hydrated && hasLocation && dynamicData && dynamicData.success) {
-      return dynamicData.data || [];
+      return (dynamicData.data || []) as FeaturedOffer[];
     }
-    return offers || [];
+    return (offers || []) as FeaturedOffer[];
   }, [hydrated, hasLocation, dynamicData, offers]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -70,22 +70,16 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
     return () => clearInterval(interval);
   }, [isAutoPlaying, nextSlide, displayOffers.length]);
 
-  const getVisibleSlides = () => {
-    if (displayOffers.length === 0) return [];
-    // Only generate as many side-slots as there are extra offers to avoid duplicating the same offer
-    const slides = [];
-    if (displayOffers.length === 1) {
-      // Single offer — show only the centre card
-      slides.push({ ...displayOffers[0], position: 0 });
-    } else {
-      for (let i = -1; i <= 2; i++) {
-        // Skip positions where we'd wrap back to the same offer
-        if (Math.abs(i) >= displayOffers.length) continue;
-        const index = (currentIndex + i + displayOffers.length) % displayOffers.length;
-        slides.push({ ...displayOffers[index], position: i });
-      }
+  const getOfferOffset = (index: number) => {
+    const total = displayOffers.length;
+    if (total <= 1) return 0;
+    if (total === 2) {
+      return (index - currentIndex + total) % total;
     }
-    return slides;
+    let diff = index - currentIndex;
+    while (diff > Math.floor(total / 2)) diff -= total;
+    while (diff < -Math.floor((total - 1) / 2)) diff += total;
+    return diff;
   };
 
   if (displayOffers.length === 0) {
@@ -121,7 +115,7 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
               <div className="hidden sm:flex items-center gap-2 mr-2">
                 <div className="w-16 h-1 bg-muted rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-primary to-secondary transition-all duration-300 ease-linear"
+                    className="h-full bg-gradient-to-r from-primary to-secondary transition-all duration-500 ease-out"
                     style={{ width: `${((currentIndex + 1) / displayOffers.length) * 100}%` }}
                   />
                 </div>
@@ -136,7 +130,7 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
                 onClick={prevSlide}
                 onMouseEnter={() => setIsAutoPlaying(false)}
                 onMouseLeave={() => setIsAutoPlaying(true)}
-                className="rounded-full border-orange-500/50 hover:border-orange-500 h-9 w-9 sm:h-10 sm:w-10 group"
+                className="rounded-full border-orange-500/50 hover:border-orange-500 h-9 w-9 sm:h-10 sm:w-10 group cursor-pointer"
               >
                 <ChevronLeft className="w-5 h-5 text-orange-500 group-hover:scale-110 transition-transform" />
               </PremiumButton>
@@ -146,7 +140,7 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
                 onClick={nextSlide}
                 onMouseEnter={() => setIsAutoPlaying(false)}
                 onMouseLeave={() => setIsAutoPlaying(true)}
-                className="rounded-full border-orange-500/50 hover:border-orange-500 h-9 w-9 sm:h-10 sm:w-10 group"
+                className="rounded-full border-orange-500/50 hover:border-orange-500 h-9 w-9 sm:h-10 sm:w-10 group cursor-pointer"
               >
                 <ChevronRight className="w-5 h-5 text-orange-500 group-hover:scale-110 transition-transform" />
               </PremiumButton>
@@ -161,28 +155,67 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
         ) : (
           <>
             <div
-              className="relative h-[450px] sm:h-[500px] md:h-[550px]"
+              className="relative h-[450px] sm:h-[500px] md:h-[540px]"
               onMouseEnter={() => setIsAutoPlaying(false)}
               onMouseLeave={() => setIsAutoPlaying(true)}
             >
               <div className="absolute inset-0 flex items-center justify-center">
-                {getVisibleSlides().map((offer) => (
-                  <div
-                    key={currentIndex + offer.position}
-                    className={`absolute transition-all duration-700 ease-out ${offer.position === 0
-                      ? "aspect-[1/1.414] h-full z-30 opacity-100 scale-100"
-                      : offer.position === -1
-                        ? "aspect-[1/1.414] h-[85%] -translate-x-4 -translate-y-2 md:-translate-x-[75%] md:translate-y-0 z-20 opacity-80 md:opacity-60 scale-95"
-                        : offer.position === 1
-                          ? "aspect-[1/1.414] h-[85%] translate-x-4 -translate-y-2 md:translate-x-[75%] md:translate-y-0 z-10 opacity-60 md:opacity-60 scale-90"
-                          : offer.position === 2
-                            ? "aspect-[1/1.414] h-[85%] translate-x-8 -translate-y-4 md:translate-x-[150%] md:translate-y-0 z-5 opacity-40 md:opacity-0 scale-85 hidden md:block"
-                            : "opacity-0 scale-90"
-                      }`}
-                  >
-                      <div 
-                        className="relative w-full h-full rounded-2xl overflow-hidden shadow-2xl group cursor-pointer border border-primary/20 group-hover:border-primary/40 transition-colors duration-300 bg-black flex items-center justify-center"
-                        onClick={() => router.push(`/offer/${offer.id}`)}
+                {displayOffers.map((offer: FeaturedOffer, idx: number) => {
+                  const isSingle = displayOffers.length === 1;
+                  const diff = getOfferOffset(idx);
+
+                  const isPrimaryLeft = diff === 0;
+                  const isPrimaryRight = diff === 1;
+                  const isLeftWing = diff === -1;
+                  const isRightWing = diff === 2;
+
+                  let posClass = "";
+                  if (isSingle) {
+                    posClass = "aspect-[1/1.414] h-full translate-x-0 translate-y-0 z-30 opacity-100 scale-100 pointer-events-auto";
+                  } else if (isPrimaryLeft) {
+                    // Mobile: single centered spotlight | Desktop: left spotlight
+                    posClass = "aspect-[1/1.414] h-full translate-x-0 translate-y-0 lg:-translate-x-[51%] lg:translate-y-0 z-30 opacity-100 scale-100 pointer-events-auto";
+                  } else if (isPrimaryRight) {
+                    // Mobile: right peek | Desktop: right spotlight
+                    posClass = "aspect-[1/1.414] h-[85%] lg:h-full translate-x-4 -translate-y-2 lg:translate-x-[51%] lg:translate-y-0 z-20 lg:z-30 opacity-60 lg:opacity-100 scale-90 lg:scale-100 pointer-events-auto";
+                  } else if (isLeftWing) {
+                    // Mobile: left peek | Desktop: left wing peek
+                    posClass = "aspect-[1/1.414] h-[85%] -translate-x-4 -translate-y-2 lg:-translate-x-[152%] lg:translate-y-0 z-10 lg:z-20 opacity-60 lg:opacity-35 scale-95 lg:scale-90 pointer-events-auto";
+                  } else if (isRightWing) {
+                    // Mobile: hidden | Desktop: right wing peek
+                    posClass = "aspect-[1/1.414] h-[85%] translate-x-8 -translate-y-4 lg:translate-x-[152%] lg:translate-y-0 z-10 lg:z-20 opacity-0 lg:opacity-35 scale-85 lg:scale-90 hidden lg:block pointer-events-auto";
+                  } else if (diff > 2) {
+                    // Offscreen Right
+                    posClass = "aspect-[1/1.414] h-[85%] translate-x-16 lg:translate-x-[240%] z-0 opacity-0 scale-75 pointer-events-none hidden lg:block";
+                  } else {
+                    // Offscreen Left (diff < -1)
+                    posClass = "aspect-[1/1.414] h-[85%] -translate-x-16 lg:-translate-x-[240%] z-0 opacity-0 scale-75 pointer-events-none hidden lg:block";
+                  }
+
+                  const isWing = isLeftWing || isRightWing;
+
+                  return (
+                    <div
+                      key={offer.id || `offer-${idx}`}
+                      className={cn(
+                        "absolute transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform",
+                        posClass
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "relative w-full h-full rounded-2xl overflow-hidden shadow-2xl group cursor-pointer border border-primary/20 group-hover:border-primary/50 transition-all duration-300 bg-black flex items-center justify-center",
+                          isWing && "cursor-pointer hover:border-primary/60"
+                        )}
+                        onClick={() => {
+                          if (isLeftWing) {
+                            prevSlide();
+                          } else if (isRightWing) {
+                            nextSlide();
+                          } else {
+                            router.push(`/offer/${offer.id}`);
+                          }
+                        }}
                       >
                         {/* Ambient Blur Background inside the A4 card */}
                         <div className="absolute inset-0 select-none pointer-events-none overflow-hidden">
@@ -206,21 +239,15 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
                           <div className="absolute bottom-1/3 left-1/3 w-1 h-1 bg-accent rounded-full animate-ping delay-700" />
                         </div>
 
-                        <div className="absolute top-4 left-4 z-30">
-                          <span className="badge-futuristic">
-                            <Rocket className="w-3 h-3 mr-1" />
-                            {offer.badge}
-                          </span>
-                        </div>
-
                         <div className="absolute bottom-0 left-0 right-0 p-6 z-30">
                           <p className="text uppercase font-bold text-white mb-0 group-hover:text-primary transition-colors text-xs md:text-sm truncate">
                             {offer.name}
                           </p>
                         </div>
                       </div>
-                  </div>
-                ))}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
