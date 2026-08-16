@@ -48,33 +48,80 @@ export function GlobalLoaderProvider({ children }: { children: React.ReactNode }
         if (typeof window === "undefined") return;
 
         const handleGlobalClick = (event: MouseEvent) => {
+            // Ignore non-primary clicks (middle click, right click) or modified clicks (Ctrl, Meta, Shift, Alt)
+            if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
+                return;
+            }
+
             const target = event.target as HTMLElement | null;
             if (!target) return;
 
-            // Find closest anchor tag, button with loader trigger, or navigation card container
+            // 1. Find closest anchor tag (Next.js <Link>, standard <a>, breadcrumb links, text hyperlinks)
             const anchor = target.closest("a") as HTMLAnchorElement | null;
-            const button = target.closest("button") as HTMLButtonElement | null;
-            const navCard = target.closest("[data-navigate-card], [data-href], [data-navigate]") as HTMLElement | null;
+            if (anchor) {
+                const rawHref = anchor.getAttribute("href");
+                if (!rawHref) return;
 
-            if (anchor && anchor.href) {
-                const url = new URL(anchor.href, window.location.origin);
-                const isExternal = url.origin !== window.location.origin;
-                const isSamePageHash = url.pathname === window.location.pathname && url.hash !== "";
-
-                // Only trigger navigation loader for internal route changes
-                if (!isExternal && !isSamePageHash && anchor.target !== "_blank") {
-                    if (url.pathname !== window.location.pathname || url.search !== window.location.search) {
-                        setIsNavigating(true);
-                        setCustomText("Navigating...");
-                    }
+                // Check for non-navigation protocols, new tab, downloads or ignored links
+                if (
+                    rawHref.startsWith("#") ||
+                    rawHref.startsWith("mailto:") ||
+                    rawHref.startsWith("tel:") ||
+                    rawHref.startsWith("javascript:") ||
+                    rawHref.startsWith("sms:") ||
+                    anchor.hasAttribute("download") ||
+                    anchor.target === "_blank" ||
+                    anchor.getAttribute("data-no-loader") === "true" ||
+                    anchor.classList.contains("no-loader")
+                ) {
+                    return;
                 }
-            } else if (navCard) {
-                // Intercept cards (OfferCard, ProductCard, ShopCard) that navigate to detail pages
-                const loaderText = navCard.getAttribute("data-loader-text");
-                setIsNavigating(true);
-                setCustomText(loaderText || "Loading...");
-            } else if (button) {
-                // Only if button explicitly requests loader via data-loader-text or trigger-loader class
+
+                try {
+                    const url = new URL(anchor.href, window.location.origin);
+                    const isExternal = url.origin !== window.location.origin;
+                    const isSamePageHash = url.pathname === window.location.pathname && url.hash !== "" && url.search === window.location.search;
+                    const isExactSamePage = url.pathname === window.location.pathname && url.search === window.location.search;
+
+                    // Only trigger for relevant internal navigation to a different path or search query
+                    if (!isExternal && !isSamePageHash && !isExactSamePage) {
+                        const loaderText = anchor.getAttribute("data-loader-text") || "Navigating...";
+                        setIsNavigating(true);
+                        setCustomText(loaderText);
+                    }
+                } catch {
+                    // Ignore URL parsing errors
+                }
+                return;
+            }
+
+            // 2. Intercept cards or clickable containers with data-href or data-navigate
+            const navCard = target.closest("[data-navigate-card], [data-href], [data-navigate], [role='link']") as HTMLElement | null;
+            if (navCard) {
+                const targetHref = navCard.getAttribute("data-href") || navCard.getAttribute("data-navigate");
+                const loaderText = navCard.getAttribute("data-loader-text") || "Navigating...";
+
+                if (targetHref) {
+                    try {
+                        const url = new URL(targetHref, window.location.origin);
+                        if (url.origin === window.location.origin && (url.pathname !== window.location.pathname || url.search !== window.location.search)) {
+                            setIsNavigating(true);
+                            setCustomText(loaderText);
+                        }
+                    } catch {
+                        setIsNavigating(true);
+                        setCustomText(loaderText);
+                    }
+                } else if (navCard.hasAttribute("data-navigate-card")) {
+                    setIsNavigating(true);
+                    setCustomText(loaderText);
+                }
+                return;
+            }
+
+            // 3. Intercept buttons that explicitly request a loader
+            const button = target.closest("button") as HTMLButtonElement | null;
+            if (button) {
                 const loaderText = button.getAttribute("data-loader-text");
                 if (loaderText || button.classList.contains("trigger-loader")) {
                     setIsNavigating(true);
@@ -86,6 +133,17 @@ export function GlobalLoaderProvider({ children }: { children: React.ReactNode }
         window.addEventListener("click", handleGlobalClick, { capture: true });
         return () => window.removeEventListener("click", handleGlobalClick, { capture: true });
     }, []);
+
+    // Safety auto-reset in case a navigation is aborted or instant-resolved without route change
+    useEffect(() => {
+        if (isNavigating) {
+            const timeout = setTimeout(() => {
+                setIsNavigating(false);
+                setCustomText(null);
+            }, 6000);
+            return () => clearTimeout(timeout);
+        }
+    }, [isNavigating]);
 
     const showLoader = useCallback((text?: string) => {
         setManualCount((prev) => prev + 1);
