@@ -64,7 +64,7 @@ export const AppModal = ({
                 {trigger && <DrawerTrigger asChild>{trigger}</DrawerTrigger>}
                 <DrawerContent className={cn("px-4 pb-8 bg-white border-t border-gray-200 rounded-t-[32px] flex flex-col max-h-[95vh]", className)}>
                     <DrawerHeader className="text-left mt-2 shrink-0">
-                        <DrawerTitle className="font-sans font-black text-2xl uppercase tracking-wider text-orange-600">{title}</DrawerTitle>
+                        <DrawerTitle className="font-sans font-black text-2xl capitalize tracking-wider text-orange-600">{title}</DrawerTitle>
                         {description && (
                             <DrawerDescription className="font-sans text-sm font-medium text-gray-500">
                                 {description}

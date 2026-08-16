@@ -1,20 +1,17 @@
-export const PRODUCT_EXTRACTION_PROMPT = `Extract product details from the cropped retail poster into a valid JSON object.
-
-Return ONLY a valid JSON object matching this exact structure:
+export const PRODUCT_EXTRACTION_PROMPT = `Extract product details from retail poster image into JSON:
 {
-  "productName": "product name including brand name if available (e.g. Dove Nutri Oil Shampoo)",
+  "productName": "product name including brand name if available",
   "description": "brief product specs or features from text",
   "oldPrice": 0,
   "offerPrice": 0,
   "discount": "discount text like 25% OFF or empty string",
   "mainCategory": "one of: Electronics, Fashion, Food & Dining, Wellness, Fitness, Jewelry, Beauty, Grocery, Home & Garden, Other",
-  "subcategories": ["subcategory1", "subcategory2"]
+  "subcategories": ["subcategory1"]
 }
-
 Rules:
-- productName: item name including brand name if available.
+- productName: item name including brand if present.
 - oldPrice & offerPrice: numeric values without currency symbols (use 0 if missing).
-- Return ONLY the JSON object. Do not include markdown codeblocks or extra text.`;
+- Return ONLY JSON.`;
 
 export const AI_PROMPTS: Record<string, string> = {
     category_suggestion: `You are a product categorization assistant. Based on the product text provided, suggest the best category and subcategories.
