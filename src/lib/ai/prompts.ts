@@ -2,7 +2,7 @@ export const PRODUCT_EXTRACTION_PROMPT = `Extract product details from the cropp
 
 Return ONLY a valid JSON object matching this exact structure:
 {
-  "productName": "product name without brand (e.g. Nutri Oil Shampoo)",
+  "productName": "product name including brand name if available (e.g. Dove Nutri Oil Shampoo)",
   "description": "brief product specs or features from text",
   "oldPrice": 0,
   "offerPrice": 0,
@@ -12,7 +12,7 @@ Return ONLY a valid JSON object matching this exact structure:
 }
 
 Rules:
-- productName: item name without brand.
+- productName: item name including brand name if available.
 - oldPrice & offerPrice: numeric values without currency symbols (use 0 if missing).
 - Return ONLY the JSON object. Do not include markdown codeblocks or extra text.`;
 
