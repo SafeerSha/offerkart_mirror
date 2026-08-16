@@ -267,9 +267,11 @@ export async function POST(req: NextRequest) {
             );
         }
 
+        const isProd = process.env.NODE_ENV === "production";
         return NextResponse.json(
-            { error: error.message || 'Internal server error during image extraction.' },
+            { error: isProd ? 'Internal server error during image extraction.' : (error?.message || 'Internal server error during image extraction.') },
             { status: 500 }
         );
     }
 }
+

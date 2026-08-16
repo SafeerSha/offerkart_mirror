@@ -26,9 +26,11 @@ export async function GET(request: NextRequest) {
         return NextResponse.json(result);
     } catch (error: any) {
         console.error("API error in /api/user/offer:", error);
+        const isProd = process.env.NODE_ENV === "production";
         return NextResponse.json(
-            { success: false, error: error.message || "Failed to fetch offers" },
+            { success: false, error: isProd ? "Failed to fetch offers" : (error?.message || "Failed to fetch offers") },
             { status: 500 }
         );
     }
 }
+

@@ -83,7 +83,9 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     aiLogger.error("AI API processing failed", error instanceof Error ? error : new Error(String(error)));
 
-    if (error.message?.includes("OPENROUTER_API_KEY")) {
+    const isProd = process.env.NODE_ENV === "production";
+
+    if (!isProd && error.message?.includes("OPENROUTER_API_KEY")) {
       return NextResponse.json(
         { error: "AI service not configured. Please add OPENROUTER_API_KEY to your .env file.", code: "CONFIG_MISSING" },
         { status: 500 }
@@ -91,8 +93,9 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: error.message || "Failed to process AI request", code: "AI_ERROR" },
+      { error: isProd ? "Failed to process AI request" : (error.message || "Failed to process AI request"), code: "AI_ERROR" },
       { status: 500 }
     );
   }
 }
+

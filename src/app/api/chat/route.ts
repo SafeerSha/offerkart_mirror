@@ -99,9 +99,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(result);
   } catch (error: any) {
     chatLogger.error("Chat API error", error instanceof Error ? error : new Error(String(error)));
+    const isProd = process.env.NODE_ENV === "production";
     return NextResponse.json(
-      { error: error.message || "Failed to process chat request", code: "INTERNAL_ERROR" },
+      { 
+        error: isProd ? "Failed to process chat request" : (error?.message || "Failed to process chat request"), 
+        code: "INTERNAL_ERROR" 
+      },
       { status: 500 }
     );
   }
 }
+

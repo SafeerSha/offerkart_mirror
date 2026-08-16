@@ -6,28 +6,52 @@ import { z } from "zod";
  * This ensures that critical environment variables (including sensitive keys)
  * are present and correctly formatted on the server.
  */
+const emptyStringToUndefined = (val: unknown) =>
+  typeof val === "string" && val.trim() === "" ? undefined : val;
+
+const optionalUrl = z.preprocess(emptyStringToUndefined, z.string().url().optional());
+const optionalString = z.preprocess(emptyStringToUndefined, z.string().optional());
+
 const serverConfigSchema = z.object({
   // API Configuration
   api: z.object({
-    upstreamBaseUrl: z.string().url().default("https://offersnearu.vercel.app/api"),
-    proxyPrefix: z.string().default("/api/backend"),
+    upstreamBaseUrl: z.preprocess(
+      emptyStringToUndefined,
+      z.string().url().default("https://offersnearu.vercel.app/api")
+    ),
+    proxyPrefix: z.preprocess(
+      emptyStringToUndefined,
+      z.string().default("/api/backend")
+    ),
   }),
 
   // Auth Configuration
   auth: z.object({
-    secret: z.string().min(1, "NEXTAUTH_SECRET is required").default("dev-secret-placeholder"),
-    url: z.string().url().optional(),
+    secret: z.preprocess(
+      emptyStringToUndefined,
+      z.string().min(1, "NEXTAUTH_SECRET is required").default("dev-secret-placeholder")
+    ),
+    url: optionalUrl,
   }),
 
   // Site Configuration
   site: z.object({
-    url: z.string().url().default("http://localhost:3000"),
+    url: z.preprocess(
+      emptyStringToUndefined,
+      z.string().url().default("http://localhost:3000")
+    ),
   }),
 
   // AI & External Services
   external: z.object({
-    aiApiKey: z.string().optional(),
-    hfToken: z.string().optional(),
+    aiApiKey: optionalString,
+    hfToken: optionalString,
+  }),
+
+  // Redis & Rate Limiting
+  redis: z.object({
+    url: optionalUrl,
+    token: optionalString,
   }),
 });
 
@@ -47,6 +71,10 @@ const envData = {
   external: {
     aiApiKey: process.env.AI_API_KEY,
     hfToken: process.env.HF_ACCESS_TOKEN,
+  },
+  redis: {
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN,
   },
 };
 

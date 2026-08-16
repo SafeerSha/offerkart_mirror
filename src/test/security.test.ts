@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizeInput, sanitizePayload, hasSuspiciousPattern } from '@/lib/security';
+import { sanitizeInput, sanitizePayload, hasSuspiciousPattern, sanitizeErrorMessage } from '@/lib/security';
 
 describe('sanitizeInput', () => {
   it('should strip HTML tags and escape remaining entities', () => {
@@ -71,3 +71,26 @@ describe('sanitizePayload', () => {
     expect((result as any).count).toBe(42);
   });
 });
+
+describe('sanitizeErrorMessage', () => {
+  const originalEnv = process.env.NODE_ENV;
+
+  afterEach(() => {
+    process.env.NODE_ENV = originalEnv;
+  });
+
+  it('should return generic message in production', () => {
+    process.env.NODE_ENV = 'production';
+    const error = new Error('Database connection string with password: postgresql://admin:secret@db.internal:5432');
+    const sanitized = sanitizeErrorMessage(error, 'Failed to fetch resource');
+    expect(sanitized).toBe('Failed to fetch resource');
+  });
+
+  it('should return detailed error message in non-production environments', () => {
+    process.env.NODE_ENV = 'development';
+    const error = new Error('Explicit syntax error at line 42');
+    const sanitized = sanitizeErrorMessage(error, 'Default fallback');
+    expect(sanitized).toBe('Explicit syntax error at line 42');
+  });
+});
+
