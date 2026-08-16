@@ -60,7 +60,7 @@ const extractionSchema = {
 // --- Helper: Exponential Backoff Retry Generator ---
 const GEMINI_MODELS = ['gemini-3.5-flash-lite', 'gemini-3.6-flash'];
 
-async function generateContentWithRetry(ai: GoogleGenAI, params: any, maxRetries = 3) {
+async function generateContentWithRetry(ai: GoogleGenAI, params: any, imageDimensions?: { sentWidth?: number; sentHeight?: number }, maxRetries = 3) {
     let lastError: any = null;
 
     for (const modelName of GEMINI_MODELS) {
@@ -78,13 +78,19 @@ async function generateContentWithRetry(ai: GoogleGenAI, params: any, maxRetries
                 
                 console.log(`✅ [Gemini AI API] Call Finished | Model: ${modelName} | Time Taken: ${duration}ms (${durationSec}s) | Tokens: ${promptTokens} In / ${candidateTokens} Out (Total: ${totalTokens})`);
                 
-                // Detailed promptTokens breakdown
-                const imageTokens = 258; // Single 768x768 tile cost for Gemini Vision
+                // Calculate dynamic image tile tokens based on dimensions sent
+                let tiles = 1;
+                if (imageDimensions?.sentWidth && imageDimensions?.sentHeight) {
+                    const tilesX = Math.ceil(imageDimensions.sentWidth / 768);
+                    const tilesY = Math.ceil(imageDimensions.sentHeight / 768);
+                    tiles = Math.max(1, (tilesX * tilesY) + 1);
+                }
+                const imageTokens = Math.min(promptTokens, tiles * 258);
                 const userTextTokens = 8;  // "Extract product details from cropped image."
-                const textPromptTokens = Math.max(0, promptTokens - imageTokens);
+                const systemPromptTokens = Math.max(0, promptTokens - imageTokens - userTextTokens);
 
-                console.log(` ├── 🖼️ Image Tokens: ${imageTokens} (1 tile @ 768px)`);
-                console.log(` └── 📝 Text & System Prompt Tokens: ${textPromptTokens}`);
+                console.log(` ├── 🖼️ Image Tokens: ~${imageTokens} (${tiles} tile(s))`);
+                console.log(` └── 📝 System & Text Tokens: ~${systemPromptTokens}`);
 
                 return {
                     response,
@@ -96,7 +102,7 @@ async function generateContentWithRetry(ai: GoogleGenAI, params: any, maxRetries
                         totalTokens,
                         promptBreakdown: {
                             imageTokens,
-                            systemPromptTokens: textPromptTokens - userTextTokens,
+                            systemPromptTokens,
                             userTextTokens,
                             schemaOverheadTokens: 0,
                         },
@@ -203,24 +209,29 @@ export async function POST(req: NextRequest) {
         // 5. Call Gemini with retry & exponential backoff
         const ai = new GoogleGenAI({ apiKey });
 
-        const { response, modelUsed, executionTimeMs, usage } = await generateContentWithRetry(ai, {
-            contents: [
-                {
-                    inlineData: {
-                        data: fileData,
-                        mimeType: mimeType,
+        const { response, modelUsed, executionTimeMs, usage } = await generateContentWithRetry(
+            ai,
+            {
+                contents: [
+                    {
+                        inlineData: {
+                            data: fileData,
+                            mimeType: mimeType,
+                        },
                     },
+                    {
+                        text: 'Extract product details from cropped image.',
+                    },
+                ],
+                config: {
+                    systemInstruction: PRODUCT_EXTRACTION_PROMPT,
+                    responseMimeType: 'application/json',
+                    responseSchema: extractionSchema,
+                    temperature: 0.1,
                 },
-                {
-                    text: 'Extract product details from cropped image.',
-                },
-            ],
-            config: {
-                systemInstruction: PRODUCT_EXTRACTION_PROMPT,
-                responseMimeType: 'application/json',
-                temperature: 0.1,
             },
-        });
+            imageDimensions
+        );
 
         const jsonText = response.text || '{}';
 

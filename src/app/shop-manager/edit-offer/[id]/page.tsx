@@ -545,7 +545,7 @@ function EditOfferContent() {
                             )}
 
                             <PremiumCard className={cn(
-                                isEditing ? "p-0 border-0 bg-transparent shadow-none" : "p-3 overflow-visible"
+                                isEditing ? "p-0 border-0 bg-transparent shadow-none" : "p-3 overflow-hidden"
                             )}>
                                 <PosterCardStack
                                     ref={posterStackRef}
@@ -554,7 +554,7 @@ function EditOfferContent() {
                                     onEditingChange={setIsEditing}
                                     onPreviewChange={setPreviewState}
                                     onPhaseChange={setStackPhase}
-                                    submitButtonText="Review & Save Updates"
+                                    submitButtonText="Save Updates"
                                     editorReturnTo="edit-offer"
                                     editorReturnUrl={`/shop-manager/edit-offer/${offerId}`}
                                 />

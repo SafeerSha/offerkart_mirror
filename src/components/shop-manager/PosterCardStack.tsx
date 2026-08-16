@@ -764,12 +764,12 @@ export const PosterCardStack = forwardRef<
                                     >
                                         {isViewing ? <EyeOff className="w-3.5 h-3.5 md:w-4 md:h-4" /> : <Eye className="w-3.5 h-3.5 md:w-4 md:h-4" />}
                                     </button>
-                                        <button
-                                            onClick={() => handleRemovePoster(currentIndex)}
-                                            className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-rose-600/90 backdrop-blur-md flex items-center justify-center text-white border border-rose-500/20 hover:bg-rose-600 transition-colors"
-                                        >
-                                            <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                                        </button>
+                                    <button
+                                        onClick={() => handleRemovePoster(currentIndex)}
+                                        className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-rose-600/90 backdrop-blur-md flex items-center justify-center text-white border border-rose-500/20 hover:bg-rose-600 transition-colors"
+                                    >
+                                        <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -870,7 +870,7 @@ export const PosterCardStack = forwardRef<
                     )}
                 </div>
 
-                <div className="flex items-center gap-2 w-full max-w-sm pt-2">
+                <div className="flex items-center gap-2 w-full max-w-sm pt-2 min-w-0">
                     <PremiumButton
                         variant="outline"
                         onClick={() => {
@@ -888,16 +888,16 @@ export const PosterCardStack = forwardRef<
                             }
                         }}
                         leftIcon={ArrowLeft}
-                        className="rounded-2xl flex-1 h-12 text-xs sm:text-sm border-primary/20 text-primary hover:bg-primary/5"
+                        className="rounded-2xl flex-1 h-12 text-xs sm:text-sm border-primary/20 text-primary hover:bg-primary/5 min-w-0 px-2.5 sm:px-4 shrink"
                     >
-                        Cancel & Go Back
+                        <span>Go Back</span>
                     </PremiumButton>
                     <PremiumButton
                         onClick={handleContinueToSummary}
                         rightIcon={ArrowRight}
-                        className="rounded-2xl flex-[1.2] h-12 text-xs sm:text-sm font-bold shadow-xl shadow-primary/20 group"
+                        className="rounded-2xl flex-[1.2] h-12 text-xs sm:text-sm font-bold shadow-xl shadow-primary/20 group min-w-0 px-2.5 sm:px-4 shrink"
                     >
-                        Continue
+                        <span>Continue</span>
                     </PremiumButton>
                 </div>
             </div>
@@ -963,21 +963,21 @@ export const PosterCardStack = forwardRef<
             )}
 
             <div className="flex flex-col w-full max-w-sm gap-3 mt-4">
-                <div className="flex items-center gap-2 w-full">
+                <div className="flex items-center gap-2 w-full min-w-0">
                     <PremiumButton
                         variant="outline"
                         onClick={handleReclassify}
                         leftIcon={RotateCcw}
-                        className="rounded-xl flex-1 h-10 text-xs sm:text-sm border-primary/20 text-primary hover:bg-primary/5"
+                        className="rounded-xl flex-1 h-10 text-xs sm:text-sm border-primary/20 text-primary hover:bg-primary/5 min-w-0 px-2.5 sm:px-3.5 shrink"
                     >
-                        Re-classify
+                        <span>Re-classify</span>
                     </PremiumButton>
                     <PremiumButton
                         onClick={handleNext}
                         rightIcon={ArrowRight}
-                        className="rounded-xl flex-[1.5] h-10 text-xs sm:text-sm font-bold shadow-lg shadow-primary/20"
+                        className="rounded-xl flex-[1.5] h-10 text-xs sm:text-sm font-bold shadow-lg shadow-primary/20 min-w-0 px-2.5 sm:px-3.5 shrink"
                     >
-                        {submitButtonText}
+                        <span>{submitButtonText}</span>
                     </PremiumButton>
                 </div>
 
