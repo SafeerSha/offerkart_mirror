@@ -122,3 +122,66 @@ describe("backend proxy revalidation", () => {
     expect(revalidateTagMock).not.toHaveBeenCalled();
   });
 });
+
+describe("backend proxy shopId spoofing protection", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    global.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      })
+    );
+  });
+
+  it("overrides client-supplied shopId with the authenticated token shopId", async () => {
+    getTokenMock.mockResolvedValue({
+      accessToken: "valid-token",
+      shopId: "legitimate-shop-123",
+    });
+
+    const request = new NextRequest("http://localhost/api/backend/business/offer", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "shopId": "attacker-spoofed-shop-999",
+      },
+      body: JSON.stringify({ title: "New Offer" }),
+    });
+
+    await POST(request, {
+      params: Promise.resolve({ path: ["business", "offer"] }),
+    });
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    const fetchCall = vi.mocked(global.fetch).mock.calls[0];
+    const fetchHeaders = fetchCall[1]?.headers as Headers;
+
+    expect(fetchHeaders.get("shopId")).toBe("legitimate-shop-123");
+  });
+
+  it("strips client-supplied shopId if JWT token does not contain shopId", async () => {
+    getTokenMock.mockResolvedValue({
+      accessToken: "valid-token",
+    });
+
+    const request = new NextRequest("http://localhost/api/backend/business/offer", {
+      method: "GET",
+      headers: {
+        "shopid": "attacker-spoofed-shop-999",
+      },
+    });
+
+    await GET(request, {
+      params: Promise.resolve({ path: ["business", "offer"] }),
+    });
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    const fetchCall = vi.mocked(global.fetch).mock.calls[0];
+    const fetchHeaders = fetchCall[1]?.headers as Headers;
+
+    expect(fetchHeaders.get("shopId")).toBeNull();
+    expect(fetchHeaders.get("shopid")).toBeNull();
+  });
+});
+

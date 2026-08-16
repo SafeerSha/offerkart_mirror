@@ -15,9 +15,11 @@ export async function GET() {
         return NextResponse.json({ success: true, ids });
     } catch (error: any) {
         console.error("API error in /api/user/offer/ids:", error);
+        const isProd = process.env.NODE_ENV === "production";
         return NextResponse.json(
-            { success: false, ids: [], error: error.message || "Failed to fetch offer IDs" },
+            { success: false, ids: [], error: isProd ? "Failed to fetch offer IDs" : (error?.message || "Failed to fetch offer IDs") },
             { status: 500 }
         );
     }
 }
+

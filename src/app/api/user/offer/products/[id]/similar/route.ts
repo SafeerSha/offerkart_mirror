@@ -30,9 +30,11 @@ export async function GET(
         return NextResponse.json({ success: true, data: result.data });
     } catch (error: any) {
         console.error("API error in /api/user/offer/products/[id]/similar:", error);
+        const isProd = process.env.NODE_ENV === "production";
         return NextResponse.json(
-            { success: false, error: error.message || "Failed to fetch similar products" },
+            { success: false, error: isProd ? "Failed to fetch similar products" : (error?.message || "Failed to fetch similar products") },
             { status: 500 }
         );
     }
 }
+

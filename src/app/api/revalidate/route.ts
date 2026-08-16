@@ -1,18 +1,34 @@
 import { NextRequest } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { z } from "zod";
+import { sanitizeErrorMessage } from "@/lib/security";
 
-const revalidateSchema = z.object({
-  secret: z.string().min(1, "Secret is required"),
+const revalidateQuerySchema = z.object({
   path: z.string().startsWith("/", "Path must be a relative route pathname").optional(),
   tag: z.string().min(1).optional(),
 });
 
 export async function POST(request: NextRequest) {
   try {
+    // 1. Authenticate using Authorization: Bearer <secret>
+    const authHeader = request.headers.get("authorization") || request.headers.get("Authorization");
+    let secret = "";
+
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      secret = authHeader.substring(7);
+    } else {
+      // Fallback to query param or x-revalidation-secret header for backward compatibility
+      secret = request.nextUrl.searchParams.get("secret") || request.headers.get("x-revalidation-secret") || "";
+    }
+
+    const expectedSecret = process.env.REVALIDATION_SECRET;
+    if (!expectedSecret || secret !== expectedSecret) {
+      return Response.json({ message: "Invalid secret" }, { status: 401 });
+    }
+
+    // 2. Validate request parameters
     const searchParams = request.nextUrl.searchParams;
-    const query = revalidateSchema.safeParse({
-      secret: searchParams.get("secret"),
+    const query = revalidateQuerySchema.safeParse({
       path: searchParams.get("path") || undefined,
       tag: searchParams.get("tag") || undefined,
     });
@@ -24,11 +40,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { secret, path, tag } = query.data;
-
-    if (secret !== process.env.REVALIDATION_SECRET) {
-      return Response.json({ message: "Invalid secret" }, { status: 401 });
-    }
+    const { path, tag } = query.data;
 
     if (path) {
       revalidatePath(path);
@@ -45,8 +57,9 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   } catch (error) {
+    console.error("Error during revalidation:", error);
     return Response.json(
-      { message: "Error revalidating", error: String(error) },
+      { message: sanitizeErrorMessage(error, "Error revalidating") },
       { status: 500 }
     );
   }

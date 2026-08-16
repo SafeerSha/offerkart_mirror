@@ -24,25 +24,33 @@ function extractEntityId(upstreamPath: string) {
     return parts.find((part) => part && !reservedSegments.has(part));
 }
 
+const DISALLOWED_HEADERS = new Set([
+    'host',
+    'connection',
+    'keep-alive',
+    'proxy-authenticate',
+    'proxy-authorization',
+    'te',
+    'trailer',
+    'transfer-encoding',
+    'upgrade',
+    'cookie',
+    'authorization',
+    'content-length',
+]);
+
 function filterRequestHeaders(request: NextRequest) {
     const headers = new Headers();
-    const shopId = request.headers.get("shopId") || request.headers.get("shopid");
-
-    // Forward all headers except sensitive ones that should not be proxied
     request.headers.forEach((value, key) => {
         const lowerKey = key.toLowerCase();
-        if (!['host', 'cookie', 'authorization', 'content-length'].includes(lowerKey)) {
+        if (!DISALLOWED_HEADERS.has(lowerKey)) {
             headers.set(key, value);
         }
     });
-
-    // Ensure shopId is forwarded if present
-    if (shopId) {
-        headers.set("shopId", shopId);
-    }
-
     return headers;
 }
+
+
 
 async function readRequestBody(request: NextRequest) {
     const method = request.method.toUpperCase();
@@ -64,113 +72,120 @@ async function readRequestBody(request: NextRequest) {
 }
 
 async function handleProxy(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
-    // 1. Check Rate Limit based on IP
-    const ip = request.headers.get("x-forwarded-for") || "127.0.0.1";
-    const { success, limit, remaining, reset } = await checkRateLimit(ip);
+    try {
+        // 1. Check Rate Limit based on IP
+        const ip = request.headers.get("x-forwarded-for") || "127.0.0.1";
+        const { success, limit, remaining, reset } = await checkRateLimit(ip);
 
-    if (!success) {
-        return new NextResponse("Too Many Requests", {
-            status: 429,
-            headers: {
-                "X-RateLimit-Limit": limit.toString(),
-                "X-RateLimit-Remaining": remaining.toString(),
-                "X-RateLimit-Reset": reset.toString(),
-            },
-        });
-    }
-
-    const { path } = await context.params;
-    const upstreamPath = path.join("/");
-    const upstreamUrl = new URL(`${UPSTREAM_API_BASE_URL}/${upstreamPath}`);
-    upstreamUrl.search = request.nextUrl.search;
-
-    const body = await readRequestBody(request);
-    const headers = filterRequestHeaders(request);
-
-    if (!isPublicPath(upstreamPath)) {
-        const token = await getToken({ req: request, secret: config.auth.secret });
-        let accessToken = typeof token?.accessToken === "string" ? token.accessToken : null;
-
-        if (!accessToken) {
-            const authHeader = request.headers.get("authorization") || request.headers.get("Authorization");
-            if (authHeader && authHeader.startsWith("Bearer ")) {
-                accessToken = authHeader.substring(7);
-            }
+        if (!success) {
+            return new NextResponse("Too Many Requests", {
+                status: 429,
+                headers: {
+                    "X-RateLimit-Limit": limit.toString(),
+                    "X-RateLimit-Remaining": remaining.toString(),
+                    "X-RateLimit-Reset": reset.toString(),
+                },
+            });
         }
 
-        if (!accessToken) {
-            return NextResponse.json(
-                { error: "Unauthorized" },
-                { 
-                    status: 401,
-                    headers: { "WWW-Authenticate": "Bearer realm=\"api\"" }
+        const { path } = await context.params;
+        const upstreamPath = path.join("/");
+        const upstreamUrl = new URL(`${UPSTREAM_API_BASE_URL}/${upstreamPath}`);
+        upstreamUrl.search = request.nextUrl.search;
+
+        const body = await readRequestBody(request);
+        const headers = filterRequestHeaders(request);
+
+        if (!isPublicPath(upstreamPath)) {
+            const token = await getToken({ req: request, secret: config.auth.secret });
+            let accessToken = typeof token?.accessToken === "string" ? token.accessToken : null;
+
+            if (!accessToken) {
+                const authHeader = request.headers.get("authorization") || request.headers.get("Authorization");
+                if (authHeader && authHeader.startsWith("Bearer ")) {
+                    accessToken = authHeader.substring(7);
                 }
-            );
-        }
+            }
 
-        headers.set("authorization", `Bearer ${accessToken}`);
+            if (!accessToken) {
+                return NextResponse.json(
+                    { error: "Unauthorized" },
+                    { 
+                        status: 401,
+                        headers: { "WWW-Authenticate": "Bearer realm=\"api\"" }
+                    }
+                );
+            }
 
-        if (!headers.has("shopId")) {
+            headers.set("authorization", `Bearer ${accessToken}`);
+
+            // Security: Always override shopId from the JWT token, if present.
             const tokenShopId = (token as any)?.shopId ?? (token?.user as any)?.shopId;
             if (tokenShopId) {
                 headers.set("shopId", String(tokenShopId));
             }
         }
-    }
 
-    const upstreamResponse = await fetch(upstreamUrl.toString(), {
-        method: request.method,
-        headers,
-        body,
-        cache: "no-store",
-    });
+        const upstreamResponse = await fetch(upstreamUrl.toString(), {
+            method: request.method,
+            headers,
+            body,
+            cache: "no-store",
+        });
 
-    const responseHeaders = new Headers();
-    const responseContentType = upstreamResponse.headers.get("content-type");
+        const responseHeaders = new Headers();
+        const responseContentType = upstreamResponse.headers.get("content-type");
 
-    if (responseContentType) {
-        responseHeaders.set("content-type", responseContentType);
-    }
-
-    // Automate dynamic on-demand ISR revalidations on successful merchant mutations
-    if (upstreamResponse.ok && ["POST", "PUT", "PATCH", "DELETE"].includes(request.method.toUpperCase())) {
-        try {
-            if (upstreamPath.startsWith("business/product") || upstreamPath.startsWith("business/offerproduct")) {
-                revalidateTag(CACHE_TAGS.PRODUCTS, "max");
-                revalidatePath("/products");
-                revalidatePath("/");
-
-                const id = extractEntityId(upstreamPath);
-                if (id) {
-                    revalidateTag(CACHE_TAGS.PRODUCT(id), "max");
-                }
-            } else if (upstreamPath.startsWith("business/offer")) {
-                revalidateTag(CACHE_TAGS.HOME, "max");
-                revalidateTag(CACHE_TAGS.OFFERS, "max");
-                revalidateTag(CACHE_TAGS.PRODUCTS, "max");
-                revalidatePath("/offers");
-                revalidatePath("/products");
-                revalidatePath("/");
-
-                const id = extractEntityId(upstreamPath);
-                if (id) {
-                    revalidateTag(CACHE_TAGS.OFFER(id), "max");
-                }
-            } else if (upstreamPath.startsWith("business/shop")) {
-                revalidateTag(CACHE_TAGS.HOME, "max");
-                revalidateTag(CACHE_TAGS.SHOPS, "max");
-                revalidatePath("/");
-            }
-        } catch (revalError) {
-            console.error("Dynamic tag revalidation failed inside proxy:", revalError);
+        if (responseContentType) {
+            responseHeaders.set("content-type", responseContentType);
         }
-    }
 
-    return new NextResponse(upstreamResponse.body, {
-        status: upstreamResponse.status,
-        statusText: upstreamResponse.statusText,
-        headers: responseHeaders,
-    });
+        // Automate dynamic on-demand ISR revalidations on successful merchant mutations
+        if (upstreamResponse.ok && ["POST", "PUT", "PATCH", "DELETE"].includes(request.method.toUpperCase())) {
+            try {
+                if (upstreamPath.startsWith("business/product") || upstreamPath.startsWith("business/offerproduct")) {
+                    revalidateTag(CACHE_TAGS.PRODUCTS, "max");
+                    revalidatePath("/products");
+                    revalidatePath("/");
+
+                    const id = extractEntityId(upstreamPath);
+                    if (id) {
+                        revalidateTag(CACHE_TAGS.PRODUCT(id), "max");
+                    }
+                } else if (upstreamPath.startsWith("business/offer")) {
+                    revalidateTag(CACHE_TAGS.HOME, "max");
+                    revalidateTag(CACHE_TAGS.OFFERS, "max");
+                    revalidateTag(CACHE_TAGS.PRODUCTS, "max");
+                    revalidatePath("/offers");
+                    revalidatePath("/products");
+                    revalidatePath("/");
+
+                    const id = extractEntityId(upstreamPath);
+                    if (id) {
+                        revalidateTag(CACHE_TAGS.OFFER(id), "max");
+                    }
+                } else if (upstreamPath.startsWith("business/shop")) {
+                    revalidateTag(CACHE_TAGS.HOME, "max");
+                    revalidateTag(CACHE_TAGS.SHOPS, "max");
+                    revalidatePath("/");
+                }
+            } catch (revalError) {
+                console.error("Dynamic tag revalidation failed inside proxy:", revalError);
+            }
+        }
+
+        return new NextResponse(upstreamResponse.body, {
+            status: upstreamResponse.status,
+            statusText: upstreamResponse.statusText,
+            headers: responseHeaders,
+        });
+    } catch (error) {
+        console.error("Backend proxy error:", error);
+        return NextResponse.json(
+            { error: "Internal Server Error", message: error instanceof Error ? error.message : "Proxy request failed" },
+            { status: 500 }
+        );
+    }
 }
 
 export async function GET(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {

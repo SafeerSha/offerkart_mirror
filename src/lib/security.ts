@@ -52,3 +52,24 @@ export function sanitizePayload<T>(data: T, key?: string): T {
 
     return data;
 }
+
+/**
+ * Returns a sanitized, generic error message in production to prevent leaking internal
+ * system details or stack traces, while preserving detailed messages in development.
+ */
+export function sanitizeErrorMessage(
+    error: unknown,
+    fallbackMessage: string = "An unexpected error occurred. Please try again later."
+): string {
+    if (process.env.NODE_ENV === "production") {
+        return fallbackMessage;
+    }
+    if (error instanceof Error) {
+        return error.message || fallbackMessage;
+    }
+    if (typeof error === "string") {
+        return error;
+    }
+    return fallbackMessage;
+}
+
