@@ -40,6 +40,7 @@ export function GlobalLoaderProvider({ children }: { children: React.ReactNode }
 
     const handleResetNav = useCallback(() => {
         setIsNavigating(false);
+        setCustomText(null);
     }, []);
 
     // Global click listener to intercept navigation link & page-navigating card clicks
@@ -96,6 +97,12 @@ export function GlobalLoaderProvider({ children }: { children: React.ReactNode }
     }, []);
 
     const isLoading = isNavigating || manualCount > 0 || isMutating > 0;
+
+    useEffect(() => {
+        if (!isLoading) {
+            setCustomText(null);
+        }
+    }, [isLoading]);
 
     // Determine current display text
     const activeText = customText || (isNavigating ? "Loading..." : isMutating > 0 ? "Updating..." : "Loading...");
