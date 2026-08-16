@@ -658,7 +658,7 @@ function ShopOffersContent() {
                     </span>
                 </div>
 
-                {isLoadingOffers && currentPage === 1 ? (
+                {(isLoadingOffers || isLoadingShops || (isFetchingOffers && allOffersList.length === 0)) && currentPage === 1 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
                         {[1, 2, 3, 4, 5, 6].map((i) => (
                             <div key={i} className="flex items-center gap-2 p-2 rounded-xl bg-white border border-gray-50 animate-pulse shadow-sm">

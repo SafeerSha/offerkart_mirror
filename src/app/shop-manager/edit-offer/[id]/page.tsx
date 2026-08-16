@@ -134,9 +134,23 @@ function EditOfferContent() {
 
                 // 2. Try fetching from the detail endpoint directly if NOT a local storage draft
                 // (Works for all published offers and always includes full posters/hotspots)
+                let currentShopId = (session as any)?.shopId ?? (session?.user as any)?.shopId;
+                
+                if (!currentShopId) {
+                    try {
+                        const shopRes = await getMyShops();
+                        if (shopRes.success && shopRes.data) {
+                            const list = Array.isArray(shopRes.data) ? shopRes.data : (shopRes.data as any).data || [];
+                            if (list.length > 0) currentShopId = String(list[0].id);
+                        }
+                    } catch (e) {
+                        console.warn("Failed to get shopId", e);
+                    }
+                }
+
                 if (!isLoadedFromLocalStorageDraft) {
                     try {
-                        const res = await getOfferById(offerId);
+                        const res = await getOfferById(offerId, currentShopId);
                         if (res.success && res.data) {
                             const raw = res.data as any;
                             offer = raw?.data ?? raw;
@@ -152,16 +166,8 @@ function EditOfferContent() {
                 // 3. Fallback: Try fetching from getAllOffers list endpoint if not successfully loaded from detail API
                 if (!isLoadedFromLocalStorageDraft && (!offer || !offer.posters || offer.posters.length === 0)) {
                     try {
-                        let shopId = (session as any)?.shopId ?? (session?.user as any)?.shopId;
-                        if (!shopId) {
-                            const shopRes = await getMyShops();
-                            if (shopRes.success && shopRes.data) {
-                                const list = Array.isArray(shopRes.data) ? shopRes.data : (shopRes.data as any).data || [];
-                                if (list.length > 0) shopId = list[0].id;
-                            }
-                        }
-                        if (shopId) {
-                            const allRes = await getAllOffers(String(shopId));
+                        if (currentShopId) {
+                            const allRes = await getAllOffers(String(currentShopId));
                             if (allRes.success && allRes.data) {
                                 const allList = Array.isArray(allRes.data) ? allRes.data : (allRes.data as any).data || [];
                                 const listOffer = allList.find((o: any) =>
@@ -341,7 +347,7 @@ function EditOfferContent() {
             }
         };
         load();
-    }, [offerId, session, searchParams]);
+    }, [offerId, (session as any)?.shopId, (session?.user as any)?.shopId, session?.user?.email, searchParams]);
 
     // ── Load branches ────────────────────────────────────────────────────────
     useEffect(() => {
@@ -353,10 +359,13 @@ function EditOfferContent() {
                     const shopRes = await getMyShops();
                     if (shopRes.success && shopRes.data) {
                         const list = Array.isArray(shopRes.data) ? shopRes.data : (shopRes.data as any).data || [];
-                        if (list.length > 0) shopId = list[0].id;
+                        if (list.length > 0) shopId = String(list[0].id);
                     }
                 }
-                if (!shopId) return;
+                if (!shopId) {
+                    setBranches([]);
+                    return;
+                }
                 const res = await getBranches(shopId);
                 if (res.success && res.data) {
                     const list = Array.isArray(res.data) ? res.data : (res.data as any).data || [];
@@ -368,8 +377,8 @@ function EditOfferContent() {
                 setIsBranchesLoading(false);
             }
         };
-        if (session) loadBranches();
-    }, [session]);
+        loadBranches();
+    }, [(session as any)?.shopId, (session?.user as any)?.shopId, session?.user?.email]);
 
     // ── Validation ───────────────────────────────────────────────────────────
     const validate = () => {

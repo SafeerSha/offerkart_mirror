@@ -134,7 +134,7 @@ function CreateOfferContent() {
         };
 
         fetchBranchesWithFallback();
-    }, [session]);
+    }, [session?.shopId, (session?.user as any)?.shopId, session?.user?.email]);
 
     useEffect(() => {
         if (editBatchId) {
@@ -582,105 +582,104 @@ function CreateOfferContent() {
             <div className="h-20 lg:h-24" />
 
             <main className="w-full relative bg-background min-h-screen border-t border-border/40">
-                <div className={cn(
-                    "mx-auto relative px-4 lg:px-8 py-8 md:py-12 transition-all duration-300",
-                    isEditing ? "max-w-[1400px]" : previewState ? "max-w-full" : "max-w-6xl"
-                )}>
-                    {!isEditing && (
-                        <Breadcrumbs
-                            items={[
-                                { label: "Dashboard", href: "/shop-manager" },
-                                { label: isUpdateMode ? "Update Offer" : "New Offer" },
-                            ]}
-                        />
-                    )}
-
                     <div className={cn(
-                        "transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col gap-10",
-                        isEditing ? "mt-0" : "mt-8 lg:flex-row",
-                        !isEditing && (previewState ? "lg:items-stretch" : "lg:items-start")
+                        "mx-auto relative px-4 lg:px-8 py-8 md:py-12 transition-all duration-300",
+                        isEditing ? "max-w-[1400px]" : previewState ? "max-w-full" : (drafts.length > 0 ? "max-w-6xl" : "max-w-4xl")
                     )}>
-                        <div className={cn(
-                            "space-y-6 flex flex-col min-h-0 w-full transition-all duration-300",
-                            isEditing ? "w-full" : previewState ? "lg:flex-1" : "lg:flex-[2]"
-                        )}>
-                            {!isEditing && (
-                                <div className="space-y-1 border-b border-border/40 pb-4 mb-2">
-                                    <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-gradient">
-                                        {isUpdateMode ? "Update Offer" : "Create Offer"}
-                                    </h1>
-                                    <p className="text-muted-foreground text-base">
-                                        {isUpdateMode ? "Upload additional posters, classify them, and save." : "Upload posters, classify them, and publish."}
-                                    </p>
-                                </div>
-                            )}
+                        {!isEditing && (
+                            <Breadcrumbs
+                                items={[
+                                    { label: "Dashboard", href: "/shop-manager" },
+                                    { label: isUpdateMode ? "Update Offer" : "New Offer" },
+                                ]}
+                            />
+                        )}
 
+                        <div className={cn(
+                            "transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col gap-10",
+                            isEditing ? "mt-0" : (previewState || drafts.length > 0 ? "mt-8 lg:flex-row" : "mt-8"),
+                            !isEditing && (previewState ? "lg:items-stretch" : "lg:items-start")
+                        )}>
                             <div className={cn(
-                                "transition-all duration-300",
-                                isEditing ? "p-0 bg-transparent" : "p-0 rounded-xl bg-card border border-border shadow-sm overflow-hidden"
+                                "space-y-6 flex flex-col min-h-0 w-full transition-all duration-300",
+                                isEditing ? "w-full" : previewState ? "lg:flex-1" : (drafts.length > 0 ? "lg:flex-[2]" : "w-full")
                             )}>
-                                <PosterCardStack
-                                    ref={posterStackRef}
-                                    onComplete={handleClassificationComplete}
-                                    onEditingChange={setIsEditing}
-                                    onPreviewChange={setPreviewState}
-                                    onPhaseChange={setStackPhase}
-                                    submitButtonText={isUpdateMode ? "Continue to Update" : "Publish"}
-                                    onSaveDraft={handleSaveDraftSubmit}
-                                />
+                                {!isEditing && (
+                                    <div className="space-y-1 border-b border-border/40 pb-4 mb-2">
+                                        <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-gradient">
+                                            {isUpdateMode ? "Update Offer" : "Create Offer"}
+                                        </h1>
+                                        <p className="text-muted-foreground text-base">
+                                            {isUpdateMode ? "Upload additional posters, classify them, and save." : "Upload posters, classify them, and publish."}
+                                        </p>
+                                    </div>
+                                )}
+
+                                <div className={cn(
+                                    "transition-all duration-300",
+                                    isEditing ? "p-0 bg-transparent" : "p-0 rounded-xl bg-card border border-border shadow-sm overflow-hidden"
+                                )}>
+                                    <PosterCardStack
+                                        ref={posterStackRef}
+                                        onComplete={handleClassificationComplete}
+                                        onEditingChange={setIsEditing}
+                                        onPreviewChange={setPreviewState}
+                                        onPhaseChange={setStackPhase}
+                                        submitButtonText={isUpdateMode ? "Continue to Update" : "Publish"}
+                                        onSaveDraft={handleSaveDraftSubmit}
+                                    />
+                                </div>
+
+                                {!isEditing && stackPhase !== "classify" && (
+                                    <PremiumButton
+                                        variant="outline"
+                                        className="w-full rounded-2xl h-14"
+                                        onClick={() => {
+                                            const handled = posterStackRef.current?.handleCancel?.();
+                                            if (!handled) {
+                                                router.back();
+                                            }
+                                        }}
+                                        leftIcon={X}
+                                    >
+                                        Cancel & Go Back
+                                    </PremiumButton>
+                                )}
                             </div>
 
-                            {!isEditing && stackPhase !== "classify" && (
-                                <PremiumButton
-                                    variant="outline"
-                                    className="w-full rounded-2xl h-14"
-                                    onClick={() => {
-                                        const handled = posterStackRef.current?.handleCancel?.();
-                                        if (!handled) {
-                                            router.back();
-                                        }
-                                    }}
-                                    leftIcon={X}
-                                >
-                                    Cancel & Go Back
-                                </PremiumButton>
-                            )}
-                        </div>
-
-                        {!isEditing && (
-                            <div className={cn(
-                                "transition-all w-full flex flex-col relative",
-                                previewState ? "lg:flex-1 duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]" : "space-y-6 lg:flex-1 duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
-                            )}>
-                                {previewState ? (
-                                    <div className="hidden lg:block h-full min-h-[500px] relative">
-                                        <PosterPreviewPanel
-                                            posters={previewState.posters}
-                                            initialIndex={previewState.index}
-                                            isPreparing={previewState.isPreparing}
-                                            onClose={() => { previewState.onClose(); setPreviewState(null); }}
-                                            onEditMarking={(i) => { previewState.onEditMarking(i); }}
-                                            onAddMarking={(i) => { previewState.onAddMarking(i); }}
-                                            variant="inline"
-                                        />
-                                    </div>
-                                ) : (
-                                    <>
-                                        <div className="flex items-center justify-between border-b border-border/40 pb-4 mb-2">
-                                            <div className="flex items-center gap-2">
-                                                <Clock className="w-5 h-5 text-muted-foreground" />
-                                                <h2 className="text-lg font-semibold text-foreground whitespace-nowrap">
-                                                    Drafted Posters
-                                                </h2>
-                                            </div>
-                                            <span className="text-xs font-medium text-muted-foreground bg-muted px-2.5 py-0.5 rounded-full border border-border">
-                                                {drafts.length}
-                                            </span>
+                            {!isEditing && (previewState || drafts.length > 0) && (
+                                <div className={cn(
+                                    "transition-all w-full flex flex-col relative",
+                                    previewState ? "lg:flex-1 duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]" : "space-y-6 lg:flex-1 duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
+                                )}>
+                                    {previewState ? (
+                                        <div className="hidden lg:block h-full min-h-[500px] relative">
+                                            <PosterPreviewPanel
+                                                posters={previewState.posters}
+                                                initialIndex={previewState.index}
+                                                isPreparing={previewState.isPreparing}
+                                                onClose={() => { previewState.onClose(); setPreviewState(null); }}
+                                                onEditMarking={(i) => { previewState.onEditMarking(i); }}
+                                                onAddMarking={(i) => { previewState.onAddMarking(i); }}
+                                                variant="inline"
+                                            />
                                         </div>
+                                    ) : (
+                                        <>
+                                            <div className="flex items-center justify-between border-b border-border/40 pb-4 mb-2">
+                                                <div className="flex items-center gap-2">
+                                                    <Clock className="w-5 h-5 text-muted-foreground" />
+                                                    <h2 className="text-lg font-semibold text-foreground whitespace-nowrap">
+                                                        Drafted Posters
+                                                    </h2>
+                                                </div>
+                                                <span className="text-xs font-medium text-muted-foreground bg-muted px-2.5 py-0.5 rounded-full border border-border">
+                                                    {drafts.length}
+                                                </span>
+                                            </div>
 
-                                        <div className="grid grid-cols-1 gap-4">
-                                            {drafts.length > 0 ? (
-                                                drafts.map((draft) => (
+                                            <div className="grid grid-cols-1 gap-4">
+                                                {drafts.map((draft) => (
                                                     <div
                                                         key={draft.id}
                                                         className="group relative flex gap-4 p-4 rounded-xl bg-card border border-border hover:border-primary/30 transition-colors shadow-sm overflow-hidden"
@@ -743,28 +742,15 @@ function CreateOfferContent() {
                                                             </div>
                                                         </div>
                                                     </div>
-                                                ))
-                                            ) : (
-                                                <div className="p-8 rounded-xl border border-border bg-card flex flex-col items-center justify-center text-center space-y-3 shadow-sm">
-                                                    <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                                                        <LayoutGrid className="w-6 h-6 text-muted-foreground" />
-                                                    </div>
-                                                    <p className="text-sm font-semibold text-foreground">
-                                                        No drafts yet
-                                                    </p>
-                                                    <p className="text-xs text-muted-foreground max-w-[200px]">
-                                                        Posters marked for product tagging will appear here
-                                                    </p>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-                        )}
+                                                ))}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
-            </main>
+                </main>
 
             <div className="py-12" />
 

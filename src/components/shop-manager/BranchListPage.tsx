@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -13,6 +14,8 @@ import {
     Trash2,
     Loader2,
     Power,
+    X,
+    Mail,
 } from "lucide-react";
 import { getBranches, deleteBranch, updateBranch } from "@/lib/api/branch";
 import { getShopDetails } from "@/lib/api/shop";
@@ -32,6 +35,180 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetDescription,
+} from "@/components/ui/sheet";
+
+const BranchMapPreview = dynamic(() => import("@/components/shared/BranchMapPreview"), {
+    ssr: false,
+    loading: () => (
+        <div className="h-48 sm:h-52 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-xs text-gray-400 animate-pulse">
+            Loading map...
+        </div>
+    ),
+});
+
+interface BranchPreviewCardProps {
+    selectedBranch: Branch;
+    shopId: string;
+    onToggleActive: (branchId: number, currentStatus: boolean) => void;
+    onDeleteClick: (branch: Branch) => void;
+    deletingId: number | null;
+    showActionsInCard?: boolean;
+}
+
+function BranchPreviewCard({
+    selectedBranch,
+    shopId,
+    onToggleActive,
+    onDeleteClick,
+    deletingId,
+    showActionsInCard = true,
+}: BranchPreviewCardProps) {
+    return (
+        <PremiumCard variant="glass" padding="none" className="overflow-hidden border border-primary/10 shadow-lg w-full">
+            {/* Banner gradient header */}
+            <div className="p-5 bg-gradient-to-r from-orange-500/10 via-amber-500/5 to-transparent relative border-b border-primary/5 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-white border border-primary/15 flex items-center justify-center shadow-sm shrink-0">
+                        <GitBranch className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                        <h3 className="font-black text-lg text-gray-900 leading-tight truncate">
+                            {selectedBranch.branch_name}
+                        </h3>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
+                            Branch details & actions
+                        </p>
+                    </div>
+                </div>
+
+                {/* Toggle Active state top right */}
+                <div className="flex items-center gap-2 shrink-0">
+                    <span className={cn(
+                        "text-[10px] font-bold uppercase tracking-wide hidden sm:inline-block",
+                        selectedBranch.is_active ? "text-emerald-600" : "text-gray-400"
+                    )}>
+                        {selectedBranch.is_active ? "Active" : "Inactive"}
+                    </span>
+                    <button
+                        onClick={() => onToggleActive(selectedBranch.id, selectedBranch.is_active)}
+                        className={cn(
+                            "relative w-11 h-6 rounded-full transition-all duration-300 p-0.5 flex items-center shadow-inner cursor-pointer border-0",
+                            selectedBranch.is_active
+                                ? "bg-emerald-500"
+                                : "bg-gray-200"
+                        )}
+                        title={selectedBranch.is_active ? "Deactivate Branch" : "Activate Branch"}
+                    >
+                        <div className={cn(
+                            "w-5 h-5 rounded-full bg-white shadow-md transition-all duration-300 transform flex items-center justify-center",
+                            selectedBranch.is_active ? "translate-x-5" : "translate-x-0"
+                        )}>
+                            <Power className={cn(
+                                "w-2.5 h-2.5 transition-colors",
+                                selectedBranch.is_active ? "text-emerald-500" : "text-gray-400"
+                            )} />
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+            <div className="p-5 sm:p-6 space-y-5">
+                {/* Location Info */}
+                <div className="space-y-3.5">
+                    <SectionTitle className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Information</SectionTitle>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="flex items-start gap-2.5 bg-gray-50/60 p-3 rounded-xl border border-gray-100/80">
+                            <div className="w-7 h-7 rounded-lg bg-white border border-gray-100 flex items-center justify-center text-gray-500 shrink-0 shadow-xs">
+                                <MapPin className="w-3.5 h-3.5 text-primary" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide leading-none mb-1">Full Location</p>
+                                <p className="text-xs font-semibold text-gray-700 leading-snug break-words">
+                                    {[selectedBranch.address, selectedBranch.city, selectedBranch.district, selectedBranch.state, selectedBranch.pincode].filter(Boolean).join(", ") || "No address provided"}
+                                </p>
+                            </div>
+                        </div>
+
+                        {selectedBranch.phone && (
+                            <div className="flex items-start gap-2.5 bg-gray-50/60 p-3 rounded-xl border border-gray-100/80">
+                                <div className="w-7 h-7 rounded-lg bg-white border border-gray-100 flex items-center justify-center text-gray-500 shrink-0 shadow-xs">
+                                    <Phone className="w-3.5 h-3.5 text-primary" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide leading-none mb-1">Contact Phone</p>
+                                    <p className="text-xs font-bold text-gray-700">
+                                        {selectedBranch.phone}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
+                        {selectedBranch.email && (
+                            <div className="flex items-start gap-2.5 bg-gray-50/60 p-3 rounded-xl border border-gray-100/80">
+                                <div className="w-7 h-7 rounded-lg bg-white border border-gray-100 flex items-center justify-center text-gray-500 shrink-0 shadow-xs">
+                                    <Mail className="w-3.5 h-3.5 text-primary" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide leading-none mb-1">Email Address</p>
+                                    <p className="text-xs font-bold text-gray-700 truncate">
+                                        {selectedBranch.email}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Action Buttons (Desktop inline) */}
+                    {showActionsInCard && (
+                        <div className="flex items-center gap-3 pt-2">
+                            <Link href={`/shop-manager/${shopId}/add-branch?branchId=${selectedBranch.id}`} className="flex-1">
+                                <PremiumButton variant="outline" className="w-full rounded-xl py-2.5 border-gray-200 hover:border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary gap-1.5 shadow-none text-xs font-bold uppercase tracking-wider">
+                                    <Pencil className="w-3.5 h-3.5" />
+                                    Edit Location
+                                </PremiumButton>
+                            </Link>
+                            <PremiumButton
+                                variant="outline"
+                                className="flex-1 rounded-xl py-2.5 border-rose-100 hover:border-rose-200 bg-rose-50/20 hover:bg-rose-50 text-rose-600 gap-1.5 shadow-none text-xs font-bold uppercase tracking-wider"
+                                onClick={() => onDeleteClick(selectedBranch)}
+                                disabled={deletingId === selectedBranch.id}
+                            >
+                                {deletingId === selectedBranch.id ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                )}
+                                Delete
+                            </PremiumButton>
+                        </div>
+                    )}
+                </div>
+
+                {/* Actual Map Canvas */}
+                <div className="space-y-2.5 pt-1 border-t border-gray-100">
+                    <SectionTitle className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Map View</SectionTitle>
+                    <BranchMapPreview
+                        latitude={selectedBranch.latitude}
+                        longitude={selectedBranch.longitude}
+                        branchName={selectedBranch.branch_name}
+                        city={selectedBranch.city}
+                        district={selectedBranch.district}
+                        state={selectedBranch.state}
+                        address={selectedBranch.address}
+                        className="h-56 sm:h-64"
+                    />
+                </div>
+            </div>
+        </PremiumCard>
+    );
+}
 
 interface BranchListPageProps {
     shopId: string;
@@ -44,6 +221,7 @@ export default function BranchListPage({ shopId }: BranchListPageProps) {
     const [shopName, setShopName] = useState("test Shop");
     const [deletingId, setDeletingId] = useState<number | null>(null);
     const [branchToDelete, setBranchToDelete] = useState<Branch | null>(null);
+    const [isMobilePreviewOpen, setIsMobilePreviewOpen] = useState(false);
 
     useEffect(() => {
         fetchData();
@@ -201,13 +379,14 @@ export default function BranchListPage({ shopId }: BranchListPageProps) {
 
             {/* Layout content */}
             {isLoading ? (
-                <div className="space-y-6">
-                    <div>
-                        <SectionTitle className="mb-3 text-[10px] text-gray-400 font-bold uppercase tracking-widest block">Locations</SectionTitle>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                    {/* Left Skeleton (Branch List) */}
+                    <div className="lg:col-span-5 space-y-3">
+                        <div className="h-4 w-24 bg-gray-200 rounded animate-pulse mb-3" />
+                        <div className="space-y-3">
                             {[1, 2, 3, 4].map((i) => (
                                 <div key={i} className="p-4 rounded-xl border border-gray-100 bg-gray-50/50 animate-pulse flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-lg bg-gray-200" />
+                                    <div className="w-9 h-9 rounded-lg bg-gray-200" />
                                     <div className="space-y-2 flex-1">
                                         <div className="h-3.5 w-3/4 bg-gray-200 rounded" />
                                         <div className="h-2.5 w-1/2 bg-gray-200 rounded" />
@@ -216,186 +395,91 @@ export default function BranchListPage({ shopId }: BranchListPageProps) {
                             ))}
                         </div>
                     </div>
-                    <div className="h-[300px] rounded-2xl bg-gray-50/50 border border-gray-100 animate-pulse" />
+                    {/* Right Skeleton (Preview Card) */}
+                    <div className="lg:col-span-7">
+                        <div className="h-[420px] rounded-2xl bg-gray-50/50 border border-gray-100 animate-pulse" />
+                    </div>
                 </div>
             ) : branches.length > 0 ? (
-                <div className="space-y-6">
-                    {/* List of Branches - 2 in a row on desktop/tablet */}
-                    <div>
-                        <SectionTitle className="mb-3 text-[10px] text-gray-400 font-bold uppercase tracking-widest block">Locations</SectionTitle>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {branches.map((branch) => (
-                                <div
-                                    key={branch.id}
-                                    onClick={() => setSelectedBranchId(branch.id)}
-                                    className={cn(
-                                        "group p-4 rounded-xl cursor-pointer border transition-all duration-300 relative overflow-hidden",
-                                        selectedBranchId === branch.id
-                                            ? "bg-white border-primary/20 shadow-md shadow-primary/5 ring-1 ring-primary/5"
-                                            : "bg-gray-50/40 border-gray-100 hover:border-primary/10 hover:bg-white"
-                                    )}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className={cn(
-                                            "w-9 h-9 rounded-lg flex items-center justify-center border shrink-0 transition-colors duration-300",
-                                            selectedBranchId === branch.id
-                                                ? "bg-primary/10 border-primary/20 text-primary"
-                                                : "bg-white border-gray-200 text-gray-500"
-                                        )}>
-                                            <GitBranch className="w-4.5 h-4.5" />
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                            <h4 className="font-bold text-sm text-gray-900 truncate leading-tight mb-1">
-                                                {branch.branch_name}
-                                            </h4>
-                                            <p className="text-[11px] text-gray-500 truncate flex items-center gap-1 font-medium">
-                                                <MapPin className="w-3 h-3 text-gray-400" />
-                                                {branch.city}, {branch.district}
-                                            </p>
-                                        </div>
-                                        <span className={cn(
-                                            "w-2 h-2 rounded-full shrink-0",
-                                            branch.is_active ? "bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.4)]" : "bg-gray-300"
-                                        )} />
-                                    </div>
-                                </div>
-                            ))}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                    {/* Left Column: Branch List (Master) */}
+                    <div className="lg:col-span-5 space-y-3">
+                        <div className="flex items-center justify-between mb-2">
+                            <SectionTitle className="text-[10px] text-gray-400 font-bold uppercase tracking-widest block">
+                                Locations ({branches.length})
+                            </SectionTitle>
+                            <span className="text-[11px] text-gray-400 font-medium">
+                                Select to preview
+                            </span>
                         </div>
-                    </div>
 
-                    {/* Selected Branch Detail View - Below, full width */}
-                    {selectedBranch && (
-                        <PremiumCard variant="glass" padding="none" className="overflow-hidden border border-primary/10 shadow-lg w-full">
-                            {/* Banner gradient header */}
-                            <div className="h-20 bg-gradient-to-r from-orange-500/10 via-amber-500/5 to-transparent relative border-b border-primary/5 flex items-center px-6">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-lg bg-white border border-primary/10 flex items-center justify-center shadow-sm">
-                                        <GitBranch className="w-5 h-5 text-primary animate-none" />
-                                    </div>
-                                    <div>
-                                        <h3 className="font-black text-lg text-gray-900 leading-tight">
-                                            {selectedBranch.branch_name}
-                                        </h3>
-                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
-                                            Branch details & actions
-                                        </p>
-                                    </div>
-                                </div>
-
-                                {/* Toggle Active state top right */}
-                                <div className="absolute right-6 top-6 flex items-center gap-2.5">
-                                    <span className={cn(
-                                        "text-[10px] font-bold uppercase tracking-wide",
-                                        selectedBranch.is_active ? "text-emerald-600" : "text-gray-400"
-                                    )}>
-                                        {selectedBranch.is_active ? "Active" : "Inactive"}
-                                    </span>
-                                    <button
-                                        onClick={() => handleToggleActive(selectedBranch.id, selectedBranch.is_active)}
+                        <div className="flex flex-col gap-3 max-h-[calc(100vh-220px)] overflow-y-auto p-1.5 pb-6 no-scrollbar">
+                            {branches.map((branch) => {
+                                const isSelected = selectedBranchId === branch.id;
+                                return (
+                                    <div
+                                        key={branch.id}
+                                        onClick={() => {
+                                            setSelectedBranchId(branch.id);
+                                            setIsMobilePreviewOpen(true);
+                                        }}
                                         className={cn(
-                                            "relative w-11 h-6 rounded-full transition-all duration-300 p-0.5 flex items-center shadow-inner cursor-pointer border-0",
-                                            selectedBranch.is_active
-                                                ? "bg-emerald-500"
-                                                : "bg-gray-200"
+                                            "group p-4 rounded-2xl cursor-pointer border-2 transition-all duration-200 relative overflow-hidden shadow-xs",
+                                            isSelected
+                                                ? "bg-orange-50/30 border-orange-500 shadow-md shadow-orange-500/10 ring-4 ring-orange-500/15"
+                                                : "bg-white border-gray-100/90 hover:border-orange-200 hover:bg-orange-50/10 hover:shadow-sm"
                                         )}
                                     >
-                                        <div className={cn(
-                                            "w-5 h-5 rounded-full bg-white shadow-md transition-all duration-300 transform flex items-center justify-center",
-                                            selectedBranch.is_active ? "translate-x-5" : "translate-x-0"
-                                        )}>
-                                            <Power className={cn(
-                                                "w-2.5 h-2.5 transition-colors",
-                                                selectedBranch.is_active ? "text-emerald-500" : "text-gray-400"
-                                            )} />
-                                        </div>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="p-6 space-y-6">
-                                {/* Location Info grid */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-4">
-                                        <SectionTitle className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Information</SectionTitle>
-                                        <div className="space-y-3.5">
-                                            <div className="flex items-start gap-2.5">
-                                                <div className="w-8 h-8 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-500 shrink-0">
-                                                    <MapPin className="w-4 h-4 text-primary" />
-                                                </div>
-                                                <div>
-                                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide leading-none mb-1">Full Location</p>
-                                                    <p className="text-sm font-semibold text-gray-700 leading-snug">
-                                                        {selectedBranch.address || "No address provided"}, {selectedBranch.city || ""}, {selectedBranch.district || ""}
-                                                    </p>
-                                                </div>
+                                        <div className="flex items-center gap-3.5">
+                                            <div className={cn(
+                                                "w-10 h-10 rounded-xl flex items-center justify-center border transition-all duration-200 shrink-0",
+                                                isSelected
+                                                    ? "bg-orange-500 text-white border-orange-500 shadow-sm shadow-orange-500/30"
+                                                    : "bg-gray-50 border-gray-200 text-gray-500 group-hover:bg-white group-hover:text-orange-500 group-hover:border-orange-200"
+                                            )}>
+                                                <GitBranch className={cn("w-5 h-5", isSelected ? "text-white" : "text-gray-500 group-hover:text-orange-500")} />
                                             </div>
-
-                                            {selectedBranch.phone && (
-                                                <div className="flex items-start gap-2.5">
-                                                    <div className="w-8 h-8 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-500 shrink-0">
-                                                        <Phone className="w-4 h-4 text-primary" />
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide leading-none mb-1">Contact Phone</p>
-                                                        <p className="text-sm font-bold text-gray-700">
-                                                            {selectedBranch.phone}
-                                                        </p>
-                                                    </div>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <h4 className={cn(
+                                                        "font-bold text-sm truncate leading-tight transition-colors",
+                                                        isSelected ? "text-orange-950" : "text-gray-900 group-hover:text-orange-600"
+                                                    )}>
+                                                        {branch.branch_name}
+                                                    </h4>
+                                                    <span className={cn(
+                                                        "w-2.5 h-2.5 rounded-full shrink-0",
+                                                        branch.is_active ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]" : "bg-gray-300"
+                                                    )} />
                                                 </div>
-                                            )}
-                                        </div>
-
-                                        {/* Action Buttons */}
-                                        <div className="pt-4 flex items-center gap-3 border-t border-gray-50">
-                                            <Link href={`/shop-manager/${shopId}/add-branch?branchId=${selectedBranch.id}`} className="flex-1">
-                                                <PremiumButton variant="outline" className="w-full rounded-xl py-3 border-gray-200 hover:border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary gap-1.5 shadow-none text-xs font-bold uppercase tracking-wider">
-                                                    <Pencil className="w-3.5 h-3.5" />
-                                                    Edit Location
-                                                </PremiumButton>
-                                            </Link>
-                                            <PremiumButton
-                                                variant="outline"
-                                                className="flex-1 rounded-xl py-3 border-rose-100 hover:border-rose-200 bg-rose-50/20 hover:bg-rose-50 text-rose-600 gap-1.5 shadow-none text-xs font-bold uppercase tracking-wider"
-                                                onClick={() => setBranchToDelete(selectedBranch)}
-                                                disabled={deletingId === selectedBranch.id}
-                                            >
-                                                {deletingId === selectedBranch.id ? (
-                                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                                ) : (
-                                                    <Trash2 className="w-3.5 h-3.5" />
-                                                )}
-                                                Delete
-                                            </PremiumButton>
-                                        </div>
-                                    </div>
-
-                                    {/* Mockup Map Canvas */}
-                                    <div className="space-y-4">
-                                        <SectionTitle className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Map View</SectionTitle>
-                                        <div className="relative h-44 rounded-2xl bg-gradient-to-br from-blue-50 to-orange-50 overflow-hidden border border-gray-100 flex items-center justify-center shadow-inner">
-                                            {/* Grid lines layout mockup */}
-                                            <div className="absolute inset-0 bg-[linear-gradient(to_right,#e5e7eb_1px,transparent_1px),linear-gradient(to_bottom,#e5e7eb_1px,transparent_1px)] bg-[size:20px_20px] opacity-40" />
-                                            {/* Route overlay mockup */}
-                                            <div className="absolute top-1/3 left-0 right-0 h-4 bg-orange-200/40 rounded-full rotate-6" />
-                                            <div className="absolute top-0 bottom-0 left-1/2 w-4 bg-emerald-200/40 rounded-full -rotate-12" />
-
-                                            {/* Animated Location marker pin */}
-                                            <div className="relative flex flex-col items-center animate-bounce">
-                                                <MapPin className="w-8 h-8 text-primary fill-primary/10" />
-                                                <div className="w-2.5 h-1 bg-black/15 rounded-full blur-[1px] mt-1 scale-x-150" />
-                                            </div>
-
-                                            <div className="absolute bottom-3 left-3 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-lg border border-gray-100/50 shadow-sm">
-                                                <p className="text-[9px] font-bold text-gray-800 flex items-center gap-1 uppercase tracking-wide">
-                                                    <MapPin className="w-2.5 h-2.5 text-primary" /> {selectedBranch.city || "Registered"}
+                                                <p className="text-xs text-gray-500 truncate flex items-center gap-1.5 font-medium mt-1">
+                                                    <MapPin className={cn("w-3.5 h-3.5 shrink-0", isSelected ? "text-orange-500" : "text-gray-400")} />
+                                                    <span className="truncate">{branch.city || branch.district || "Registered Branch"}, {branch.district || branch.state}</span>
                                                 </p>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Right Column: Selected Branch Preview (Desktop only) */}
+                    <div className="hidden lg:block lg:col-span-7 lg:sticky lg:top-24">
+                        {selectedBranch ? (
+                            <BranchPreviewCard
+                                selectedBranch={selectedBranch}
+                                shopId={shopId}
+                                onToggleActive={handleToggleActive}
+                                onDeleteClick={(b) => setBranchToDelete(b)}
+                                deletingId={deletingId}
+                            />
+                        ) : (
+                            <div className="h-64 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-xs text-gray-400 font-medium">
+                                Select a branch from the left to view details
                             </div>
-                        </PremiumCard>
-                    )}
+                        )}
+                    </div>
                 </div>
             ) : (
                 <div className="py-16 flex flex-col items-center justify-center text-center bg-white border border-gray-100 rounded-3xl shadow-sm max-w-xl mx-auto">
@@ -414,6 +498,75 @@ export default function BranchListPage({ shopId }: BranchListPageProps) {
                     </PremiumButton>
                 </div>
             )}
+
+            {/* Mobile Slide-Out Preview Modal (Drawer) */}
+            <Sheet open={isMobilePreviewOpen} onOpenChange={setIsMobilePreviewOpen}>
+                <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col h-full bg-white border-l border-gray-100 z-50 [&>button]:hidden">
+                    <SheetHeader className="sr-only">
+                        <SheetTitle>Branch Details</SheetTitle>
+                        <SheetDescription>Preview and actions for {selectedBranch?.branch_name}</SheetDescription>
+                    </SheetHeader>
+
+                    {selectedBranch && (
+                        <>
+                            {/* Scrollable Modal Content */}
+                            <div className="flex-1 overflow-y-auto p-4 sm:p-5">
+                                <BranchPreviewCard
+                                    selectedBranch={selectedBranch}
+                                    shopId={shopId}
+                                    onToggleActive={handleToggleActive}
+                                    onDeleteClick={(b) => {
+                                        setIsMobilePreviewOpen(false);
+                                        setBranchToDelete(b);
+                                    }}
+                                    deletingId={deletingId}
+                                    showActionsInCard={false}
+                                />
+                            </div>
+
+                            {/* Sticky Modal Footer: [Edit Location] [Delete] [Close] */}
+                            <div className="sticky bottom-0 bg-white/95 backdrop-blur-md border-t border-gray-100 p-3 sm:p-4 flex items-center gap-2.5 shadow-lg z-20">
+                                <Link href={`/shop-manager/${shopId}/add-branch?branchId=${selectedBranch.id}`} className="flex-1">
+                                    <PremiumButton
+                                        variant="outline"
+                                        className="w-full rounded-xl py-2.5 border-orange-200 hover:border-orange-300 bg-orange-50/50 hover:bg-orange-50 text-orange-600 text-xs font-bold uppercase tracking-wider gap-1.5 shadow-none justify-center"
+                                        onClick={() => setIsMobilePreviewOpen(false)}
+                                    >
+                                        <Pencil className="w-3.5 h-3.5" />
+                                        Edit Location
+                                    </PremiumButton>
+                                </Link>
+
+                                <PremiumButton
+                                    variant="outline"
+                                    className="rounded-xl py-2.5 px-3.5 border-rose-100 hover:border-rose-200 bg-rose-50/20 hover:bg-rose-50 text-rose-600 text-xs font-bold uppercase tracking-wider gap-1.5 shadow-none shrink-0"
+                                    onClick={() => {
+                                        setIsMobilePreviewOpen(false);
+                                        setBranchToDelete(selectedBranch);
+                                    }}
+                                    disabled={deletingId === selectedBranch.id}
+                                >
+                                    {deletingId === selectedBranch.id ? (
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    ) : (
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                    )}
+                                    Delete
+                                </PremiumButton>
+
+                                <PremiumButton
+                                    variant="outline"
+                                    onClick={() => setIsMobilePreviewOpen(false)}
+                                    className="rounded-xl py-2.5 px-3.5 border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-bold uppercase tracking-wider gap-1.5 shadow-none shrink-0"
+                                >
+                                    <X className="w-3.5 h-3.5" />
+                                    Close
+                                </PremiumButton>
+                            </div>
+                        </>
+                    )}
+                </SheetContent>
+            </Sheet>
 
             {/* Delete Confirmation Dialog */}
             <AlertDialog open={!!branchToDelete} onOpenChange={(open) => !open && setBranchToDelete(null)}>

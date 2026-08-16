@@ -10,6 +10,13 @@ import {
     Image as ImageIcon
 } from "lucide-react";
 import Image from "next/image";
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetDescription,
+} from "@/components/ui/sheet";
 
 import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
 import { useSubcategories } from "@/hooks/useApi";
@@ -95,6 +102,7 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
 
     const [zoomedImageSrc, setZoomedImageSrc] = useState<string | null>(null);
     const [zoomScale, setZoomScale] = useState<number>(1);
+    const [isMobileItemsOpen, setIsMobileItemsOpen] = useState(false);
 
     useEffect(() => {
         if (!zoomedImageSrc) return;
@@ -159,11 +167,14 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
         const rect = containerRef.current!.getBoundingClientRect();
         const clientX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
         const clientY = 'touches' in e ? e.touches[0].clientY : (e as MouseEvent).clientY;
-        return { x: clientX - rect.left, y: clientY - rect.top };
+        return {
+            x: Math.max(0, Math.min(clientX - rect.left, rect.width)),
+            y: Math.max(0, Math.min(clientY - rect.top, rect.height))
+        };
     };
 
     const handlePointerDown = (e: MouseEvent | TouchEvent) => {
-        if (showModal || showCropper) return;
+        if (showModal || showCropper || isProcessing) return;
         const { x, y } = getEventCoords(e);
         setStartPos({ x, y });
         setIsDrawing(true);
@@ -214,12 +225,6 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
 
             // Robust validation of image and measurements
             if (!img || !img.complete || img.naturalWidth === 0 || !imageSize.width || !imageSize.height) {
-                console.error("Image state check failed:", {
-                    imgExists: !!img,
-                    complete: img?.complete,
-                    naturalWidth: img?.naturalWidth,
-                    measureWidth: imageSize.width
-                });
                 throw new Error('Image not fully loaded or has invalid dimensions. Please wait a moment and try again.');
             }
 
@@ -513,10 +518,7 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                                 </PremiumButton>
                             </div>
                         </div>
-
-
-
-                        <PremiumCard padding="none" className="relative overflow-hidden bg-black/5 border-primary/20 p-0 sm:p-4">
+                        <PremiumCard padding="none" className="relative overflow-hidden bg-black/5 border-primary/20 p-0 sm:p-4 shadow-md">
                             <div
                                 ref={containerRef}
                                 className="relative w-full cursor-crosshair select-none overflow-hidden rounded-2xl touch-none"
@@ -536,7 +538,7 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                                         height={1600}
                                         unoptimized
                                         crossOrigin={imgCrossOrigin}
-                                        className="w-full h-auto block rounded-2xl"
+                                        className="w-full h-auto block rounded-2xl pointer-events-none select-none"
                                         onLoad={(e) => {
                                             const target = e.currentTarget;
                                             setImageSize({ width: target.offsetWidth, height: target.offsetHeight });
@@ -553,14 +555,15 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                                     />
                                 )}
 
+                                {/* Hotspot bounding boxes */}
                                 {imageSize.width > 0 && posterData.markedItems.map((item) => (
                                     <div
                                         key={item.id}
                                         className={cn(
-                                            "absolute border-2 transition-all duration-300 group/hotspot",
+                                            "absolute border-2 transition-all duration-200 group/hotspot rounded-sm cursor-pointer",
                                             highlightedId === item.id
-                                                ? "border-primary bg-primary/30 ring-4 ring-primary/20 scale-[1.02] z-10"
-                                                : "border-red-500 bg-red-500/10 hover:bg-red-500/20"
+                                                ? "border-primary bg-primary/30 ring-4 ring-primary/20 scale-[1.02] z-10 shadow-lg"
+                                                : "border-red-500 bg-red-500/15 hover:bg-red-500/30"
                                         )}
                                         style={{
                                             left: `${item.x * 100}%`,
@@ -570,9 +573,16 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                                         }}
                                         onClick={(e) => { e.stopPropagation(); handleEditItem(item); }}
                                     >
-                                        <div className="absolute top-0 right-0 -translate-y-full mb-1 opacity-0 group-hover/hotspot:opacity-100 transition-opacity">
-                                            <div className="bg-red-500 text-white p-1 rounded-md shadow-lg" onClick={(e) => { e.stopPropagation(); handleDeleteItem(item.id); }}>
-                                                <Trash2 className="w-3 h-3" />
+                                        <div className="absolute -top-7 right-0 opacity-90 group-hover/hotspot:opacity-100 transition-opacity z-20 flex items-center gap-1">
+                                            <span className="bg-red-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-md truncate max-w-[100px]">
+                                                {item.name ? item.name.slice(0, 15) : 'Marked'}
+                                            </span>
+                                            <div
+                                                className="bg-red-600 hover:bg-red-700 text-white p-1 rounded shadow-md cursor-pointer transition-colors"
+                                                onClick={(e) => { e.stopPropagation(); handleDeleteItem(item.id); }}
+                                                title="Delete item"
+                                            >
+                                                <Trash2 className="w-2.5 h-2.5" />
                                             </div>
                                         </div>
                                     </div>
@@ -581,22 +591,27 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                                 {/* Current Drawing Rect */}
                                 {currentRect && (
                                     <div
-                                        className="absolute border-2 border-dashed border-red-500 bg-red-500/20"
+                                        className="absolute border-2 border-dashed border-red-500 bg-red-500/25 pointer-events-none rounded-sm shadow-sm"
                                         style={{
                                             left: currentRect.x,
                                             top: currentRect.y,
                                             width: currentRect.width,
                                             height: currentRect.height,
                                         }}
-                                    />
+                                    >
+                                        <div className="absolute -top-1 -left-1 w-2 h-2 bg-red-500 rounded-full" />
+                                        <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
+                                        <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-red-500 rounded-full" />
+                                        <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
+                                    </div>
                                 )}
 
                                 {/* Loading Overlay */}
                                 {isProcessing && (
-                                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-                                        <div className="flex flex-col items-center gap-4 text-white">
-                                            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-                                            <Text className="font-bold">Identifying Item...</Text>
+                                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 rounded-2xl">
+                                        <div className="flex flex-col items-center gap-3 text-white p-4 bg-gray-900/85 rounded-2xl border border-white/10 shadow-2xl">
+                                            <div className="w-10 h-10 border-3 border-primary border-t-transparent rounded-full animate-spin" />
+                                            <Text className="font-bold text-sm text-white">Extracting details...</Text>
                                         </div>
                                     </div>
                                 )}
@@ -604,8 +619,8 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                         </PremiumCard>
 
                     </div>
-                    <div className="w-full xl:w-96 space-y-6 px-2 sm:px-0">
-                        <PremiumCard className="p-6">
+                    <div className="w-full xl:w-96 space-y-6 px-2 sm:px-0 hidden xl:block">
+                        <PremiumCard>
                             <div className="flex items-center justify-between mb-6">
                                 <div className="flex items-center gap-2">
                                     <div className="p-2 bg-primary/10 rounded-lg">
@@ -650,7 +665,9 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                                             <div className="flex-1 min-w-0 pr-6 relative flex flex-col justify-center">
                                                 <h4 className="font-bold text-sm text-gray-900 truncate pr-4">{item.name || `Item ${idx + 1}`}</h4>
                                                 <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1">
-                                                    <span className="text-xs line-through opacity-40 whitespace-nowrap">{item.currency}{item.oldPrice}</span>
+                                                    {item.oldPrice > 0 && (
+                                                        <span className="text-xs line-through opacity-40 whitespace-nowrap">{item.currency}{item.oldPrice}</span>
+                                                    )}
                                                     <span className="text-sm font-bold text-green-600 whitespace-nowrap">{item.currency}{item.offerPrice}</span>
                                                 </div>
                                                 {item.subcategories && item.subcategories.length > 0 && (
@@ -702,6 +719,125 @@ export function HotspotEditor({ poster, onSave, onCancel }: HotspotEditorProps) 
                         </PremiumCard>
                     </div>
                 </div>
+
+
+
+
+
+                {/* Mobile Floating Marked Items Action Button */}
+                <div className="xl:hidden fixed bottom-5 right-5 z-40 animate-in slide-in-from-bottom-3 duration-300">
+                    <button
+                        type="button"
+                        onClick={() => setIsMobileItemsOpen(true)}
+                        className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-2xl font-bold shadow-xl shadow-orange-500/30 active:scale-95 transition-all cursor-pointer border-0"
+                    >
+                        <CheckSquare className="w-4 h-4" />
+                        <span className="text-xs">Marked Items</span>
+                        <span className="bg-white text-orange-600 text-[11px] font-black px-2 py-0.5 rounded-full shadow-xs">
+                            {posterData.markedItems.length}
+                        </span>
+                    </button>
+                </div>
+
+                {/* Mobile Slide-Up Drawer for Marked Items */}
+                <Sheet open={isMobileItemsOpen} onOpenChange={setIsMobileItemsOpen}>
+                    <SheetContent side="bottom" className="w-full max-h-[85vh] rounded-t-3xl p-0 flex flex-col bg-white z-50 [&>button]:hidden">
+                        <SheetHeader className="p-4 pb-3 border-b border-gray-100 flex flex-row items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <div className="p-2 bg-primary/10 rounded-lg">
+                                    <CheckSquare className="w-5 h-5 text-primary" />
+                                </div>
+                                <div className="text-left">
+                                    <SheetTitle className="text-base font-bold text-gray-900 leading-tight">Marked Items ({posterData.markedItems.length})</SheetTitle>
+                                    <SheetDescription className="text-xs text-gray-400">Tap an item to refine details or change image</SheetDescription>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsMobileItemsOpen(false)}
+                                className="p-1.5 hover:bg-gray-100 rounded-full text-gray-500 cursor-pointer border-0"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </SheetHeader>
+
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+                            {posterData.markedItems.length === 0 ? (
+                                <div className="text-center py-10 space-y-3">
+                                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto text-gray-400">
+                                        <Plus className="w-6 h-6" />
+                                    </div>
+                                    <p className="text-xs text-gray-400 max-w-xs mx-auto">
+                                        No items marked yet. Draw a box over items on the poster to start.
+                                    </p>
+                                </div>
+                            ) : (
+                                posterData.markedItems.map((item, idx) => (
+                                    <div
+                                        key={item.id}
+                                        onClick={() => {
+                                            setIsMobileItemsOpen(false);
+                                            handleEditItem(item);
+                                        }}
+                                        className={cn(
+                                            "flex items-center gap-3 p-3 rounded-2xl border transition-all cursor-pointer bg-white shadow-xs",
+                                            highlightedId === item.id ? "border-primary bg-primary/5" : "border-gray-100 hover:border-gray-200"
+                                        )}
+                                    >
+                                        <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-gray-50 shrink-0 border border-gray-100">
+                                            {item.productImage ? (
+                                                <Image src={item.productImage} alt="" fill unoptimized className="object-cover" />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">#{idx + 1}</div>
+                                            )}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="font-bold text-xs text-gray-900 truncate">{item.name || `Item ${idx + 1}`}</h4>
+                                            <div className="flex items-center gap-2 mt-0.5">
+                                                {item.oldPrice > 0 && (
+                                                    <span className="text-[10px] line-through text-gray-400">{item.currency}{item.oldPrice}</span>
+                                                )}
+                                                <span className="text-xs font-black text-emerald-600">{item.currency}{item.offerPrice}</span>
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteItem(item.id);
+                                            }}
+                                            className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors shrink-0 cursor-pointer border-0"
+                                            title="Delete"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+
+                        <div className="p-3 border-t border-gray-100 bg-gray-50/70 flex gap-2">
+                            <PremiumButton
+                                variant="outline"
+                                onClick={() => setIsMobileItemsOpen(false)}
+                                className="flex-1 rounded-xl text-xs font-bold py-2.5"
+                            >
+                                Continue Marking
+                            </PremiumButton>
+                            <PremiumButton
+                                variant="default"
+                                onClick={() => {
+                                    setIsMobileItemsOpen(false);
+                                    handleFinish();
+                                }}
+                                leftIcon={Save}
+                                className="flex-1 rounded-xl text-xs font-bold py-2.5 shadow-md shadow-primary/20"
+                            >
+                                Save & Continue
+                            </PremiumButton>
+                        </div>
+                    </SheetContent>
+                </Sheet>
             </main>
 
             {/* --- Edit Side Panel --- */}

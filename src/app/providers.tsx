@@ -36,7 +36,7 @@ export function Providers({ children, locale = "en", dictionary }: { children: R
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SessionProvider>
+      <SessionProvider refetchOnWindowFocus={false}>
         <LanguageProvider locale={locale} dictionary={dictionary}>
           <LocationProvider>
             <GlobalLoaderProvider>

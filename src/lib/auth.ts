@@ -33,6 +33,7 @@ export const authOptions: NextAuthOptions = {
                             email: (user?.email as string | undefined) ?? "",
                             phone: (user?.phone as string | undefined) ?? "",
                             business_name: (user?.business_name as string | undefined) ?? "",
+                            shopId: (user?.shopId as string | undefined) ?? (user?.shop_id as string | undefined) ?? undefined,
                         };
                         
                         return {
