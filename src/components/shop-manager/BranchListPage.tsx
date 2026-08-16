@@ -330,6 +330,17 @@ export default function BranchListPage({ shopId }: BranchListPageProps) {
 
     const [selectedBranchId, setSelectedBranchId] = useState<number | null>(null);
 
+    // Automatically close mobile preview sheet if window is resized to desktop
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth >= 1024) {
+                setIsMobilePreviewOpen(false);
+            }
+        };
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+    }, []);
+
     // Set initial selected branch on load
     useEffect(() => {
         if (branches.length > 0 && !selectedBranchId) {
@@ -348,27 +359,19 @@ export default function BranchListPage({ shopId }: BranchListPageProps) {
                 <Breadcrumbs
                     items={[
                         { label: "Shop Dashboard", href: "/shop-manager" },
-                        { label: shopName || "Shop", href: `/shop-manager/add-shop?id=${shopId}` },
                         { label: "Branches" },
                     ]}
                 />
-
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mt-4">
-                    <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-white border border-gray-100 flex items-center justify-center shadow-sm">
-                            <GitBranch className="w-6 h-6 text-primary" />
-                        </div>
-                        <div>
-                            <Heading className="text-3xl md:text-4xl">
-                                Branches
-                            </Heading>
-                            <Text className="mt-1 opacity-70">
-                                Manage locations for <span className="font-semibold">{shopName}</span>
-                            </Text>
-                        </div>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-3">
+                    <div>
+                        <Heading className="text-3xl sm:text-4xl font-extrabold tracking-tight text-gray-900">
+                            Branches
+                        </Heading>
+                        <Text className="text-xs sm:text-sm text-gray-500 font-medium mt-1">
+                            Manage locations for <span className="text-gray-900 font-bold">{shopName}</span>
+                        </Text>
                     </div>
-
-                    <PremiumButton asChild className="rounded-xl shadow-lg shadow-primary/20">
+                    <PremiumButton asChild className="rounded-2xl shadow-lg shadow-primary/20 shrink-0">
                         <Link href={`/shop-manager/${shopId}/add-branch`}>
                             <Plus className="w-4 h-4 mr-2" />
                             Add Branch
@@ -377,26 +380,15 @@ export default function BranchListPage({ shopId }: BranchListPageProps) {
                 </div>
             </div>
 
-            {/* Layout content */}
+            {/* Content Area */}
             {isLoading ? (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                    {/* Left Skeleton (Branch List) */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                     <div className="lg:col-span-5 space-y-3">
-                        <div className="h-4 w-24 bg-gray-200 rounded animate-pulse mb-3" />
-                        <div className="space-y-3">
-                            {[1, 2, 3, 4].map((i) => (
-                                <div key={i} className="p-4 rounded-xl border border-gray-100 bg-gray-50/50 animate-pulse flex items-center gap-3">
-                                    <div className="w-9 h-9 rounded-lg bg-gray-200" />
-                                    <div className="space-y-2 flex-1">
-                                        <div className="h-3.5 w-3/4 bg-gray-200 rounded" />
-                                        <div className="h-2.5 w-1/2 bg-gray-200 rounded" />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                        {[1, 2, 3].map((i) => (
+                            <div key={i} className="h-20 rounded-2xl bg-gray-50/50 border border-gray-100 animate-pulse" />
+                        ))}
                     </div>
-                    {/* Right Skeleton (Preview Card) */}
-                    <div className="lg:col-span-7">
+                    <div className="hidden lg:block lg:col-span-7">
                         <div className="h-[420px] rounded-2xl bg-gray-50/50 border border-gray-100 animate-pulse" />
                     </div>
                 </div>
@@ -421,7 +413,10 @@ export default function BranchListPage({ shopId }: BranchListPageProps) {
                                         key={branch.id}
                                         onClick={() => {
                                             setSelectedBranchId(branch.id);
-                                            setIsMobilePreviewOpen(true);
+                                            // Only open the slide-out sheet on mobile devices (< 1024px)
+                                            if (typeof window !== "undefined" && window.innerWidth < 1024) {
+                                                setIsMobilePreviewOpen(true);
+                                            }
                                         }}
                                         className={cn(
                                             "group p-4 rounded-2xl cursor-pointer border-2 transition-all duration-200 relative overflow-hidden shadow-xs",
@@ -499,74 +494,76 @@ export default function BranchListPage({ shopId }: BranchListPageProps) {
                 </div>
             )}
 
-            {/* Mobile Slide-Out Preview Modal (Drawer) */}
-            <Sheet open={isMobilePreviewOpen} onOpenChange={setIsMobilePreviewOpen}>
-                <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col h-full bg-white border-l border-gray-100 z-50 [&>button]:hidden">
-                    <SheetHeader className="sr-only">
-                        <SheetTitle>Branch Details</SheetTitle>
-                        <SheetDescription>Preview and actions for {selectedBranch?.branch_name}</SheetDescription>
-                    </SheetHeader>
+            {/* Mobile Slide-Out Preview Modal (Drawer) - strictly hidden on desktop (lg:hidden) */}
+            <div className="lg:hidden">
+                <Sheet open={isMobilePreviewOpen} onOpenChange={setIsMobilePreviewOpen}>
+                    <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col h-full bg-white border-l border-gray-100 z-50 [&>button]:hidden">
+                        <SheetHeader className="sr-only">
+                            <SheetTitle>Branch Details</SheetTitle>
+                            <SheetDescription>Preview and actions for {selectedBranch?.branch_name}</SheetDescription>
+                        </SheetHeader>
 
-                    {selectedBranch && (
-                        <>
-                            {/* Scrollable Modal Content */}
-                            <div className="flex-1 overflow-y-auto p-4 sm:p-5">
-                                <BranchPreviewCard
-                                    selectedBranch={selectedBranch}
-                                    shopId={shopId}
-                                    onToggleActive={handleToggleActive}
-                                    onDeleteClick={(b) => {
-                                        setIsMobilePreviewOpen(false);
-                                        setBranchToDelete(b);
-                                    }}
-                                    deletingId={deletingId}
-                                    showActionsInCard={false}
-                                />
-                            </div>
+                        {selectedBranch && (
+                            <>
+                                {/* Scrollable Modal Content */}
+                                <div className="flex-1 overflow-y-auto p-4 sm:p-5">
+                                    <BranchPreviewCard
+                                        selectedBranch={selectedBranch}
+                                        shopId={shopId}
+                                        onToggleActive={handleToggleActive}
+                                        onDeleteClick={(b) => {
+                                            setIsMobilePreviewOpen(false);
+                                            setBranchToDelete(b);
+                                        }}
+                                        deletingId={deletingId}
+                                        showActionsInCard={false}
+                                    />
+                                </div>
 
-                            {/* Sticky Modal Footer: [Edit Location] [Delete] [Close] */}
-                            <div className="sticky bottom-0 bg-white/95 backdrop-blur-md border-t border-gray-100 p-3 sm:p-4 flex items-center gap-2.5 shadow-lg z-20">
-                                <Link href={`/shop-manager/${shopId}/add-branch?branchId=${selectedBranch.id}`} className="flex-1">
+                                {/* Sticky Modal Footer: [Edit Location] [Delete] [Close] */}
+                                <div className="sticky bottom-0 bg-white/95 backdrop-blur-md border-t border-gray-100 p-3 sm:p-4 flex items-center gap-2.5 shadow-lg z-20">
+                                    <Link href={`/shop-manager/${shopId}/add-branch?branchId=${selectedBranch.id}`} className="flex-1">
+                                        <PremiumButton
+                                            variant="outline"
+                                            className="w-full rounded-xl py-2.5 border-orange-200 hover:border-orange-300 bg-orange-50/50 hover:bg-orange-50 text-orange-600 text-xs font-bold uppercase tracking-wider gap-1.5 shadow-none justify-center"
+                                            onClick={() => setIsMobilePreviewOpen(false)}
+                                        >
+                                            <Pencil className="w-3.5 h-3.5" />
+                                            Edit Location
+                                        </PremiumButton>
+                                    </Link>
+
                                     <PremiumButton
                                         variant="outline"
-                                        className="w-full rounded-xl py-2.5 border-orange-200 hover:border-orange-300 bg-orange-50/50 hover:bg-orange-50 text-orange-600 text-xs font-bold uppercase tracking-wider gap-1.5 shadow-none justify-center"
+                                        className="rounded-xl py-2.5 px-3.5 border-rose-100 hover:border-rose-200 bg-rose-50/20 hover:bg-rose-50 text-rose-600 text-xs font-bold uppercase tracking-wider gap-1.5 shadow-none shrink-0"
+                                        onClick={() => {
+                                            setIsMobilePreviewOpen(false);
+                                            setBranchToDelete(selectedBranch);
+                                        }}
+                                        disabled={deletingId === selectedBranch.id}
+                                    >
+                                        {deletingId === selectedBranch.id ? (
+                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                        ) : (
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                        )}
+                                        Delete
+                                    </PremiumButton>
+
+                                    <PremiumButton
+                                        variant="outline"
+                                        className="rounded-xl py-2.5 px-4 border-gray-200 hover:border-gray-300 bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs font-bold uppercase tracking-wider gap-1.5 shadow-none shrink-0"
                                         onClick={() => setIsMobilePreviewOpen(false)}
                                     >
-                                        <Pencil className="w-3.5 h-3.5" />
-                                        Edit Location
+                                        <X className="w-3.5 h-3.5" />
+                                        Close
                                     </PremiumButton>
-                                </Link>
-
-                                <PremiumButton
-                                    variant="outline"
-                                    className="rounded-xl py-2.5 px-3.5 border-rose-100 hover:border-rose-200 bg-rose-50/20 hover:bg-rose-50 text-rose-600 text-xs font-bold uppercase tracking-wider gap-1.5 shadow-none shrink-0"
-                                    onClick={() => {
-                                        setIsMobilePreviewOpen(false);
-                                        setBranchToDelete(selectedBranch);
-                                    }}
-                                    disabled={deletingId === selectedBranch.id}
-                                >
-                                    {deletingId === selectedBranch.id ? (
-                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                    ) : (
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                    )}
-                                    Delete
-                                </PremiumButton>
-
-                                <PremiumButton
-                                    variant="outline"
-                                    onClick={() => setIsMobilePreviewOpen(false)}
-                                    className="rounded-xl py-2.5 px-3.5 border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-bold uppercase tracking-wider gap-1.5 shadow-none shrink-0"
-                                >
-                                    <X className="w-3.5 h-3.5" />
-                                    Close
-                                </PremiumButton>
-                            </div>
-                        </>
-                    )}
-                </SheetContent>
-            </Sheet>
+                                </div>
+                            </>
+                        )}
+                    </SheetContent>
+                </Sheet>
+            </div>
 
             {/* Delete Confirmation Dialog */}
             <AlertDialog open={!!branchToDelete} onOpenChange={(open) => !open && setBranchToDelete(null)}>
