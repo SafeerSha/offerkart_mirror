@@ -8,14 +8,13 @@ import {
     DialogTitle,
     DialogDescription,
 } from "@/components/ui/dialog";
-import { Mail, Phone, ShieldCheck, RefreshCw, CheckCircle2, AlertCircle, ArrowRight } from "lucide-react";
+import { Mail, ShieldCheck, RefreshCw, CheckCircle2, AlertCircle, ArrowRight } from "lucide-react";
 import { resendEmailOtp, verifyEmailOtp } from "@/lib/api/shop";
 
 interface OtpVerificationModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     email: string;
-    phone: string;
     userId?: number;
     onVerified: () => void;
     isSubmitting: boolean;
@@ -159,7 +158,7 @@ export default function OtpVerificationModal({
     open,
     onOpenChange,
     email,
-    phone,
+    // phone,
     userId,
     onVerified,
     isSubmitting,
@@ -289,7 +288,7 @@ export default function OtpVerificationModal({
                         )}
                     </div>
 
-                    <div className="border-t border-gray-100" />
+                    {/* <div className="border-t border-gray-100" />
 
                     <div className="space-y-3">
                         <div className="flex items-center justify-between">
@@ -323,7 +322,7 @@ export default function OtpVerificationModal({
                                 <AlertCircle className="w-3 h-3" /> {phoneError}
                             </p>
                         )}
-                    </div>
+                    </div> */}
                 </div>
 
                 <div className="px-8 pb-6 bg-white">
