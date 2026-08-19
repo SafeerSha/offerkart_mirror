@@ -2,7 +2,7 @@
 // Run: npm run generate-barrels
 
 export { getBranches } from './branch';
-export { getMyShops, registerShop, loginShop, addShop, updateShop } from './shop';
+export { getMyShops, registerShop, loginShop, resendEmailOtp, verifyEmailOtp, addShop, updateShop } from './shop';
 export { s3Api } from './s3';
 export { createOffer, updateOffer } from './offers';
 export { getCategories, getSubCategories } from './categories';

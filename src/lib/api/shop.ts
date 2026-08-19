@@ -1,5 +1,5 @@
 import { backend } from "./backendClient";
-import { RegisterShopRequest, LoginShopRequest } from "../types/auth";
+import { RegisterShopRequest, LoginShopRequest, ResendOtpRequest, VerifyOtpRequest, OtpResponse } from "../types/auth";
 import { ENDPOINTS } from "./endpoints";
 import { AuthLoginData } from "../types/auth";
 
@@ -9,6 +9,14 @@ export async function registerShop(data: RegisterShopRequest) {
 
 export async function loginShop(data: LoginShopRequest) {
     return await backend.post<AuthLoginData>(ENDPOINTS.AUTH.LOGIN, data);
+}
+
+export async function resendEmailOtp(data: ResendOtpRequest) {
+    return await backend.post<OtpResponse>(ENDPOINTS.AUTH.RESEND_EMAIL_OTP, data);
+}
+
+export async function verifyEmailOtp(data: VerifyOtpRequest) {
+    return await backend.post<OtpResponse>(ENDPOINTS.AUTH.VERIFY_EMAIL_OTP, data);
 }
 
 export async function addShop(data: FormData | any) {

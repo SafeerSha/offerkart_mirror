@@ -2,6 +2,8 @@ export const ENDPOINTS = {
     AUTH: {
         REGISTER: `business/auth/register`,
         LOGIN: `business/auth/login`,
+        RESEND_EMAIL_OTP: `business/auth/resend-email-otp`,
+        VERIFY_EMAIL_OTP: `business/auth/verify-email-otp`,
     },
     SHOP: {
         BASE: `business/shop`,
