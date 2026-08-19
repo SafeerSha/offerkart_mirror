@@ -25,7 +25,7 @@ const formSchema = z.object({
 export default function ShopRegistrationForm() {
     const router = useRouter();
     const [showOtpModal, setShowOtpModal] = useState(false);
-    const [pendingValues, setPendingValues] = useState<z.infer<typeof formSchema> | null>(null);
+    const [userId, setUserId] = useState<number | undefined>(undefined);
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -44,22 +44,21 @@ export default function ShopRegistrationForm() {
             toast.error("Suspicious active content detected. Please review your input.");
             return;
         }
-        setPendingValues(values);
-        setShowOtpModal(true);
+
+        const response = await registerShop(values);
+        if (response.success) {
+            const id = (response.data as { user_id?: number } | undefined)?.user_id;
+            setUserId(typeof id === "number" ? id : undefined);
+            setShowOtpModal(true);
+        } else {
+            toast.error(response.error || "Registration failed. Please try again.");
+        }
     }
 
     async function handleOtpVerified() {
-        if (!pendingValues) return;
-
-        const response = await registerShop(pendingValues);
-        if (response.success) {
-            setShowOtpModal(false);
-            toast.success(response.message || "Shop registered successfully! Please log in.");
-            router.push("/login");
-        } else {
-            setShowOtpModal(false);
-            toast.error(response.error || "Something went wrong. Please try again.");
-        }
+        setShowOtpModal(false);
+        toast.success("Shop registered successfully! Please log in.");
+        router.push("/login");
     }
 
     const inputClassName = "pl-12 h-12 bg-gray-50 border-gray-200 focus:border-orange-500 focus:ring-orange-500 rounded-xl text-base";
@@ -202,6 +201,7 @@ export default function ShopRegistrationForm() {
                     onOpenChange={setShowOtpModal}
                     email={form.getValues("email")}
                     phone={form.getValues("phone")}
+                    userId={userId}
                     onVerified={handleOtpVerified}
                     isSubmitting={form.formState.isSubmitting}
                 />

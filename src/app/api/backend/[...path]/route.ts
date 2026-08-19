@@ -11,6 +11,8 @@ const PUBLIC_PREFIXES = ["user/offer", "user/analytics", "business/category"];
 const PUBLIC_PATHS = new Set([
     "business/auth/login",
     "business/auth/register",
+    "business/auth/resend-email-otp",
+    "business/auth/verify-email-otp",
     "business/industry",
 ]);
 

@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest, NextResponse } from 'next/server';
-import { middleware } from '@/middleware';
+import { proxy } from '@/proxy';
 import { getToken } from 'next-auth/jwt';
 
 vi.mock('next-auth/jwt', () => ({
     getToken: vi.fn(),
 }));
 
-describe('Middleware', () => {
+describe('Proxy', () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
@@ -16,7 +16,7 @@ describe('Middleware', () => {
         vi.mocked(getToken).mockResolvedValueOnce(null);
 
         const request = new NextRequest('http://localhost:3000/shop-manager');
-        const response = await middleware(request);
+        const response = await proxy(request);
 
         expect(response.status).toBe(307); // NextResponse.redirect default status
         const location = response.headers.get('location');
@@ -27,7 +27,7 @@ describe('Middleware', () => {
         vi.mocked(getToken).mockResolvedValueOnce(null);
 
         const request = new NextRequest('http://localhost:3000/shop-manager/products?page=2');
-        const response = await middleware(request);
+        const response = await proxy(request);
 
         expect(response.status).toBe(307);
         const location = response.headers.get('location');
@@ -41,7 +41,7 @@ describe('Middleware', () => {
         } as any);
 
         const request = new NextRequest('http://localhost:3000/shop-manager');
-        const response = await middleware(request);
+        const response = await proxy(request);
 
         expect(response.status).toBe(200);
         expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
@@ -53,7 +53,7 @@ describe('Middleware', () => {
 
     it('should allow public routes without authentication and attach security headers', async () => {
         const request = new NextRequest('http://localhost:3000/offers');
-        const response = await middleware(request);
+        const response = await proxy(request);
 
         expect(response.status).toBe(200);
         expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
@@ -67,7 +67,7 @@ describe('Middleware', () => {
             },
         });
 
-        const response = await middleware(request);
+        const response = await proxy(request);
 
         expect(response.status).toBe(200);
         const setCookieHeader = response.headers.get('set-cookie');
@@ -81,7 +81,7 @@ describe('Middleware', () => {
             },
         });
 
-        const response = await middleware(request);
+        const response = await proxy(request);
 
         expect(response.status).toBe(200);
         const setCookieHeader = response.headers.get('set-cookie');
@@ -96,7 +96,7 @@ describe('Middleware', () => {
             },
         });
 
-        const response = await middleware(request);
+        const response = await proxy(request);
 
         expect(response.status).toBe(200);
         const setCookieHeader = response.headers.get('set-cookie');

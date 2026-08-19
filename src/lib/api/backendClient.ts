@@ -11,6 +11,8 @@ const PUBLIC_PREFIXES = ["user/offer", "user/analytics", "business/category"];
 const PUBLIC_PATHS = new Set([
     "business/auth/login",
     "business/auth/register",
+    "business/auth/resend-email-otp",
+    "business/auth/verify-email-otp",
     "business/industry",
 ]);
 
@@ -153,7 +155,14 @@ export const backend = {
             if (IS_SERVER && normalizedNextCacheOptions) {
                 fetchOptions.next = normalizedNextCacheOptions;
             }
-            const response = await fetch(url, fetchOptions);
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
+            const response = await fetch(url, {
+                ...fetchOptions,
+                signal: controller.signal,
+            });
+            clearTimeout(timeoutId);
 
             // 6. Handle Global Intercepts by Status (e.g. 401)
             // We do this BEFORE parsing JSON to handle empty 401 bodies
@@ -217,7 +226,16 @@ export const backend = {
 
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : "Network error or server unreachable";
-            console.error("Backend Request Failure:", error);
+
+            const isNetworkFailure = error instanceof TypeError &&
+                (error.message === "Failed to fetch" ||
+                 error.message.includes("NetworkError") ||
+                 error.message.includes("fetch"));
+
+            if (!isNetworkFailure) {
+                console.error("Backend Request Failure:", error);
+            }
+
             return {
                 success: false,
                 error: message,

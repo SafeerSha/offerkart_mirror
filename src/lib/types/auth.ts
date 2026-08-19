@@ -39,3 +39,18 @@ export interface LoginShopRequest {
     email: string;
     password: string;
 }
+
+export interface ResendOtpRequest {
+    email: string;
+}
+
+export interface VerifyOtpRequest {
+    user_id: number;
+    otp: number;
+}
+
+export interface OtpResponse {
+    message?: string;
+    success?: boolean;
+    [key: string]: unknown;
+}

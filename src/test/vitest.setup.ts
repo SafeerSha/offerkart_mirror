@@ -35,6 +35,14 @@ window.matchMedia ??= vi.fn().mockImplementation((query: string) => ({
   dispatchEvent: vi.fn(),
 })) as any;
 
+// Mock fetch to prevent real network requests in tests
+vi.stubGlobal('fetch', vi.fn(() =>
+  Promise.resolve(new Response(JSON.stringify({ success: true, data: null, message: '' }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  }))
+));
+
 // Mock IndexedDB
 if (typeof indexedDB === 'undefined') {
   (globalThis as any).indexedDB = {

@@ -9,12 +9,14 @@ import {
     DialogDescription,
 } from "@/components/ui/dialog";
 import { Mail, Phone, ShieldCheck, RefreshCw, CheckCircle2, AlertCircle, ArrowRight } from "lucide-react";
+import { resendEmailOtp, verifyEmailOtp } from "@/lib/api/shop";
 
 interface OtpVerificationModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     email: string;
     phone: string;
+    userId?: number;
     onVerified: () => void;
     isSubmitting: boolean;
 }
@@ -107,9 +109,10 @@ function OtpInput({
     );
 }
 
-function ResendTimer({ onResend }: { onResend: () => void }) {
+function ResendTimer({ onResend }: { onResend: () => Promise<void> }) {
     const [countdown, setCountdown] = useState(30);
     const [canResend, setCanResend] = useState(false);
+    const [isResending, setIsResending] = useState(false);
 
     useEffect(() => {
         if (countdown <= 0) {
@@ -120,19 +123,30 @@ function ResendTimer({ onResend }: { onResend: () => void }) {
         return () => clearTimeout(timer);
     }, [countdown]);
 
-    const handleResend = () => {
-        onResend();
-        setCountdown(30);
-        setCanResend(false);
+    const handleResend = async () => {
+        setIsResending(true);
+        try {
+            await onResend();
+            setCountdown(30);
+            setCanResend(false);
+        } finally {
+            setIsResending(false);
+        }
     };
 
     return canResend ? (
         <button
             type="button"
             onClick={handleResend}
-            className="text-xs font-medium text-orange-600 hover:text-orange-700 flex items-center gap-1 transition-colors"
+            disabled={isResending}
+            className="text-xs font-medium text-orange-600 hover:text-orange-700 flex items-center gap-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-            <RefreshCw className="w-3 h-3" /> Resend OTP
+            {isResending ? (
+                <div className="w-3 h-3 border-2 border-orange-600/30 border-t-orange-600 rounded-full animate-spin" />
+            ) : (
+                <RefreshCw className="w-3 h-3" />
+            )}
+            {isResending ? "Sending..." : "Resend OTP"}
         </button>
     ) : (
         <p className="text-xs text-gray-400">
@@ -146,6 +160,7 @@ export default function OtpVerificationModal({
     onOpenChange,
     email,
     phone,
+    userId,
     onVerified,
     isSubmitting,
 }: OtpVerificationModalProps) {
@@ -169,6 +184,18 @@ export default function OtpVerificationModal({
         }
     }, [open]);
 
+    const handleResendEmail = async () => {
+        setEmailError("");
+        try {
+            const response = await resendEmailOtp({ email });
+            if (!response.success) {
+                setEmailError(response.error || "Failed to resend OTP. Please try again.");
+            }
+        } catch {
+            setEmailError("Network error. Please try again.");
+        }
+    };
+
     const handleVerifyAndRegister = useCallback(async () => {
         setEmailError("");
         setPhoneError("");
@@ -176,9 +203,9 @@ export default function OtpVerificationModal({
 
         try {
             if (!emailVerified) {
-                const emailResult = await mockVerifyOtp(emailOtp);
+                const emailResult = await verifyEmailOtp({ user_id: userId!, otp: Number(emailOtp) });
                 if (!emailResult.success) {
-                    setEmailError(emailResult.message);
+                    setEmailError(emailResult.error || "Invalid OTP. Please try again.");
                     setIsVerifying(false);
                     return;
                 }
@@ -201,7 +228,7 @@ export default function OtpVerificationModal({
         } finally {
             setIsVerifying(false);
         }
-    }, [emailOtp, phoneOtp, emailVerified, phoneVerified, onVerified]);
+    }, [emailOtp, phoneOtp, emailVerified, phoneVerified, onVerified, userId]);
 
     const bothOtpsFilled = emailOtp.length === 6 && phoneOtp.length === 6;
     const bothVerified = emailVerified && phoneVerified;
@@ -243,9 +270,9 @@ export default function OtpVerificationModal({
                                 </div>
                             </div>
                             {emailVerified ? (
-                                <span className="text-xs font-bold text-green-600 bg-green-50 px-2.5 py-1 rounded-full">Verified âœ“</span>
+                                <span className="text-xs font-bold text-green-600 bg-green-50 px-2.5 py-1 rounded-full">Verified ✓</span>
                             ) : (
-                                <ResendTimer onResend={() => setEmailError("")} />
+                                <ResendTimer onResend={handleResendEmail} />
                             )}
                         </div>
                         {!emailVerified && (
@@ -281,7 +308,7 @@ export default function OtpVerificationModal({
                             {phoneVerified ? (
                                 <span className="text-xs font-bold text-green-600 bg-green-50 px-2.5 py-1 rounded-full">Verified âœ“</span>
                             ) : (
-                                <ResendTimer onResend={() => setPhoneError("")} />
+                                <ResendTimer onResend={async () => setPhoneError("")} />
                             )}
                         </div>
                         {!phoneVerified && (
