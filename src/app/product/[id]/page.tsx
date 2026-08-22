@@ -16,17 +16,17 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
     if (!product) {
         return {
-            title: "Product Not Found - OfferKart",
+            title: "Product Not Found - OfferNearU",
             description: "This product could not be found.",
         };
     }
 
     return {
-        title: `${product.name} at ${product.shopName} - OfferKart`,
-        description: `Buy ${product.name} at ${product.shopName} in OfferKart for just ₹${product.price}.`,
+        title: `${product.name} at ${product.shopName} - OfferNearU`,
+        description: `Buy ${product.name} at ${product.shopName} in OfferNearU for just ₹${product.price}.`,
         openGraph: {
-            title: `${product.name} at ${product.shopName} - OfferKart`,
-            description: `Buy ${product.name} at ${product.shopName} in OfferKart for just ₹${product.price}.`,
+            title: `${product.name} at ${product.shopName} - OfferNearU`,
+            description: `Buy ${product.name} at ${product.shopName} in OfferNearU for just ₹${product.price}.`,
             type: "website",
             images: typeof product.image === "string" ? [product.image] : [],
         },

@@ -397,7 +397,7 @@ export const ConsumerProductModal = ({
                                         )}
                                     </div>
                                     <span className="text-sm font-black text-slate-800 dark:text-zinc-200 tracking-wide">
-                                        {shopName || "OfferKart"}
+                                        {shopName || "OfferNearU"}
                                     </span>
                                 </div>
 

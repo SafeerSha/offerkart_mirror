@@ -3,6 +3,17 @@ import { ENDPOINTS } from "./endpoints";
 import { ApiResponse } from "../types/api";
 import imageCompression from "browser-image-compression";
 
+const S3_BUCKET_HOST = "offersnearu.s3.eu-north-1.amazonaws.com";
+
+function isOwnS3Url(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname === S3_BUCKET_HOST;
+  } catch {
+    return false;
+  }
+}
+
 export const s3Api = {
     /**
      * Upload an image to S3 with automatic client-side compression.
@@ -74,8 +85,20 @@ export const s3Api = {
     /**
      * Delete an image from S3 by its URL.
      * @param url The full S3 URL of the image to delete
+     *
+     * SECURITY: The upstream backend MUST verify that the image belongs to the
+     * authenticated user's shop before deleting. This client-side guard only
+     * ensures the URL matches our known bucket domain; it does NOT authorize deletion.
      */
     deleteImage: async (url: string): Promise<ApiResponse<any>> => {
+        if (!isOwnS3Url(url)) {
+            return {
+                success: false,
+                message: "Refused to delete: URL does not match the project S3 bucket.",
+                data: null,
+            } as ApiResponse<any>;
+        }
+
         return backend.delete(ENDPOINTS.S3_IMAGE.BASE, {
             body: JSON.stringify({ url }), // JSON payload as per cURL spec
         });

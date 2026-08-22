@@ -1,4 +1,4 @@
-# OfferKart
+# OfferNearU
 
 **Discover Local Deals & Offers** - A modern full-stack platform connecting local businesses with customers through dynamic offer posters and offers.
 
@@ -26,7 +26,7 @@
 
 ## Overview
 
-OfferKart is a comprehensive B2C marketplace platform that enables local shops and businesses to:
+OfferNearU is a comprehensive B2C marketplace platform that enables local shops and businesses to:
 
 - Create and manage promotional offers
 - Design eye-catching posters using a powerful visual designer

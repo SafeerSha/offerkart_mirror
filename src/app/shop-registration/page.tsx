@@ -62,8 +62,8 @@ export default function ShopRegistrationPage() {
                 </div>
 
                 {/* Form Container */}
-                <div className="flex-1 px-6 lg:px-12 xl:px-16 pb-12 overflow-y-auto">
-                    <div className="max-w-2xl mx-auto">
+                <div className="flex-1 px-6 lg:px-12 xl:px-16 pb-12 overflow-y-auto flex">
+                    <div className="max-w-2xl mx-auto w-full my-auto">
                         {/* Mobile Logo */}
                         <div className="lg:hidden text-center mb-8">
                             <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-orange-500 to-rose-500 rounded-2xl mb-4">

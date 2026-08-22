@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Mail, ShieldCheck, RefreshCw, CheckCircle2, AlertCircle, ArrowRight } from "lucide-react";
 import { resendEmailOtp, verifyEmailOtp } from "@/lib/api/shop";
+import { toast } from "sonner";
 
 interface OtpVerificationModalProps {
     open: boolean;
@@ -158,27 +159,20 @@ export default function OtpVerificationModal({
     open,
     onOpenChange,
     email,
-    // phone,
     userId,
     onVerified,
     isSubmitting,
 }: OtpVerificationModalProps) {
     const [emailOtp, setEmailOtp] = useState("");
-    const [phoneOtp, setPhoneOtp] = useState("");
     const [emailVerified, setEmailVerified] = useState(false);
-    const [phoneVerified, setPhoneVerified] = useState(false);
     const [emailError, setEmailError] = useState("");
-    const [phoneError, setPhoneError] = useState("");
     const [isVerifying, setIsVerifying] = useState(false);
 
     useEffect(() => {
         if (open) {
             setEmailOtp("");
-            setPhoneOtp("");
             setEmailVerified(false);
-            setPhoneVerified(false);
             setEmailError("");
-            setPhoneError("");
             setIsVerifying(false);
         }
     }, [open]);
@@ -189,6 +183,9 @@ export default function OtpVerificationModal({
             const response = await resendEmailOtp({ email });
             if (!response.success) {
                 setEmailError(response.error || "Failed to resend OTP. Please try again.");
+            } else {
+                setEmailOtp("");
+                toast.success("OTP sent successfully!");
             }
         } catch {
             setEmailError("Network error. Please try again.");
@@ -197,11 +194,11 @@ export default function OtpVerificationModal({
 
     const handleVerifyAndRegister = useCallback(async () => {
         setEmailError("");
-        setPhoneError("");
         setIsVerifying(true);
 
         try {
             if (!emailVerified) {
+
                 const emailResult = await verifyEmailOtp({ user_id: userId!, otp: Number(emailOtp) });
                 if (!emailResult.success) {
                     setEmailError(emailResult.error || "Invalid OTP. Please try again.");
@@ -211,15 +208,6 @@ export default function OtpVerificationModal({
                 setEmailVerified(true);
             }
 
-            if (!phoneVerified) {
-                const phoneResult = await mockVerifyOtp(phoneOtp);
-                if (!phoneResult.success) {
-                    setPhoneError(phoneResult.message);
-                    setIsVerifying(false);
-                    return;
-                }
-                setPhoneVerified(true);
-            }
 
             onVerified();
         } catch {
@@ -227,10 +215,10 @@ export default function OtpVerificationModal({
         } finally {
             setIsVerifying(false);
         }
-    }, [emailOtp, phoneOtp, emailVerified, phoneVerified, onVerified, userId]);
+    }, [emailOtp, emailVerified, onVerified, userId]);
 
-    const bothOtpsFilled = emailOtp.length === 6 && phoneOtp.length === 6;
-    const bothVerified = emailVerified && phoneVerified;
+    const isOtpFilled = emailOtp.length === 6;
+    const isVerified = emailVerified;
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -329,19 +317,19 @@ export default function OtpVerificationModal({
                     <button
                         type="button"
                         onClick={handleVerifyAndRegister}
-                        disabled={!bothOtpsFilled || isVerifying || isSubmitting}
+                        disabled={!isOtpFilled || isVerifying || isSubmitting}
                         className="w-full h-12 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                     >
                         {isVerifying || isSubmitting ? (
                             <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        ) : bothVerified ? (
+                        ) : isVerified ? (
                             <>
                                 Completing Registration...
                                 <ArrowRight className="w-5 h-5" />
                             </>
                         ) : (
                             <>
-                                Verify & Register
+                                Verify & Complete
                                 <ShieldCheck className="w-5 h-5" />
                             </>
                         )}

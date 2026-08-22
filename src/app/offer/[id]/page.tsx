@@ -28,7 +28,7 @@ function mapOfferForDetail(offer: Offer) {
 
     return {
         id: finalId as any,
-        shopName: offer.shopName || "OfferKart",
+        shopName: offer.shopName || "OfferNearU",
         offerName: offer.offerName || offer.title || "Untitled Offer",
         images: [primaryImage],
         posters: offer.posters,
@@ -55,7 +55,7 @@ function mapOfferForSimilarCard(offer: Offer) {
 
     return {
         id: finalId as any,
-        shopName: offer.shopName || "OfferKart",
+        shopName: offer.shopName || "OfferNearU",
         offerName: offer.offerName || offer.title || "Untitled Offer",
         image: typeof offer.image === "string" ? offer.image : offer.posters?.[0]?.posterSrc || "/images/shop-registration-bg-light.png",
         posters: offer.posters,
@@ -83,13 +83,13 @@ export async function generateMetadata({
 
     if (!offer) {
         return {
-            title: "Offer details - OfferKart",
-            description: "View offer details and interactive posters on OfferKart.",
+            title: "Offer details - OfferNearU",
+            description: "View offer details and interactive posters on OfferNearU.",
         };
     }
 
     return {
-        title: `${offer.offerName || offer.title} at ${offer.shopName} - OfferKart`,
+        title: `${offer.offerName || offer.title} at ${offer.shopName} - OfferNearU`,
         description: offer.description || `${offer.offerName || offer.title} from ${offer.shopName}`,
         openGraph: {
             title: `${offer.offerName || offer.title} at ${offer.shopName}`,

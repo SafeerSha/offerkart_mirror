@@ -1,6 +1,6 @@
 "use client";
 
-const DB_NAME = "OfferKartStorage";
+const DB_NAME = "OfferNearUStorage";
 const STORE_NAME = "Drafts";
 const DB_VERSION = 1;
 
