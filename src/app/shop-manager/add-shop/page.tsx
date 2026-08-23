@@ -10,7 +10,7 @@ export default function AddShopPage() {
     return (
         <div className="min-h-screen bg-gray-50">
             {/* Spacer for Fixed Header */}
-            <div className="h-15 lg:h-10" />
+            <div className="h-20 lg:h-24" />
 
             <main className="container mx-auto px-4 py-4 md:py-12">
                 <div className="max-w-7xl mx-auto">

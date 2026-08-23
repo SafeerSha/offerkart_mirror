@@ -563,7 +563,7 @@ function PosterDesignerInner() {
 
     return (
         <div className="min-h-screen bg-background">
-            <div className="h-15" />
+            <div className="h-20 lg:h-24" />
 
             <main className="w-full relative overflow-hidden bg-background min-h-screen">
                 {/* Decorative background elements */}

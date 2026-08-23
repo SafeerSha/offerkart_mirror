@@ -11,7 +11,7 @@ export default async function AddBranchPage({ params }: AddBranchPageProps) {
 
     return (
         <div className="min-h-screen bg-gray-50">
-            <div className="h-12" />
+            <div className="h-20 lg:h-24" />
             <main className="container mx-auto px-4 py-4 md:py-12">
                 <AddBranchForm shopId={shopId} />
             </main>

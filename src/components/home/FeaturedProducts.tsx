@@ -104,6 +104,7 @@ const FeaturedProducts = ({ products }: FeaturedProductsProps) => {
 
                     <PremiumButton
                         variant="outline"
+                        data-loader-text="Loading products catalog..."
                         onClick={() => router.push("/products")}
                         className="rounded-2xl px-6 h-12 bg-white hover:bg-slate-50 border-slate-200 hover:border-orange-500 text-slate-800 hover:text-orange-600 transition-all font-semibold flex items-center shrink-0 self-start md:self-end"
                         rightIcon={ArrowRight}
