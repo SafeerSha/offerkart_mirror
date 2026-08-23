@@ -9,6 +9,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useLocationContext } from "@/context/LocationContext";
+import { useGlobalLoader } from "@/context/GlobalLoaderContext";
 import { Search } from "lucide-react";
 import { useFeaturedShops } from "@/hooks/useApi";
 
@@ -37,6 +38,7 @@ const FeaturedShops = ({
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const { t } = useTranslation("home");
+  const { showLoader } = useGlobalLoader();
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -73,6 +75,7 @@ const FeaturedShops = ({
 
     // If we are on the home page, redirect to the offers page with the shopId filter
     const targetPath = pathname === "/" ? "/offers" : pathname;
+    showLoader("Loading shop offers...");
     router.push(`${targetPath}?${params.toString()}`);
   };
 
@@ -261,6 +264,7 @@ const FeaturedShops = ({
                       <Tooltip key={shop.id} delayDuration={100}>
                         <TooltipTrigger asChild>
                           <button
+                            data-loader-text="Loading shop offers..."
                             className="relative flex flex-col items-center group cursor-pointer transition-all duration-300 flex-shrink-0 snap-start"
                             onClick={() => handleShopClick(shop.id)}
                           >

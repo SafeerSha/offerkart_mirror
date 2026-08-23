@@ -9,6 +9,7 @@ import { PremiumButton } from "@/components/shared/PremiumButton";
 import { Subheading, Text } from "@/components/shared/Typography";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useLocationContext } from "@/context/LocationContext";
+import { useGlobalLoader } from "@/context/GlobalLoaderContext";
 import { cn } from "@/lib/utils";
 import { useFeaturedOffers } from "@/hooks/useApi";
 
@@ -29,6 +30,7 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
   const { t } = useTranslation("home");
   const router = useRouter();
   const { location: userLocation, hydrated } = useLocationContext();
+  const { showLoader } = useGlobalLoader();
 
   const hasLocation = userLocation.latitude !== null && userLocation.longitude !== null;
   const { data: dynamicData } = useFeaturedOffers(
@@ -202,11 +204,13 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
                         if (!isActive) {
                           goToSlide(idx);
                         } else {
+                          showLoader("Loading offer...");
                           router.push(`/offer/${offer.id}`);
                         }
                       }}
                     >
                       <div
+                        data-loader-text="Loading offer..."
                         className={cn(
                           "relative aspect-[1/1.414] w-full rounded-2xl overflow-hidden shadow-xl bg-black border border-primary/20 transition-all duration-300 ease-out cursor-pointer",
                           isActive
@@ -302,6 +306,7 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
                           } else if (isRightWing) {
                             nextSlide();
                           } else {
+                            showLoader("Loading offer...");
                             router.push(`/offer/${offer.id}`);
                           }
                         }}

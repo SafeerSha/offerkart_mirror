@@ -16,6 +16,13 @@ import {
 import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
 import { useSubcategories } from "@/hooks/useApi";
 import Image from "next/image";
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetDescription,
+} from "@/components/ui/sheet";
 import { Heading, Subheading, Text } from "@/components/shared/Typography";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import { PremiumCard } from "@/components/shared/PremiumCard";
@@ -103,6 +110,7 @@ function HotspotEditorContent() {
     const fromPreview = searchParams.get('from') === 'preview';
     const isEditFlow = searchParams.get('returnTo') === 'edit-offer';
     const posterIndex = parseInt(searchParams.get('index') || '0', 10);
+    const [editReturnUrl, setEditReturnUrl] = useState<string | null>(null);
 
     // Multi-poster state
     const [allPosters, setAllPosters] = useState<any[]>([]);
@@ -125,6 +133,7 @@ function HotspotEditorContent() {
     const [highlightedId, setHighlightedId] = useState<string | null>(null);
     const [imgCrossOrigin, setImgCrossOrigin] = useState<"anonymous" | undefined>("anonymous");
     const [newlyCreatedItemId, setNewlyCreatedItemId] = useState<string | null>(null);
+    const [isMobileItemsOpen, setIsMobileItemsOpen] = useState(false);
 
     const [formData, setFormData] = useState({
         name: '',
@@ -139,8 +148,8 @@ function HotspotEditorContent() {
 
     const activeCategoryId = formData.mainCategory ? getCategoryId(formData.mainCategory) : null;
     const { data: subcategoriesRes, isLoading: isLoadingSubcategories } = useSubcategories(activeCategoryId);
-    const dynamicSubcategories = subcategoriesRes?.success && subcategoriesRes.data 
-        ? subcategoriesRes.data 
+    const dynamicSubcategories = subcategoriesRes?.success && subcategoriesRes.data
+        ? subcategoriesRes.data
         : [];
 
     // Navigation Step State
@@ -218,6 +227,11 @@ function HotspotEditorContent() {
         window.addEventListener('beforeunload', handleBeforeUnload);
 
         const loadInitialData = async () => {
+            const storedReturnUrl = await storage.getItem<string>('edit_offer_return');
+            if (storedReturnUrl) {
+                setEditReturnUrl(storedReturnUrl);
+            }
+
             const multiData = await storage.getItem<any[]>('currentEditingPosters');
             const singleData = await storage.getItem<any>('currentEditingPoster');
 
@@ -298,7 +312,7 @@ function HotspotEditorContent() {
     useEffect(() => {
         setAllPosters((prev) => {
             if (!prev.length || activePosterIndex < 0 || activePosterIndex >= prev.length) return prev;
-            
+
             // Prevent unnecessary updates
             const currentMarkedItems = prev[activePosterIndex].markedItems || [];
             if (JSON.stringify(currentMarkedItems) === JSON.stringify(posterData.markedItems)) {
@@ -310,10 +324,10 @@ function HotspotEditorContent() {
                     ? { ...p, markedItems: posterData.markedItems }
                     : p
             );
-            
+
             // Instantly save to IndexedDB
             storage.setItem('currentEditingPosters', updated).catch(console.error);
-            
+
             return updated;
         });
     }, [posterData.markedItems, activePosterIndex]);
@@ -429,7 +443,7 @@ function HotspotEditorContent() {
 
             ctx.drawImage(drawableImage, x * scaleX, y * scaleY, sw, sh, 0, 0, sw, sh);
             const croppedDataUrl = canvas.toDataURL();
-            
+
             // Pass 1: OCR on preprocessed (contrast-enhanced) crop — good for dark text on light BG
             const processedDataUrl = await preprocessImageForOCR(canvas, ctx);
 
@@ -441,7 +455,7 @@ function HotspotEditorContent() {
             ctx.drawImage(drawableImage, x * scaleX, y * scaleY, sw, sh, 0, 0, sw, sh);
             const invertData = ctx.getImageData(0, 0, sw, sh);
             for (let i = 0; i < invertData.data.length; i += 4) {
-                invertData.data[i]     = 255 - invertData.data[i];
+                invertData.data[i] = 255 - invertData.data[i];
                 invertData.data[i + 1] = 255 - invertData.data[i + 1];
                 invertData.data[i + 2] = 255 - invertData.data[i + 2];
             }
@@ -688,7 +702,7 @@ function HotspotEditorContent() {
                 // If we are in the edit flow, we use 'currentEditingPosters' instead of 'poster_stack_resume'
                 const storageKey = isEditFlow ? 'currentEditingPosters' : 'poster_stack_resume';
                 const stack = await storage.getItem<any[]>(storageKey) || [];
-                
+
                 if (stack[posterIndex]) {
                     stack[posterIndex] = {
                         ...stack[posterIndex],
@@ -701,7 +715,7 @@ function HotspotEditorContent() {
                         await storage.setItem('poster_stack_resume', stack);
                     }
                     toast.success(isEditFlow ? "Hotspots updated" : "Poster markings updated");
-                    
+
                     if (isEditFlow) {
                         const returnUrl = await storage.getItem<string>('edit_offer_return');
                         if (returnUrl) {
@@ -831,47 +845,77 @@ function HotspotEditorContent() {
         }
     };
 
+    const isEditing = isEditFlow || !!editReturnUrl;
+    const parentOfferLabel = isEditing ? "Edit Offer" : "New Offer";
+    const parentOfferHref = isEditing ? (editReturnUrl || "/shop-manager") : "/shop-manager/create-offer";
+
     return (
         <div className="min-h-screen bg-background">
-            <div className="h-4 sm:h-16 lg:h-32" />
+            <div className="h-20 lg:h-24" />
 
-            <main className="max-w-7xl mx-auto px-2 sm:px-4 py-2 sm:py-4 relative">
+            <main className="max-w-7xl mx-auto px-2 sm:px-4 py-2 sm:py-4 pb-28 sm:pb-8 relative">
                 <Breadcrumbs
                     items={[
                         { label: "Dashboard", href: "/shop-manager" },
-                        { label: "New Offer", href: "/shop-manager/create-offer" },
+                        { label: parentOfferLabel, href: parentOfferHref },
                         { label: "Mark Items" }
                     ]}
                 />
 
                 <div className="mt-4 sm:mt-8 flex flex-col xl:flex-row gap-4 sm:gap-8">
                     {/* Editor Area */}
-                    <div className="flex-1 space-y-6">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                            <div>
-                                <Heading className="text-3xl font-bold text-gradient">Mark Items</Heading>
-                                <Text className="opacity-60 text-sm">Draw boxes over items on your poster.</Text>
+                    <div className="flex-1 space-y-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between sm:gap-4 gap-3">
+                            <div className="pl-1 sm:pl-2">
+                                <Heading className="text-2xl sm:text-3xl font-bold text-gradient truncate">Mark Items</Heading>
+                                <Text className="opacity-60 text-xs sm:text-sm truncate">Draw boxes over items on your poster.</Text>
                             </div>
 
-                            <div className="flex gap-3 shrink-0">
+                            <div className="flex items-center gap-1.5 sm:gap-2.5 w-full sm:w-auto shrink-0">
                                 <PremiumButton
                                     variant="outline"
+                                    size="sm"
+                                    className="flex-1 sm:flex-initial h-9 sm:h-10 px-2 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold justify-center"
                                     onClick={() => fromPreview ? handleDiscardSession() : setShowBackWarning(true)}
                                     leftIcon={fromPreview ? Trash2 : ChevronLeft}
                                 >
                                     {fromPreview ? "Cancel" : "Back"}
                                 </PremiumButton>
+
+                                {fromPreview && (
+                                    <PremiumButton
+                                        variant="outline"
+                                        size="sm"
+                                        className="flex-1 sm:flex-initial h-9 sm:h-10 px-2 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold border-primary/30 text-primary hover:bg-primary/5 justify-center"
+                                        onClick={() => {
+                                            if (isEditFlow && editReturnUrl) {
+                                                router.push(editReturnUrl);
+                                            } else {
+                                                router.push(`/shop-manager/create-offer?resume=true&previewIndex=${activePosterIndex}`);
+                                            }
+                                        }}
+                                        leftIcon={ArrowLeft}
+                                    >
+                                        <span className="hidden xs:inline">Back to </span>Publish
+                                    </PremiumButton>
+                                )}
+
                                 {!fromPreview && (
                                     <PremiumButton
                                         variant="outline"
+                                        size="sm"
+                                        className="hidden sm:inline-flex h-9 sm:h-10 px-3.5 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold justify-center"
                                         onClick={handleSaveDraft}
                                         leftIcon={Save}
                                     >
                                         Save Draft
                                     </PremiumButton>
                                 )}
+
                                 <PremiumButton
                                     variant="default"
+                                    size="sm"
+                                    className="flex-1 sm:flex-initial h-9 sm:h-10 px-2 sm:px-5 rounded-xl text-xs sm:text-sm font-bold shadow-md shadow-primary/20 justify-center"
                                     onClick={confirmPublish}
                                     leftIcon={fromPreview ? Check : Send}
                                     disabled={posterData.markedItems.length === 0}
@@ -882,7 +926,7 @@ function HotspotEditorContent() {
                         </div>
 
                         {/* Navigation Row */}
-                        <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-primary/5 border border-primary/20 rounded-2xl">
+                        <div className="flex flex-wrap items-center justify-center gap-4 p-2 bg-primary/5 border border-primary/20 rounded-2xl">
                             <div className="flex items-center gap-3">
                                 <PremiumButton
                                     variant="outline"
@@ -945,18 +989,6 @@ function HotspotEditorContent() {
                                     Next
                                 </PremiumButton>
                             </div>
-
-                            {fromPreview && (
-                                <PremiumButton
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-9 px-4 text-xs font-bold border-primary/30 text-primary hover:bg-primary/5"
-                                    onClick={() => router.push(`/shop-manager/create-offer?resume=true&previewIndex=${activePosterIndex}`)}
-                                    leftIcon={ArrowLeft}
-                                >
-                                    Back to Publish
-                                </PremiumButton>
-                            )}
                         </div>
 
 
@@ -1103,7 +1135,7 @@ function HotspotEditorContent() {
                             </div>
                         )}
                     </div>
-                    <div className="w-full xl:w-96 space-y-6">
+                    <div className="w-full xl:w-96 space-y-6 px-2 sm:px-0 hidden xl:block">
                         <PremiumCard className="p-4 sm:p-6">
                             <div className="flex items-center justify-between mb-6">
                                 <div className="flex items-center gap-2">
@@ -1201,17 +1233,125 @@ function HotspotEditorContent() {
                         </PremiumCard>
                     </div>
                 </div>
+
+                {/* Mobile Floating Marked Items Action Button */}
+                <div className={cn(
+                    "xl:hidden fixed bottom-5 right-5 z-40 transition-all duration-300",
+                    isDrawing ? "opacity-10 pointer-events-none scale-90" : "opacity-95 hover:opacity-100 scale-100"
+                )}>
+                    <button
+                        type="button"
+                        onClick={() => setIsMobileItemsOpen(true)}
+                        className="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-2xl font-bold shadow-xl shadow-orange-500/30 active:scale-95 transition-all cursor-pointer border-0"
+                    >
+                        <CheckSquare className="w-4 h-4" />
+                        <span className="text-xs">Marked Items</span>
+                        <span className="bg-white text-orange-600 text-[11px] font-black px-2 py-0.5 rounded-full shadow-xs">
+                            {posterData.markedItems.length}
+                        </span>
+                    </button>
+                </div>
+
+                {/* Mobile Slide-Up Drawer for Marked Items */}
+                <Sheet open={isMobileItemsOpen} onOpenChange={setIsMobileItemsOpen}>
+                    <SheetContent side="bottom" className="w-full max-h-[85vh] rounded-t-3xl p-0 flex flex-col bg-white z-50 [&>button]:hidden">
+                        <SheetHeader className="p-4 pb-3 border-b border-gray-100 flex flex-row items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <div className="p-2 bg-primary/10 rounded-lg">
+                                    <CheckSquare className="w-5 h-5 text-primary" />
+                                </div>
+                                <div className="text-left">
+                                    <SheetTitle className="text-base font-bold text-gray-900 leading-tight">Marked Items ({posterData.markedItems.length})</SheetTitle>
+                                    <SheetDescription className="text-xs text-gray-400">Tap an item to refine details or change image</SheetDescription>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsMobileItemsOpen(false)}
+                                className="p-1.5 hover:bg-gray-100 rounded-full text-gray-500 cursor-pointer border-0"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </SheetHeader>
+
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+                            {posterData.markedItems.length === 0 ? (
+                                <div className="text-center py-10 space-y-3">
+                                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto text-gray-400">
+                                        <Plus className="w-6 h-6" />
+                                    </div>
+                                    <p className="text-xs text-gray-400 max-w-xs mx-auto">
+                                        No items marked yet. Draw a box over items on the poster to start.
+                                    </p>
+                                </div>
+                            ) : (
+                                posterData.markedItems.map((item, idx) => (
+                                    <div
+                                        key={item.id}
+                                        onClick={() => {
+                                            setIsMobileItemsOpen(false);
+                                            handleEditItem(item);
+                                        }}
+                                        className={cn(
+                                            "group flex gap-3 p-3 rounded-2xl border transition-all cursor-pointer bg-white shadow-sm hover:shadow-md",
+                                            highlightedId === item.id
+                                                ? "bg-primary/5 border-primary shadow-primary/5"
+                                                : "border-border/50 hover:bg-muted/10"
+                                        )}
+                                    >
+                                        <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-black/5 shrink-0 border border-border/20 shadow-inner">
+                                            {item.productImage ? (
+                                                <Image src={item.productImage} fill unoptimized className="object-cover" alt="" />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center text-xs opacity-30">#{idx + 1}</div>
+                                            )}
+                                        </div>
+                                        <div className="flex-1 min-w-0 pr-6 relative flex flex-col justify-center">
+                                            <h4 className="font-bold text-sm text-gray-900 truncate pr-4">{item.name || `Item ${idx + 1}`}</h4>
+                                            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1">
+                                                {item.oldPrice && item.oldPrice > 0 ? (
+                                                    <span className="text-xs line-through opacity-40 whitespace-nowrap">{item.currency}{item.oldPrice}</span>
+                                                ) : null}
+                                                <span className="text-sm font-bold text-green-600 whitespace-nowrap">{item.currency}{item.offerPrice}</span>
+                                            </div>
+                                            {item.subcategories && item.subcategories.length > 0 && (
+                                                <div className="flex flex-wrap gap-1 mt-1.5 auto-rows-min">
+                                                    {item.subcategories.slice(0, 1).map(cat => (
+                                                        <span key={cat} className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/5 text-primary border border-primary/10 font-bold whitespace-nowrap">
+                                                            {cat}
+                                                        </span>
+                                                    ))}
+                                                    {item.subcategories.length > 1 && (
+                                                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border font-bold">
+                                                            +{item.subcategories.length - 1}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleDeleteItem(item.id); }}
+                                                className="absolute top-1/2 -translate-y-1/2 right-0 p-2 text-destructive rounded-lg hover:bg-destructive/10 transition-all"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </SheetContent>
+                </Sheet>
             </main>
 
             {/* --- Edit Side Panel --- */}
             {showModal && currentMarkedItem && (
                 <div className="fixed inset-0 z-[100] overflow-hidden">
                     {/* Backdrop */}
-                    <div 
+                    <div
                         className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300"
                         onClick={() => { setShowModal(false); setHighlightedId(null); }}
                     />
-                    
+
                     {/* Slide-out Panel */}
                     <div className="fixed inset-y-0 right-0 w-full max-w-md md:max-w-xl bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-300 h-[100dvh]">
                         <form onSubmit={handleSaveForm} className="flex flex-col h-full overflow-hidden">
@@ -1679,12 +1819,12 @@ function HotspotEditorContent() {
             </AppModal>
             {/* Fullscreen Product Image Zoom Lightbox */}
             {zoomedImageSrc && typeof window !== "undefined" && createPortal(
-                <div 
+                <div
                     className="fixed inset-0 z-[99999] bg-black/90 backdrop-blur-md flex flex-col justify-between p-4 sm:p-6 animate-in fade-in duration-200"
                     onClick={() => setZoomedImageSrc(null)}
                 >
                     {/* Top Header & Toolbar */}
-                    <div 
+                    <div
                         className="w-full flex items-center justify-between z-10 max-w-5xl mx-auto"
                         onClick={(e) => e.stopPropagation()}
                     >
@@ -1752,7 +1892,7 @@ function HotspotEditorContent() {
                     </div>
 
                     {/* Center Canvas Viewport */}
-                    <div 
+                    <div
                         className="flex-1 w-full flex items-center justify-center overflow-auto py-6 custom-scrollbar"
                         onClick={(e) => e.stopPropagation()}
                     >

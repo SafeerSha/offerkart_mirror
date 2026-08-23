@@ -609,22 +609,22 @@ export const PosterCardStack = forwardRef<
         }
 
         return (
-            <div className="flex flex-col items-center gap-5">
+            <div className="flex flex-col items-center gap-5 p-4 sm:p-6 w-full">
                 {hiddenInput}
 
                 {/* Progress */}
-                <div className="w-full max-w-md">
+                <div className="w-full max-w-sm sm:max-w-md px-1">
                     <div className="flex items-center justify-between mb-2">
-                        <Text className="text-xs font-bold uppercase tracking-wider opacity-50">
+                        <Text className="text-xs font-bold tracking-wider text-muted-foreground">
                             {existingPostersCount > 0
                                 ? `Adding More (${posters.length - existingPostersCount} new)`
                                 : "Classifying Posters"}
                         </Text>
-                        <Text className="text-xs font-bold text-primary">
+                        <span className="text-xs font-black text-primary bg-primary/10 border border-primary/20 px-2.5 py-0.5 rounded-full shadow-xs">
                             {`${currentIndex + 1} of ${posters.length}`}
-                        </Text>
+                        </span>
                     </div>
-                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div className="h-2 bg-muted/60 rounded-full overflow-hidden border border-border/40">
                         <div
                             className="h-full gradient-primary rounded-full transition-all duration-500 ease-out"
                             style={{ width: `${progress}%` }}
