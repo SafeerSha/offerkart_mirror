@@ -9,12 +9,182 @@ const UPSTREAM_API_BASE_URL = config.api.upstreamBaseUrl;
 
 const PUBLIC_PREFIXES = ["user/offer", "user/analytics", "business/category"];
 const PUBLIC_PATHS = new Set([
-    "business/auth/login",
-    "business/auth/register",
-    "business/auth/resend-email-otp",
-    "business/auth/verify-email-otp",
+    "auth/login",
+    "auth/register",
+    "auth/resend-email-otp",
+    "auth/verify-email-otp",
     "business/industry",
 ]);
+
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+const ALLOWED_IMAGE_CONTENT_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "image/svg+xml",
+  "image/bmp",
+  "image/avif",
+];
+
+const IMAGE_MAGIC_SIGNATURES: { mime: string; bytes: number[] }[] = [
+  { mime: "image/jpeg", bytes: [0xFF, 0xD8, 0xFF] },
+  { mime: "image/png", bytes: [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A] },
+  { mime: "image/gif", bytes: [0x47, 0x49, 0x46, 0x38, 0x37, 0x61] },
+  { mime: "image/gif", bytes: [0x47, 0x49, 0x46, 0x38, 0x39, 0x61] },
+  { mime: "image/webp", bytes: [0x52, 0x49, 0x46, 0x46] },
+  { mime: "image/bmp", bytes: [0x42, 0x4D] },
+];
+
+interface FilePart {
+  contentType: string;
+  data: Buffer;
+}
+
+function extractMultipartFileData(buffer: Buffer, boundary: string): FilePart[] {
+  const parts: FilePart[] = [];
+  const boundaryBytes = Buffer.from(`--${boundary}`);
+
+  let searchStart = 0;
+  while (searchStart < buffer.length) {
+    const boundaryIdx = buffer.indexOf(boundaryBytes, searchStart);
+    if (boundaryIdx === -1) break;
+
+    if (
+      boundaryIdx + boundaryBytes.length < buffer.length &&
+      buffer[boundaryIdx + boundaryBytes.length] === 0x2D &&
+      buffer[boundaryIdx + boundaryBytes.length + 1] === 0x2D
+    ) {
+      break;
+    }
+
+    const headersEndIdx = buffer.indexOf("\r\n\r\n", boundaryIdx);
+    if (headersEndIdx === -1) break;
+
+    const nextBoundaryIdx = buffer.indexOf(boundaryBytes, headersEndIdx);
+    if (nextBoundaryIdx === -1) break;
+
+    const headersSection = buffer.slice(boundaryIdx, headersEndIdx).toString("utf8");
+    const contentTypeMatch = headersSection.match(/Content-Type:\s*([^\r\n]+)/i);
+    const partContentType = contentTypeMatch ? contentTypeMatch[1].trim() : "application/octet-stream";
+
+    const dataStart = headersEndIdx + 4;
+    const dataEnd = nextBoundaryIdx > dataStart ? nextBoundaryIdx - 2 : nextBoundaryIdx;
+    const fileData = buffer.slice(dataStart, dataEnd);
+
+    if (fileData.length > 0) {
+      parts.push({ contentType: partContentType, data: fileData });
+    }
+
+    searchStart = nextBoundaryIdx;
+  }
+
+  return parts;
+}
+
+function hasImageMagicBytes(data: Buffer, declaredType: string): boolean {
+  const baseType = declaredType.split(";")[0].trim().toLowerCase();
+
+  if (data.length < 4) return baseType.startsWith("image/");
+
+  if (baseType === "image/jpeg" || baseType === "image/jpg") {
+    return data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff;
+  }
+
+  if (baseType === "image/png") {
+    return (
+      data[0] === 0x89 &&
+      data[1] === 0x50 &&
+      data[2] === 0x4e &&
+      data[3] === 0x47 &&
+      data[4] === 0x0d &&
+      data[5] === 0x0a &&
+      data[6] === 0x1a &&
+      data[7] === 0x0a
+    );
+  }
+
+  if (baseType === "image/gif") {
+    return (
+      (data[0] === 0x47 &&
+        data[1] === 0x49 &&
+        data[2] === 0x46 &&
+        data[3] === 0x38 &&
+        data[4] === 0x37 &&
+        data[5] === 0x61) ||
+      (data[0] === 0x47 &&
+        data[1] === 0x49 &&
+        data[2] === 0x46 &&
+        data[3] === 0x38 &&
+        data[4] === 0x39 &&
+        data[5] === 0x61)
+    );
+  }
+
+  if (baseType === "image/webp") {
+    return (
+      data.length >= 12 &&
+      data[0] === 0x52 &&
+      data[1] === 0x49 &&
+      data[2] === 0x46 &&
+      data[3] === 0x46 &&
+      data[8] === 0x57 &&
+      data[9] === 0x45 &&
+      data[10] === 0x42 &&
+      data[11] === 0x50
+    );
+  }
+
+  if (baseType === "image/bmp") {
+    return data[0] === 0x42 && data[1] === 0x4d;
+  }
+
+  if (baseType === "image/svg+xml") {
+    const text = data.toString("utf8", 0, Math.min(data.length, 100)).trim().toLowerCase();
+    return text.startsWith("<?xml") || text.startsWith("<svg");
+  }
+
+  if (baseType === "image/avif" || baseType === "image/heif" || baseType === "image/heic") {
+    return (
+      data.length >= 12 &&
+      data[4] === 0x66 &&
+      data[5] === 0x74 &&
+      data[6] === 0x79 &&
+      data[7] === 0x70
+    );
+  }
+
+  return baseType.startsWith("image/");
+}
+
+function validateImageUpload(contentType: string, body: ArrayBuffer | string | undefined): boolean {
+  if (!body) return false;
+
+  const buffer = typeof body === "string" ? Buffer.from(body) : Buffer.from(new Uint8Array(body));
+  if (buffer.length === 0) return false;
+
+  if (!contentType.includes("multipart/form-data")) {
+    return false;
+  }
+
+  const boundaryMatch = contentType.match(/boundary=([^;]+)/);
+  if (!boundaryMatch) return false;
+
+  const boundary = boundaryMatch[1].trim().replace(/^"|"$/g, "");
+  if (!boundary) return false;
+
+  const fileParts = extractMultipartFileData(buffer, boundary);
+
+  if (fileParts.length === 0) return false;
+
+  for (const part of fileParts) {
+    if (!hasImageMagicBytes(part.data, part.contentType)) {
+      return false;
+    }
+  }
+
+  return true;
+}
 
 function isPublicPath(pathname: string) {
     return PUBLIC_PREFIXES.some(prefix => pathname === prefix || pathname.startsWith(prefix + "/") || pathname.startsWith(prefix + "?")) || PUBLIC_PATHS.has(pathname);
@@ -97,6 +267,27 @@ async function handleProxy(request: NextRequest, context: { params: Promise<{ pa
 
         const body = await readRequestBody(request);
         const headers = filterRequestHeaders(request);
+
+        if (
+          upstreamPath === "business/image/upload" &&
+          ["POST", "PUT", "PATCH"].includes(request.method.toUpperCase())
+        ) {
+          const requestContentType = request.headers.get("content-type") || "";
+
+          if (!body || Buffer.byteLength(body) > MAX_UPLOAD_BYTES) {
+            return NextResponse.json(
+              { error: "Upload exceeds maximum allowed size" },
+              { status: 413 }
+            );
+          }
+
+          if (!validateImageUpload(requestContentType, body)) {
+            return NextResponse.json(
+              { error: "Only valid image files are allowed" },
+              { status: 415 }
+            );
+          }
+        }
 
         if (!isPublicPath(upstreamPath)) {
             const token = await getToken({ req: request, secret: config.auth.secret });

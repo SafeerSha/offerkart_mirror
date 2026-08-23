@@ -146,7 +146,7 @@ const OfferCard = ({
         <div className="w-full flex items-end justify-between gap-2">
           <div className="flex flex-col min-w-0 flex-1">
             <p className="w-full text-slate-500 dark:text-slate-500 text-[10px] font-semibold tracking-wider truncate">
-              {shopName || "OfferKart"}
+              {shopName || "OfferNearU"}
             </p>
             {/* {showDiscount && (
               <span className={cn(

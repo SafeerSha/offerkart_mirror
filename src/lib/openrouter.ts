@@ -48,7 +48,7 @@ export async function callOpenRouter(messages: any[]): Promise<OpenRouterRespons
           headers: {
             "Authorization": `Bearer ${apiKey}`,
             "HTTP-Referer": siteUrl,
-            "X-Title": "offerKart",
+            "X-Title": "OfferNearU",
             "Content-Type": "application/json",
           },
           body: JSON.stringify({

@@ -67,7 +67,7 @@ function sanitizeClonedStylesheets(clonedDoc: Document): void {
 function isExternalS3Url(src: string): boolean {
     try {
         const url = new URL(src, window.location.origin);
-        return url.hostname.endsWith('.amazonaws.com') || url.hostname.endsWith('.unsplash.com');
+        return url.hostname === 'offersnearu.s3.eu-north-1.amazonaws.com' || url.hostname.endsWith('.unsplash.com');
     } catch {
         return false;
     }

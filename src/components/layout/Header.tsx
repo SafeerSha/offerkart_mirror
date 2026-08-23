@@ -576,7 +576,7 @@ const Header = () => {
                         ? "Shop Manager"
                         : pathname.startsWith("/profile")
                             ? "Profile"
-                            : "OfferKart";
+                            : "OfferNearU";
 
     const mobileMenu = (
         <div className={cn(
@@ -745,7 +745,7 @@ const Header = () => {
                                             <div className="absolute -inset-2 rounded-full border border-primary/10 animate-pulse delay-300" />
                                         </div>
                                         <span className="font-sans text-lg sm:text-xl font-bold block text-orange-500 transition-colors group-hover:text-primary">
-                                            OfferKart
+                                            OfferNearU
                                         </span>
                                     </div>
                                 </Link>
@@ -1247,7 +1247,7 @@ const Header = () => {
                                     O
                                 </div>
                                 <span className="font-sans text-sm font-semibold truncate">
-                                    OfferKart
+                                    OfferNearU
                                 </span>
                             </div>
                             <div

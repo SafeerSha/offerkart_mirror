@@ -72,15 +72,15 @@ const bebasNeue = Bebas_Neue({
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
-  title: "OfferKart - Discover Local Deals & Offers",
-  description: "Find the best local deals, coupons, and exclusive offers from trusted businesses in your neighborhood. Save money with OfferKart.",
+  title: "OfferNearU - Discover Local Deals & Offers",
+  description: "Find the best local deals, coupons, and exclusive offers from trusted businesses in your neighborhood. Save money with OfferNearU.",
   keywords: ["local deals", "coupons", "offers", "discounts", "local businesses", "savings"],
-  authors: [{ name: "OfferKart" }],
+  authors: [{ name: "OfferNearU" }],
   icons: {
     icon: "/icon.svg",
   },
   openGraph: {
-    title: "OfferKart - Discover Local Deals & Offers",
+    title: "OfferNearU - Discover Local Deals & Offers",
     description: "Find the best local deals and exclusive offers near you",
     type: "website",
   },

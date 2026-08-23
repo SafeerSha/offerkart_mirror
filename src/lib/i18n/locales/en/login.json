@@ -1,6 +1,6 @@
 {
   "decorative": {
-    "welcome": "Welcome to\nOfferKart",
+    "welcome": "Welcome to\nOfferNearU",
     "desc": "Discover amazing local deals and connect with trusted businesses in your neighborhood.",
     "point1": "Find exclusive local offers",
     "point2": "Connect with trusted shops",
@@ -27,7 +27,7 @@
     "title": "Reset Password",
     "subtitleBefore": "Enter your email address and we'll send you a link to reset your password.",
     "subtitleAfter": "We've sent a password reset link to your email address.",
-    "decorativeTitle": "Security First with\nOfferKart",
+    "decorativeTitle": "Security First with\nOfferNearU",
     "decorativeDesc": "Protecting your account and data is our top priority.",
     "sendLink": "Send Reset Link",
     "checkInbox": "Check your inbox at {email} for further instructions.",

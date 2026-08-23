@@ -55,9 +55,9 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     useEffect(() => {
         if (typeof window !== "undefined") {
-            const savedName = localStorage.getItem("offerKart_location");
-            const savedLat = localStorage.getItem("offerKart_latitude");
-            const savedLng = localStorage.getItem("offerKart_longitude");
+            const savedName = localStorage.getItem("offernearu_location") || localStorage.getItem("offerKart_location");
+            const savedLat = localStorage.getItem("offernearu_latitude") || localStorage.getItem("offerKart_latitude");
+            const savedLng = localStorage.getItem("offernearu_longitude") || localStorage.getItem("offerKart_longitude");
 
             if (savedName && savedName !== "Location") {
                 setLocationState({
@@ -86,16 +86,16 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setIsLocationSet(name !== "Location" && name !== "All");
 
         if (typeof window !== "undefined") {
-            localStorage.setItem("offerKart_location", name);
+            localStorage.setItem("offernearu_location", name);
             if (finalLat !== null) {
-                localStorage.setItem("offerKart_latitude", String(finalLat));
+                localStorage.setItem("offernearu_latitude", String(finalLat));
             } else {
-                localStorage.removeItem("offerKart_latitude");
+                localStorage.removeItem("offernearu_latitude");
             }
             if (finalLon !== null) {
-                localStorage.setItem("offerKart_longitude", String(finalLon));
+                localStorage.setItem("offernearu_longitude", String(finalLon));
             } else {
-                localStorage.removeItem("offerKart_longitude");
+                localStorage.removeItem("offernearu_longitude");
             }
         }
     };

@@ -699,7 +699,7 @@ function DashboardContent() {
                                         </div>
                                         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto shrink-0 justify-center">
                                             <Link href="/shop-manager/add-shop" className="w-full sm:w-auto">
-                                                <PremiumButton className="w-full rounded-2xl py-4 px-8 shadow-lg shadow-orange-500/20 hover:shadow-orange-500/30 flex items-center justify-center gap-2.5 border-none hover:scale-[1.02] active:scale-95 transition-all duration-300 text-sm font-bold tracking-wide uppercase">
+                                                <PremiumButton className="w-full rounded-2xl py-4 px-8 shadow-lg shadow-orange-500/20 hover:shadow-orange-500/30 flex items-center justify-center gap-2.5 border-none hover:scale-[1.02] active:scale-95 transition-all duration-300 text-sm font-bold tracking-wide">
                                                     <Plus className="w-5 h-5" />
                                                     Create Shop
                                                 </PremiumButton>
@@ -711,7 +711,7 @@ function DashboardContent() {
                                                 className="w-full sm:w-auto rounded-2xl py-4 px-6 border-rose-100 hover:border-rose-200 bg-rose-50/20 hover:bg-rose-50 text-rose-600 gap-1.5 transition-all duration-300 shadow-none"
                                             >
                                                 <LogOut className="w-4 h-4" />
-                                                <span className="text-xs font-bold uppercase tracking-wider">Logout</span>
+                                                <span className="text-xs font-bold tracking-wider">Logout</span>
                                             </PremiumButton>
                                         </div>
                                     </div>

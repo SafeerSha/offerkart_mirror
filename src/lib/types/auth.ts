@@ -33,6 +33,7 @@ export interface RegisterShopRequest {
     password: string;
     phone?: string;
     business_name?: string;
+    user_type?: string;
 }
 
 export interface LoginShopRequest {

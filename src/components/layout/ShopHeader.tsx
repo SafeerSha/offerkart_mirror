@@ -107,7 +107,7 @@ export default function ShopHeader() {
                                             </div>
                                             <div className="flex flex-col">
                                                 <span className="font-sans text-lg sm:text-xl font-black block text-gray-900 group-hover:text-primary transition-colors leading-none">
-                                                    OfferKart
+                                                    OfferNearU
                                                 </span>
                                                 <span className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mt-0.5">
                                                     Business
@@ -168,7 +168,7 @@ export default function ShopHeader() {
                                     <Store className="w-4 h-4" />
                                 </div>
                                 <span className="font-sans text-sm font-semibold truncate">
-                                    OfferKart
+                                    OfferNearU
                                 </span>
                             </div>
                             <div className="flex justify-end min-w-0 cursor-pointer pr-1" onClick={() => setIslandExpanded(true)}>

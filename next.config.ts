@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: '**.amazonaws.com',
+        hostname: process.env.NEXT_PUBLIC_S3_DOMAIN || 'offersnearu.s3.eu-north-1.amazonaws.com',
       },
     ],
   },

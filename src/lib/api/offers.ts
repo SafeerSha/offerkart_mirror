@@ -539,7 +539,7 @@ function mapUserOfferDetailToOffer(detail: any, listingOffer?: Offer | null): Of
 
     const branchNames = (detail.offerBranches || []).map((ob: any) => ob.branch_name);
     const offerName = detail.title || detail.offerName || listingOffer?.offerName || "Untitled Offer";
-    const shopName = detail.shop_name || detail.shopName || detail.shop?.name || listingOffer?.shopName || "OfferKart";
+    const shopName = detail.shop_name || detail.shopName || detail.shop?.name || listingOffer?.shopName || "OfferNearU";
 
     return {
         id: detail.id,
@@ -560,7 +560,7 @@ function mapUserOfferDetailToOffer(detail: any, listingOffer?: Offer | null): Of
         daysLeft: listingOffer?.daysLeft,
         distanceKm: listingOffer?.distanceKm,
         shopLogo: listingOffer?.shopLogo || null,
-        description: detail.description || listingOffer?.description || `${detail.title || "Offer"} from ${listingOffer?.shopName || "OfferKart"}`,
+        description: detail.description || listingOffer?.description || `${detail.title || "Offer"} from ${listingOffer?.shopName || "OfferNearU"}`,
         isActive: true,
         status: "active",
         shopId: listingOffer?.shopId,

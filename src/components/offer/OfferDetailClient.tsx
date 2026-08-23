@@ -131,7 +131,7 @@ function mapApiOfferToDetail(raw: any): OfferDetail {
 
     return {
         id: raw.id,
-        shopName: raw.shopName || "OfferKart",
+        shopName: raw.shopName || "OfferNearU",
         offerName: raw.offerName || raw.title || "Untitled Offer",
         images: [primaryImage],
         posters: finalPosters,
@@ -410,7 +410,7 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers: 
 
     useEffect(() => {
         if (offer) {
-            document.title = `${offer.offerName || "Untitled Offer"} at ${offer.shopName || "OfferKart"} - OfferKart`;
+            document.title = `${offer.offerName || "Untitled Offer"} at ${offer.shopName || "OfferNearU"} - OfferNearU`;
         }
     }, [offer]);
 

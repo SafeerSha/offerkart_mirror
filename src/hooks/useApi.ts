@@ -584,7 +584,7 @@ export function useSimilarOffers(
           .slice(0, 5)
           .map((o: any) => ({
             id: Number(o.id) || o.id,
-            shopName: o.shopName || "OfferKart",
+            shopName: o.shopName || "OfferNearU",
             offerName: o.offerName || o.title || "Untitled Offer",
             image: typeof o.image === "string" ? o.image : o.posters?.[0]?.posterSrc || "/images/shop-registration-bg-light.png",
             category: o.category || "Offers",

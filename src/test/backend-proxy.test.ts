@@ -24,6 +24,116 @@ vi.mock("@/lib/config.server", () => ({
 
 import { GET, PATCH, POST, DELETE } from "../app/api/backend/[...path]/route";
 
+function buildMultipartBody(fileBuffer: Buffer, filename = "test.jpg", contentType = "image/jpeg"): Buffer {
+  const boundary = "----FormBoundaryTest";
+  const headerStr = [
+    `--${boundary}`,
+    `Content-Disposition: form-data; name="file"; filename="${filename}"`,
+    `Content-Type: ${contentType}`,
+    "",
+    "",
+  ].join("\r\n");
+
+  const header = Buffer.from(headerStr, "utf8");
+  const footer = Buffer.from(`\r\n--${boundary}--\r\n`, "utf8");
+
+  return Buffer.concat([header, fileBuffer, footer]);
+}
+
+describe("backend proxy image upload validation", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getTokenMock.mockResolvedValue({ accessToken: "token-123" });
+    global.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      })
+    );
+  });
+
+  it("rejects uploads exceeding maximum size", async () => {
+    const largeBuffer = Buffer.alloc(11 * 1024 * 1024, 0xff);
+    const body = buildMultipartBody(largeBuffer);
+
+    const request = new NextRequest("http://localhost/api/backend/business/image/upload", {
+      method: "POST",
+      headers: {
+        "content-type": "multipart/form-data; boundary=----FormBoundaryTest",
+        authorization: "Bearer token-123",
+      },
+      body,
+    });
+
+    const response = await POST(request, {
+      params: Promise.resolve({ path: ["business", "image", "upload"] }),
+    });
+
+    expect(response.status).toBe(413);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("rejects non-image multipart uploads", async () => {
+    const fileBuffer = Buffer.from("this is not an image");
+    const body = buildMultipartBody(fileBuffer, "evil.exe", "application/octet-stream");
+
+    const request = new NextRequest("http://localhost/api/backend/business/image/upload", {
+      method: "POST",
+      headers: {
+        "content-type": "multipart/form-data; boundary=----FormBoundaryTest",
+        authorization: "Bearer token-123",
+      },
+      body,
+    });
+
+    const response = await POST(request, {
+      params: Promise.resolve({ path: ["business", "image", "upload"] }),
+    });
+
+    expect(response.status).toBe(415);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("rejects non-multipart requests to upload endpoint", async () => {
+    const request = new NextRequest("http://localhost/api/backend/business/image/upload", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: "Bearer token-123",
+      },
+      body: JSON.stringify({ url: "https://example.com/evil.exe" }),
+    });
+
+    const response = await POST(request, {
+      params: Promise.resolve({ path: ["business", "image", "upload"] }),
+    });
+
+    expect(response.status).toBe(415);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("forwards valid image uploads to upstream", async () => {
+    const jpegMagic = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
+    const body = buildMultipartBody(jpegMagic, "photo.jpg", "image/jpeg");
+
+    const request = new NextRequest("http://localhost/api/backend/business/image/upload", {
+      method: "POST",
+      headers: {
+        "content-type": "multipart/form-data; boundary=----FormBoundaryTest",
+        authorization: "Bearer token-123",
+      },
+      body: Buffer.from(body),
+    });
+
+    const response = await POST(request, {
+      params: Promise.resolve({ path: ["business", "image", "upload"] }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("backend proxy revalidation", () => {
   beforeEach(() => {
     vi.clearAllMocks();

@@ -125,7 +125,7 @@ export default function LoginPage() {
                             <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-orange-500 to-rose-500 rounded-2xl mb-4">
                                 <span className="text-2xl font-bold text-white">O</span>
                             </div>
-                            <h2 className="text-2xl font-bold text-gray-900">OfferKart</h2>
+                            <h2 className="text-2xl font-bold text-gray-900">OfferNearU</h2>
                         </div>
 
                         <div className="mb-8">
