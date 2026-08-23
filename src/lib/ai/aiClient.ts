@@ -90,7 +90,7 @@ export async function extractProductFromImage(
         console.log(` └─ 📤 Resolution Sent to API: ${downscaled.width}px × ${downscaled.height}px (${downscaled.tokenSavings}% image token savings)`);
 
         // 2. Call the server endpoint
-        const response = await fetch('/api/ai/vision', {
+        const response = await fetch('/api/ai/ocr', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

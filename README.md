@@ -194,7 +194,7 @@ offerKart/
 │  │  API Routes (src/app/api/)                            │ │
 │  │  • Authentication (NextAuth)                          │ │
 │  │  • Backend Proxy (/api/backend/[...path])             │ │
-│  │  • AI Services (/api/ai, /api/ai/vision)             │ │
+│  │  • AI Services (/api/ai, /api/ai/ocr)             │ │
 │  │  • Chat (/api/chat)                                   │ │
 │  └────────────────────────────────────────────────────────┘ │
 │         ↕                                     ↕            │
@@ -368,7 +368,7 @@ See `src/lib/posterTemplateSchema.ts` for full type definition.
 /api/auth/[...nextauth]     POST   - NextAuth handler
 /api/backend/[...path]      ALL    - Backend proxy
 /api/ai                     POST   - AI text generation
-/api/ai/vision              POST   - Vision AI (OCR & extraction)
+/api/ai/ocr              POST   - Vision AI (OCR & extraction)
 /api/chat                   POST   - Chat AI assistant
 /api/revalidate             POST   - ISR cache revalidation
 ```
@@ -607,7 +607,7 @@ Generates marketing content using OpenRouter with fallback to HuggingFace.
 }
 ```
 
-#### `/api/ai/vision` - Vision Processing
+#### `/api/ai/ocr` - Vision Processing
 
 Extracts structured product data from poster images.
 
@@ -1090,7 +1090,7 @@ All POST/PUT/PATCH requests are sanitized before sending to backend via `sanitiz
 
 ### Rate Limiting
 
-Applied on AI endpoints (`/api/ai`, `/api/ai/vision`, `/api/chat`):
+Applied on AI endpoints (`/api/ai`, `/api/ai/ocr`, `/api/chat`):
 
 - 10 requests per minute per IP
 - In-memory storage (replace with Redis in production)
