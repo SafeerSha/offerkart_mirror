@@ -1,37 +1,26 @@
-export const PRODUCT_EXTRACTION_PROMPT = `Extract product details from retail poster image into JSON:
+export const PRODUCT_EXTRACTION_PROMPT = `Extract from the poster image into JSON:
 {
-  "productName": "product name including brand name if available",
-  "description": "brief product specs or features from text",
-  "oldPrice": 0,
-  "offerPrice": 0,
-  "discount": "discount text like 25% OFF or empty string",
-  "mainCategory": "one of: Electronics, Fashion, Food & Dining, Wellness, Fitness, Jewelry, Beauty, Grocery, Home & Garden, Other",
-  "subcategories": ["subcategory1"]
+  "productName": string, // include brand if present
+  "description": string, // brief specs/features from image text
+  "oldPrice": number, // 0 if missing, no currency symbol
+  "offerPrice": number, // 0 if missing, no currency symbol
+  "discount": string, // e.g. "25% OFF", or "" if none
+  "mainCategory": Electronics|Fashion|Food & Dining|Wellness|Fitness|Jewelry|Beauty|Grocery|Home & Garden|Other,
+  "subcategories": [string]
 }
-Rules:
-- productName: item name including brand if present.
-- oldPrice & offerPrice: numeric values without currency symbols (use 0 if missing).
-- Return ONLY JSON.`;
+Return only the JSON.`;
 
 export const AI_PROMPTS: Record<string, string> = {
-    category_suggestion: `You are a product categorization assistant. Based on the product text provided, suggest the best category and subcategories.
-
-Return ONLY valid JSON:
+    category_suggestion: `Categorize this product from the text below. Return JSON only:
 {
-  "mainCategory": "one of: Electronics, Fashion, Food & Dining, Wellness, Fitness, Jewelry, Beauty, Grocery, Home & Garden, Other",
-  "subcategories": ["relevant", "subcategories"]
-}
+  "mainCategory": Electronics|Fashion|Food & Dining|Wellness|Fitness|Jewelry|Beauty|Grocery|Home & Garden|Other,
+  "subcategories": [string]
+}`,
 
-Return ONLY the JSON object, nothing else.`,
-
-    description_generator: `You are a marketing copywriter. Based on the product information provided, generate a compelling short product description suitable for an offer listing.
-
-Return ONLY valid JSON:
+    description_generator: `Write a compelling 1-2 sentence marketing description for this product, for an offer listing. Return JSON only:
 {
-  "description": "A compelling 1-2 sentence marketing description"
-}
-
-Return ONLY the JSON object, nothing else.`,
+  "description": string
+}`,
 };
 
 export type AIRole = keyof typeof AI_PROMPTS;
