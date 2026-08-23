@@ -58,7 +58,11 @@ const extractionSchema = {
 };
 
 // --- Helper: Exponential Backoff Retry Generator ---
-const GEMINI_MODELS = ['gemini-3.5-flash-lite', 'gemini-3.6-flash'];
+const GEMINI_MODELS = [
+    'gemini-3.1-flash-lite',
+    'gemini-3.5-flash-lite',
+    'gemini-3.6-flash'
+];
 
 async function generateContentWithRetry(ai: GoogleGenAI, params: any, imageDimensions?: { sentWidth?: number; sentHeight?: number }, maxRetries = 3) {
     let lastError: any = null;
@@ -68,7 +72,7 @@ async function generateContentWithRetry(ai: GoogleGenAI, params: any, imageDimen
         while (attempt < maxRetries) {
             const startTime = Date.now();
             try {
-                console.log(`⏱️ [Gemini AI API] Call Started | Model: ${modelName} | Attempt: ${attempt + 1}/${maxRetries}`);
+                console.log(`⏱️ [Gemini AI OCR API] Call Started | Model: ${modelName} | Attempt: ${attempt + 1}/${maxRetries}`);
                 const response = await ai.models.generateContent({ ...params, model: modelName });
                 const duration = Date.now() - startTime;
                 const durationSec = (duration / 1000).toFixed(2);
@@ -76,7 +80,7 @@ async function generateContentWithRetry(ai: GoogleGenAI, params: any, imageDimen
                 const candidateTokens = response.usageMetadata?.candidatesTokenCount ?? 0;
                 const totalTokens = response.usageMetadata?.totalTokenCount ?? (promptTokens + candidateTokens);
                 
-                console.log(`✅ [Gemini AI API] Call Finished | Model: ${modelName} | Time Taken: ${duration}ms (${durationSec}s) | Tokens: ${promptTokens} In / ${candidateTokens} Out (Total: ${totalTokens})`);
+                console.log(`✅ [Gemini AI OCR API] Call Finished | Model: ${modelName} | Time Taken: ${duration}ms (${durationSec}s) | Tokens: ${promptTokens} In / ${candidateTokens} Out (Total: ${totalTokens})`);
                 
                 // Calculate dynamic image tile tokens based on dimensions sent
                 let tiles = 1;
@@ -113,7 +117,7 @@ async function generateContentWithRetry(ai: GoogleGenAI, params: any, imageDimen
                 lastError = error;
                 const duration = Date.now() - startTime;
                 const durationSec = (duration / 1000).toFixed(2);
-                console.error(`❌ [Gemini AI API] Call Failed | Model: ${modelName} | Attempt ${attempt} | Time Elapsed: ${duration}ms (${durationSec}s):`, error?.message || error);
+                console.error(`❌ [Gemini AI OCR API] Call Failed | Model: ${modelName} | Attempt ${attempt} | Time Elapsed: ${duration}ms (${durationSec}s):`, error?.message || error);
 
                 const isRateLimit =
                     error?.status === 429 ||
@@ -124,16 +128,16 @@ async function generateContentWithRetry(ai: GoogleGenAI, params: any, imageDimen
 
                 if (isRateLimit && attempt < maxRetries) {
                     const delayMs = Math.pow(2, attempt) * 1000;
-                    logger.warn(`[Vision API] Gemini 429 Rate Limit hit. Retrying attempt ${attempt}/${maxRetries} after ${delayMs}ms...`);
+                    logger.warn(`[OCR API] Gemini 429 Rate Limit hit. Retrying attempt ${attempt}/${maxRetries} after ${delayMs}ms...`);
                     await new Promise((resolve) => setTimeout(resolve, delayMs));
                 } else if (!isRateLimit) {
                     if (error?.status === 404 || error?.message?.includes('404') || error?.message?.toLowerCase().includes('not found')) {
-                        logger.warn(`[Vision API] Model ${modelName} not found (404). Skipping to next model...`);
+                        logger.warn(`[OCR API] Model ${modelName} not found (404). Skipping to next model...`);
                         break;
                     }
                     throw error;
                 } else {
-                    logger.warn(`[Vision API] Model ${modelName} exhausted retries due to 429 rate limit. Trying next model if available...`);
+                    logger.warn(`[OCR API] Model ${modelName} exhausted retries due to 429 rate limit. Trying next model if available...`);
                     break;
                 }
             }
@@ -168,7 +172,7 @@ export async function POST(req: NextRequest) {
         const { fileData, mimeType, imageDimensions } = body;
 
         if (imageDimensions) {
-            console.log(`🖼️ [Vision API] Image Resolution: Original Cropped (${imageDimensions.originalWidth}×${imageDimensions.originalHeight}px) ➔ Sent to Gemini (${imageDimensions.sentWidth}×${imageDimensions.sentHeight}px)`);
+            console.log(`🖼️ [OCR API] Image Resolution: Original Cropped (${imageDimensions.originalWidth}×${imageDimensions.originalHeight}px) ➔ Sent to Gemini (${imageDimensions.sentWidth}×${imageDimensions.sentHeight}px)`);
         }
 
         if (!fileData || !mimeType) {
@@ -199,7 +203,7 @@ export async function POST(req: NextRequest) {
         // 4. Validate API key
         const apiKey = process.env.GEMINI_API_KEY;
         if (!apiKey) {
-            logger.error('[Vision API] GEMINI_API_KEY is not set in environment variables.');
+            logger.error('[OCR API] GEMINI_API_KEY is not set in environment variables.');
             return NextResponse.json(
                 { error: 'Gemini API key is not configured. Please add GEMINI_API_KEY to your .env file.' },
                 { status: 500 }
@@ -239,7 +243,7 @@ export async function POST(req: NextRequest) {
         try {
             parsedData = JSON.parse(jsonText);
         } catch {
-            logger.error('[Vision API] Gemini returned unparsable JSON:', jsonText);
+            logger.error('[OCR API] Gemini returned unparsable JSON:', jsonText);
             return NextResponse.json(
                 { error: 'AI returned unparsable content.', raw: jsonText },
                 { status: 502 }
@@ -254,7 +258,7 @@ export async function POST(req: NextRequest) {
             usage,
         });
     } catch (error: any) {
-        logger.error('[Vision API] Error:', error);
+        logger.error('[OCR API] Error:', error);
 
         if (
             error?.status === 429 ||
@@ -274,4 +278,3 @@ export async function POST(req: NextRequest) {
         );
     }
 }
-
