@@ -6,6 +6,7 @@ export interface AuthUser {
     phone?: string | null;
     business_name?: string | null;
     shopId?: string;
+    role?: number;
 }
 
 export interface AuthLoginResponse {

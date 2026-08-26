@@ -22,10 +22,16 @@ export const authOptions: NextAuthOptions = {
                     });
 
                     if (res.success && res.data) {
-                        const userData = res.data && typeof res.data === 'object' && (res.data as Record<string, unknown>).status === "success"
-                            ? (res.data as Record<string, unknown>).data as AuthLoginData ?? res.data
-                            : res.data;
-                        const { token, ...user } = userData as Record<string, unknown>;
+                        const rawData = res.data as Record<string, unknown>;
+                        // Handle potential double envelope where data contains the actual user info
+                        const userData = rawData.data && typeof rawData.data === 'object'
+                            ? rawData.data as Record<string, unknown>
+                            : rawData;
+                            
+                        console.log("==> NEXTAUTH LOGIN API RESPONSE:", JSON.stringify(res.data));
+                        console.log("==> EXTRACTED USERDATA:", JSON.stringify(userData));
+                            
+                        const { token, ...user } = userData;
                         
                         const authUser: AuthUser = {
                             id: String(user?.id ?? user?.uid ?? "1"),
@@ -34,7 +40,9 @@ export const authOptions: NextAuthOptions = {
                             phone: (user?.phone as string | undefined) ?? "",
                             business_name: (user?.business_name as string | undefined) ?? "",
                             shopId: (user?.shopId as string | undefined) ?? (user?.shop_id as string | undefined) ?? undefined,
+                            role: (user?.role as number | undefined),
                         };
+                        console.log("==> FINAL AUTHUSER:", JSON.stringify(authUser));
                         
                         return {
                             ...authUser,
