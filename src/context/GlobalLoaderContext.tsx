@@ -36,6 +36,7 @@ export function GlobalLoaderProvider({ children }: { children: React.ReactNode }
     const [manualCount, setManualCount] = useState(0);
     const [customText, setCustomText] = useState<string | null>(null);
     const [isNavigating, setIsNavigating] = useState(false);
+    const isFetching = useIsFetching();
     const isMutating = useIsMutating();
 
     const handleResetNav = useCallback(() => {
@@ -119,13 +120,13 @@ export function GlobalLoaderProvider({ children }: { children: React.ReactNode }
                 return;
             }
 
-            // 3. Intercept buttons that explicitly request a loader
-            const button = target.closest("button") as HTMLButtonElement | null;
-            if (button) {
-                const loaderText = button.getAttribute("data-loader-text");
-                if (loaderText || button.classList.contains("trigger-loader")) {
+            // 3. Intercept buttons or interactive elements that explicitly request a loader
+            const clickable = target.closest("button, [role='option'], [role='menuitem'], [data-loader-text]") as HTMLElement | null;
+            if (clickable) {
+                const loaderText = clickable.getAttribute("data-loader-text");
+                if (loaderText || clickable.classList.contains("trigger-loader")) {
                     setIsNavigating(true);
-                    setCustomText(loaderText || "Processing...");
+                    setCustomText(loaderText || "Filtering...");
                 }
             }
         };
@@ -140,7 +141,7 @@ export function GlobalLoaderProvider({ children }: { children: React.ReactNode }
             const timeout = setTimeout(() => {
                 setIsNavigating(false);
                 setCustomText(null);
-            }, 6000);
+            }, 4000);
             return () => clearTimeout(timeout);
         }
     }, [isNavigating]);
@@ -154,7 +155,7 @@ export function GlobalLoaderProvider({ children }: { children: React.ReactNode }
         setManualCount((prev) => Math.max(0, prev - 1));
     }, []);
 
-    const isLoading = isNavigating || manualCount > 0 || isMutating > 0;
+    const isLoading = isNavigating || manualCount > 0 || isMutating > 0 || isFetching > 0;
 
     useEffect(() => {
         if (!isLoading) {
@@ -163,7 +164,7 @@ export function GlobalLoaderProvider({ children }: { children: React.ReactNode }
     }, [isLoading]);
 
     // Determine current display text
-    const activeText = customText || (isNavigating ? "Loading..." : isMutating > 0 ? "Updating..." : "Loading...");
+    const activeText = customText || (isNavigating ? "Loading..." : isMutating > 0 ? "Updating..." : isFetching > 0 ? "Loading..." : "Loading...");
 
     return (
         <GlobalLoaderContext.Provider value={{ isLoading, loadingText: activeText, showLoader, hideLoader }}>

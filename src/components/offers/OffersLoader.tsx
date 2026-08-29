@@ -30,6 +30,7 @@ export default async function OffersLoader({ searchParams }: {
             initialOffers={offersResult.data}
             initialFeaturedShops={featuredShopsResult.success ? featuredShopsResult.data : []}
             hasMoreInitial={offersResult.hasMore}
+            initialTotalCount={offersResult.count ?? offersResult.data.length}
         />
     );
 }

@@ -231,20 +231,12 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
                       <div
                         data-loader-text="Loading offer..."
                         className={cn(
-                          "relative aspect-[1/1.414] w-full rounded-2xl overflow-hidden shadow-xl ring-[1.5px] ring-orange-500 ring-offset-2 sm:ring-offset-4 ring-offset-background transition-all duration-300 ease-out",
+                          "relative aspect-[1/1.414] w-full rounded-2xl overflow-hidden shadow-xl ring-[1.5px] ring-orange-500 ring-offset-2 sm:ring-offset-4 ring-offset-background transition-all duration-300 ease-out bg-white",
                           isActive
                             ? "scale-100 opacity-100 shadow-2xl"
                             : "scale-[0.93] opacity-50 hover:opacity-75"
                         )}
                       >
-                        {/* Ambient Blur Background inside the card */}
-                        <div className="absolute inset-0 select-none pointer-events-none overflow-hidden">
-                          <img
-                            src={imageSrc}
-                            alt=""
-                            className="w-full h-full object-cover blur-xl scale-110 opacity-30"
-                          />
-                        </div>
                         <img
                           src={imageSrc}
                           alt={offer.name || "Featured Shop"}
@@ -253,9 +245,9 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent z-20 pointer-events-none" />
 
-                        <div className="absolute bottom-2.5 left-2.5 z-30 flex items-center gap-1.5 max-w-[90%]">
+                        <div className="absolute bottom-2.5 left-2.5 z-30 flex items-end gap-1.5 max-w-[90%]">
                           <ShopLogoBadge src={offer.shopLogo} name={offer.name} size="sm" />
-                          <p className="capitalize font-bold text-white mb-0 text-xs truncate drop-shadow-sm">
+                          <p className="capitalize font-bold text-white mb-0 text-xs truncate drop-shadow-sm leading-none pb-0.5">
                             {offer.name}
                           </p>
                         </div>
@@ -318,7 +310,7 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
                       <button
                         data-loader-text="Loading offer..."
                         className={cn(
-                          "relative w-full h-full rounded-2xl overflow-hidden shadow-2xl group transition-all duration-300 flex items-center justify-center p-0 cursor-pointer text-left ring-[1.5px] ring-orange-500 hover:ring-orange-400 ring-offset-2 sm:ring-offset-4 ring-offset-background shadow-[0_0_20px_rgba(249,115,22,0.2)]",
+                          "relative w-full h-full rounded-2xl overflow-hidden shadow-2xl group transition-all duration-300 flex items-center justify-center p-0 cursor-pointer text-left ring-[1.5px] ring-orange-500 hover:ring-orange-400 ring-offset-2 sm:ring-offset-4 ring-offset-background shadow-[0_0_20px_rgba(249,115,22,0.2)] bg-white",
                           isWing && "cursor-pointer"
                         )}
                         onClick={() => {
@@ -331,14 +323,6 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
                           }
                         }}
                       >
-                        {/* Ambient Blur Background inside the A4 card */}
-                        <div className="absolute inset-0 select-none pointer-events-none overflow-hidden">
-                          <img
-                            src={typeof offer.image === 'string' ? offer.image : (offer.image as any)?.src || ""}
-                            alt=""
-                            className="w-full h-full object-cover blur-xl scale-110 opacity-30"
-                          />
-                        </div>
                         <img
                           src={typeof offer.image === 'string' ? offer.image : (offer.image as any)?.src || ""}
                           alt={offer.name || "Featured Shop"}
@@ -353,9 +337,9 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
                           <div className="absolute bottom-1/3 left-1/3 w-1 h-1 bg-accent rounded-full animate-ping delay-700" />
                         </div>
 
-                        <div className="absolute bottom-3 left-3 sm:bottom-3.5 sm:left-3.5 z-30 flex items-center gap-2 max-w-[85%]">
+                        <div className="absolute bottom-3 left-3 sm:bottom-3.5 sm:left-3.5 z-30 flex items-end gap-2 max-w-[85%]">
                           <ShopLogoBadge src={offer.shopLogo} name={offer.name} size="md" />
-                          <p className="capitalize font-bold text-white mb-0 group-hover:text-primary transition-colors text-xs md:text-sm truncate drop-shadow-sm">
+                          <p className="capitalize font-bold text-white mb-0 group-hover:text-primary transition-colors text-xs md:text-sm truncate drop-shadow-sm leading-none pb-0.5">
                             {offer.name}
                           </p>
                         </div>

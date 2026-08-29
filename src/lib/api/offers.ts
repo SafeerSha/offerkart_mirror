@@ -56,6 +56,14 @@ interface PaginatedOffersResult {
     page: number;
     limit: number;
     count: number;
+    total?: number;
+    pagination?: {
+        total: number;
+        count: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+    };
     totalPages: number;
     hasMore: boolean;
     error?: string;
@@ -239,9 +247,13 @@ async function fetchUserOffersPage({
     const pagination = apiData.pagination || {};
     const pageNum = pagination.page || apiData.page || page;
     const limitNum = pagination.limit || apiData.limit || limit;
-    const totalCount = typeof pagination.count === "number"
-        ? pagination.count
-        : (typeof apiData.count === "number" ? apiData.count : mappedOffers.length);
+    const totalCount = typeof pagination.total === "number"
+        ? pagination.total
+        : (typeof pagination.count === "number"
+            ? pagination.count
+            : (typeof apiData.total === "number"
+                ? apiData.total
+                : (typeof apiData.count === "number" ? apiData.count : mappedOffers.length)));
 
     const totalPages = typeof pagination.totalPages === "number"
         ? pagination.totalPages
@@ -253,6 +265,14 @@ async function fetchUserOffersPage({
         page: pageNum,
         limit: limitNum,
         count: totalCount,
+        total: totalCount,
+        pagination: {
+            total: totalCount,
+            count: totalCount,
+            page: pageNum,
+            limit: limitNum,
+            totalPages: totalPages,
+        },
         totalPages: totalPages,
         hasMore: pageNum < totalPages,
     };

@@ -918,7 +918,7 @@ const Header = () => {
 
                                     {!searchOpen && !searchQuery && (
                                         <span className="absolute left-11 text-sm font-medium text-muted-foreground opacity-70 pointer-events-none transition-opacity duration-300">
-                                            Search shops, offers, deals...
+                                            Search shops, offers, products...
                                         </span>
                                     )}
 
