@@ -292,14 +292,11 @@ export default function OffersClient({
                                         </button>
                                     </SheetTrigger>
                                     <SheetContent side="left" className="w-[300px] border-r-0 bg-white">
-                                        <SheetHeader className="mb-8">
+                                        <SheetHeader className="mb-4">
                                             <SheetTitle className="text-2xl font-bold flex items-center gap-2">
                                                 <Filter className="w-6 h-6 text-orange-500" />
                                                 {t("catalog.filters")}
                                             </SheetTitle>
-                                            <SheetDescription>
-                                                {t("catalog.filtersDescOffers")}
-                                            </SheetDescription>
                                         </SheetHeader>
                                         <div className="pb-8">
                                             <FilterPanel
