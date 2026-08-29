@@ -358,7 +358,7 @@ export default function BranchListPage({ shopId }: BranchListPageProps) {
             <div>
                 <Breadcrumbs
                     items={[
-                        { label: "Shop Dashboard", href: "/shop-manager" },
+                        { label: "Manage Shop", href: "/shop-manager" },
                         { label: "Branches" },
                     ]}
                 />

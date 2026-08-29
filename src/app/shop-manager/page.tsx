@@ -20,7 +20,7 @@ import {
     Eye, Filter, Info, LayoutDashboard, LogOut, MapPin,
     MoreVertical, Package, Plus, Power, Search, Settings,
     Store, Tag, Ticket, Loader2, Trash2, Calendar,
-    MousePointerClick, Pencil, ArrowRight, GitBranch, Paintbrush, ShoppingBag
+    MousePointerClick, Pencil, ArrowRight, GitBranch, Paintbrush, ShoppingBag, Briefcase, Building2
 } from "@/lib/icons";
 
 // UI Libraries
@@ -365,7 +365,7 @@ function DashboardContent() {
     return (
         <main className="min-h-screen pt-20 lg:pt-22 pb-12 bg-[radial-gradient(circle_at_top_right,hsl(var(--color-primary)/0.05)_0%,transparent_50%)]">
             <div className="container mx-auto px-4">
-                <Breadcrumbs items={[{ label: "Shop Dashboard" }]} />
+                <Breadcrumbs items={[{ label: "Manage Shop" }]} />
 
                 {/* Header Section */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-6 sm:mb-12">
@@ -670,7 +670,7 @@ function DashboardContent() {
                                 <div className="p-5">
                                     <SectionTitle className="mb-4 text-xs text-gray-400 font-bold uppercase tracking-widest">Quick Utilities</SectionTitle>
                                     <div className="grid grid-cols-3 gap-2.5">
-                                        <ActionButton icon={Settings} label="Business" href="/shop-manager/shop-settings" variant="grid" />
+                                        <ActionButton icon={Building2} label="Business" href="/shop-manager/shop-settings" variant="grid" />
                                         <ActionButton icon={Paintbrush} label="Designer" href="/shop-manager/poster-designer" variant="grid" />
                                         <ActionButton icon={BarChart3} label="Analysis" href="/shop-manager/analytics" variant="grid" />
                                     </div>

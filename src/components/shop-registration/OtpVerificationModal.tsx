@@ -16,9 +16,9 @@ interface OtpVerificationModalProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     email: string;
-    userId?: number;
+    userId?: number | string;
     onVerified: () => void;
-    isSubmitting: boolean;
+    isSubmitting?: boolean;
 }
 
 function maskEmail(email: string): string {

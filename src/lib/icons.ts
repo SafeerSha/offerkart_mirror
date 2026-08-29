@@ -10,5 +10,6 @@ export {
   Paintbrush, Palette, Layers, Grid3X3, LayoutGrid, Move, RotateCcw,
   AlignLeft, AlignCenter, AlignRight, Share, Heart, Star,
   MessageCircle, Type, FileText, FileEdit, ImageIcon, Package, Tag,
-  Ticket, Calendar, Edit, Pencil, Trash2, Send, Download, Upload, Save, Undo2, Redo2
+  Ticket, Calendar, Edit, Pencil, Trash2, Send, Download, Upload, Save, Undo2, Redo2,
+  Briefcase, Building2
 } from 'lucide-react';

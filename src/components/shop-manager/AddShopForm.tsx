@@ -597,7 +597,7 @@ export default function AddShopForm() {
                 <div className="mb-4">
                     <Breadcrumbs
                         items={[
-                            { label: "Shop Dashboard", href: "/shop-manager" },
+                            { label: "Manage Shop", href: "/shop-manager" },
                             { label: isEditMode ? "Edit Shop" : "Add New Shop" }
                         ]}
                     />

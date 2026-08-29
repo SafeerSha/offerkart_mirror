@@ -69,4 +69,43 @@ describe('Type contracts', () => {
     };
     expect(payload.offerPrice).toBeLessThan(payload.originalPrice);
   });
+
+  it('should allow unverified AuthLoginResponse shape', () => {
+    const unverifiedResponse: import('@/lib/types/auth').AuthLoginResponse = {
+      success: false,
+      message: "Account verification is pending",
+      data: {
+        id: "13",
+        full_name: "Sheba Biriyani",
+        phone: "4564564569",
+        email: "sheba@gmail.com",
+        business_name: "Sheba Biriyani",
+        role: 2,
+        isEmailNotVerified: true,
+        isPhoneNotVerified: true,
+        token: null,
+      },
+    };
+
+    expect(unverifiedResponse.success).toBe(false);
+    expect(unverifiedResponse.data?.isEmailNotVerified).toBe(true);
+    expect(unverifiedResponse.data?.isPhoneNotVerified).toBe(true);
+    expect(unverifiedResponse.data?.token).toBeNull();
+  });
+
+  it('should allow verified AuthLoginResponse shape', () => {
+    const verifiedResponse: import('@/lib/types/auth').AuthLoginResponse = {
+      success: true,
+      message: "Login successful",
+      data: {
+        id: 1,
+        full_name: "Test User",
+        email: "test@example.com",
+        token: "jwt-token-xyz",
+      },
+    };
+
+    expect(verifiedResponse.success).toBe(true);
+    expect(verifiedResponse.data?.token).toBe("jwt-token-xyz");
+  });
 });

@@ -7,16 +7,32 @@ export interface AuthUser {
     business_name?: string | null;
     shopId?: string;
     role?: number;
+    isEmailNotVerified?: boolean;
+    isPhoneNotVerified?: boolean;
 }
 
 export interface AuthLoginResponse {
+    success?: boolean;
     status?: string;
-    token?: string;
+    message?: string;
+    token?: string | null;
     data?: AuthLoginData;
+    error?: string;
 }
 
 export interface AuthLoginData {
-    token?: string;
+    id?: number | string;
+    uid?: string;
+    full_name?: string;
+    email?: string | null;
+    phone?: string | null;
+    business_name?: string | null;
+    shopId?: string;
+    role?: number;
+    isEmailNotVerified?: boolean;
+    isPhoneNotVerified?: boolean;
+    token?: string | null;
+    data?: AuthLoginData;
     [key: string]: unknown;
 }
 
@@ -47,8 +63,8 @@ export interface ResendOtpRequest {
 }
 
 export interface VerifyOtpRequest {
-    user_id: number;
-    otp: number;
+    user_id: number | string;
+    otp: number | string;
 }
 
 export interface OtpResponse {

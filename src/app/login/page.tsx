@@ -15,6 +15,8 @@ import { useRouter } from "next/navigation";
 import { hasSuspiciousPattern } from "@/lib/security";
 import { useTranslation } from "@/hooks/useTranslation";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
+import { loginShop, resendEmailOtp } from "@/lib/api/shop";
+import OtpVerificationModal from "@/components/shop-registration/OtpVerificationModal";
 
 export default function LoginPage() {
     const { t } = useTranslation("login");
@@ -22,6 +24,43 @@ export default function LoginPage() {
     const [formData, setFormData] = useState({ email: "", password: "" });
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
+    const [showOtpModal, setShowOtpModal] = useState(false);
+    const [unverifiedUser, setUnverifiedUser] = useState<{
+        id?: number | string;
+        email: string;
+        phone?: string;
+    } | null>(null);
+
+    const handleOtpVerified = async () => {
+        setShowOtpModal(false);
+        toast.success("Account verified successfully! Logging you in...");
+        setIsLoading(true);
+        try {
+            const result = await signIn("credentials", {
+                email: formData.email,
+                password: formData.password,
+                redirect: false,
+            });
+
+            if (result?.ok) {
+                const session = await getSession();
+                toast.success(t("form.loginSuccess"));
+
+                if ((session?.user as any)?.business_name) {
+                    router.push("/shop-manager");
+                } else {
+                    router.push("/");
+                }
+                router.refresh();
+            } else {
+                toast.success("Verification complete! Please click Sign In to proceed.");
+            }
+        } catch {
+            toast.success("Verification complete! Please sign in.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -34,6 +73,56 @@ export default function LoginPage() {
 
         setIsLoading(true);
         try {
+            // First check the login credentials & verification state via direct API
+            const loginRes = await loginShop({
+                email: formData.email,
+                password: formData.password,
+            });
+
+            const resData = loginRes.data as Record<string, unknown> | undefined;
+            const nestedData = resData?.data && typeof resData.data === "object"
+                ? (resData.data as Record<string, unknown>)
+                : resData;
+
+            const isEmailUnverified = Boolean(nestedData?.isEmailNotVerified);
+            const isPhoneUnverified = Boolean(nestedData?.isPhoneNotVerified);
+            const isUnverified = isEmailUnverified || isPhoneUnverified;
+
+            if (isUnverified) {
+                const targetEmail = (nestedData?.email as string) || formData.email;
+                const targetId = (nestedData?.id as string | number | undefined);
+                const targetPhone = (nestedData?.phone as string) || undefined;
+
+                setUnverifiedUser({
+                    id: targetId,
+                    email: targetEmail,
+                    phone: targetPhone,
+                });
+
+                // Show toast indicating account is not verified
+                toast.error(loginRes.message || "Your account is not verified. Please complete OTP verification.");
+
+                // Trigger OTP resend API
+                try {
+                    const resendRes = await resendEmailOtp({ email: targetEmail });
+                    if (resendRes.success) {
+                        toast.info("Verification OTP has been sent to your email.");
+                    }
+                } catch (resendError) {
+                    console.error("Resend OTP error:", resendError);
+                }
+
+                // Show the OTP verification modal
+                setShowOtpModal(true);
+                return;
+            }
+
+            if (!loginRes.success) {
+                toast.error(loginRes.error || loginRes.message || t("form.invalidCredentials"));
+                return;
+            }
+
+            // If account is valid & verified, proceed with NextAuth sign in session creation
             const result = await signIn("credentials", {
                 email: formData.email,
                 password: formData.password,
@@ -54,6 +143,7 @@ export default function LoginPage() {
                 router.refresh();
             }
         } catch (error) {
+            console.error("Login submission error:", error);
             toast.error(t("form.networkError"));
         } finally {
             setIsLoading(false);
@@ -226,6 +316,15 @@ export default function LoginPage() {
                     </div>
                 </div>
             </div>
+
+            <OtpVerificationModal
+                open={showOtpModal}
+                onOpenChange={setShowOtpModal}
+                email={unverifiedUser?.email || formData.email}
+                userId={unverifiedUser?.id}
+                onVerified={handleOtpVerified}
+                isSubmitting={isLoading}
+            />
         </main>
     );
 }
