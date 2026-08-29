@@ -200,7 +200,9 @@ export const backend = {
                     const obj = result as Record<string, unknown>;
                     return {
                         success: false,
-                        error: obj.message as string || obj.error as string || `Request failed with status ${response.status}`,
+                        error: (obj.message as string) || (obj.error as string) || `Request failed with status ${response.status}`,
+                        message: (obj.message as string) || undefined,
+                        data: (obj.data !== undefined ? obj.data : obj) as T,
                     };
                 }
                 return {
@@ -218,10 +220,21 @@ export const backend = {
                 }
             }
 
+            const isPayloadSuccess = (result && typeof result === "object" && "success" in result)
+                ? Boolean((result as Record<string, unknown>).success)
+                : true;
+
+            const resData = (result && typeof result === "object" && "data" in result)
+                ? (result as Record<string, unknown>).data
+                : result;
+
             return {
-                success: true,
-                data: result as T,
+                success: isPayloadSuccess,
+                data: (resData !== undefined ? resData : result) as T,
                 message: result && typeof result === "object" && !Array.isArray(result) ? (result as Record<string, unknown>).message as string | undefined : undefined,
+                error: !isPayloadSuccess && result && typeof result === "object"
+                    ? ((result as Record<string, unknown>).message as string || (result as Record<string, unknown>).error as string)
+                    : undefined,
             };
 
         } catch (error: unknown) {

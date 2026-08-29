@@ -475,7 +475,7 @@ export default function AddBranchForm({ shopId }: AddBranchFormProps) {
                 <div className="mb-8">
                     <Breadcrumbs
                         items={[
-                            { label: "Shop Dashboard", href: "/shop-manager" },
+                            { label: "Manage Shop", href: "/shop-manager" },
                             { label: shopName || "Shop", href: `/shop-manager/${shopId}/branches` },
                             { label: isEditMode ? "Edit Branch" : "Add Branch" }
                         ]}
