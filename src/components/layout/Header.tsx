@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { Search, User, LogIn, Menu, X, PlusCircle, MapPin, ChevronDown, LayoutDashboard, Plus, Loader2, Home, Percent, ShoppingBag, Locate, Package, Tag, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { useSession, signIn, signOut } from "next-auth/react";
 import {
     Dialog,
@@ -736,17 +737,15 @@ const Header = () => {
                             <div className="flex items-center justify-between gap-4">
                                 {/* Logo */}
                                 <Link href="/" className="flex items-center flex-shrink-0 group cursor-pointer border-0 outline-none focus:ring-0">
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-1.5">
                                         <div className="relative">
-                                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-orange-500/10 flex items-center justify-center transform transition-all duration-500 group-hover:scale-110 group-hover:rotate-3 group-hover:shadow-lg group-hover:shadow-primary/20">
-                                                <span className="text-orange-600 font-bold text-lg sm:text-xl">O</span>
+                                            <div className="w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center transform transition-all duration-500 group-hover:scale-110 group-hover:rotate-3 group-hover:shadow-lg group-hover:shadow-primary/20">
+                                                <Image src="/logo_only.png" alt="Logo" width={32} height={32} className="object-contain drop-shadow-sm" priority />
                                             </div>
-                                            <div className="absolute -inset-1 rounded-full border border-primary/30 animate-pulse" />
-                                            <div className="absolute -inset-2 rounded-full border border-primary/10 animate-pulse delay-300" />
                                         </div>
-                                        <span className="font-sans text-lg sm:text-xl font-bold block text-orange-500 transition-colors group-hover:text-primary">
-                                            OfferNearU
-                                        </span>
+                                        <div className="flex items-center">
+                                            <Image src="/text_only.png" alt="OfferNearU" width={150} height={45} className="h-6 sm:h-8 w-auto object-contain transition-transform group-hover:scale-105 duration-300 origin-left" priority />
+                                        </div>
                                     </div>
                                 </Link>
 
@@ -919,7 +918,7 @@ const Header = () => {
 
                                     {!searchOpen && !searchQuery && (
                                         <span className="absolute left-11 text-sm font-medium text-muted-foreground opacity-70 pointer-events-none transition-opacity duration-300">
-                                            Search shops, offers, deals...
+                                            Search shops, offers, products...
                                         </span>
                                     )}
 
@@ -1242,13 +1241,8 @@ const Header = () => {
                             : "opacity-0 pointer-events-none absolute inset-x-0 top-0 scale-[0.95] -translate-y-2"
                     )}>
                         <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 px-4 text-foreground h-12">
-                            <div className="flex items-center gap-2 min-w-0">
-                                <div className="w-7 h-7 rounded-full bg-orange-500/10 flex items-center justify-center font-bold text-sm shrink-0 text-orange-600">
-                                    O
-                                </div>
-                                <span className="font-sans text-sm font-semibold truncate">
-                                    OfferNearU
-                                </span>
+                            <div className="flex items-center justify-start min-w-0">
+                                <Image src="/logo_only.png" alt="Logo" width={28} height={28} className="h-6 sm:h-7 w-auto object-contain" />
                             </div>
                             <div
                                 className="flex justify-center min-w-0 cursor-pointer"

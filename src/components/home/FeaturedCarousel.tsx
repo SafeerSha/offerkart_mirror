@@ -3,13 +3,12 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { StaticImageData } from "next/image";
-import { ChevronLeft, ChevronRight, Star } from "lucide-react";
+import { ChevronLeft, ChevronRight, Star, Store } from "lucide-react";
 import useEmblaCarousel from "embla-carousel-react";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { Subheading, Text } from "@/components/shared/Typography";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useLocationContext } from "@/context/LocationContext";
-import { useGlobalLoader } from "@/context/GlobalLoaderContext";
 import { cn } from "@/lib/utils";
 import { useFeaturedOffers } from "@/hooks/useApi";
 
@@ -20,17 +19,38 @@ interface FeaturedOffer {
   image: string | StaticImageData;
   badge: string;
   rating: number;
+  shopLogo?: string | null;
 }
 
 interface FeaturedCarouselProps {
   offers: FeaturedOffer[];
 }
 
+const ShopLogoBadge = ({ src, name, size = "md" }: { src?: string | null; name: string; size?: "sm" | "md" }) => {
+  const [error, setError] = useState(false);
+  const sizeClasses = size === "sm" ? "w-5 h-5" : "w-6 h-6 sm:w-7 sm:h-7";
+  const iconSize = size === "sm" ? "w-3 h-3" : "w-3.5 h-3.5";
+
+  return (
+    <div className={cn(sizeClasses, "rounded-md sm:rounded-lg overflow-hidden shrink-0 bg-white dark:bg-zinc-800 border border-white/40 flex items-center justify-center shadow-xs")}>
+      {src && !error ? (
+        <img
+          src={src}
+          alt={name}
+          className="w-full h-full object-cover"
+          onError={() => setError(true)}
+        />
+      ) : (
+        <Store className={cn(iconSize, "text-orange-500")} />
+      )}
+    </div>
+  );
+};
+
 const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
   const { t } = useTranslation("home");
   const router = useRouter();
   const { location: userLocation, hydrated } = useLocationContext();
-  const { showLoader } = useGlobalLoader();
 
   const hasLocation = userLocation.latitude !== null && userLocation.longitude !== null;
   const { data: dynamicData } = useFeaturedOffers(
@@ -189,7 +209,7 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
               onTouchStart={() => setIsAutoPlaying(false)}
               onTouchEnd={() => setIsAutoPlaying(true)}
             >
-              <div className="flex -ml-2 items-center py-1">
+              <div className="flex -ml-3 items-center py-2">
                 {displayOffers.map((offer: FeaturedOffer, idx: number) => {
                   const isActive = idx === currentIndex;
                   const imageSrc = typeof offer.image === 'string'
@@ -197,14 +217,13 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
                     : (offer.image as any)?.src || "";
 
                   return (
-                    <div
+                    <button
                       key={offer.id || `mobile-offer-${idx}`}
-                      className="min-w-0 shrink-0 grow-0 basis-[82%] xs:basis-[76%] sm:basis-[64%] pl-2"
+                      className="min-w-0 shrink-0 grow-0 basis-[82%] xs:basis-[76%] sm:basis-[64%] pl-3 bg-transparent border-none p-0 cursor-pointer text-left"
                       onClick={() => {
                         if (!isActive) {
                           goToSlide(idx);
                         } else {
-                          showLoader("Loading offer...");
                           router.push(`/offer/${offer.id}`);
                         }
                       }}
@@ -212,20 +231,12 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
                       <div
                         data-loader-text="Loading offer..."
                         className={cn(
-                          "relative aspect-[1/1.414] w-full rounded-2xl overflow-hidden shadow-xl bg-black border border-primary/20 transition-all duration-300 ease-out cursor-pointer",
+                          "relative aspect-[1/1.414] w-full rounded-2xl overflow-hidden shadow-xl ring-[1.5px] ring-orange-500 ring-offset-2 sm:ring-offset-4 ring-offset-background transition-all duration-300 ease-out bg-white",
                           isActive
-                            ? "scale-100 opacity-100 shadow-2xl border-primary/50 ring-1 ring-primary/30"
+                            ? "scale-100 opacity-100 shadow-2xl"
                             : "scale-[0.93] opacity-50 hover:opacity-75"
                         )}
                       >
-                        {/* Ambient Blur Background inside the card */}
-                        <div className="absolute inset-0 select-none pointer-events-none overflow-hidden">
-                          <img
-                            src={imageSrc}
-                            alt=""
-                            className="w-full h-full object-cover blur-xl scale-110 opacity-30"
-                          />
-                        </div>
                         <img
                           src={imageSrc}
                           alt={offer.name || "Featured Shop"}
@@ -234,13 +245,14 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent z-20 pointer-events-none" />
 
-                        <div className="absolute bottom-0 left-0 right-0 p-4 z-30">
-                          <p className="text uppercase font-bold text-white mb-0 text-xs truncate">
+                        <div className="absolute bottom-2.5 left-2.5 z-30 flex items-end gap-1.5 max-w-[90%]">
+                          <ShopLogoBadge src={offer.shopLogo} name={offer.name} size="sm" />
+                          <p className="capitalize font-bold text-white mb-0 text-xs truncate drop-shadow-sm leading-none pb-0.5">
                             {offer.name}
                           </p>
                         </div>
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
@@ -267,22 +279,22 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
                     posClass = "aspect-[1/1.414] h-full translate-x-0 translate-y-0 z-30 opacity-100 scale-100 pointer-events-auto";
                   } else if (isPrimaryLeft) {
                     // Left spotlight
-                    posClass = "aspect-[1/1.414] h-full -translate-x-[51%] translate-y-0 z-30 opacity-100 scale-100 pointer-events-auto";
+                    posClass = "aspect-[1/1.414] h-full -translate-x-[52.1%] translate-y-0 z-30 opacity-100 scale-100 pointer-events-auto";
                   } else if (isPrimaryRight) {
                     // Right spotlight
-                    posClass = "aspect-[1/1.414] h-full translate-x-[51%] translate-y-0 z-30 opacity-100 scale-100 pointer-events-auto";
+                    posClass = "aspect-[1/1.414] h-full translate-x-[52.1%] translate-y-0 z-30 opacity-100 scale-100 pointer-events-auto";
                   } else if (isLeftWing) {
                     // Left wing peek
-                    posClass = "aspect-[1/1.414] h-[85%] -translate-x-[152%] translate-y-0 z-20 opacity-35 scale-90 pointer-events-auto";
+                    posClass = "aspect-[1/1.414] h-[85%] -translate-x-[153.2%] translate-y-0 z-20 opacity-35 scale-90 pointer-events-auto";
                   } else if (isRightWing) {
                     // Right wing peek
-                    posClass = "aspect-[1/1.414] h-[85%] translate-x-[152%] translate-y-0 z-20 opacity-35 scale-90 pointer-events-auto";
+                    posClass = "aspect-[1/1.414] h-[85%] translate-x-[153.2%] translate-y-0 z-20 opacity-35 scale-90 pointer-events-auto";
                   } else if (diff > 2) {
                     // Offscreen Right
-                    posClass = "aspect-[1/1.414] h-[85%] translate-x-[240%] z-0 opacity-0 scale-75 pointer-events-none hidden";
+                    posClass = "aspect-[1/1.414] h-[85%] translate-x-[243%] z-0 opacity-0 scale-75 pointer-events-none hidden";
                   } else {
                     // Offscreen Left (diff < -1)
-                    posClass = "aspect-[1/1.414] h-[85%] -translate-x-[240%] z-0 opacity-0 scale-75 pointer-events-none hidden";
+                    posClass = "aspect-[1/1.414] h-[85%] -translate-x-[243%] z-0 opacity-0 scale-75 pointer-events-none hidden";
                   }
 
                   const isWing = isLeftWing || isRightWing;
@@ -295,10 +307,11 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
                         posClass
                       )}
                     >
-                      <div
+                      <button
+                        data-loader-text="Loading offer..."
                         className={cn(
-                          "relative w-full h-full rounded-2xl overflow-hidden shadow-2xl group cursor-pointer border border-primary/20 group-hover:border-primary/50 transition-all duration-300 bg-black flex items-center justify-center",
-                          isWing && "cursor-pointer hover:border-primary/60"
+                          "relative w-full h-full rounded-2xl overflow-hidden shadow-2xl group transition-all duration-300 flex items-center justify-center p-0 cursor-pointer text-left ring-[1.5px] ring-orange-500 hover:ring-orange-400 ring-offset-2 sm:ring-offset-4 ring-offset-background shadow-[0_0_20px_rgba(249,115,22,0.2)] bg-white",
+                          isWing && "cursor-pointer"
                         )}
                         onClick={() => {
                           if (isLeftWing) {
@@ -306,19 +319,10 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
                           } else if (isRightWing) {
                             nextSlide();
                           } else {
-                            showLoader("Loading offer...");
                             router.push(`/offer/${offer.id}`);
                           }
                         }}
                       >
-                        {/* Ambient Blur Background inside the A4 card */}
-                        <div className="absolute inset-0 select-none pointer-events-none overflow-hidden">
-                          <img
-                            src={typeof offer.image === 'string' ? offer.image : (offer.image as any)?.src || ""}
-                            alt=""
-                            className="w-full h-full object-cover blur-xl scale-110 opacity-30"
-                          />
-                        </div>
                         <img
                           src={typeof offer.image === 'string' ? offer.image : (offer.image as any)?.src || ""}
                           alt={offer.name || "Featured Shop"}
@@ -333,12 +337,13 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
                           <div className="absolute bottom-1/3 left-1/3 w-1 h-1 bg-accent rounded-full animate-ping delay-700" />
                         </div>
 
-                        <div className="absolute bottom-0 left-0 right-0 p-6 z-30">
-                          <p className="text uppercase font-bold text-white mb-0 group-hover:text-primary transition-colors text-xs md:text-sm truncate">
+                        <div className="absolute bottom-3 left-3 sm:bottom-3.5 sm:left-3.5 z-30 flex items-end gap-2 max-w-[85%]">
+                          <ShopLogoBadge src={offer.shopLogo} name={offer.name} size="md" />
+                          <p className="capitalize font-bold text-white mb-0 group-hover:text-primary transition-colors text-xs md:text-sm truncate drop-shadow-sm leading-none pb-0.5">
                             {offer.name}
                           </p>
                         </div>
-                      </div>
+                      </button>
                     </div>
                   );
                 })}
@@ -376,6 +381,3 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
 };
 
 export default FeaturedCarousel;
-
-
-

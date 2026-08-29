@@ -32,12 +32,17 @@ export default async function ProductsLoader({ searchParams }: {
         ? productsResult.data.pagination.page < productsResult.data.pagination.totalPages
         : false;
 
+    const initialTotalCount = productsResult.success && productsResult.data?.pagination?.total !== undefined
+        ? productsResult.data.pagination.total
+        : (productsResult.success ? productsResult.data?.data?.length || 0 : 0);
+
     return (
         <ProductsClient
             initialProducts={productsResult.success ? productsResult.data.data : []}
             initialFeaturedShops={[]}
             initialCategories={[]}
             hasMoreInitial={hasMoreInitial}
+            initialTotalCount={initialTotalCount}
         />
     );
 }

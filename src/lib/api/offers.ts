@@ -56,6 +56,14 @@ interface PaginatedOffersResult {
     page: number;
     limit: number;
     count: number;
+    total?: number;
+    pagination?: {
+        total: number;
+        count: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+    };
     totalPages: number;
     hasMore: boolean;
     error?: string;
@@ -239,9 +247,13 @@ async function fetchUserOffersPage({
     const pagination = apiData.pagination || {};
     const pageNum = pagination.page || apiData.page || page;
     const limitNum = pagination.limit || apiData.limit || limit;
-    const totalCount = typeof pagination.count === "number"
-        ? pagination.count
-        : (typeof apiData.count === "number" ? apiData.count : mappedOffers.length);
+    const totalCount = typeof pagination.total === "number"
+        ? pagination.total
+        : (typeof pagination.count === "number"
+            ? pagination.count
+            : (typeof apiData.total === "number"
+                ? apiData.total
+                : (typeof apiData.count === "number" ? apiData.count : mappedOffers.length)));
 
     const totalPages = typeof pagination.totalPages === "number"
         ? pagination.totalPages
@@ -253,6 +265,14 @@ async function fetchUserOffersPage({
         page: pageNum,
         limit: limitNum,
         count: totalCount,
+        total: totalCount,
+        pagination: {
+            total: totalCount,
+            count: totalCount,
+            page: pageNum,
+            limit: limitNum,
+            totalPages: totalPages,
+        },
         totalPages: totalPages,
         hasMore: pageNum < totalPages,
     };
@@ -306,9 +326,10 @@ export async function getFeaturedOffers(
                     success: true,
                     data: offersArray.map((item: any) => ({
                         id: item.id,
-                        name: item.shop_name || "Unknown Shop",
-                        offer: item.title || "",
-                        image: item.defaultPoster || DEFAULT_USER_OFFER_IMAGE,
+                        name: item.shop_name || item.shopName || "Unknown Shop",
+                        offer: item.title || item.offerName || "",
+                        image: item.defaultPoster || item.image || DEFAULT_USER_OFFER_IMAGE,
+                        shopLogo: item.logo_url || item.logoUrl || item.shop_logo || item.shopLogo || item.shop_logo_url || item.shopLogoUrl || item.logo || item.shop?.logo_url || item.shop?.logoUrl || item.shop?.logo || item.shop?.shop_logo || (item.shops && item.shops[0]?.logo_url) || null,
                         badge: "Featured",
                         rating: 4.5
                      }))
@@ -334,6 +355,7 @@ export async function getFeaturedOffers(
                         name: offer.shopName,
                         offer: offer.offerName,
                         image: offer.image || DEFAULT_USER_OFFER_IMAGE,
+                        shopLogo: (offer as any).logo_url || (offer as any).logoUrl || (offer as any).shopLogo || (offer as any).shop_logo || (offer as any).shop_logo_url || (offer as any).shopLogoUrl || (offer as any).logo || (offer as any).shop?.logo_url || (offer as any).shop?.logoUrl || (offer as any).shop?.logo || (offer as any).shop?.shop_logo || null,
                         badge: "Featured",
                         rating: 4.5
                     });

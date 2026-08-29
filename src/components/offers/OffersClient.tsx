@@ -32,6 +32,7 @@ interface OffersClientProps {
     initialOffers: Offer[];
     initialFeaturedShops: any[];
     hasMoreInitial: boolean;
+    initialTotalCount?: number;
 }
 
 interface UserCoordinates {
@@ -42,7 +43,8 @@ interface UserCoordinates {
 export default function OffersClient({
     initialOffers,
     initialFeaturedShops,
-    hasMoreInitial
+    hasMoreInitial,
+    initialTotalCount
 }: OffersClientProps) {
     const { t } = useTranslation("common");
     const router = useRouter();
@@ -215,7 +217,7 @@ export default function OffersClient({
         enabled: hydrated,
         initialData: (initialOffers.length > 0 && isInitialState)
             ? {
-                pages: [{ data: initialOffers, page: 1, limit: 12, count: initialOffers.length, hasMore: hasMoreInitial }],
+                pages: [{ data: initialOffers, page: 1, limit: 12, count: initialTotalCount ?? initialOffers.length, total: initialTotalCount ?? initialOffers.length, hasMore: hasMoreInitial }],
                 pageParams: [1],
             }
             : undefined,
@@ -223,6 +225,7 @@ export default function OffersClient({
 
     // Flatten pages into a single array
     const offers = data !== undefined ? data.pages.flatMap(page => page.data) : (isInitialState ? initialOffers : []);
+    const totalCount = data?.pages?.[0]?.total ?? data?.pages?.[0]?.count ?? (isInitialState ? (initialTotalCount ?? initialOffers.length) : offers.length);
     // Avoid skeleton flicker when server-rendered initialOffers are already present
     const isLoading = isFetching && offers.length === 0;
     const hasMore = hasNextPage;
@@ -289,14 +292,11 @@ export default function OffersClient({
                                         </button>
                                     </SheetTrigger>
                                     <SheetContent side="left" className="w-[300px] border-r-0 bg-white">
-                                        <SheetHeader className="mb-8">
+                                        <SheetHeader className="mb-4">
                                             <SheetTitle className="text-2xl font-bold flex items-center gap-2">
                                                 <Filter className="w-6 h-6 text-orange-500" />
                                                 {t("catalog.filters")}
                                             </SheetTitle>
-                                            <SheetDescription>
-                                                {t("catalog.filtersDescOffers")}
-                                            </SheetDescription>
                                         </SheetHeader>
                                         <div className="pb-8">
                                             <FilterPanel
@@ -380,6 +380,7 @@ export default function OffersClient({
                                                             params.delete("shopId");
                                                             router.push(`/offers?${params.toString()}`);
                                                         }}
+                                                        data-loader-text="Clearing filter..."
                                                         className="shrink-0 w-4 h-4 rounded-full bg-orange-100 hover:bg-orange-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
                                                         title="Clear shop filter"
                                                     >
@@ -397,6 +398,7 @@ export default function OffersClient({
                                                         params.delete("search");
                                                         router.push(`/offers?${params.toString()}`);
                                                     }}
+                                                    data-loader-text="Clearing filter..."
                                                     className="shrink-0 w-4 h-4 rounded-full bg-orange-100 hover:bg-orange-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
                                                     title="Clear search filter"
                                                 >
@@ -407,7 +409,7 @@ export default function OffersClient({
                                     </div>
                                 </div>
                                 <p className="text-gray-500 text-sm mt-1">
-                                    {t("catalog.showingVerifiedDeals").replace("{count}", offers.length.toString())}
+                                    {t("catalog.showingVerifiedDeals").replace("{count}", totalCount.toString())}
                                     {` ${t("catalog.forYou")}`}
                                 </p>
 

@@ -169,7 +169,7 @@ const FilterPanel = ({
             </SelectTrigger>
             <SelectContent className="bg-white border-gray-200 shadow-xl">
               {sortOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
+                <SelectItem key={option.value} value={option.value} data-loader-text="Sorting...">
                   {option.label}
                 </SelectItem>
               ))}
@@ -187,6 +187,7 @@ const FilterPanel = ({
             {hasActiveFilters && (
               <button
                 onClick={clearFilters}
+                data-loader-text="Resetting filters..."
                 className="text-xs text-orange-500 hover:text-orange-600 font-medium"
               >
                 {t("catalog.reset")}
@@ -198,6 +199,7 @@ const FilterPanel = ({
               <div key={cat} className="space-y-1">
                 <button
                   onClick={() => handleCategoryChange(cat)}
+                  data-loader-text="Filtering..."
                   className={cn(
                     "w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all text-left",
                     category === cat
@@ -214,6 +216,7 @@ const FilterPanel = ({
                   <div className="flex flex-col gap-1 pl-4 pb-2 animate-in slide-in-from-top-2 fade-in duration-300">
                     <button
                       onClick={() => handleSubcategoryChange("All")}
+                      data-loader-text="Filtering..."
                       className={cn(
                         "px-3 py-1.5 rounded-lg text-[13px] text-left transition-all",
                         subcategory.length === 0
@@ -230,6 +233,7 @@ const FilterPanel = ({
                           <button
                             key={sub.id}
                             onClick={() => handleSubcategoryChange(sub.name)}
+                            data-loader-text="Filtering..."
                             className={cn(
                               "px-3 py-1.5 rounded-lg text-[13px] text-left transition-all flex items-center justify-between group",
                               subcategory.includes(sub.name)
@@ -299,6 +303,7 @@ const FilterPanel = ({
                   <button
                     key={cat}
                     onClick={() => handleCategoryChange(cat)}
+                    data-loader-text="Filtering..."
                     className={cn(
                       "filter-chip",
                       category === cat && "active"

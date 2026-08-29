@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Filter, SlidersHorizontal, AlertTriangle } from "lucide-react";
+import { Filter, SlidersHorizontal, AlertTriangle, Loader2 } from "lucide-react";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import ProductGrid from "@/components/products/ProductGrid";
 import FilterPanel from "@/components/home/FilterPanel";
@@ -32,13 +32,15 @@ interface ProductsClientProps {
     initialFeaturedShops?: any[];
     initialCategories?: any[];
     hasMoreInitial: boolean;
+    initialTotalCount?: number;
 }
 
 export default function ProductsClient({ 
     initialProducts = [], 
     initialFeaturedShops = [],
     initialCategories = [],
-    hasMoreInitial
+    hasMoreInitial,
+    initialTotalCount
 }: ProductsClientProps) {
     const { t } = useTranslation("common");
     const searchParams = useSearchParams();
@@ -230,13 +232,14 @@ export default function ProductsClient({
         enabled: hydrated,
         initialData: (initialProducts.length > 0 && isInitialState)
             ? {
-                pages: [{ data: initialProducts, pagination: { total: initialProducts.length, page: 1, limit: 12, totalPages: hasMoreInitial ? 2 : 1 } }],
+                pages: [{ data: initialProducts, pagination: { total: initialTotalCount ?? initialProducts.length, page: 1, limit: 12, totalPages: hasMoreInitial ? 2 : 1 } }],
                 pageParams: [1],
             }
             : undefined
     });
 
     const filteredProducts = data !== undefined ? data.pages.flatMap(page => page.data) : (isInitialState ? initialProducts : []);
+    const totalCount = data?.pages?.[0]?.pagination?.total ?? (isInitialState ? (initialTotalCount ?? initialProducts.length) : filteredProducts.length);
     const isLoading = isFetching && filteredProducts.length === 0;
 
     // Infinite Scroll Observer
@@ -298,14 +301,11 @@ export default function ProductsClient({
                                         </button>
                                     </SheetTrigger>
                                     <SheetContent side="left" className="w-[300px] border-r-0 bg-white">
-                                        <SheetHeader className="mb-8">
+                                        <SheetHeader className="mb-4">
                                             <SheetTitle className="text-2xl font-bold flex items-center gap-2">
                                                 <Filter className="w-6 h-6 text-orange-500" />
                                                 {t("catalog.filters")}
                                             </SheetTitle>
-                                            <SheetDescription>
-                                                {t("catalog.filtersDescProducts")}
-                                            </SheetDescription>
                                         </SheetHeader>
                                         <div className="pb-8">
                                             <FilterPanel
@@ -394,6 +394,7 @@ export default function ProductsClient({
                                                             params.delete("shopId");
                                                             router.push(`/products?${params.toString()}`);
                                                         }}
+                                                        data-loader-text="Clearing filter..."
                                                         className="shrink-0 w-4 h-4 rounded-full bg-orange-100 hover:bg-orange-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
                                                         title="Clear shop filter"
                                                     >
@@ -410,6 +411,7 @@ export default function ProductsClient({
                                                             params.delete("search");
                                                             router.push(`/products?${params.toString()}`);
                                                         }}
+                                                        data-loader-text="Clearing filter..."
                                                         className="shrink-0 w-4 h-4 rounded-full bg-orange-100 hover:bg-orange-200 flex items-center justify-center text-[10px] font-bold transition-colors cursor-pointer"
                                                         title="Clear search filter"
                                                     >
@@ -421,7 +423,7 @@ export default function ProductsClient({
                                     </div>
 
                                     <p className="text-sm text-gray-500 mt-1">
-                                        Showing {filteredProducts.length} products for you
+                                        Showing {totalCount} {totalCount === 1 ? "product" : "products"} for you
                                     </p>
 
                                 </div>
@@ -449,18 +451,23 @@ export default function ProductsClient({
                         <ProductGrid products={filteredProducts} isLoading={isLoading} />
 
                         {/* Scroll trigger for infinite loading */}
-                        <div id="scroll-trigger" className="w-full py-12 flex items-center justify-center mt-6">
+                        <div id="scroll-trigger" className="w-full py-12 flex items-center justify-center">
                             {isFetchingNextPage && (
-                                <div className="flex items-center gap-2 text-sm text-gray-500 font-semibold animate-pulse">
-                                    <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping" />
-                                    <span>Loading more products...</span>
+                                <div className="flex flex-col items-center gap-4 animate-in fade-in duration-500">
+                                    <div className="relative">
+                                        <div className="w-12 h-12 rounded-full border-2 border-orange-100 border-t-orange-500 animate-spin" />
+                                        <Loader2 className="w-5 h-5 text-orange-500 absolute inset-0 m-auto animate-pulse" />
+                                    </div>
+                                    <p className="text-sm font-medium text-gray-500 animate-pulse">
+                                        {t("catalog.discoveringMoreDeals") || "Discovering more products..."}
+                                    </p>
                                 </div>
                             )}
                             {!hasNextPage && !isLoading && filteredProducts.length > 0 && (
                                 <div className="text-center py-8">
                                     <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100 text-gray-500 text-sm font-medium">
                                         <div className="w-1.5 h-1.5 rounded-full bg-gray-400" />
-                                        {t("catalog.caughtUpDeals") || "You've caught up with all current deals"}
+                                        {t("catalog.caughtUpDeals") || "You've caught up with all current products"}
                                     </div>
                                 </div>
                             )}

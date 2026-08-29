@@ -9,8 +9,6 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useLocationContext } from "@/context/LocationContext";
-import { useGlobalLoader } from "@/context/GlobalLoaderContext";
-import { Search } from "lucide-react";
 import { useFeaturedShops } from "@/hooks/useApi";
 
 interface FeaturedShop {
@@ -38,7 +36,6 @@ const FeaturedShops = ({
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const { t } = useTranslation("home");
-  const { showLoader } = useGlobalLoader();
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -75,7 +72,6 @@ const FeaturedShops = ({
 
     // If we are on the home page, redirect to the offers page with the shopId filter
     const targetPath = pathname === "/" ? "/offers" : pathname;
-    showLoader("Loading shop offers...");
     router.push(`${targetPath}?${params.toString()}`);
   };
 
