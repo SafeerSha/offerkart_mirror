@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Eye, EyeOff, Mail, Lock, ArrowRight } from "lucide-react";
 import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import { Input } from "@/components/ui/input";
@@ -162,9 +163,7 @@ export default function LoginPage() {
                 {/* Content */}
                 <div className="relative z-10 flex flex-col justify-center px-16 text-white">
                     <div className="mb-8">
-                        <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-8">
-                            <span className="text-3xl font-bold">O</span>
-                        </div>
+                        <Image src="/logo_only.png" alt="Logo" width={40} height={40} className="object-contain drop-shadow-sm" />
                         <h1 className="text-5xl font-bold mb-4 leading-tight">
                             {t("decorative.welcome").split('\n')[0]}<br />
                             {t("decorative.welcome").split('\n')[1]}
@@ -212,10 +211,10 @@ export default function LoginPage() {
                     <div className="w-full max-w-md">
                         {/* Mobile Logo */}
                         <div className="lg:hidden text-center mb-8">
-                            <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-orange-500 to-rose-500 rounded-2xl mb-4">
-                                <span className="text-2xl font-bold text-white">O</span>
+                            <div className="flex items-center justify-center mb-4">
+                                <Image src="/logo_only.png" alt="Logo" width={40} height={40} className="object-contain drop-shadow-sm" />
+                                <Image src="/text_only.png" alt="OfferNearU" width={150} height={45} className="h-8 w-auto object-contain ml-2" />
                             </div>
-                            <h2 className="text-2xl font-bold text-gray-900">OfferNearU</h2>
                         </div>
 
                         <div className="mb-8">
