@@ -3,7 +3,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, Suspense } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useIsFetching, useIsMutating } from "@tanstack/react-query";
-import { Loader2 } from "@/lib/icons";
 
 interface GlobalLoaderContextType {
     isLoading: boolean;

@@ -419,7 +419,7 @@ export default function OffersClient({
 
                         <OfferGrid isLoading={isLoading} offers={offers} disablePagination={true} columns={5} />
 
-                        {error && !isLoading && offers.length === 0 && (
+                        {/* {error && !isLoading && offers.length === 0 && (
                             <div className="flex flex-col items-center justify-center py-16 gap-4">
                                 <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center">
                                     <AlertTriangle className="w-7 h-7 text-red-400" />
@@ -435,7 +435,7 @@ export default function OffersClient({
                                     Retry
                                 </button>
                             </div>
-                        )}
+                        )} */}
 
                         <div id="scroll-trigger" className="w-full py-12 flex items-center justify-center">
                             {isFetchingNextPage && (

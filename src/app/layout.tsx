@@ -12,6 +12,7 @@ import {
 import "./globals.css";
 import { Providers } from "./providers";
 import { ConditionalHeader } from "@/components/layout/ConditionalHeader";
+import { OfflineDetector } from "@/components/layout/OfflineDetector";
 import { cookies } from "next/headers";
 import { Locale } from "@/lib/i18n/config";
 
@@ -102,8 +103,10 @@ export default async function RootLayout({
     <html lang={locale} suppressHydrationWarning>
       <body className={`${rubik.variable} ${inter.variable} ${playfair.variable} ${staatliches.variable} ${montserrat.variable} ${outfit.variable} ${quicksand.variable} ${bebasNeue.variable} antialiased`} suppressHydrationWarning>
         <Providers locale={locale} dictionary={dictionary}>
-          <ConditionalHeader />
-          {children}
+          <OfflineDetector>
+            <ConditionalHeader />
+            {children}
+          </OfflineDetector>
         </Providers>
       </body>
     </html>
