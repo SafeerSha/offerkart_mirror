@@ -122,7 +122,7 @@ function BranchPreviewCard({
                 {/* Location Info */}
                 <div className="space-y-3.5">
                     <SectionTitle className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Information</SectionTitle>
-                    
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="flex items-start gap-2.5 bg-gray-50/60 p-3 rounded-xl border border-gray-100/80">
                             <div className="w-7 h-7 rounded-lg bg-white border border-gray-100 flex items-center justify-center text-gray-500 shrink-0 shadow-xs">
@@ -368,7 +368,7 @@ export default function BranchListPage({ shopId }: BranchListPageProps) {
                             Branches
                         </Heading>
                         <Text className="text-xs sm:text-sm text-gray-500 font-medium mt-1">
-                            Manage locations for <span className="text-gray-900 font-bold">{shopName}</span>
+                            Manage branches for <span className="text-gray-900 font-bold">{shopName}</span>
                         </Text>
                     </div>
                     <PremiumButton asChild className="rounded-2xl shadow-lg shadow-primary/20 shrink-0">

@@ -22,7 +22,7 @@ export const s3Api = {
     uploadImage: async (file: File, folder?: string): Promise<ApiResponse<{ url: string }>> => {
         const performUpload = async (fileToUpload: File | Blob): Promise<ApiResponse<{ url: string }>> => {
             const formData = new FormData();
-            formData.append("file", fileToUpload);
+            formData.append("file", fileToUpload, file.name);
             if (folder) {
                 formData.append("folder", folder);
             }

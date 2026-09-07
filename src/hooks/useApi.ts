@@ -262,7 +262,8 @@ export function useDeleteOffer() {
   return useMutation({
     mutationFn: ({ id, shopId, offer }: { id: string; shopId?: string; offer?: any }) => deleteOffer(id, shopId),
     onSuccess: (_, { shopId, offer }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.allOffers(shopId) });
+      // Invalidate the base query key so it matches all queries with params (e.g. { limit: 50 })
+      queryClient.invalidateQueries({ queryKey: ["allOffers", shopId] });
       queryClient.invalidateQueries({ queryKey: ["infiniteUserOffers"] });
       queryClient.invalidateQueries({ queryKey: ["featuredOffers"] });
       queryClient.invalidateQueries({ queryKey: ["featuredShops"] });

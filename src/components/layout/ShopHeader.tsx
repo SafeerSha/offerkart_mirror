@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { LogOut, User, Menu, X, Loader2, Store, LayoutDashboard, Tags, Package } from "lucide-react";
+import { LogOut, User, Menu, X, Loader2, LayoutDashboard, Tags, Package } from "lucide-react";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { cn } from "@/lib/utils";
@@ -99,15 +99,15 @@ export default function ShopHeader() {
                                 {/* Logo */}
                                 <div className="flex-1 flex justify-start">
                                     <Link href="/" className="flex items-center flex-shrink-0 group cursor-pointer border-0 outline-none focus:ring-0">
-                                        <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-1">
                                             <div className="relative">
-                                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-orange-500 flex items-center justify-center transform transition-all duration-500 group-hover:scale-110 group-hover:rotate-3 group-hover:shadow-lg group-hover:shadow-primary/20">
-                                                    <Store className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transform transition-all duration-500">
+                                                    <Image src="/logo_only.png" alt="Logo" width={32} height={32} className="object-contain" />
                                                 </div>
                                             </div>
                                             <div className="flex flex-col">
-                                                <span className="font-sans text-lg sm:text-xl font-black block text-gray-900 group-hover:text-primary transition-colors leading-none">
-                                                    OfferNearU
+                                                <span className="font-sans text-lg sm:text-xl font-black block group-hover:text-primary transition-colors leading-none">
+                                                    Offer<span className="text-orange-500">Near</span>U
                                                 </span>
                                                 <span className="text-[10px] font-bold text-orange-500 uppercase tracking-widest mt-0.5">
                                                     Business
@@ -164,11 +164,11 @@ export default function ShopHeader() {
                     )}>
                         <div className="grid grid-cols-[1fr_auto_auto] items-center gap-1 px-4 text-foreground h-12">
                             <div className="flex items-center gap-1 min-w-0">
-                                <div className="w-7 h-7 rounded-full bg-orange-500/10 flex items-center justify-center font-bold text-sm shrink-0 text-orange-600">
-                                    <Store className="w-4 h-4" />
+                                <div className="w-7 h-7 flex items-center justify-center font-bold text-sm shrink-0 text-orange-600">
+                                    <Image src="/logo_only.png" alt="Logo" width={24} height={24} className="object-contain" />
                                 </div>
-                                <span className="font-sans text-sm font-semibold truncate">
-                                    OfferNearU
+                                <span className="font-sans text-sm font-bold truncate text-primary">
+                                    Offer<span className="text-orange-500">Near</span>U
                                 </span>
                             </div>
                             <div className="flex justify-end min-w-0 cursor-pointer pr-1" onClick={() => setIslandExpanded(true)}>
