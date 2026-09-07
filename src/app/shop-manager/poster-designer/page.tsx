@@ -852,17 +852,30 @@ function PosterDesignerInner() {
                         />
                     </div>
 
-                    <MultiSearchableSelect
-                        placeholder="Select branches..."
-                        options={branches.map((b: any) => ({
-                            value: String(b.id),
-                            label: b.branch_name || b.name || "Main Branch",
-                        }))}
-                        selectedValues={selectedBranchIds}
-                        onChange={setSelectedBranchIds}
-                        error={publishErrors.branch}
-                        required
-                    />
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                            Select Branches <span className="text-red-500">*</span>
+                        </label>
+                        <MultiSearchableSelect
+                            placeholder="Select branches..."
+                            options={branches.map((b: any) => ({
+                                value: String(b.id),
+                                label: b.branch_name || b.name || "Main Branch",
+                            }))}
+                            selectedValues={selectedBranchIds}
+                            onChange={(vals) => {
+                                setSelectedBranchIds(vals);
+                                if (vals.length > 0 && publishErrors.branch) {
+                                    setPublishErrors((p) => ({ ...p, branch: undefined }));
+                                }
+                            }}
+                        />
+                        {publishErrors.branch && (
+                            <p className="text-xs font-medium text-red-500 ml-1 animate-in fade-in slide-in-from-top-1">
+                                {publishErrors.branch}
+                            </p>
+                        )}
+                    </div>
 
                     <SocialLinksEditor
                         socialLinks={socialLinks}
