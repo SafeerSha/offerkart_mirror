@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tag, Eye, Clock, Pencil, Trash2, GitBranch, Calendar, Plus, ArrowRight } from "@/lib/icons";
 import { PremiumButton, StatusToggleButton } from "@/components/shared";
 import { getRelativeTime } from "@/lib/utils";
+import { formatOfferType } from "@/lib/common";
 import { SwipeableCard } from "./SwipeableCard";
 
 interface OffersTabProps {
@@ -129,9 +130,11 @@ export function OffersTab({
                                         </h4>
 
                                         <div className="flex items-center gap-1.5 mt-0.5 min-w-0 pr-2">
-                                            <div className="text-[9px] font-bold text-orange-500 uppercase tracking-widest leading-none truncate">
-                                                {offer.type ? `${offer.type}` : ''}
-                                            </div>
+                                            {offer.type && (
+                                                <div className="text-[9px] font-bold text-orange-500 tracking-wider leading-none truncate">
+                                                    {formatOfferType(offer.type)}
+                                                </div>
+                                            )}
                                             {(() => {
                                                 if (!offer.validTo) return null;
                                                 const expiryDate = new Date(offer.validTo);
@@ -207,7 +210,7 @@ export function OffersTab({
                         <div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center mb-4">
                             <Tag className="w-8 h-8 text-primary/20" />
                         </div>
-                        <p className="text-base font-bold text-gray-900">Your Campaign Catalog is Empty</p>
+                        <p className="text-base font-bold text-gray-900">Your Offer Catalog is Empty</p>
                         <p className="text-sm text-gray-500 max-w-xs mt-1 mb-4">Start publishing offers to showcase them to your customers.</p>
                         <PremiumButton onClick={onAddOffer} className="rounded-xl shadow-lg shadow-primary/20">
                             Add Offer

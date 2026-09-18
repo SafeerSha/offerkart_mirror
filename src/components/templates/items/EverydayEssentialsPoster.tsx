@@ -4,6 +4,7 @@ import React from 'react';
 import { TemplateProps } from '../types';
 import { ProductSlot } from '../shared/ProductSlot';
 import { EditableText } from '../shared/EditableText';
+import { ShopLogo } from '../shared/ShopLogo';
 import { Phone, MapPin, Sparkles, Check, Heart, Box } from 'lucide-react';
 
 export function EverydayEssentialsPosterTemplate({
@@ -31,10 +32,7 @@ export function EverydayEssentialsPosterTemplate({
                 .font-playfair { font-family: 'Playfair Display', Georgia, serif; }
             `}</style>
 
-            {/* Background Botanical Flourishes */}
-            <div className="absolute right-[-20px] top-[140px] text-[#5c7d61] text-6xl select-none pointer-events-none opacity-40 rotate-[18deg] z-0">
-                ❧
-            </div>
+            {/* Background Botanical Flourishes (Body area) */}
             <div className="absolute left-[-25px] top-[370px] text-[#5c7d61] text-7xl select-none pointer-events-none opacity-30 rotate-[-22deg] z-0">
                 ❧
             </div>
@@ -44,77 +42,81 @@ export function EverydayEssentialsPosterTemplate({
 
             {/* ── HEADER ── */}
             {!excludeHeader && (
-                <header className="h-[235px] px-8 pt-6 pb-4 flex flex-col justify-between relative z-10 shrink-0 border-b border-[#5c7d61]/20">
-                    <div className="flex items-start justify-between">
-                        {/* Shop Logo & Name */}
-                        <div className="flex items-center gap-4">
-                            {shopData.logoUrl ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                    src={shopData.logoUrl}
-                                    alt="Shop Logo"
-                                    className="w-16 h-16 object-contain bg-white rounded-xl p-2 shadow-sm border border-[#17383d]/15"
-                                    crossOrigin="anonymous"
-                                />
-                            ) : (
-                                <div className="w-16 h-16 rounded-xl bg-white border border-[#17383d]/20 flex flex-col items-center justify-center text-[#17383d] shadow-sm font-black text-[10px] leading-tight text-center">
-                                    <Sparkles className="w-5 h-5 text-[#5c7d61] mb-1" />
-                                    <span>{shopData.shopName ? shopData.shopName.substring(0, 8).toUpperCase() : "STORE"}</span>
-                                </div>
-                            )}
-
-                            <div>
-                                <h2 className="text-2xl font-extrabold uppercase tracking-tight text-[#17383d]">
-                                    {shopData.shopName || "EVERYDAY STORE"}
-                                </h2>
-                                <p className="text-xs font-semibold text-[#5c7d61] tracking-wider mt-0.5">
-                                    Quality Assured • Best Value
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Top Micro Tagline */}
-                        <div className="text-right">
-                            <span className="font-playfair text-base font-semibold italic text-[#25434a] leading-tight block">
-                                Live Better Everyday
-                            </span>
-                            <span className="text-[11px] font-bold text-[#5c7d61] uppercase tracking-widest block mt-0.5">
-                                Curated Essentials
-                            </span>
-                        </div>
+                <>
+                    {/* Background Botanical Flourishes (Header area) */}
+                    <div className="absolute right-[-20px] top-[140px] text-[#5c7d61] text-6xl select-none pointer-events-none opacity-40 rotate-[18deg] z-0">
+                        ❧
                     </div>
 
-                    {/* Campaign Title & Subtitle */}
-                    <div className="flex items-end justify-between mt-2 pt-2 border-t border-[#17383d]/10">
-                        <div className="flex-1 mr-4">
-                            <EditableText
-                                as="h1"
-                                value={campaignInfo.title || "Everyday Essentials"}
-                                onChange={(val) => onFieldChange?.('title', val)}
-                                isEditable={isEditable}
-                                placeholder="Click to edit campaign title..."
-                                className="font-playfair text-4xl font-bold tracking-tight text-[#17383d] leading-none"
-                            />
-                            <EditableText
-                                as="p"
-                                value={campaignInfo.subtitle || "Great Products • Great Prices"}
-                                onChange={(val) => onFieldChange?.('subtitle', val)}
-                                isEditable={isEditable}
-                                placeholder="Click to edit subtitle..."
-                                className="text-sm font-bold text-[#5c7d61] mt-1 tracking-wide"
-                            />
-                        </div>
+                    <header className="h-[235px] px-8 pt-6 pb-4 flex flex-col justify-between relative z-10 shrink-0 border-b border-[#5c7d61]/20">
+                        <div className="flex items-start justify-between">
+                            {/* Shop Logo & Name */}
+                            <div className="flex items-center gap-4">
+                                <ShopLogo
+                                    logoUrl={shopData.logoUrl}
+                                    shopName={shopData.shopName}
+                                    className="w-16 h-16 object-contain bg-white rounded-xl p-2 shadow-sm border border-[#17383d]/15"
+                                    fallback={
+                                        <div className="w-16 h-16 rounded-xl bg-white border border-[#17383d]/20 flex flex-col items-center justify-center text-[#17383d] shadow-sm font-black text-[10px] leading-tight text-center">
+                                            <Sparkles className="w-5 h-5 text-[#5c7d61] mb-1" />
+                                            <span>{shopData.shopName ? shopData.shopName.substring(0, 8).toUpperCase() : "STORE"}</span>
+                                        </div>
+                                    }
+                                />
 
-                        {(campaignInfo.validFrom || campaignInfo.validTo) && (
-                            <div className="bg-[#17383d] text-white px-4 py-2 rounded-xl shadow-sm text-right shrink-0">
-                                <span className="text-[10px] uppercase text-[#a5c4ab] block font-bold">Limited Period</span>
-                                <span className="text-xs font-black text-white">
-                                    {campaignInfo.validFrom || "Now"} - {campaignInfo.validTo || "Stock Lasts"}
+                                <div>
+                                    <h2 className="text-2xl font-extrabold uppercase tracking-tight text-[#17383d]">
+                                        {shopData.shopName || "EVERYDAY STORE"}
+                                    </h2>
+                                    <p className="text-xs font-semibold text-[#5c7d61] tracking-wider mt-0.5">
+                                        Quality Assured • Best Value
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Top Micro Tagline */}
+                            <div className="text-right">
+                                <span className="font-playfair text-base font-semibold italic text-[#25434a] leading-tight block">
+                                    Live Better Everyday
+                                </span>
+                                <span className="text-[11px] font-bold text-[#5c7d61] uppercase tracking-widest block mt-0.5">
+                                    Curated Essentials
                                 </span>
                             </div>
-                        )}
-                    </div>
-                </header>
+                        </div>
+
+                        {/* Offer Title & Subtitle */}
+                        <div className="flex items-end justify-between mt-2 pt-2 border-t border-[#17383d]/10">
+                            <div className="flex-1 mr-4">
+                                <EditableText
+                                    as="h1"
+                                    value={campaignInfo.title || "Everyday Essentials"}
+                                    onChange={(val) => onFieldChange?.('title', val)}
+                                    isEditable={isEditable}
+                                    placeholder="Click to edit offer title..."
+                                    className="font-playfair text-4xl font-bold tracking-tight text-[#17383d] leading-none"
+                                />
+                                <EditableText
+                                    as="p"
+                                    value={campaignInfo.subtitle || "Great Products • Great Prices"}
+                                    onChange={(val) => onFieldChange?.('subtitle', val)}
+                                    isEditable={isEditable}
+                                    placeholder="Click to edit subtitle..."
+                                    className="text-sm font-bold text-[#5c7d61] mt-1 tracking-wide"
+                                />
+                            </div>
+
+                            {(campaignInfo.validFrom || campaignInfo.validTo) && (
+                                <div className="bg-[#17383d] text-white px-4 py-2 rounded-xl shadow-sm text-right shrink-0">
+                                    <span className="text-[10px] uppercase text-[#a5c4ab] block font-bold">Limited Period</span>
+                                    <span className="text-xs font-black text-white">
+                                        {campaignInfo.validFrom || "Now"} - {campaignInfo.validTo || "Stock Lasts"}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                    </header>
+                </>
             )}
 
             {/* ── PRODUCT GRID ── */}
@@ -138,9 +140,10 @@ export function EverydayEssentialsPosterTemplate({
                             accentColor="#17383d"
                             density={rows >= 5 ? 'dense' : rows === 4 ? 'compact' : 'normal'}
                             imageContainerClassName={
-                                rows >= 5 ? "max-h-[85px] aspect-auto h-[85px]" :
-                                rows === 4 ? "max-h-[125px] aspect-auto h-[125px]" :
-                                "aspect-square max-h-[175px]"
+                                rows >= 5 ? "max-h-[75px] aspect-auto h-[75px]" :
+                                    rows === 4 ? "max-h-[100px] aspect-auto h-[100px]" :
+                                        rows === 3 ? "max-h-[140px] aspect-auto h-[140px]" :
+                                            "aspect-square max-h-[175px]"
                             }
                             className="h-full bg-white/90 shadow-sm border border-[#17383d]/15 hover:border-[#17383d]/40"
                         />

@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Tag, ShoppingBag, Pencil, Trash2 } from "@/lib/icons";
+import { formatOfferType } from "@/lib/common";
 import { SwipeableCard } from "./SwipeableCard";
 
 interface DraftsTabProps {
@@ -79,8 +80,8 @@ export function DraftsTab({
                             <div className="min-w-0 flex-1 z-10 flex flex-col justify-center self-stretch py-0.5">
                                 <h4 className="font-bold text-xs text-gray-900 truncate">{title}</h4>
                                 <div className="flex items-center gap-1.5 mt-1">
-                                    <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">
-                                        {isOffer ? `Offer Draft ${draft.type ? `• ${draft.type}` : ''}` : 'Product Draft'}
+                                    <span className="text-[10px] font-semibold text-primary tracking-wider">
+                                        {isOffer ? `Offer Draft ${draft.type ? `• ${formatOfferType(draft.type)}` : ''}` : 'Product Draft'}
                                     </span>
                                 </div>
                             </div>

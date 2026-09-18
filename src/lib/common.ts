@@ -26,3 +26,16 @@ export function formatShortDate(date: string | Date | number | undefined | null)
     if (isNaN(parsed.getTime())) return "";
     return parsed.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit" });
 }
+
+/**
+ * Formats offer type into user-friendly capitalized label.
+ * "BUILDER" / "DESIGNED" -> "Designed"
+ * "UPLOAD" / "UPLOADED" -> "Uploaded"
+ */
+export function formatOfferType(type?: string | null): string {
+    if (!type) return "";
+    const upper = type.toUpperCase().trim();
+    if (upper === "BUILDER" || upper === "DESIGNED") return "Designed";
+    if (upper === "UPLOAD" || upper === "UPLOADED") return "Uploaded";
+    return type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
+}

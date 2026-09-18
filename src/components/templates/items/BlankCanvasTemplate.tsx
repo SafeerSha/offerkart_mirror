@@ -4,6 +4,7 @@ import React from 'react';
 import { TemplateProps } from '../types';
 import { ProductSlot } from '../shared/ProductSlot';
 import { EditableText } from '../shared/EditableText';
+import { ShopLogo } from '../shared/ShopLogo';
 import { Phone, MapPin, Store } from 'lucide-react';
 
 export function BlankCanvasTemplate({
@@ -31,19 +32,16 @@ export function BlankCanvasTemplate({
                 <header className="h-[200px] bg-slate-900 text-white px-8 py-5 flex flex-col justify-between relative shadow-md shrink-0">
                     <div className="flex items-center justify-between z-10">
                         <div className="flex items-center gap-4">
-                            {shopData.logoUrl ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                    src={shopData.logoUrl}
-                                    alt="Shop Logo"
-                                    className="w-18 h-18 object-contain bg-white rounded-xl p-1.5 shadow"
-                                    crossOrigin="anonymous"
-                                />
-                            ) : (
-                                <div className="w-16 h-16 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300">
-                                    <Store className="w-8 h-8" />
-                                </div>
-                            )}
+                            <ShopLogo
+                                logoUrl={shopData.logoUrl}
+                                shopName={shopData.shopName}
+                                className="w-18 h-18 object-contain bg-white rounded-xl p-1.5 shadow"
+                                fallback={
+                                    <div className="w-16 h-16 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300">
+                                        <Store className="w-8 h-8" />
+                                    </div>
+                                }
+                            />
 
                             <div>
                                 <h2 className="text-3xl font-extrabold uppercase tracking-tight text-white">
@@ -67,7 +65,7 @@ export function BlankCanvasTemplate({
                                 value={campaignInfo.title || "SPECIAL PROMOTIONAL OFFERS"}
                                 onChange={(val) => onFieldChange?.('title', val)}
                                 isEditable={isEditable}
-                                placeholder="Click to edit campaign title..."
+                                placeholder="Click to edit offer title..."
                                 className="text-3xl font-extrabold uppercase tracking-tight text-indigo-400 drop-shadow leading-none"
                             />
                             <EditableText
@@ -113,9 +111,10 @@ export function BlankCanvasTemplate({
                             accentColor="#4f46e5"
                             density={rows >= 5 ? 'dense' : rows === 4 ? 'compact' : 'normal'}
                             imageContainerClassName={
-                                rows >= 5 ? "max-h-[85px] aspect-auto h-[85px]" :
-                                rows === 4 ? "max-h-[125px] aspect-auto h-[125px]" :
-                                "aspect-square max-h-[160px]"
+                                rows >= 5 ? "max-h-[75px] aspect-auto h-[75px]" :
+                                    rows === 4 ? "max-h-[100px] aspect-auto h-[100px]" :
+                                        rows === 3 ? "max-h-[140px] aspect-auto h-[140px]" :
+                                            "aspect-square max-h-[175px]"
                             }
                             className="h-full"
                         />

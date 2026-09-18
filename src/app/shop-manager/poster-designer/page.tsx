@@ -28,6 +28,7 @@ import type { MarkedItem } from "@/lib/types/offer";
 import { storage } from "@/lib/storage";
 import { SocialLinksEditor, type SocialLink } from "@/components/offer/SocialLinksEditor";
 import { capturePosterAsImage } from "@/lib/capturePoster";
+import { resolveShopLogoUrl } from "@/lib/imageUtils";
 
 function parseRawDesigner(data: string) {
     try {
@@ -91,13 +92,21 @@ function PosterDesignerInner() {
         return Array.isArray(result) ? result : (result.data || []);
     }, [shopsResponse]);
 
-    const activeShop = shops[0] as any | undefined;
     const activeShopId = useMemo(() => {
         const sid = session?.shopId ?? (session?.user as any)?.shopId;
         if (sid) return String(sid);
-        if (shops.length > 0) return String(shops[0].id);
+        if (shops.length > 0) return String(shops[0].id ?? shops[0]._id ?? shops[0].shopId ?? '');
         return null;
     }, [session, shops]);
+
+    const activeShop = useMemo(() => {
+        if (!shops.length) return undefined;
+        if (activeShopId) {
+            const match = shops.find((s: any) => String(s.id ?? s._id ?? s.shopId) === String(activeShopId));
+            if (match) return match;
+        }
+        return shops[0];
+    }, [shops, activeShopId]);
 
     // Fetch Branches
     const { data: branchesResponse } = useBranches(activeShopId || "");
@@ -128,7 +137,7 @@ function PosterDesignerInner() {
             shopPhone,
             shopEmail,
             branches: activeBranches.length > 0 ? activeBranches : undefined,
-            logoUrl: activeShop?.logo_url || undefined,
+            logoUrl: resolveShopLogoUrl(activeShop, session?.user),
         };
     }, [activeShop, session, branches]);
 
@@ -211,16 +220,26 @@ function PosterDesignerInner() {
         [posterPages, activePageId]
     );
 
-    // Used product IDs across all pages to highlight in picker
-    const usedProductIds = useMemo(() => {
-        const set = new Set<string>();
+    // Used product IDs & titles across all pages to prevent duplicate additions
+    const { usedProductIds, usedProductTitles } = useMemo(() => {
+        const ids = new Set<string>();
+        const titles = new Set<string>();
+
         posterPages.forEach((page) => {
-            Object.values(page.products).forEach((p) => {
-                if (p.sourceProductId) set.add(String(p.sourceProductId));
+            const isCurrent = page.id === activePageId;
+            Object.entries(page.products).forEach(([slotStr, p]) => {
+                const sIdx = Number(slotStr);
+                if (isCurrent && selectedSlotIndex !== null && sIdx === selectedSlotIndex) {
+                    return;
+                }
+                if (p.sourceProductId) ids.add(String(p.sourceProductId));
+                if (p.id) ids.add(String(p.id));
+                if (p.title) titles.add(p.title.trim().toLowerCase());
             });
         });
-        return set;
-    }, [posterPages]);
+
+        return { usedProductIds: ids, usedProductTitles: titles };
+    }, [posterPages, activePageId, selectedSlotIndex]);
 
     // Handlers: Template Selection
     const handleSelectTemplate = (template: TemplateMeta | any) => {
@@ -248,10 +267,12 @@ function PosterDesignerInner() {
     const handleAddNewPage = () => {
         if (posterPages.length >= 11 || !activePage) return;
         const pageId = crypto.randomUUID();
+        const selectedThemeId = posterPages[0]?.templateId || activePage.templateId || "hypermarket-red";
         const newPage: PosterPageDraft = {
             id: pageId,
-            templateId: activePage.templateId,
+            templateId: selectedThemeId,
             campaignInfo: { ...activePage.campaignInfo },
+            gridConfig: activePage.gridConfig ? { ...activePage.gridConfig } : undefined,
             products: {},
         };
         setPosterPages((prev) => [...prev, newPage]);
@@ -282,6 +303,32 @@ function PosterDesignerInner() {
 
     const handleSelectProduct = (product: ProductSlotItem) => {
         if (selectedSlotIndex === null || !activePageId) return;
+
+        const candId = String(product.sourceProductId || product.id || '');
+        const candTitle = (product.title || '').trim().toLowerCase();
+
+        // Check if product is already assigned to another slot across all pages
+        for (let pIdx = 0; pIdx < posterPages.length; pIdx++) {
+            const pDraft = posterPages[pIdx];
+            const isCurrentPage = pDraft.id === activePageId;
+            for (const [slotStr, item] of Object.entries(pDraft.products)) {
+                const sIdx = Number(slotStr);
+                if (isCurrentPage && sIdx === selectedSlotIndex) {
+                    continue; // replacing current slot with same or new product
+                }
+                if (!item) continue;
+                const itemId = String(item.sourceProductId || item.id || '');
+                const itemTitle = (item.title || '').trim().toLowerCase();
+
+                const idMatch = Boolean(candId && (candId === itemId || candId === String(item.id)));
+                const titleMatch = Boolean(candTitle && candTitle === itemTitle);
+
+                if (idMatch || titleMatch) {
+                    toast.error(`"${product.title}" is already added in Slot ${sIdx + 1}${posterPages.length > 1 ? ` (Page ${pIdx + 1})` : ''}.`);
+                    return;
+                }
+            }
+        }
 
         setPosterPages((prev) =>
             prev.map((page) => {
@@ -334,13 +381,27 @@ function PosterDesignerInner() {
             prev.map((page) =>
                 page.id === pageId
                     ? {
-                          ...page,
-                          gridConfig,
-                      }
+                        ...page,
+                        gridConfig,
+                    }
                     : page
             )
         );
     };
+
+    const handleUpdatePage = (pageId: string, updates: Partial<PosterPageDraft>) => {
+        setPosterPages((prev) =>
+            prev.map((page) => (page.id === pageId ? { ...page, ...updates } : page))
+        );
+    };
+
+    const handleSwitchTemplate = (_pageId: string, templateId: string) => {
+        // Theme selection applies cohesively across all pages of the poster flyer
+        setPosterPages((prev) =>
+            prev.map((page) => ({ ...page, templateId }))
+        );
+    };
+
 
     // Custom Product Submission
     const handleCustomProductSubmit = async (payload: any) => {
@@ -433,7 +494,7 @@ function PosterDesignerInner() {
     // Save Draft
     const handleSaveDraft = async () => {
         if (!offerTitle.trim()) {
-            toast.error("Please enter a campaign name before saving a draft.");
+            toast.error("Please enter a offer name before saving a draft.");
             return;
         }
 
@@ -527,7 +588,7 @@ function PosterDesignerInner() {
     // Final Publish
     const handlePublishSubmit = async () => {
         const errors: { title?: string; validFrom?: string; validTo?: string; branch?: string } = {};
-        if (!offerTitle.trim()) errors.title = "Campaign title is required";
+        if (!offerTitle.trim()) errors.title = "Offer title is required";
         if (!validFrom) errors.validFrom = "Start date is required";
         if (!validTo) errors.validTo = "End date is required";
         if (validFrom && validTo && validTo < validFrom) errors.validTo = "End date must be after start date";
@@ -537,7 +598,7 @@ function PosterDesignerInner() {
         if (Object.keys(errors).length > 0) return;
 
         setIsPublishing(true);
-        const toastId = toast.loading("Publishing campaign...");
+        const toastId = toast.loading("Publishing offer...");
 
         try {
             // Upload all captured poster images to S3
@@ -599,11 +660,11 @@ function PosterDesignerInner() {
                     console.warn("Storage sync failed:", storageErr);
                 }
 
-                toast.success("Campaign published successfully!", { id: toastId });
+                toast.success("Offer published successfully!", { id: toastId });
                 setShowPublishModal(false);
                 router.push("/shop-manager");
             } else {
-                toast.error((res as any).message || "Failed to publish campaign", { id: toastId });
+                toast.error((res as any).message || "Failed to publish offer", { id: toastId });
             }
         } catch (err: any) {
             console.error("Publish error", err);
@@ -627,7 +688,7 @@ function PosterDesignerInner() {
                         ]}
                         className="mb-0"
                     />
-                    
+
                     {/* Right Actions */}
                     <div className="flex items-center gap-2.5">
                         <button
@@ -668,6 +729,7 @@ function PosterDesignerInner() {
                         <PosterTemplateSelector
                             onSelect={handleSelectTemplate}
                             shopName={shopData.shopName}
+                            logoUrl={shopData.logoUrl}
                         />
                     </div>
                 ) : activePage ? (
@@ -740,11 +802,18 @@ function PosterDesignerInner() {
                                     <TemplateCanvasWorkspace
                                         page={page}
                                         pageIndex={idx}
+                                        allPages={posterPages}
+                                        usedProductIds={usedProductIds}
+                                        usedProductTitles={usedProductTitles}
                                         shopData={shopData}
+                                        shopId={activeShopId}
                                         onSlotClick={handleSlotClick}
                                         onSlotRemove={handleSlotRemove}
                                         onFieldChange={handleUpdateCampaignField}
                                         onGridConfigChange={(newGrid) => handleUpdateGridConfig(page.id, newGrid)}
+                                        onUpdatePage={(updates) => handleUpdatePage(page.id, updates)}
+                                        onSelectTemplate={(templateId) => handleSwitchTemplate(page.id, templateId)}
+                                        onOpenCreateProductModal={() => setShowCustomProductModal(true)}
                                         canvasRef={{
                                             get current() {
                                                 return canvasRefs.current[page.id] || null;
@@ -768,6 +837,7 @@ function PosterDesignerInner() {
                 slotIndex={selectedSlotIndex}
                 shopId={activeShopId}
                 usedProductIds={usedProductIds}
+                usedProductTitles={usedProductTitles}
                 onSelectProduct={handleSelectProduct}
                 onOpenCustomProductModal={() => setShowCustomProductModal(true)}
             />
@@ -781,12 +851,12 @@ function PosterDesignerInner() {
                 availableBranches={branches}
             />
 
-            {/* Campaign Publish Modal */}
+            {/* Offer Publish Modal */}
             <AppModal
                 open={showPublishModal}
                 onOpenChange={setShowPublishModal}
-                title="Publish Campaign"
-                description="Finalize campaign schedule and target branches before publishing."
+                title="Publish Offer"
+                description="Finalize offer schedule and target branches before publishing."
                 className="max-w-xl"
                 footer={
                     <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center sm:justify-between w-full">
@@ -829,7 +899,7 @@ function PosterDesignerInner() {
             >
                 <div className="space-y-4 py-2">
                     <PremiumInput
-                        label="Campaign Title"
+                        label="Offer Title"
                         placeholder="e.g. Weekend Mega Savings Bonanza"
                         value={offerTitle}
                         onChange={(e) => setOfferTitle(e.target.value)}
@@ -889,7 +959,7 @@ function PosterDesignerInner() {
                 open={showDraftNameModal}
                 onOpenChange={setShowDraftNameModal}
                 title="Save Draft"
-                description="Give your draft campaign a name so you can find it later."
+                description="Give your draft offer a name so you can find it later."
                 className="max-w-md"
                 footer={
                     <div className="flex items-center gap-2 justify-end w-full">
@@ -913,7 +983,7 @@ function PosterDesignerInner() {
             >
                 <div className="py-2">
                     <PremiumInput
-                        label="Campaign Title"
+                        label="Offer Title"
                         placeholder="e.g. Weekend Mega Savings"
                         value={offerTitle}
                         onChange={(e) => setOfferTitle(e.target.value)}

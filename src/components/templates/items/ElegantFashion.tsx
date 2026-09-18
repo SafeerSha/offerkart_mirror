@@ -4,6 +4,7 @@ import React from 'react';
 import { TemplateProps } from '../types';
 import { ProductSlot } from '../shared/ProductSlot';
 import { EditableText } from '../shared/EditableText';
+import { ShopLogo } from '../shared/ShopLogo';
 import { Phone, MapPin, Sparkles, Gem } from 'lucide-react';
 
 export function ElegantFashionTemplate({
@@ -31,19 +32,16 @@ export function ElegantFashionTemplate({
                 <header className="h-[210px] bg-[#1a1715] text-[#f5f1eb] px-10 py-6 flex flex-col justify-between relative shadow-lg shrink-0 border-b border-amber-500/20">
                     <div className="flex items-center justify-between z-10">
                         <div className="flex items-center gap-4 font-sans">
-                            {shopData.logoUrl ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                    src={shopData.logoUrl}
-                                    alt="Shop Logo"
-                                    className="w-18 h-18 object-contain bg-white/5 backdrop-blur-md rounded-xl p-2 border border-amber-300/30"
-                                    crossOrigin="anonymous"
-                                />
-                            ) : (
-                                <div className="w-16 h-16 rounded-xl bg-amber-500/10 border border-amber-400/30 flex items-center justify-center text-amber-300">
-                                    <Gem className="w-7 h-7" />
-                                </div>
-                            )}
+                            <ShopLogo
+                                logoUrl={shopData.logoUrl}
+                                shopName={shopData.shopName}
+                                className="w-18 h-18 object-contain bg-white/5 backdrop-blur-md rounded-xl p-2 border border-amber-300/30"
+                                fallback={
+                                    <div className="w-16 h-16 rounded-xl bg-amber-500/10 border border-amber-400/30 flex items-center justify-center text-amber-300">
+                                        <Gem className="w-7 h-7" />
+                                    </div>
+                                }
+                            />
 
                             <div>
                                 <h2 className="text-2xl font-normal tracking-[0.2em] uppercase text-white font-serif">
@@ -67,7 +65,7 @@ export function ElegantFashionTemplate({
                                 value={campaignInfo.title || "SEASONAL EDIT: UP TO 50% OFF"}
                                 onChange={(val) => onFieldChange?.('title', val)}
                                 isEditable={isEditable}
-                                placeholder="Click to edit campaign title..."
+                                placeholder="Click to edit offer title..."
                                 className="text-3xl font-light tracking-wide text-amber-200 uppercase leading-none font-serif"
                             />
                             <EditableText
@@ -113,9 +111,10 @@ export function ElegantFashionTemplate({
                             accentColor="#b45309"
                             density={rows >= 5 ? 'dense' : rows === 4 ? 'compact' : 'normal'}
                             imageContainerClassName={
-                                rows >= 5 ? "max-h-[85px] aspect-auto h-[85px]" :
-                                rows === 4 ? "max-h-[125px] aspect-auto h-[125px]" :
-                                "aspect-square max-h-[160px]"
+                                rows >= 5 ? "max-h-[75px] aspect-auto h-[75px]" :
+                                    rows === 4 ? "max-h-[100px] aspect-auto h-[100px]" :
+                                        rows === 3 ? "max-h-[140px] aspect-auto h-[140px]" :
+                                            "aspect-square max-h-[175px]"
                             }
                             className="h-full border border-stone-200/80 shadow-sm hover:border-amber-700/50"
                         />

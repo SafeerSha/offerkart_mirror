@@ -4,6 +4,7 @@ import React from 'react';
 import { TemplateProps } from '../types';
 import { ProductSlot } from '../shared/ProductSlot';
 import { EditableText } from '../shared/EditableText';
+import { ShopLogo } from '../shared/ShopLogo';
 import { Phone, MapPin, Cpu, ShieldCheck } from 'lucide-react';
 
 export function TechBlueSaleTemplate({
@@ -34,19 +35,16 @@ export function TechBlueSaleTemplate({
 
                     <div className="flex items-center justify-between z-10">
                         <div className="flex items-center gap-4">
-                            {shopData.logoUrl ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                    src={shopData.logoUrl}
-                                    alt="Shop Logo"
-                                    className="w-20 h-20 object-contain bg-white/10 backdrop-blur-md rounded-2xl p-2 shadow-2xl border border-cyan-400/40"
-                                    crossOrigin="anonymous"
-                                />
-                            ) : (
-                                <div className="w-16 h-16 rounded-2xl bg-blue-600/20 backdrop-blur-md border border-cyan-400/40 flex items-center justify-center text-cyan-400 shadow-lg shadow-cyan-500/20">
-                                    <Cpu className="w-8 h-8" />
-                                </div>
-                            )}
+                            <ShopLogo
+                                logoUrl={shopData.logoUrl}
+                                shopName={shopData.shopName}
+                                className="w-20 h-20 object-contain bg-white/10 backdrop-blur-md rounded-2xl p-2 shadow-2xl border border-cyan-400/40"
+                                fallback={
+                                    <div className="w-16 h-16 rounded-2xl bg-blue-600/20 backdrop-blur-md border border-cyan-400/40 flex items-center justify-center text-cyan-400 shadow-lg shadow-cyan-500/20">
+                                        <Cpu className="w-8 h-8" />
+                                    </div>
+                                }
+                            />
 
                             <div>
                                 <h2 className="text-3xl font-black uppercase tracking-wider text-white drop-shadow">
@@ -71,7 +69,7 @@ export function TechBlueSaleTemplate({
                                 value={campaignInfo.title || "SMART TECH BONANZA"}
                                 onChange={(val) => onFieldChange?.('title', val)}
                                 isEditable={isEditable}
-                                placeholder="Click to edit campaign title..."
+                                placeholder="Click to edit offer title..."
                                 className="text-4xl font-black uppercase tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-300 to-blue-400 drop-shadow leading-none"
                             />
                             <EditableText
@@ -117,9 +115,10 @@ export function TechBlueSaleTemplate({
                             accentColor="#06b6d4"
                             density={rows >= 5 ? 'dense' : rows === 4 ? 'compact' : 'normal'}
                             imageContainerClassName={
-                                rows >= 5 ? "max-h-[85px] aspect-auto h-[85px]" :
-                                rows === 4 ? "max-h-[125px] aspect-auto h-[125px]" :
-                                "aspect-square max-h-[160px]"
+                                rows >= 5 ? "max-h-[75px] aspect-auto h-[75px]" :
+                                    rows === 4 ? "max-h-[100px] aspect-auto h-[100px]" :
+                                        rows === 3 ? "max-h-[140px] aspect-auto h-[140px]" :
+                                            "aspect-square max-h-[175px]"
                             }
                             className="h-full"
                         />
