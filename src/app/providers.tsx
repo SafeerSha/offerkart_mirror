@@ -22,7 +22,7 @@ if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
   };
 }
 
-export function Providers({ children, locale = "en", dictionary }: { children: React.ReactNode; locale?: Locale; dictionary: Record<string, any> }) {
+export default function Providers({ children, locale = "en", dictionary }: { children: React.ReactNode; locale?: Locale; dictionary: Record<string, any> }) {
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {
@@ -33,7 +33,6 @@ export function Providers({ children, locale = "en", dictionary }: { children: R
       },
     },
   }));
-
   return (
     <QueryClientProvider client={queryClient}>
       <SessionProvider refetchOnWindowFocus={false}>

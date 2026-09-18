@@ -65,6 +65,15 @@ function extractMultipartFileData(buffer: Buffer, boundary: string): FilePart[] 
     if (nextBoundaryIdx === -1) break;
 
     const headersSection = buffer.slice(boundaryIdx, headersEndIdx).toString("utf8");
+
+    // Only validate parts that represent file uploads (having filename="...")
+    // Ignore non-file form fields (e.g. 'folder', 'name')
+    const isFile = /filename\s*=\s*"?[^"\r\n]+"?/i.test(headersSection);
+    if (!isFile) {
+      searchStart = nextBoundaryIdx;
+      continue;
+    }
+
     const contentTypeMatch = headersSection.match(/Content-Type:\s*([^\r\n]+)/i);
     const partContentType = contentTypeMatch ? contentTypeMatch[1].trim() : "application/octet-stream";
 

@@ -35,8 +35,8 @@ interface ProductsClientProps {
     initialTotalCount?: number;
 }
 
-export default function ProductsClient({ 
-    initialProducts = [], 
+export default function ProductsClient({
+    initialProducts = [],
     initialFeaturedShops = [],
     initialCategories = [],
     hasMoreInitial,
@@ -430,7 +430,7 @@ export default function ProductsClient({
                             </div>
                         </div>
 
-                        {error && !isLoading && filteredProducts.length === 0 && (
+                        {/* {error && !isLoading && filteredProducts.length === 0 && (
                             <div className="flex flex-col items-center justify-center py-16 gap-4">
                                 <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center">
                                     <AlertTriangle className="w-7 h-7 text-red-400" />
@@ -446,7 +446,7 @@ export default function ProductsClient({
                                     Retry
                                 </button>
                             </div>
-                        )}
+                        )} */}
 
                         <ProductGrid products={filteredProducts} isLoading={isLoading} />
 

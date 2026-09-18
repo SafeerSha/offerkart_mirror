@@ -177,3 +177,38 @@ export async function cleanupProductImages(product: any) {
 
     return cleanupImages(urlsToCleanup);
 }
+
+/**
+ * Normalizes and resolves a shop logo URL from shop and user objects.
+ * Inspects all common property variations, strips stringified "null" / "undefined",
+ * and automatically formats relative S3 keys into fully qualified URLs.
+ */
+export function resolveShopLogoUrl(shop?: any, user?: any): string | undefined {
+    if (!shop && !user) return undefined;
+
+    const raw =
+        shop?.logo_url ||
+        shop?.logo ||
+        shop?.shop_logo ||
+        shop?.shopLogo ||
+        shop?.logoUrl ||
+        shop?.image ||
+        user?.logo_url ||
+        user?.shop_logo ||
+        user?.image ||
+        null;
+
+    if (!raw || typeof raw !== "string") return undefined;
+    const trimmed = raw.trim();
+    if (trimmed === "" || trimmed === "null" || trimmed === "undefined") return undefined;
+
+    // Absolute HTTP(S) URLs or root-relative paths
+    if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("/") || trimmed.startsWith("data:")) {
+        return trimmed;
+    }
+
+    // Relative S3 keys (e.g. "shops/1/logo.png" or "uploads/logo.jpg")
+    const s3Domain = process.env.NEXT_PUBLIC_S3_DOMAIN || "offersnearu.s3.eu-north-1.amazonaws.com";
+    return `https://${s3Domain}/${trimmed.replace(/^\/+/, "")}`;
+}
+

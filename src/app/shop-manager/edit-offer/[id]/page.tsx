@@ -135,7 +135,7 @@ function EditOfferContent() {
                 // 2. Try fetching from the detail endpoint directly if NOT a local storage draft
                 // (Works for all published offers and always includes full posters/hotspots)
                 let currentShopId = (session as any)?.shopId ?? (session?.user as any)?.shopId;
-                
+
                 if (!currentShopId) {
                     try {
                         const shopRes = await getMyShops();
@@ -630,7 +630,7 @@ function EditOfferContent() {
                 open={showDetailsModal}
                 onOpenChange={setShowDetailsModal}
                 title="Update Offer"
-                description="Review and update your campaign details."
+                description="Review and update your offer details."
                 footer={
                     <div className="flex flex-col gap-3 w-full">
                         <div className="flex items-center gap-2">
@@ -652,7 +652,7 @@ function EditOfferContent() {
                                     isFeatured ? "bg-amber-400" : "bg-gray-200"
                                 )}
                             >
-                                <div 
+                                <div
                                     className={cn(
                                         "absolute left-0.5 w-[16px] h-[16px] bg-white rounded-full shadow-[0_1px_3px_rgba(0,0,0,0.2)] transform transition-transform duration-300",
                                         isFeatured ? "translate-x-[18px]" : "translate-x-0"
@@ -689,7 +689,7 @@ function EditOfferContent() {
             >
                 <div className="space-y-5">
                     <PremiumInput
-                        label="Campaign Title"
+                        label="Offer Title"
                         icon={Type}
                         type="text"
                         value={title}

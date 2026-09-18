@@ -132,6 +132,34 @@ describe("backend proxy image upload validation", () => {
     expect(response.status).toBe(200);
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
+
+  it("forwards valid image uploads containing extra form fields like folder", async () => {
+    const boundary = "----FormBoundaryTest";
+    const pngMagic = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00]);
+    const filePart = Buffer.concat([
+      Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="poster.png"\r\nContent-Type: image/png\r\n\r\n`, "utf8"),
+      pngMagic,
+      Buffer.from("\r\n", "utf8"),
+    ]);
+    const folderPart = Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="folder"\r\n\r\noffers\r\n--${boundary}--\r\n`, "utf8");
+    const body = Buffer.concat([filePart, folderPart]);
+
+    const request = new NextRequest("http://localhost/api/backend/business/image/upload", {
+      method: "POST",
+      headers: {
+        "content-type": `multipart/form-data; boundary=${boundary}`,
+        authorization: "Bearer token-123",
+      },
+      body,
+    });
+
+    const response = await POST(request, {
+      params: Promise.resolve({ path: ["business", "image", "upload"] }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("backend proxy revalidation", () => {

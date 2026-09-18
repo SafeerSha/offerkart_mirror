@@ -180,7 +180,7 @@ export const FileUpload = ({
                                 {showTitleInput && (
                                     <div className="mb-8 space-y-3">
                                         <label className="text-xs font-bold uppercase tracking-widest text-white/50 block text-left ml-1">
-                                            Campaign Title *
+                                            Offer Title *
                                         </label>
                                         <input
                                             type="text"

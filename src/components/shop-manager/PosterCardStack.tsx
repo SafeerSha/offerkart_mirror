@@ -590,7 +590,7 @@ export const PosterCardStack = forwardRef<
         const currentPoster = posters[currentIndex];
         const remaining = posters.length - currentIndex;
 
-        const progress = (currentIndex / posters.length) * 100;
+        const progress = posters.length > 0 ? ((currentIndex + 1) / posters.length) * 100 : 0;
 
         const behindCards = posters.slice(currentIndex + 1, currentIndex + 4);
 

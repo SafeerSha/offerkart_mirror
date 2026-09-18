@@ -1731,7 +1731,7 @@ function HotspotEditorContent() {
                                     </div>
 
                                     <div className="space-y-2 relative group">
-                                        <label className="text-[10px] font-bold uppercase tracking-widest text-primary/70 px-1">Campaign Name</label>
+                                        <label className="text-[10px] font-bold uppercase tracking-widest text-primary/70 px-1">Offer Name</label>
                                         <div className="relative">
                                             <div className="absolute left-4 top-1/2 -translate-y-1/2">
                                                 <Type className="w-4 h-4 text-primary group-focus-within:scale-110 transition-transform" />
