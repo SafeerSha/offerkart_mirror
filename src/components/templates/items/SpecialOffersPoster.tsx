@@ -4,6 +4,7 @@ import React from 'react';
 import { TemplateProps } from '../types';
 import { ProductSlot } from '../shared/ProductSlot';
 import { EditableText } from '../shared/EditableText';
+import { ShopLogo } from '../shared/ShopLogo';
 import { Phone, MapPin, Sparkles, ShoppingBag, Store } from 'lucide-react';
 
 export function SpecialOffersPosterTemplate({
@@ -31,100 +32,99 @@ export function SpecialOffersPosterTemplate({
                 .font-montserrat { font-family: 'Montserrat', sans-serif; }
             `}</style>
 
-            {/* Top Dynamic Wave graphic */}
-            <div className="absolute left-[-5%] top-[-3%] w-[110%] h-[200px] bg-gradient-to-r from-[#ff7410] to-[#ff941f] rounded-b-[45%] z-0 pointer-events-none opacity-90 shadow-md" />
-
-            {/* Decorative Sparkles */}
-            <div className="absolute left-[60px] top-[140px] text-[#f6a91a] text-2xl font-black select-none pointer-events-none z-10">
-                ✦
-            </div>
-            <div className="absolute right-[70px] top-[170px] text-[#f6a91a] text-2xl font-black select-none pointer-events-none z-10">
-                ✦
-            </div>
-            <div className="absolute left-[130px] top-[260px] text-[#ff7410] text-lg font-black select-none pointer-events-none z-10">
-                ◆
-            </div>
-            <div className="absolute right-[120px] top-[280px] text-[#ff7410] text-lg font-black select-none pointer-events-none z-10">
-                ◆
-            </div>
-
             {/* ── HEADER ── */}
             {!excludeHeader && (
-                <header className="h-[250px] px-8 pt-6 pb-4 flex flex-col justify-between relative z-10 shrink-0 font-montserrat">
-                    <div className="flex items-start justify-between">
-                        {/* Shop Logo & Name */}
-                        <div className="flex items-center gap-4">
-                            {shopData.logoUrl ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                    src={shopData.logoUrl}
-                                    alt="Shop Logo"
-                                    className="w-16 h-16 object-contain bg-white rounded-2xl p-2 shadow-lg border border-white/80"
-                                    crossOrigin="anonymous"
-                                />
-                            ) : (
-                                <div className="w-16 h-16 rounded-2xl bg-white border-2 border-white/80 flex flex-col items-center justify-center text-[#ff7410] shadow-lg font-black text-[10px] leading-tight text-center">
-                                    <Sparkles className="w-5 h-5 text-[#ff7410] mb-0.5" />
-                                    <span>{shopData.shopName ? shopData.shopName.substring(0, 6) : "SPECIAL"}</span>
-                                </div>
-                            )}
+                <>
+                    {/* Top Dynamic Wave graphic */}
+                    <div className="absolute left-[-5%] top-[-3%] w-[110%] h-[200px] bg-gradient-to-r from-[#ff7410] to-[#ff941f] rounded-b-[45%] z-0 pointer-events-none opacity-90 shadow-md" />
 
-                            <div>
-                                <h2 className="text-2xl font-black uppercase tracking-tight text-white drop-shadow-md">
-                                    {shopData.shopName || "SUPER RETAIL"}
-                                </h2>
-                                <p className="text-xs font-extrabold text-amber-100 tracking-wider mt-0.5 drop-shadow">
-                                    Top Brands • Unbeatable Savings
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Top Kicker */}
-                        <div className="text-right text-white">
-                            <span className="text-xs font-black uppercase tracking-wider block drop-shadow">
-                                Good Products
-                            </span>
-                            <span className="text-xs font-extrabold text-amber-200 block drop-shadow">
-                                Brighter Days
-                            </span>
-                        </div>
+                    {/* Decorative Sparkles */}
+                    <div className="absolute left-[60px] top-[140px] text-[#f6a91a] text-2xl font-black select-none pointer-events-none z-10">
+                        ✦
+                    </div>
+                    <div className="absolute right-[70px] top-[170px] text-[#f6a91a] text-2xl font-black select-none pointer-events-none z-10">
+                        ✦
+                    </div>
+                    <div className="absolute left-[130px] top-[260px] text-[#ff7410] text-lg font-black select-none pointer-events-none z-10">
+                        ◆
+                    </div>
+                    <div className="absolute right-[120px] top-[280px] text-[#ff7410] text-lg font-black select-none pointer-events-none z-10">
+                        ◆
                     </div>
 
-                    {/* Campaign Title & Ribbon */}
-                    <div className="flex items-end justify-between mt-2 pt-2 border-t border-white/20">
-                        <div className="flex-1 mr-4">
-                            <div className="flex items-baseline gap-2">
-                                <EditableText
-                                    as="h1"
-                                    value={campaignInfo.title || "SPECIAL OFFERS"}
-                                    onChange={(val) => onFieldChange?.('title', val)}
-                                    isEditable={isEditable}
-                                    placeholder="Click to edit campaign title..."
-                                    className="font-montserrat text-4xl font-black italic tracking-tight text-[#f04a1a] drop-shadow-sm leading-none"
+                    <header className="h-[250px] px-8 pt-6 pb-4 flex flex-col justify-between relative z-10 shrink-0 font-montserrat">
+                        <div className="flex items-start justify-between">
+                            {/* Shop Logo & Name */}
+                            <div className="flex items-center gap-4">
+                                <ShopLogo
+                                    logoUrl={shopData.logoUrl}
+                                    shopName={shopData.shopName}
+                                    className="w-16 h-16 object-contain bg-white rounded-2xl p-2 shadow-lg border border-white/80"
+                                    fallback={
+                                        <div className="w-16 h-16 rounded-2xl bg-white border-2 border-white/80 flex flex-col items-center justify-center text-[#ff7410] shadow-lg font-black text-[10px] leading-tight text-center">
+                                            <Sparkles className="w-5 h-5 text-[#ff7410] mb-0.5" />
+                                            <span>{shopData.shopName ? shopData.shopName.substring(0, 6) : "SPECIAL"}</span>
+                                        </div>
+                                    }
                                 />
-                            </div>
-                            <div className="mt-2 inline-flex items-center -skew-x-12 bg-[#f04a1a] text-white font-extrabold text-xs px-4 py-1.5 shadow-[0_3px_0_#c9310c]">
-                                <EditableText
-                                    as="span"
-                                    value={campaignInfo.subtitle || "Save More • Shop Smart"}
-                                    onChange={(val) => onFieldChange?.('subtitle', val)}
-                                    isEditable={isEditable}
-                                    placeholder="Click to edit subtitle..."
-                                    className="skew-x-12 tracking-wide"
-                                />
-                            </div>
-                        </div>
 
-                        {(campaignInfo.validFrom || campaignInfo.validTo) && (
-                            <div className="bg-white text-[#f04a1a] px-4 py-2 rounded-xl shadow-md text-right shrink-0 border border-[#f04a1a]/20">
-                                <span className="text-[10px] uppercase text-[#ff7410] block font-extrabold">Flash Window</span>
-                                <span className="text-xs font-black text-neutral-900">
-                                    {campaignInfo.validFrom || "This Week"} - {campaignInfo.validTo || "While Stocks Last"}
+                                <div>
+                                    <h2 className="text-2xl font-black uppercase tracking-tight text-white drop-shadow-md">
+                                        {shopData.shopName || "SUPER RETAIL"}
+                                    </h2>
+                                    <p className="text-xs font-extrabold text-amber-100 tracking-wider mt-0.5 drop-shadow">
+                                        Top Brands • Unbeatable Savings
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Top Kicker */}
+                            <div className="text-right text-white">
+                                <span className="text-xs font-black uppercase tracking-wider block drop-shadow">
+                                    Good Products
+                                </span>
+                                <span className="text-xs font-extrabold text-amber-200 block drop-shadow">
+                                    Brighter Days
                                 </span>
                             </div>
-                        )}
-                    </div>
-                </header>
+                        </div>
+
+                        {/* Offer Title & Ribbon */}
+                        <div className="flex items-end justify-between mt-2 pt-2 border-t border-white/20">
+                            <div className="flex-1 mr-4">
+                                <div className="flex items-baseline gap-2">
+                                    <EditableText
+                                        as="h1"
+                                        value={campaignInfo.title || "SPECIAL OFFERS"}
+                                        onChange={(val) => onFieldChange?.('title', val)}
+                                        isEditable={isEditable}
+                                        placeholder="Click to edit offer title..."
+                                        className="font-montserrat text-4xl font-black italic tracking-tight text-[#f04a1a] drop-shadow-sm leading-none"
+                                    />
+                                </div>
+                                <div className="mt-2 inline-flex items-center -skew-x-12 bg-[#f04a1a] text-white font-extrabold text-xs px-4 py-1.5 shadow-[0_3px_0_#c9310c]">
+                                    <EditableText
+                                        as="span"
+                                        value={campaignInfo.subtitle || "Save More • Shop Smart"}
+                                        onChange={(val) => onFieldChange?.('subtitle', val)}
+                                        isEditable={isEditable}
+                                        placeholder="Click to edit subtitle..."
+                                        className="skew-x-12 tracking-wide"
+                                    />
+                                </div>
+                            </div>
+
+                            {(campaignInfo.validFrom || campaignInfo.validTo) && (
+                                <div className="bg-white text-[#f04a1a] px-4 py-2 rounded-xl shadow-md text-right shrink-0 border border-[#f04a1a]/20">
+                                    <span className="text-[10px] uppercase text-[#ff7410] block font-extrabold">Flash Window</span>
+                                    <span className="text-xs font-black text-neutral-900">
+                                        {campaignInfo.validFrom || "This Week"} - {campaignInfo.validTo || "While Stocks Last"}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                    </header>
+                </>
             )}
 
             {/* ── PRODUCT GRID ── */}
@@ -148,9 +148,10 @@ export function SpecialOffersPosterTemplate({
                             accentColor="#f04a1a"
                             density={rows >= 5 ? 'dense' : rows === 4 ? 'compact' : 'normal'}
                             imageContainerClassName={
-                                rows >= 5 ? "max-h-[85px] aspect-auto h-[85px]" :
-                                rows === 4 ? "max-h-[125px] aspect-auto h-[125px]" :
-                                "aspect-square max-h-[175px]"
+                                rows >= 5 ? "max-h-[75px] aspect-auto h-[75px]" :
+                                    rows === 4 ? "max-h-[100px] aspect-auto h-[100px]" :
+                                        rows === 3 ? "max-h-[140px] aspect-auto h-[140px]" :
+                                            "aspect-square max-h-[175px]"
                             }
                             className="h-full bg-white shadow-sm border-2 border-orange-500/25 hover:border-orange-500/60"
                         />

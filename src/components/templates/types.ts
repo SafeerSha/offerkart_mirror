@@ -63,3 +63,33 @@ export interface TemplateMeta {
     };
     component: React.ComponentType<TemplateProps>;
 }
+
+export type OverlayKind = 'badge' | 'text' | 'sticker' | 'shape' | 'image';
+
+export interface PosterOverlayElement {
+    id: string;
+    kind: OverlayKind;
+    x: number;          // relative to canvas (0 - 794)
+    y: number;          // relative to canvas (0 - 1123)
+    w: number;
+    h: number;
+    rotation?: number;  // degrees
+    zIndex: number;
+    // Text properties
+    text?: string;
+    fontSize?: number;
+    fontFamily?: string;
+    fontWeight?: string | number;
+    color?: string;
+    textAlign?: 'left' | 'center' | 'right';
+    // Badge / Sticker properties
+    badgePreset?: string;
+    badgeBg?: string;
+    badgeTextColor?: string;
+    badgeSecondaryText?: string;
+    shapeKind?: 'rect' | 'circle' | 'pill' | 'starburst' | 'ribbon';
+    // Image properties
+    imageUrl?: string;
+    opacity?: number;
+}
+

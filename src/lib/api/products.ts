@@ -8,9 +8,9 @@ import { getUserOfferProducts } from './userOffersService';
 
 export function mapUserProductToProduct(item: any): any {
     if (!item) return null;
-    const primaryImage = item.imageUrl || item.image || null;
-    const finalOriginalPrice = item.originalPrice !== undefined ? item.originalPrice : (item.price !== undefined ? item.price : 0);
-    const finalOfferPrice = item.offerPrice !== undefined ? item.offerPrice : (item.price !== undefined ? item.price : 0);
+    const primaryImage = item.imageUrl || item.image || item.image_url || item.product_image || (Array.isArray(item.images) && item.images.length > 0 ? item.images[0] : null) || null;
+    const finalOriginalPrice = item.originalPrice !== undefined ? item.originalPrice : (item.original_price !== undefined ? item.original_price : (item.oldPrice !== undefined ? item.oldPrice : (item.old_price !== undefined ? item.old_price : (item.price !== undefined ? item.price : 0))));
+    const finalOfferPrice = item.offerPrice !== undefined ? item.offerPrice : (item.offer_price !== undefined ? item.offer_price : (item.price !== undefined ? item.price : 0));
     const finalSavingPercentage = item.savingPercentage !== undefined 
         ? item.savingPercentage 
         : (finalOriginalPrice && finalOfferPrice && finalOriginalPrice > finalOfferPrice 
@@ -21,8 +21,8 @@ export function mapUserProductToProduct(item: any): any {
     const shopLogo = item.logo_url || item.logo || item.shop?.logo_url || item.shop?.logo || item.shopLogo || item.logoUrl || null;
 
     return {
-        id: item.id,
-        name: item.displayName || item.name || "Unnamed Product",
+        id: item.id ?? item.productId ?? item._id,
+        name: item.displayName || item.name || item.title || item.product_name || item.productName || "Unnamed Product",
         shopName,
         shopLogo,
         shopId: item.shop?.id || item.shopId || item.shop_id || null,
@@ -96,10 +96,20 @@ export async function getAllProducts(
             if (rawData && typeof rawData === 'object' && !Array.isArray(rawData)) {
                 if (Array.isArray(rawData.data)) {
                     rawData = rawData.data;
+                } else if (Array.isArray(rawData.data?.data)) {
+                    rawData = rawData.data.data;
+                } else if (Array.isArray(rawData.data?.products)) {
+                    rawData = rawData.data.products;
                 } else if (Array.isArray(rawData.value)) {
                     rawData = rawData.value;
                 } else if (Array.isArray(rawData.items)) {
                     rawData = rawData.items;
+                } else if (Array.isArray(rawData.products)) {
+                    rawData = rawData.products;
+                } else if (Array.isArray(rawData.rows)) {
+                    rawData = rawData.rows;
+                } else if (Array.isArray(rawData.result)) {
+                    rawData = rawData.result;
                 }
             }
 

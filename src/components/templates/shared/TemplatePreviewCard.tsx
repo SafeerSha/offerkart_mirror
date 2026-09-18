@@ -6,9 +6,10 @@ import { TemplateMeta } from '../types';
 interface TemplatePreviewCardProps {
     meta: TemplateMeta;
     shopName?: string;
+    logoUrl?: string;
 }
 
-export function TemplatePreviewCard({ meta, shopName }: TemplatePreviewCardProps) {
+export function TemplatePreviewCard({ meta, shopName, logoUrl }: TemplatePreviewCardProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const [scale, setScale] = useState(0.24);
 
@@ -31,6 +32,7 @@ export function TemplatePreviewCard({ meta, shopName }: TemplatePreviewCardProps
         shopName: shopName || "YOUR STORE",
         branches: ["Main Branch", "City Center"],
         shopPhone: "+91 98765 43210",
+        logoUrl: logoUrl,
     };
 
     const previewCampaign = {

@@ -202,14 +202,22 @@ export function ProductSlot({
             )}
 
             {/* Product Image */}
-            <div className={cn("relative w-full bg-gray-50 flex items-center justify-center overflow-hidden shrink-0", imageContainerClassName || "aspect-square max-h-[160px]")}>
+            <div className={cn(
+                "relative w-full bg-gray-50 flex items-center justify-center overflow-hidden shrink-0",
+                density === 'dense' && "max-h-[75px]",
+                density === 'compact' && "max-h-[100px]",
+                imageContainerClassName || (
+                    density === 'dense' ? "h-[75px]" :
+                    density === 'compact' ? "h-[100px]" :
+                    "h-[140px] max-h-[160px]"
+                )
+            )}>
                 {item?.image ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                         src={item.image}
                         alt={item.title || "Product"}
                         className="w-full h-full object-contain p-1.5 group-hover:scale-105 transition-transform duration-300"
-                        crossOrigin="anonymous"
                     />
                 ) : (
                     <div className="flex flex-col items-center justify-center text-gray-300">
@@ -221,14 +229,18 @@ export function ProductSlot({
 
             {/* Product Information */}
             <div className={cn(
-                "flex flex-col flex-1 justify-between min-w-0",
+                "flex flex-col flex-1 justify-between min-w-0 min-h-0",
                 density === 'dense' ? "p-1.5" : density === 'compact' ? "p-2" : "p-2.5"
             )}>
-                <div>
+                <div className="min-w-0">
                     <h4
                         className={cn(
-                            "leading-tight",
-                            density === 'dense' ? "text-[10px] line-clamp-1" : "text-xs line-clamp-2",
+                            "leading-tight font-bold",
+                            density === 'dense'
+                                ? "text-[10px] line-clamp-1"
+                                : item?.description
+                                    ? "text-xs line-clamp-1"
+                                    : (density === 'compact' ? "text-xs line-clamp-2" : "text-sm line-clamp-2"),
                             variantStyles.title
                         )}
                         title={item?.title}
@@ -236,7 +248,13 @@ export function ProductSlot({
                         {item?.title || "Product Name"}
                     </h4>
                     {item?.description && density !== 'dense' && (
-                        <p className="text-[10px] text-gray-500 line-clamp-1 mt-0.5">
+                        <p
+                            className={cn(
+                                "text-gray-500 line-clamp-1 leading-tight",
+                                density === 'compact' ? "text-[9.5px] mt-0.5" : "text-[11px] mt-0.5"
+                            )}
+                            title={item.description}
+                        >
                             {item.description}
                         </p>
                     )}
@@ -244,11 +262,11 @@ export function ProductSlot({
 
                 {/* Price Display */}
                 <div className={cn(
-                    "flex items-baseline gap-1 mt-1 pt-1 border-t border-gray-100/60",
-                    density === 'dense' ? "mt-0.5 pt-0.5" : "mt-1 pt-1"
+                    "flex items-baseline gap-1 border-t border-gray-100/60 shrink-0",
+                    density === 'dense' ? "mt-0.5 pt-0.5" : density === 'compact' ? "mt-1 pt-1" : "mt-1.5 pt-1.5"
                 )}>
                     <span className={cn(
-                        "leading-none",
+                        "leading-none truncate",
                         density === 'dense' ? "text-xs font-black" : density === 'compact' ? "text-sm font-black" : "text-base font-black",
                         variantStyles.offerPrice
                     )}>
@@ -256,7 +274,7 @@ export function ProductSlot({
                     </span>
                     {item?.oldPrice && (
                         <span className={cn(
-                            "text-gray-400 line-through leading-none",
+                            "text-gray-400 line-through leading-none truncate",
                             density === 'dense' ? "text-[9px]" : "text-[11px]"
                         )}>
                             {currency}{item.oldPrice}

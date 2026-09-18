@@ -1,11 +1,14 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { AppModal } from '@/components/shared/AppModal';
 import { ProductSlotItem } from '../types';
 import { Search, ShoppingBag, Plus, CheckCircle2, ArrowUpRight, IndianRupee, Image as ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAllProducts } from '@/hooks/useApi';
+import { useAllProducts, useMyShops } from '@/hooks/useApi';
+import { useSession } from 'next-auth/react';
+import { extractS3Url } from '@/lib/common';
+import { toast } from 'sonner';
 
 interface SlotProductPickerModalProps {
     open: boolean;
@@ -13,6 +16,7 @@ interface SlotProductPickerModalProps {
     slotIndex: number | null;
     shopId: string | null;
     usedProductIds?: Set<string>;
+    usedProductTitles?: Set<string>;
     onSelectProduct: (product: ProductSlotItem) => void;
     onOpenCustomProductModal: () => void;
 }
@@ -23,32 +27,71 @@ export function SlotProductPickerModal({
     slotIndex,
     shopId,
     usedProductIds,
+    usedProductTitles,
     onSelectProduct,
     onOpenCustomProductModal,
 }: SlotProductPickerModalProps) {
+    const { data: session } = useSession();
+    const { data: shopsResponse, isLoading: isLoadingShops } = useMyShops();
     const [searchQuery, setSearchQuery] = useState("");
-    const { data: productsData, isLoading } = useAllProducts(shopId || "");
-    const products = (productsData || []) as any[];
+
+    const effectiveShopId = useMemo(() => {
+        if (shopId && shopId !== 'all' && shopId !== 'undefined' && shopId !== 'null') {
+            return String(shopId);
+        }
+        const sid = session?.shopId ?? (session?.user as any)?.shopId;
+        if (sid) return String(sid);
+        if (shopsResponse?.success && shopsResponse?.data) {
+            const list = Array.isArray(shopsResponse.data) ? shopsResponse.data : (shopsResponse.data as any).data || [];
+            if (list.length > 0) {
+                return String(list[0].id || list[0]._id || list[0].shopId || '');
+            }
+        }
+        return '';
+    }, [shopId, session, shopsResponse]);
+
+    const { data: productsData, isLoading: isLoadingProducts } = useAllProducts(
+        effectiveShopId || undefined,
+        { limit: 100 }
+    );
+
+    const isLoading = (isLoadingShops && !effectiveShopId) || (isLoadingProducts && !productsData);
+
+    const products = useMemo(() => {
+        if (!productsData) return [];
+        if (Array.isArray(productsData)) return productsData;
+        const res = productsData as any;
+        if (Array.isArray(res.data)) return res.data;
+        if (Array.isArray(res.data?.data)) return res.data.data;
+        if (Array.isArray(res.data?.products)) return res.data.products;
+        if (Array.isArray(res.value)) return res.value;
+        if (Array.isArray(res.items)) return res.items;
+        if (Array.isArray(res.products)) return res.products;
+        if (Array.isArray(res.rows)) return res.rows;
+        if (Array.isArray(res.result)) return res.result;
+        return [];
+    }, [productsData]);
 
     const filtered = products.filter((p: any) => {
         const q = searchQuery.toLowerCase().trim();
         if (!q) return true;
-        const name = (p.name || p.title || "").toLowerCase();
-        const category = (p.category || "").toLowerCase();
+        const name = (p.name || p.title || p.displayName || p.product_name || "").toLowerCase();
+        const category = (typeof p.category === 'string' ? p.category : p.category?.name || "").toLowerCase();
         return name.includes(q) || category.includes(q);
     });
 
     const handlePickProduct = (p: any) => {
+        const rawImg = p.image || p.imageUrl || p.image_url || p.product_image || (Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : "");
         const item: ProductSlotItem = {
             id: crypto.randomUUID(),
-            sourceProductId: String(p.id),
-            title: p.name || p.title || "Product",
+            sourceProductId: String(p.id || p.productId || p._id || ''),
+            title: p.name || p.title || p.displayName || p.product_name || "Product",
             description: p.description || "",
-            image: p.image || p.imageUrl || p.image_url || "",
-            offerPrice: p.price ?? p.offerPrice ?? "0",
-            oldPrice: p.originalPrice ?? p.oldPrice ?? undefined,
+            image: extractS3Url(rawImg) || rawImg || "",
+            offerPrice: p.price ?? p.offerPrice ?? p.offer_price ?? "0",
+            oldPrice: p.originalPrice ?? p.oldPrice ?? p.original_price ?? p.old_price ?? undefined,
             currency: "₹",
-            category: p.category || "General",
+            category: typeof p.category === 'string' ? p.category : p.category?.name || "General",
             subcategories: Array.isArray(p.subcategory) ? p.subcategory : p.subcategory ? [p.subcategory] : ["General"],
             subcategoryId: p.subcategoryId ? Number(p.subcategoryId) : undefined,
         };
@@ -106,18 +149,34 @@ export function SlotProductPickerModal({
                         </div>
                     ) : (
                         filtered.map((p: any) => {
-                            const isAlreadyUsed = usedProductIds?.has(String(p.id));
-                            const imageSrc = p.image || p.imageUrl || p.image_url;
+                            const prodId = String(p.id || p.productId || p._id || '');
+                            const rawImg = p.image || p.imageUrl || p.image_url || p.product_image || (Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : "");
+                            const imageSrc = extractS3Url(rawImg) || rawImg;
+                            const title = p.name || p.title || p.displayName || p.product_name || "Product";
+                            const price = p.price ?? p.offerPrice ?? p.offer_price ?? "0";
+                            const originalPrice = p.originalPrice ?? p.oldPrice ?? p.original_price ?? p.old_price;
+                            const categoryName = typeof p.category === 'string' ? p.category : p.category?.name;
+
+                            const isAlreadyUsed = Boolean(
+                                (prodId && usedProductIds?.has(prodId)) ||
+                                (title && usedProductTitles?.has(title.trim().toLowerCase()))
+                            );
 
                             return (
                                 <div
-                                    key={p.id}
-                                    onClick={() => handlePickProduct(p)}
+                                    key={prodId || title}
+                                    onClick={() => {
+                                        if (isAlreadyUsed) {
+                                            toast.error(`"${title}" is already added to another slot in this poster.`);
+                                            return;
+                                        }
+                                        handlePickProduct(p);
+                                    }}
                                     className={cn(
-                                        "group flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer",
+                                        "group flex items-center justify-between p-3 rounded-xl border transition-all",
                                         isAlreadyUsed
-                                            ? "border-emerald-200 bg-emerald-50/40 hover:bg-emerald-50/70"
-                                            : "border-gray-100 bg-white hover:border-orange-500 hover:shadow-sm"
+                                            ? "border-gray-200 bg-gray-50/80 opacity-60 cursor-not-allowed"
+                                            : "border-gray-100 bg-white hover:border-orange-500 hover:shadow-sm cursor-pointer"
                                     )}
                                 >
                                     <div className="flex items-center gap-3 min-w-0">
@@ -128,7 +187,6 @@ export function SlotProductPickerModal({
                                                     src={imageSrc}
                                                     alt=""
                                                     className="w-full h-full object-cover"
-                                                    crossOrigin="anonymous"
                                                 />
                                             ) : (
                                                 <ImageIcon className="w-5 h-5 text-gray-300" />
@@ -137,20 +195,20 @@ export function SlotProductPickerModal({
 
                                         <div className="min-w-0">
                                             <h4 className="text-sm font-bold text-gray-900 truncate leading-tight group-hover:text-orange-600 transition-colors">
-                                                {p.name || p.title}
+                                                {title}
                                             </h4>
                                             <div className="flex items-center gap-2 mt-1">
                                                 <span className="text-xs font-black text-gray-900">
-                                                    ₹{p.price ?? p.offerPrice ?? "0"}
+                                                    ₹{price}
                                                 </span>
-                                                {p.originalPrice && (
+                                                {originalPrice && (
                                                     <span className="text-[11px] text-gray-400 line-through">
-                                                        ₹{p.originalPrice}
+                                                        ₹{originalPrice}
                                                     </span>
                                                 )}
-                                                {p.category && (
+                                                {categoryName && (
                                                     <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">
-                                                        {p.category}
+                                                        {categoryName}
                                                     </span>
                                                 )}
                                             </div>
@@ -158,9 +216,9 @@ export function SlotProductPickerModal({
                                     </div>
 
                                     {isAlreadyUsed ? (
-                                        <div className="flex items-center gap-1 text-emerald-600 text-xs font-bold shrink-0">
-                                            <CheckCircle2 className="w-4 h-4" />
-                                            Used
+                                        <div className="flex items-center gap-1.5 bg-slate-100 text-slate-600 px-2.5 py-1 rounded-lg text-xs font-bold shrink-0 select-none">
+                                            <CheckCircle2 className="w-3.5 h-3.5 text-slate-500" />
+                                            <span>In Poster</span>
                                         </div>
                                     ) : (
                                         <div className="w-8 h-8 rounded-full bg-gray-100 group-hover:bg-orange-100 text-gray-400 group-hover:text-orange-600 flex items-center justify-center transition-colors shrink-0">

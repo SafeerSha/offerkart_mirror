@@ -4,6 +4,7 @@ import React from 'react';
 import { TemplateProps } from '../types';
 import { ProductSlot } from '../shared/ProductSlot';
 import { EditableText } from '../shared/EditableText';
+import { ShopLogo } from '../shared/ShopLogo';
 import { Phone, MapPin, Sparkles } from 'lucide-react';
 
 export function OnamSpecialOffersPosterTemplate({
@@ -33,20 +34,6 @@ export function OnamSpecialOffersPosterTemplate({
                 .font-nunito { font-family: 'Nunito', sans-serif; }
             `}</style>
 
-            {/* Decorative Palm Leaves & Flowers */}
-            <div className="absolute left-[-15px] top-[40px] text-[#2b7b3d] text-6xl select-none pointer-events-none opacity-40 rotate-[-25deg] z-0">
-                ❧
-            </div>
-            <div className="absolute right-[-20px] top-[110px] text-[#2b7b3d] text-6xl select-none pointer-events-none opacity-40 rotate-[20deg] z-0">
-                ❧
-            </div>
-            <div className="absolute left-[50px] top-[170px] text-[#eeb52a] text-3xl select-none pointer-events-none opacity-50 z-0">
-                ✿
-            </div>
-            <div className="absolute right-[50px] top-[230px] text-[#eeb52a] text-3xl select-none pointer-events-none opacity-50 z-0">
-                ✿
-            </div>
-
             {/* Background Boat & Flower Accents */}
             <div className="absolute bottom-[100px] right-[20px] text-7xl select-none pointer-events-none opacity-20 rotate-[-4deg] z-0">
                 ⛵
@@ -57,79 +44,92 @@ export function OnamSpecialOffersPosterTemplate({
 
             {/* ── HEADER ── */}
             {!excludeHeader && (
-                <header className="h-[240px] px-8 pt-6 pb-4 flex flex-col justify-between relative z-10 shrink-0 border-b border-[#f2c13c]/40 font-nunito">
-                    <div className="flex items-start justify-between">
-                        {/* Shop Logo & Name */}
-                        <div className="flex items-center gap-4">
-                            {shopData.logoUrl ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                    src={shopData.logoUrl}
-                                    alt="Shop Logo"
-                                    className="w-16 h-16 object-contain bg-white rounded-2xl p-2 shadow-sm border border-[#eeb52a]/50"
-                                    crossOrigin="anonymous"
-                                />
-                            ) : (
-                                <div className="w-16 h-16 rounded-2xl bg-white border-2 border-[#eeb52a]/60 flex flex-col items-center justify-center text-[#19703a] shadow-sm font-black text-[10px] leading-tight text-center">
-                                    <Sparkles className="w-5 h-5 text-[#eeb52a] mb-0.5" />
-                                    <span>{shopData.shopName ? shopData.shopName.substring(0, 6) : "FESTIVE"}</span>
-                                </div>
-                            )}
-
-                            <div>
-                                <h2 className="text-2xl font-black uppercase tracking-tight text-[#19703a]">
-                                    {shopData.shopName || "GRAND BAZAAR"}
-                                </h2>
-                                <p className="text-xs font-bold text-[#a44722] tracking-wider mt-0.5">
-                                    Festive Celebrations • Pure Tradition
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Top Micro Note */}
-                        <div className="text-right">
-                            <span className="font-kalam text-base font-bold text-[#356a36] leading-tight block">
-                                Celebrate Traditions
-                            </span>
-                            <span className="font-kalam text-sm font-bold text-[#a44722] block">
-                                Together with Family
-                            </span>
-                        </div>
+                <>
+                    {/* Decorative Palm Leaves & Flowers */}
+                    <div className="absolute left-[-15px] top-[40px] text-[#2b7b3d] text-6xl select-none pointer-events-none opacity-40 rotate-[-25deg] z-0">
+                        ❧
+                    </div>
+                    <div className="absolute right-[-20px] top-[110px] text-[#2b7b3d] text-6xl select-none pointer-events-none opacity-40 rotate-[20deg] z-0">
+                        ❧
+                    </div>
+                    <div className="absolute left-[50px] top-[170px] text-[#eeb52a] text-3xl select-none pointer-events-none opacity-50 z-0">
+                        ✿
+                    </div>
+                    <div className="absolute right-[50px] top-[230px] text-[#eeb52a] text-3xl select-none pointer-events-none opacity-50 z-0">
+                        ✿
                     </div>
 
-                    {/* Campaign Title & Subtitle */}
-                    <div className="flex items-end justify-between mt-2 pt-2 border-t border-[#f2c13c]/30">
-                        <div className="flex-1 mr-4">
-                            <div className="flex items-baseline gap-2">
-                                <EditableText
-                                    as="h1"
-                                    value={campaignInfo.title || "Onam Special Offers"}
-                                    onChange={(val) => onFieldChange?.('title', val)}
-                                    isEditable={isEditable}
-                                    placeholder="Click to edit campaign title..."
-                                    className="font-serif-display text-4xl text-[#19703a] leading-none"
+                    <header className="h-[240px] px-8 pt-6 pb-4 flex flex-col justify-between relative z-10 shrink-0 border-b border-[#f2c13c]/40 font-nunito">
+                        <div className="flex items-start justify-between">
+                            {/* Shop Logo & Name */}
+                            <div className="flex items-center gap-4">
+                                <ShopLogo
+                                    logoUrl={shopData.logoUrl}
+                                    shopName={shopData.shopName}
+                                    className="w-16 h-16 object-contain bg-white rounded-2xl p-2 shadow-sm border border-[#eeb52a]/50"
+                                    fallback={
+                                        <div className="w-16 h-16 rounded-2xl bg-white border-2 border-[#eeb52a]/60 flex flex-col items-center justify-center text-[#19703a] shadow-sm font-black text-[10px] leading-tight text-center">
+                                            <Sparkles className="w-5 h-5 text-[#eeb52a] mb-0.5" />
+                                            <span>{shopData.shopName ? shopData.shopName.substring(0, 6) : "FESTIVE"}</span>
+                                        </div>
+                                    }
                                 />
-                            </div>
-                            <EditableText
-                                as="p"
-                                value={campaignInfo.subtitle || "Traditional Goodness • Special Prices"}
-                                onChange={(val) => onFieldChange?.('subtitle', val)}
-                                isEditable={isEditable}
-                                placeholder="Click to edit subtitle..."
-                                className="font-kalam text-sm font-bold text-[#a44722] mt-1 tracking-wide"
-                            />
-                        </div>
 
-                        {(campaignInfo.validFrom || campaignInfo.validTo) && (
-                            <div className="bg-[#19703a] text-white px-4 py-2 rounded-2xl shadow-sm text-right shrink-0">
-                                <span className="text-[10px] uppercase text-[#f2c13c] block font-bold font-nunito">Festive Period</span>
-                                <span className="text-xs font-black text-white font-nunito">
-                                    {campaignInfo.validFrom || "This Season"} - {campaignInfo.validTo || "Offer Ends Soon"}
+                                <div>
+                                    <h2 className="text-2xl font-black uppercase tracking-tight text-[#19703a]">
+                                        {shopData.shopName || "GRAND BAZAAR"}
+                                    </h2>
+                                    <p className="text-xs font-bold text-[#a44722] tracking-wider mt-0.5">
+                                        Festive Celebrations • Pure Tradition
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Top Micro Note */}
+                            <div className="text-right">
+                                <span className="font-kalam text-base font-bold text-[#356a36] leading-tight block">
+                                    Celebrate Traditions
+                                </span>
+                                <span className="font-kalam text-sm font-bold text-[#a44722] block">
+                                    Together with Family
                                 </span>
                             </div>
-                        )}
-                    </div>
-                </header>
+                        </div>
+
+                        {/* Offer Title & Subtitle */}
+                        <div className="flex items-end justify-between mt-2 pt-2 border-t border-[#f2c13c]/30">
+                            <div className="flex-1 mr-4">
+                                <div className="flex items-baseline gap-2">
+                                    <EditableText
+                                        as="h1"
+                                        value={campaignInfo.title || "Onam Special Offers"}
+                                        onChange={(val) => onFieldChange?.('title', val)}
+                                        isEditable={isEditable}
+                                        placeholder="Click to edit offer title..."
+                                        className="font-serif-display text-4xl text-[#19703a] leading-none"
+                                    />
+                                </div>
+                                <EditableText
+                                    as="p"
+                                    value={campaignInfo.subtitle || "Traditional Goodness • Special Prices"}
+                                    onChange={(val) => onFieldChange?.('subtitle', val)}
+                                    isEditable={isEditable}
+                                    placeholder="Click to edit subtitle..."
+                                    className="font-kalam text-sm font-bold text-[#a44722] mt-1 tracking-wide"
+                                />
+                            </div>
+
+                            {(campaignInfo.validFrom || campaignInfo.validTo) && (
+                                <div className="bg-[#19703a] text-white px-4 py-2 rounded-2xl shadow-sm text-right shrink-0">
+                                    <span className="text-[10px] uppercase text-[#f2c13c] block font-bold font-nunito">Festive Period</span>
+                                    <span className="text-xs font-black text-white font-nunito">
+                                        {campaignInfo.validFrom || "This Season"} - {campaignInfo.validTo || "Offer Ends Soon"}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                    </header>
+                </>
             )}
 
             {/* ── PRODUCT GRID ── */}
@@ -153,9 +153,10 @@ export function OnamSpecialOffersPosterTemplate({
                             accentColor="#218340"
                             density={rows >= 5 ? 'dense' : rows === 4 ? 'compact' : 'normal'}
                             imageContainerClassName={
-                                rows >= 5 ? "max-h-[85px] aspect-auto h-[85px]" :
-                                rows === 4 ? "max-h-[125px] aspect-auto h-[125px]" :
-                                "aspect-square max-h-[175px]"
+                                rows >= 5 ? "max-h-[75px] aspect-auto h-[75px]" :
+                                    rows === 4 ? "max-h-[100px] aspect-auto h-[100px]" :
+                                        rows === 3 ? "max-h-[140px] aspect-auto h-[140px]" :
+                                            "aspect-square max-h-[175px]"
                             }
                             className="h-full bg-white/95 shadow-sm border-2 border-[#f2c13c]/40 hover:border-[#19703a]/50"
                         />

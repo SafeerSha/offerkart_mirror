@@ -21,9 +21,10 @@ const CATEGORIES = [
 interface PosterTemplateSelectorProps {
     onSelect: (template: any) => void;
     shopName?: string;
+    logoUrl?: string;
 }
 
-export function PosterTemplateSelector({ onSelect, shopName }: PosterTemplateSelectorProps) {
+export function PosterTemplateSelector({ onSelect, shopName, logoUrl }: PosterTemplateSelectorProps) {
     const [activeCategory, setActiveCategory] = useState<string>("all");
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -120,7 +121,7 @@ export function PosterTemplateSelector({ onSelect, shopName }: PosterTemplateSel
                     >
                         <div className="relative overflow-hidden bg-muted/30 border-b border-border">
                             {/* Live Scaled Preview */}
-                            <TemplatePreviewCard meta={template} shopName={shopName} />
+                            <TemplatePreviewCard meta={template} shopName={shopName} logoUrl={logoUrl} />
 
                             {/* Hover Action Overlay */}
                             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-6">

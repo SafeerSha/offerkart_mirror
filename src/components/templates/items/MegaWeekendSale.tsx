@@ -4,6 +4,7 @@ import React from 'react';
 import { TemplateProps } from '../types';
 import { ProductSlot } from '../shared/ProductSlot';
 import { EditableText } from '../shared/EditableText';
+import { ShopLogo } from '../shared/ShopLogo';
 import { Phone, MapPin, Zap, Flame } from 'lucide-react';
 
 export function MegaWeekendSaleTemplate({
@@ -35,19 +36,16 @@ export function MegaWeekendSaleTemplate({
 
                     <div className="flex items-center justify-between z-10">
                         <div className="flex items-center gap-4">
-                            {shopData.logoUrl ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                    src={shopData.logoUrl}
-                                    alt="Shop Logo"
-                                    className="w-20 h-20 object-contain bg-white rounded-2xl p-2 shadow-xl border-2 border-white/40"
-                                    crossOrigin="anonymous"
-                                />
-                            ) : (
-                                <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-inner">
-                                    <Flame className="w-8 h-8 text-yellow-300" />
-                                </div>
-                            )}
+                            <ShopLogo
+                                logoUrl={shopData.logoUrl}
+                                shopName={shopData.shopName}
+                                className="w-20 h-20 object-contain bg-white rounded-2xl p-2 shadow-xl border-2 border-white/40"
+                                fallback={
+                                    <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-inner">
+                                        <Flame className="w-8 h-8 text-yellow-300" />
+                                    </div>
+                                }
+                            />
 
                             <div>
                                 <h2 className="text-3xl font-black uppercase tracking-tight text-white drop-shadow-md">
@@ -73,7 +71,7 @@ export function MegaWeekendSaleTemplate({
                                 value={campaignInfo.title || "MEGA WEEKEND FLASH SALE"}
                                 onChange={(val) => onFieldChange?.('title', val)}
                                 isEditable={isEditable}
-                                placeholder="Click to edit campaign title..."
+                                placeholder="Click to edit offer title..."
                                 className="text-4xl font-black uppercase tracking-tight text-white drop-shadow-lg leading-none"
                             />
                             <EditableText
@@ -119,9 +117,10 @@ export function MegaWeekendSaleTemplate({
                             accentColor="#ea580c"
                             density={rows >= 5 ? 'dense' : rows === 4 ? 'compact' : 'normal'}
                             imageContainerClassName={
-                                rows >= 5 ? "max-h-[85px] aspect-auto h-[85px]" :
-                                rows === 4 ? "max-h-[125px] aspect-auto h-[125px]" :
-                                "aspect-square max-h-[160px]"
+                                rows >= 5 ? "max-h-[75px] aspect-auto h-[75px]" :
+                                    rows === 4 ? "max-h-[100px] aspect-auto h-[100px]" :
+                                        rows === 3 ? "max-h-[140px] aspect-auto h-[140px]" :
+                                            "aspect-square max-h-[175px]"
                             }
                             className="h-full"
                         />

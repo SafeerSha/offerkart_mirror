@@ -10,7 +10,7 @@ import {
   Bebas_Neue 
 } from "next/font/google";
 import "./globals.css";
-import { Providers } from "./providers";
+import Providers from "./providers";
 import { ConditionalHeader } from "@/components/layout/ConditionalHeader";
 import { OfflineDetector } from "@/components/layout/OfflineDetector";
 import { cookies } from "next/headers";

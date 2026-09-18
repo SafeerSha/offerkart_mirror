@@ -25,6 +25,7 @@ import {
     useMyShops, useBranches, useAllOffers, useDeleteOffer, useToggleOfferStatus, useIsMobile
 } from "@/hooks";
 import { cn, getRelativeTime } from "@/lib/utils";
+import { formatOfferType } from "@/lib/common";
 
 interface SwipeableCardProps {
     children: React.ReactNode;
@@ -432,7 +433,7 @@ function ShopOffersContent() {
 
             if (query) {
                 const matchesTitle = (offer.title || "").toLowerCase().includes(query);
-                const matchesType = (offer.type || "").toLowerCase().includes(query);
+                const matchesType = (offer.type || "").toLowerCase().includes(query) || formatOfferType(offer.type).toLowerCase().includes(query);
                 const matchesCategory = (offer.category || "").toLowerCase().includes(query);
 
                 let matchesBranch = false;
@@ -805,8 +806,8 @@ function ShopOffersContent() {
                                                                     {offer.title || "Untitled Offer"}
                                                                 </h4>
                                                                 <div className="flex items-center gap-1.5 mt-0.5">
-                                                                    <span className="text-[9px] font-bold text-orange-500 capitalize tracking-widest leading-none">
-                                                                        {offer.type ? `${offer.type}` : 'Builder'}
+                                                                    <span className="text-[9px] font-bold text-orange-500 tracking-wider leading-none">
+                                                                        {formatOfferType(offer.type) || 'Designed'}
                                                                     </span>
                                                                     {offer.isDraft && (
                                                                         <span className="bg-amber-50 text-amber-700 border border-amber-200 px-1 py-0.2 rounded font-bold text-[8px] tracking-wider scale-90 origin-left shrink-0">
