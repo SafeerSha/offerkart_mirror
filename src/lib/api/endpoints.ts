@@ -1,9 +1,17 @@
 export const ENDPOINTS = {
+    USER: {
+        PROFILE: `user/profile`,
+    },
     AUTH: {
         REGISTER: `auth/register`,
         LOGIN: `auth/login`,
         RESEND_EMAIL_OTP: `auth/resend-email-otp`,
         VERIFY_EMAIL_OTP: `auth/verify-email-otp`,
+        USER: `auth/user`,
+        CHANGE_PASSWORD: `auth/change-password`,
+        FORGOT_PASSWORD: `auth/forgot-password`,
+        VERIFY_RESET_OTP: `auth/verify-reset-otp`,
+        RESET_PASSWORD: `auth/reset-password`,
     },
     SHOP: {
         BASE: `business/shop`,
@@ -32,8 +40,15 @@ export const ENDPOINTS = {
         PRODUCT_DETAILS: (id: string | number) => `user/offer/products/${id}`,
         PRODUCT_SIMILAR: (id: string | number) => `user/offer/products/${id}/similar`,
         SHOPS: `user/offer/shops`,
+        SHOP: (id: string | number) => `user/offer/shop/${id}`,
         FEATURED: `user/offer/featured`,
         PRODUCTS_SHOPS: `user/offer/products/shops`,
+        SOCIAL_LINKS: `user/offer/sociallinks`,
+    },
+    FAVORITE: {
+        BASE: `user/favorite`,
+        DETAILS: (id: string | number) => `user/favorite/${id}`,
+        CHECK: (id: string | number) => `user/favorite/check/${id}`,
     },
     CATEGORY: {
         BASE: `business/category`,

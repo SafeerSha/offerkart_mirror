@@ -8,6 +8,9 @@ import { PremiumCard } from "@/components/shared/PremiumCard";
 import { MarkedPoster } from "@/components/shared/MarkedPoster";
 import { Poster } from "@/lib/types/offer";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useFavorites, useAddFavorite, useRemoveFavorite } from "@/hooks/useFavorites";
+import { useSession } from "next-auth/react";
+import { useToast } from "@/hooks/use-toast";
 
 interface OfferCardProps {
   id?: number | string;
@@ -44,10 +47,37 @@ const OfferCard = ({
   const { t } = useTranslation("common");
   const router = useRouter();
   const [isHovered, setIsHovered] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(false);
   const [aspectRatio, setAspectRatio] = useState<number | null>(null);
-  const offerDisplayName = offerName || title || t("catalog.untitledOffer");
+
+  const { data: session } = useSession();
+  const { toast } = useToast();
+  const { data: favorites } = useFavorites();
+  const addFavorite = useAddFavorite();
+  const removeFavorite = useRemoveFavorite();
+
   const primaryId = id ?? offerId ?? 0;
+  
+  const isFavorite = Array.isArray(favorites) && favorites.some(f => f.item_id === primaryId && f.type === 'offer');
+  const favoriteItem = Array.isArray(favorites) ? favorites.find(f => f.item_id === primaryId && f.type === 'offer') : undefined;
+
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!session) {
+      toast({
+        title: "Authentication required",
+        description: "Please login to save favorites.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (isFavorite && favoriteItem) {
+      removeFavorite.mutate(favoriteItem.id);
+    } else {
+      addFavorite.mutate({ itemId: primaryId, type: 'offer' });
+    }
+  };
+  const offerDisplayName = offerName || title || t("catalog.untitledOffer");
   const posterSrc = posters?.[0]?.posterSrc || (typeof image === "string" ? image : image?.src) || "/images/shop-registration-bg-light.png";
   const postersCount = totalPosters || posters?.length || 0;
   // Calculate total offers count from marked items
@@ -122,9 +152,22 @@ const OfferCard = ({
         <div className={`absolute inset-0 transition-all duration-500 bg-black/10 ${isHovered ? "opacity-100" : "opacity-0"}`} />
 
         {/* Top Actions/Badges */}
-        <div className="absolute top-3 left-3 right-3 sm:top-4 sm:left-4 sm:right-4 flex justify-between items-start pointer-events-none">
+        <div className="absolute top-1 left-1 right-1 sm:top-2 sm:left-4 sm:right-2 flex justify-between items-start pointer-events-none z-30">
           <div className="flex flex-col gap-2 items-start">
           </div>
+          <button
+            onClick={handleFavoriteClick}
+            disabled={addFavorite.isPending || removeFavorite.isPending}
+            className={cn(
+              "px-3 py-1 sm:px-3 sm:py-1 rounded-full flex items-center justify-center backdrop-blur-md transition-all pointer-events-auto border",
+              isFavorite
+                ? "bg-orange-500 text-white border-orange-500 shadow-lg shadow-orange-500/20 scale-105"
+                : "bg-white/70 dark:bg-slate-950/70 text-slate-700 dark:text-slate-300 border-white/20 hover:bg-white/95 dark:hover:bg-slate-900",
+              (addFavorite.isPending || removeFavorite.isPending) && "opacity-70 cursor-not-allowed"
+            )}
+          >
+            <Heart className={cn("w-4 h-4 sm:w-4.5 sm:h-4.5 transition-transform duration-300", isFavorite && "fill-current scale-110", (addFavorite.isPending || removeFavorite.isPending) && "animate-pulse")} />
+          </button>
         </div>
 
         <div className={cn(

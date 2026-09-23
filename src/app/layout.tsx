@@ -12,6 +12,7 @@ import {
 import "./globals.css";
 import Providers from "./providers";
 import { ConditionalHeader } from "@/components/layout/ConditionalHeader";
+import { ConditionalFooter } from "@/components/layout/ConditionalFooter";
 import { OfflineDetector } from "@/components/layout/OfflineDetector";
 import { cookies } from "next/headers";
 import { Locale } from "@/lib/i18n/config";
@@ -101,11 +102,16 @@ export default async function RootLayout({
 
   return (
     <html lang={locale} suppressHydrationWarning>
-      <body className={`${rubik.variable} ${inter.variable} ${playfair.variable} ${staatliches.variable} ${montserrat.variable} ${outfit.variable} ${quicksand.variable} ${bebasNeue.variable} antialiased`} suppressHydrationWarning>
+      <body className={`${rubik.variable} ${inter.variable} ${playfair.variable} ${staatliches.variable} ${montserrat.variable} ${outfit.variable} ${quicksand.variable} ${bebasNeue.variable} antialiased min-h-screen flex flex-col`} suppressHydrationWarning>
         <Providers locale={locale} dictionary={dictionary}>
           <OfflineDetector>
-            <ConditionalHeader />
-            {children}
+            <div className="flex flex-col min-h-screen">
+              <ConditionalHeader />
+              <main id="main-content" className="flex-1 flex flex-col">
+                {children}
+              </main>
+              <ConditionalFooter />
+            </div>
           </OfflineDetector>
         </Providers>
       </body>
