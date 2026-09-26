@@ -53,7 +53,6 @@ const montserrat = Montserrat({
 
 const outfit = Outfit({
   subsets: ["latin"],
-  weight: ["300", "400", "600", "700", "900"],
   variable: "--font-outfit",
   display: "swap",
 });
