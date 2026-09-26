@@ -25,10 +25,11 @@ interface Product {
 }
 
 interface FeaturedProductsProps {
-    products: Product[];
+    products: any[];
+    disableLocationFetch?: boolean;
 }
 
-const FeaturedProducts = ({ products }: FeaturedProductsProps) => {
+const FeaturedProducts = ({ products, disableLocationFetch = false }: FeaturedProductsProps) => {
     const router = useRouter();
     const { location: userLocation, hydrated } = useLocationContext();
 
@@ -44,15 +45,15 @@ const FeaturedProducts = ({ products }: FeaturedProductsProps) => {
     const hasLocation = userLocation.latitude !== null && userLocation.longitude !== null;
 
     const { data: dynamicProductsRes, isLoading } = useUserProductsFiltered(queryFilters, {
-        enabled: hydrated && hasLocation
+        enabled: !disableLocationFetch && hydrated && hasLocation
     });
 
     const displayProducts = useMemo(() => {
-        if (hydrated && hasLocation && Array.isArray(dynamicProductsRes)) {
+        if (!disableLocationFetch && hydrated && hasLocation && Array.isArray(dynamicProductsRes)) {
             return dynamicProductsRes;
         }
         return products;
-    }, [hydrated, hasLocation, dynamicProductsRes, products]);
+    }, [disableLocationFetch, hydrated, hasLocation, dynamicProductsRes, products]);
 
     const sortedProducts = useMemo(() => {
         if (!displayProducts) return [];

@@ -14,9 +14,10 @@ import { useInfiniteUserOffers } from "@/hooks/useApi";
 interface FilterableOffersProps {
     initialOffers: Offer[];
     buttonText: string;
+    disableLocationFetch?: boolean;
 }
 
-export default function FilterableOffers({ initialOffers = [], buttonText }: FilterableOffersProps) {
+export default function FilterableOffers({ initialOffers = [], buttonText, disableLocationFetch = false }: FilterableOffersProps) {
     const router = useRouter();
     const { location: userLocation, hydrated } = useLocationContext();
     const [activeCategory, setActiveCategory] = useState("All");
@@ -32,9 +33,9 @@ export default function FilterableOffers({ initialOffers = [], buttonText }: Fil
         return filters;
     }, [userLocation]);
 
-    const hasLocation = userLocation.latitude !== null && userLocation.longitude !== null;
+    const hasLocation = !disableLocationFetch && userLocation.latitude !== null && userLocation.longitude !== null;
     const { data: dynamicData, isLoading } = useInfiniteUserOffers(12, queryFilters, {
-        enabled: hydrated && hasLocation
+        enabled: !disableLocationFetch && hydrated && hasLocation
     });
 
     const displayOffers = useMemo(() => {

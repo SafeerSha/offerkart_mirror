@@ -63,16 +63,7 @@ const FeaturedShops = ({
   };
 
   const handleShopClick = (shopId: number) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (activeShopId !== undefined && String(shopId) === String(activeShopId)) {
-      params.delete("shopId");
-    } else {
-      params.set("shopId", String(shopId));
-    }
-
-    // If we are on the home page, redirect to the offers page with the shopId filter
-    const targetPath = pathname === "/" ? "/offers" : pathname;
-    router.push(`${targetPath}?${params.toString()}`);
+    router.push(`/shop/${shopId}`);
   };
 
   const { location: userLocation, hydrated } = useLocationContext();

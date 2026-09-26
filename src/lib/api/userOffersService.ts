@@ -3,6 +3,7 @@ import { ENDPOINTS } from "./endpoints";
 import { CACHE_TAGS } from "./cache-tags";
 import { SearchResponse } from "../types/search";
 import { Product, PaginatedResponse } from "../types";
+import { SocialLinksQuery, PaginatedSocialLinksResult, OfferSocialLink } from "../types/socialLinks";
 
 // Map shop names to a stable mock shopId (1-indexed based on their index in ALL_OFFERS or predefined)
 export function getShopIdFromShopName(shopName: string): number {
@@ -109,6 +110,31 @@ export async function getUserOffersList(query: {
     }
 
     return response;
+}
+
+export async function getUserShopDetails(id: string | number) {
+    const response = await backend.get<any>(ENDPOINTS.USER_OFFER.SHOP(id), {
+        cache: "no-store"
+    });
+
+    if (!response.success || !response.data) {
+        return {
+            success: false,
+            data: null,
+            error: "Shop not found",
+            originalResponse: response
+        };
+    }
+
+    const unwrapped = unwrapApiEnvelope(response.data);
+    const shopData = unwrapped && typeof unwrapped === "object" && "data" in unwrapped && unwrapped.data
+        ? unwrapped.data
+        : unwrapped;
+
+    return {
+        ...response,
+        data: shopData,
+    };
 }
 
 export async function getUserOfferDetails(id: string | number) {
@@ -226,6 +252,102 @@ export async function getGlobalSearch(
             offers: []
         }
     };
+}
+
+/**
+ * Fetch public offer social links (Promo / Ads page)
+ * Corresponds to: GET https://offersnearu.vercel.app/api/user/offer/sociallinks
+ */
+export async function getUserOfferSocialLinks(
+    query: SocialLinksQuery = {},
+    cacheOptions?: { next?: { tags?: string[]; revalidate?: number | false } }
+): Promise<PaginatedSocialLinksResult> {
+    const page = Number(query.page) || 1;
+    const limit = Number(query.limit) || 8;
+    const sort = query.sort || "latest";
+
+    const params = new URLSearchParams({
+        page: String(page),
+        limit: String(limit),
+        sort,
+    });
+
+    if (query.latitude !== undefined && query.latitude !== null && query.latitude !== "") {
+        params.set("latitude", String(query.latitude));
+    }
+    if (query.longitude !== undefined && query.longitude !== null && query.longitude !== "") {
+        params.set("longitude", String(query.longitude));
+    }
+    if (query.industryId !== undefined && query.industryId !== null && query.industryId !== "") {
+        params.set("industryId", String(query.industryId));
+    }
+    if (query.radius !== undefined && query.radius !== null && query.radius !== "") {
+        params.set("radius", String(query.radius));
+    }
+
+    try {
+        const response = await backend.get<any>(
+            `${ENDPOINTS.USER_OFFER.SOCIAL_LINKS}?${params.toString()}`,
+            {
+                next: { tags: [CACHE_TAGS.OFFERS] },
+                ...cacheOptions,
+            }
+        );
+
+        if (!response.success || !response.data) {
+            return {
+                success: false,
+                data: [],
+                page,
+                limit,
+                total: 0,
+                totalPages: 0,
+                hasMore: false,
+                sort,
+                error: response.error || "Failed to fetch social links",
+            };
+        }
+
+        const apiData = unwrapApiEnvelope(response.data);
+        const actualData = apiData && typeof apiData === "object" && "data" in apiData && apiData.data
+            ? apiData.data
+            : apiData;
+
+        const items: OfferSocialLink[] = Array.isArray(actualData?.data)
+            ? actualData.data
+            : (Array.isArray(actualData) ? actualData : []);
+
+        const pagination = actualData?.pagination || apiData?.pagination || {};
+        const total = typeof pagination.total === "number" ? pagination.total : items.length;
+        const totalPages = typeof pagination.totalPages === "number"
+            ? pagination.totalPages
+            : (total > 0 ? Math.ceil(total / limit) : 1);
+        const currentPage = typeof pagination.page === "number" ? pagination.page : page;
+
+        return {
+            success: true,
+            data: items,
+            page: currentPage,
+            limit,
+            total,
+            totalPages,
+            hasMore: currentPage < totalPages,
+            sort: actualData?.sort || sort,
+        };
+    } catch (error) {
+        console.error("getUserOfferSocialLinks error:", error);
+        return {
+            success: false,
+            data: [],
+            page,
+            limit,
+            total: 0,
+            totalPages: 0,
+            hasMore: false,
+            sort,
+            error: error instanceof Error ? error.message : "Failed to fetch social links",
+        };
+    }
 }
 
 

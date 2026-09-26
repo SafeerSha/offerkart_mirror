@@ -8,10 +8,16 @@ import { s3Api } from "@/lib/api/s3";
 import { getCategories, getSubCategories } from "@/lib/api/categories";
 import { getIndustries } from "@/lib/api/industry";
 import { getDashboardAnalytics, getOfferViewsAnalytics, getProductViewsAnalytics, ViewsAnalyticsQuery } from "@/lib/api/analytics";
+import { getUserOfferSocialLinks } from "@/lib/api/userOffersService";
+import type { SocialLinksQuery } from "@/lib/types/socialLinks";
 import { cleanupOfferImages, cleanupProductImages } from "@/lib/imageUtils";
 
 // Query Keys
 export const queryKeys = {
+  // Social Links / Promo Ads keys
+  socialLinks: (query?: any) => ["socialLinks", query] as const,
+  infiniteSocialLinks: (filters?: any) => ["infiniteSocialLinks", filters] as const,
+
   // Shop keys
   shops: ["shops"] as const,
   myShops: ["myShops"] as const,
@@ -627,3 +633,39 @@ export function useSimilarProducts(
     staleTime: 5 * 60 * 1000,
   });
 }
+
+// ============ SOCIAL LINKS / PROMO ADS HOOKS ============
+
+export function useSocialLinks(query: SocialLinksQuery = {}, options: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: queryKeys.socialLinks(query),
+    queryFn: () => getUserOfferSocialLinks(query),
+    enabled: options.enabled ?? true,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useInfiniteSocialLinks(
+  limit: number = 8,
+  filters: Omit<SocialLinksQuery, "page" | "limit"> = {},
+  options: { enabled?: boolean } = {}
+) {
+  return useInfiniteQuery({
+    queryKey: queryKeys.infiniteSocialLinks({ limit, ...filters }),
+    enabled: options.enabled ?? true,
+    queryFn: async ({ pageParam = 1 }) => {
+      const result = await getUserOfferSocialLinks({
+        page: pageParam as number,
+        limit,
+        ...filters,
+      });
+      if (!result.success) throw new Error(result.error || "Failed to load promo ads");
+      return result;
+    },
+    getNextPageParam: (lastPage: any) => {
+      return lastPage.hasMore ? (lastPage.page || 1) + 1 : undefined;
+    },
+    initialPageParam: 1,
+    staleTime: 5 * 60 * 1000,
+  });
+}

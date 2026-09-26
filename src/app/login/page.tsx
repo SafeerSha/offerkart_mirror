@@ -18,6 +18,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { loginShop, resendEmailOtp } from "@/lib/api/shop";
 import OtpVerificationModal from "@/components/shop-registration/OtpVerificationModal";
+import { ForgotPasswordModal } from "@/components/auth/ForgotPasswordModal";
 
 export default function LoginPage() {
     const { t } = useTranslation("login");
@@ -26,6 +27,7 @@ export default function LoginPage() {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
     const [showOtpModal, setShowOtpModal] = useState(false);
+    const [showForgotModal, setShowForgotModal] = useState(false);
     const [unverifiedUser, setUnverifiedUser] = useState<{
         id?: number | string;
         email: string;
@@ -86,8 +88,8 @@ export default function LoginPage() {
                 : resData;
 
             const isEmailUnverified = Boolean(nestedData?.isEmailNotVerified);
-            const isPhoneUnverified = Boolean(nestedData?.isPhoneNotVerified);
-            const isUnverified = isEmailUnverified || isPhoneUnverified;
+            // const isPhoneUnverified = Boolean(nestedData?.isPhoneNotVerified); // Disabled pending OTP implementation
+            const isUnverified = isEmailUnverified; // || isPhoneUnverified;
 
             if (isUnverified) {
                 const targetEmail = (nestedData?.email as string) || formData.email;
@@ -248,12 +250,13 @@ export default function LoginPage() {
                                     <Label htmlFor="password" className="text-gray-700 font-medium">
                                         {t("form.passwordLabel")}
                                     </Label>
-                                    <Link
-                                        href="/forgot-password"
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowForgotModal(true)}
                                         className="text-sm font-medium text-orange-500 hover:text-orange-600 transition-colors"
                                     >
                                         {t("form.forgotPassword")}
-                                    </Link>
+                                    </button>
                                 </div>
                                 <div className="relative">
                                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -306,10 +309,10 @@ export default function LoginPage() {
                         <div className="mt-8 text-center text-sm">
                             <span className="text-gray-600">Don't have an account? </span>
                             <Link
-                                href="/shop-registration"
+                                href="/register"
                                 className="font-semibold text-orange-500 hover:text-orange-600 transition-colors"
                             >
-                                Register your shop
+                                Sign up
                             </Link>
                         </div>
                     </div>
@@ -323,6 +326,11 @@ export default function LoginPage() {
                 userId={unverifiedUser?.id}
                 onVerified={handleOtpVerified}
                 isSubmitting={isLoading}
+            />
+
+            <ForgotPasswordModal 
+                isOpen={showForgotModal} 
+                onClose={() => setShowForgotModal(false)} 
             />
         </main>
     );

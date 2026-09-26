@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { usePathname } from "next/navigation";
-import { Search, User, LogIn, Menu, X, PlusCircle, MapPin, ChevronDown, LayoutDashboard, Plus, Loader2, Home, Percent, ShoppingBag, Locate, Package, Tag, ArrowRight } from "lucide-react";
+import { Search, User, LogIn, Menu, X, PlusCircle, MapPin, ChevronDown, LayoutDashboard, Plus, Loader2, Home, Percent, ShoppingBag, Locate, Package, Tag, ArrowRight, Heart } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSession, signIn, signOut } from "next-auth/react";
@@ -12,6 +12,12 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { cn } from "@/lib/utils";
 import { config } from "@/lib/config";
@@ -607,30 +613,33 @@ const Header = () => {
                                     Log In
                                 </button>
                             ) : (
-                                <>
-                                    <PremiumButton
-                                        asChild
-                                        size="sm"
-                                        className="rounded-2xl px-3 sm:px-4 lg:px-6 w-full justify-center group h-auto"
+                                <div className="grid grid-cols-3 w-full rounded-full bg-orange-500/10 border border-orange-500/20 overflow-hidden divide-x divide-orange-500/20 shadow-[inset_0_2px_12px_rgba(249,115,22,0.15)] dark:shadow-[inset_0_2px_12px_rgba(249,115,22,0.25)]">
+                                    <Link
+                                        href="/profile"
+                                        onClick={() => setMobileMenuOpen(false)}
+                                        className="flex flex-col items-center justify-center gap-1 py-3 px-1 hover:bg-orange-500/10 transition-all duration-300 text-orange-600 dark:text-orange-500"
                                     >
-                                        <Link
-                                            href={user?.business_name ? "/shop-manager" : "/shop-registration"}
-                                            onClick={() => setMobileMenuOpen(false)}
-                                            className="flex items-center justify-center py-3.5 px-4 w-full"
-                                        >
-                                            {user?.business_name ? (
-                                                <>
-                                                    <LayoutDashboard className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
-                                                    <span className="font-bold">Manage Shop</span>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <PlusCircle className="w-4 h-4 mr-2" />
-                                                    <span className="font-bold">Add your shop</span>
-                                                </>
-                                            )}
-                                        </Link>
-                                    </PremiumButton>
+                                        <User className="w-5 h-5 text-orange-500" />
+                                        <span className="text-[10px] sm:text-xs font-bold leading-tight">Profile</span>
+                                    </Link>
+
+                                    <Link
+                                        href={user?.business_name ? "/shop-manager" : "/shop-registration"}
+                                        onClick={() => setMobileMenuOpen(false)}
+                                        className="flex flex-col items-center justify-center gap-1 py-3 px-1 hover:bg-orange-500/10 transition-all duration-300 text-orange-600 dark:text-orange-500"
+                                    >
+                                        {user?.business_name ? (
+                                            <>
+                                                <LayoutDashboard className="w-5 h-5 text-orange-500" />
+                                                <span className="text-[10px] sm:text-xs font-bold text-center leading-tight">Shop</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <PlusCircle className="w-5 h-5 text-orange-500" />
+                                                <span className="text-[10px] sm:text-xs font-bold text-center leading-tight">Add Shop</span>
+                                            </>
+                                        )}
+                                    </Link>
 
                                     <button
                                         onClick={() => {
@@ -638,21 +647,21 @@ const Header = () => {
                                             signOut({ callbackUrl: "/" });
                                         }}
                                         disabled={isLoggingOut}
-                                        className="px-4 py-3 rounded-xl bg-destructive/5 hover:bg-destructive/10 text-destructive/80 hover:text-destructive transition-all duration-300 border border-destructive/20 hover:border-destructive/30 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="flex flex-col items-center justify-center gap-1 py-3 px-1 hover:bg-orange-500/10 transition-all duration-300 text-orange-600 dark:text-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         {isLoggingOut ? (
                                             <>
-                                                <Loader2 className="w-4 h-4 mr-3 animate-spin" />
-                                                <span className="font-medium">Logging out...</span>
+                                                <Loader2 className="w-5 h-5 animate-spin text-orange-500" />
+                                                <span className="text-[10px] sm:text-xs font-bold text-center leading-tight">Wait...</span>
                                             </>
                                         ) : (
                                             <>
-                                                <LogIn className="w-4 h-4 mr-3" />
-                                                <span className="font-medium">Log Out</span>
+                                                <LogIn className="w-5 h-5 text-orange-500" />
+                                                <span className="text-[10px] sm:text-xs font-bold text-center leading-tight">Log Out</span>
                                             </>
                                         )}
                                     </button>
-                                </>
+                                </div>
                             )}
 
                             {!isRegistered && (
@@ -774,6 +783,7 @@ const Header = () => {
                                             <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
                                             <span className="relative z-10">Products</span>
                                         </Link>
+
                                         <button
                                             onClick={() => setLocationOpen(true)}
                                             className="relative text-foreground hover:text-primary transition-all font-medium flex items-center gap-1.5 group border-0 outline-none select-none max-w-[220px] xl:max-w-[320px] min-w-0"
@@ -803,6 +813,50 @@ const Header = () => {
 
                                 {/* Right: Desktop Buttons or Mobile Toggle */}
                                 <div className="flex items-center gap-2 sm:gap-3">
+                                    {isRegistered && (
+                                        <TooltipProvider delayDuration={300}>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Link
+                                                        href="/profile"
+                                                        className={cn(
+                                                            "hidden lg:flex px-3 py-1.5 rounded-full transition-all duration-200 items-center justify-center group",
+                                                            pathname === "/profile"
+                                                                ? "text-orange-600 bg-orange-300/20 dark:bg-orange-300/20"
+                                                                : "text-orange-500 dark:text-orange-400 bg-orange-300/20 dark:bg-orange-300/20 hover:text-orange-600"
+                                                        )}
+                                                    >
+                                                        <User className="w-5 h-5 transition-transform group-hover:scale-110 duration-200" />
+                                                    </Link>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="bottom" sideOffset={5} className="font-semibold px-2 py-1 bg-slate-800 text-white dark:bg-slate-700">
+                                                    My Profile
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    )}
+                                    {isRegistered && (
+                                        <TooltipProvider delayDuration={300}>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Link 
+                                                        href="/favorites" 
+                                                        className={cn(
+                                                            "px-4 py-1.5 rounded-full transition-colors flex items-center justify-center group",
+                                                            pathname.startsWith("/favorites") 
+                                                                ? "text-orange-600 bg-orange-300/20 dark:bg-orange-300/20" 
+                                                                : "text-orange-500 dark:text-orange-400 bg-orange-300/20 dark:bg-orange-300/20 hover:text-orange-600 hover:bg-orange-300/20 dark:hover:bg-orange-300/20"
+                                                        )} 
+                                                    >
+                                                        <Heart className="w-5 h-5 fill-current" />
+                                                    </Link>
+                                                </TooltipTrigger>
+                                                <TooltipContent side="bottom" sideOffset={5} className="font-semibold px-2 py-1 bg-slate-800 text-white dark:bg-slate-700">
+                                                    Favorites
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    )}
                                     <div className="hidden lg:flex items-center gap-2 sm:gap-3">
                                         {!isRegistered ? (
                                             <PremiumButton
@@ -866,7 +920,7 @@ const Header = () => {
                                         className="lg:hidden p-2 hover:bg-secondary rounded-lg transition-colors ml-1"
                                         aria-label={mobileMenuOpen ? "Close mobile menu" : "Open mobile menu"}
                                     >
-                                        {mobileMenuOpen ? <X className="w-5 h-5 text-orange-500" /> : <Menu className="w-5 h-5" />}
+                                        {mobileMenuOpen ? <X className="w-5 h-5 text-orange-500" /> : <Menu className="w-5 h-5 text-orange-500" />}
                                     </button>
                                 </div>
                             </div>
@@ -1052,12 +1106,12 @@ const Header = () => {
 
                             {/* Mobile Navigation and Search */}
                             <div className="lg:hidden mt-2.5 flex flex-col gap-2 px-0.5 animate-in slide-in-from-top-3 duration-300">
-                                {/* Three Classic Premium Button Links */}
+                                {/* Premium Button Links */}
                                 <div className="grid grid-cols-3 gap-2">
                                     <Link
                                         href="/"
                                         className={cn(
-                                            "flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border text-xs font-bold transition-all duration-300 transform active:scale-95 shadow-sm",
+                                            "flex items-center justify-center gap-1 py-2.5 px-2 rounded-xl border text-[10px] sm:text-xs font-bold transition-all duration-300 transform active:scale-95 shadow-sm",
                                             pathname === "/"
                                                 ? "bg-gradient-to-r from-orange-500/10 to-amber-500/10 border-orange-500/30 text-orange-600 shadow-orange-500/5"
                                                 : "bg-white/40 dark:bg-black/20 border-primary/5 text-muted-foreground hover:bg-white/70 hover:text-foreground"
@@ -1069,7 +1123,7 @@ const Header = () => {
                                     <Link
                                         href="/offers"
                                         className={cn(
-                                            "flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border text-xs font-bold transition-all duration-300 transform active:scale-95 shadow-sm",
+                                            "flex items-center justify-center gap-1 py-2.5 px-2 rounded-xl border text-[10px] sm:text-xs font-bold transition-all duration-300 transform active:scale-95 shadow-sm",
                                             (pathname === "/offers" || pathname.startsWith('/offer/'))
                                                 ? "bg-gradient-to-r from-orange-500/10 to-amber-500/10 border-orange-500/30 text-orange-600 shadow-orange-500/5"
                                                 : "bg-white/40 dark:bg-black/20 border-primary/5 text-muted-foreground hover:bg-white/70 hover:text-foreground"
@@ -1081,7 +1135,7 @@ const Header = () => {
                                     <Link
                                         href="/products"
                                         className={cn(
-                                            "flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border text-xs font-bold transition-all duration-300 transform active:scale-95 shadow-sm",
+                                            "flex items-center justify-center gap-1 py-2.5 px-2 rounded-xl border text-[10px] sm:text-xs font-bold transition-all duration-300 transform active:scale-95 shadow-sm",
                                             pathname.startsWith("/products")
                                                 ? "bg-gradient-to-r from-orange-500/10 to-amber-500/10 border-orange-500/30 text-orange-600 shadow-orange-500/5"
                                                 : "bg-white/40 dark:bg-black/20 border-primary/5 text-muted-foreground hover:bg-white/70 hover:text-foreground"

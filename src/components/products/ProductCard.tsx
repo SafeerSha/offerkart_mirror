@@ -8,30 +8,50 @@ import { PremiumCard } from "@/components/shared/PremiumCard";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
+import { useFavorites, useAddFavorite, useRemoveFavorite } from "@/hooks/useFavorites";
+import { useSession } from "next-auth/react";
+import { useToast } from "@/hooks/use-toast";
 
 interface ProductCardProps {
     id: number;
-    name: string;
-    shopName: string;
-    price: number;
+    name?: string;
+    displayName?: string;
+    shopName?: string;
+    shop_name?: string;
+    price?: number;
+    offerPrice?: number;
+    offer_price?: number;
     originalPrice?: number;
+    original_price?: number;
     image?: string | StaticImageData | null;
-    category: string;
+    imageUrl?: string | null;
+    image_url?: string | null;
+    product_image?: string | null;
+    category?: string;
     subcategory?: string;
     rating?: number;
     reviews?: number;
     discount?: string;
     savingPercentage?: number;
     clickEnable?: boolean;
+    [key: string]: any;
 }
 
 const ProductCard = ({
     id,
     name,
+    displayName,
     shopName,
+    shop_name,
     price,
+    offerPrice,
+    offer_price,
     originalPrice,
+    original_price,
     image,
+    imageUrl,
+    image_url,
+    product_image,
     category,
     subcategory,
     rating = 4.5,
@@ -39,21 +59,55 @@ const ProductCard = ({
     discount,
     savingPercentage,
     clickEnable = true,
+    ...rest
 }: ProductCardProps) => {
     const { t } = useTranslation("common");
     const router = useRouter();
     const { resolveHierarchyById } = useCategoryHierarchy();
     const [isHovered, setIsHovered] = useState(false);
-    const [isFavorite, setIsFavorite] = useState(false);
 
-    const resolvedCategory = resolveHierarchyById(category);
+    const { data: session } = useSession();
+    const { toast } = useToast();
+    const { data: favorites } = useFavorites();
+    const addFavorite = useAddFavorite();
+    const removeFavorite = useRemoveFavorite();
+
+    // Resilient field fallbacks
+    const resolvedName = name || displayName || (rest as any).title || (rest as any).product_name || (rest as any).productName || "Product";
+    const resolvedPrice = price !== undefined ? price : (offerPrice !== undefined ? offerPrice : (offer_price !== undefined ? offer_price : 0));
+    const resolvedOriginalPrice = originalPrice !== undefined ? originalPrice : (original_price !== undefined ? original_price : undefined);
+    const resolvedImage = image || imageUrl || image_url || product_image || (Array.isArray((rest as any).images) && (rest as any).images[0]) || null;
+    const resolvedShopName = shopName || shop_name || (rest as any).shop?.shop_name || (rest as any).shop?.name || "";
+
+    const isFavorite = Array.isArray(favorites) && favorites.some(f => f.item_id === id && f.type === 'product');
+    const favoriteItem = Array.isArray(favorites) ? favorites.find(f => f.item_id === id && f.type === 'product') : undefined;
+
+    const handleFavoriteClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!session) {
+            toast({
+                title: "Authentication required",
+                description: "Please login to save favorites.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        if (isFavorite && favoriteItem) {
+            removeFavorite.mutate(favoriteItem.id);
+        } else {
+            addFavorite.mutate({ itemId: id, type: 'product' });
+        }
+    };
+
+    const resolvedCategory = resolveHierarchyById(category || "Product");
     const displayCategoryName = subcategory || resolvedCategory.sub || resolvedCategory.main || category;
 
     // Calculate display saving percentage if not explicitly provided
     const displaySaving = savingPercentage !== undefined
         ? savingPercentage
-        : (originalPrice && price && originalPrice > price
-            ? Math.round(((originalPrice - price) / originalPrice) * 100)
+        : (resolvedOriginalPrice && resolvedPrice && resolvedOriginalPrice > resolvedPrice
+            ? Math.round(((resolvedOriginalPrice - resolvedPrice) / resolvedOriginalPrice) * 100)
             : 0);
 
     return (
@@ -73,10 +127,10 @@ const ProductCard = ({
         >
             {/* Image Container */}
             <div className="relative aspect-square overflow-hidden bg-slate-50 dark:bg-slate-900/10">
-                {image ? (
+                {resolvedImage ? (
                     <Image
-                        src={image}
-                        alt={name}
+                        src={resolvedImage}
+                        alt={resolvedName}
                         fill
                         unoptimized
                         className="object-contain p-1.5"
@@ -94,7 +148,7 @@ const ProductCard = ({
                 )} />
 
                 {/* Top Actions/Badges */}
-                {/* <div className="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none z-10">
+                <div className="absolute top-2 left-2 right-2 sm:top-2 sm:left-2 sm:right-2 flex justify-between items-start pointer-events-none z-10">
                     <div className="flex flex-col gap-1.5 items-start">
                         {displaySaving > 0 ? (
                             <span className="px-3 py-1.5 rounded-full text-[10px] font-black bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/25 flex items-center gap-1">
@@ -110,23 +164,22 @@ const ProductCard = ({
                     </div>
 
                     <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setIsFavorite(!isFavorite);
-                        }}
+                        onClick={handleFavoriteClick}
+                        disabled={addFavorite.isPending || removeFavorite.isPending}
                         className={cn(
-                            "w-9 h-9 rounded-full flex items-center justify-center backdrop-blur-md transition-all pointer-events-auto border",
+                            "px-3 py-1 sm:px-4 sm:py-1 rounded-full flex items-center justify-center backdrop-blur-md transition-all pointer-events-auto border",
                             isFavorite
-                                ? "bg-rose-500 text-white border-rose-500 shadow-lg shadow-rose-500/20 scale-105"
-                                : "bg-white/70 dark:bg-slate-950/70 text-slate-700 dark:text-slate-300 border-white/20 hover:bg-white/95 dark:hover:bg-slate-900"
+                                ? "bg-orange-500 text-white border-orange-500 shadow-lg shadow-orange-500/20 scale-105"
+                                : "bg-white/70 dark:bg-slate-950/70 text-slate-700 dark:text-slate-300 border-white/20 hover:bg-white/95 dark:hover:bg-slate-900",
+                            (addFavorite.isPending || removeFavorite.isPending) && "opacity-70 cursor-not-allowed"
                         )}
                     >
-                        <Heart className={cn("w-4.5 h-4.5 transition-transform duration-300", isFavorite && "fill-current scale-110")} />
+                        <Heart className={cn("w-4.5 h-4.5 transition-transform duration-300", isFavorite && "fill-current scale-110", (addFavorite.isPending || removeFavorite.isPending) && "animate-pulse")} />
                     </button>
-                </div> */}
+                </div>
 
                 {/* Category tag */}
-                {displayCategoryName.toLowerCase() !== "product" && (
+                {displayCategoryName?.toLowerCase() !== "product" && (
                     <div className="absolute top-3 left-3 pointer-events-none z-10">
                         <span className="px-2 py-0.5 rounded-md text-[8px] sm:text-[9px] font-black uppercase tracking-wider bg-black/60 dark:bg-black/80 text-white backdrop-blur-sm border border-white/10">
                             {displayCategoryName}
@@ -151,21 +204,20 @@ const ProductCard = ({
             <div className="px-3 pb-2 pt-3 flex-1 flex flex-col bg-white dark:bg-[#1c2018] rounded-b-[2rem]">
                 <div>
                     {/* Shop details */}
-                    <div className="flex items-center gap-1.5 mb-2">
-                        {/* <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-50 dark:bg-slate-800 text-orange-500">
-                            <ShoppingBag className="w-2.5 h-2.5" />
-                        </span> */}
-                        <span className="text-[8px] font-bold text-slate-500 dark:text-slate-400 tracking-wider truncate">
-                            {shopName}
-                        </span>
-                    </div>
+                    {resolvedShopName && (
+                        <div className="flex items-center gap-1.5 mb-2">
+                            <span className="text-[8px] font-bold text-slate-500 dark:text-slate-400 tracking-wider truncate">
+                                {resolvedShopName}
+                            </span>
+                        </div>
+                    )}
 
                     {/* Product Name */}
                     <h4 className={cn(
                         "text-base font-extrabold text-slate-800 dark:text-slate-100 tracking-tight leading-snug line-clamp-2 transition-colors",
                         clickEnable && "group-hover:text-orange-500"
                     )}>
-                        {name}
+                        {resolvedName}
                     </h4>
                 </div>
 
@@ -174,11 +226,11 @@ const ProductCard = ({
                     <div className="flex flex-col">
                         <div className="flex items-baseline gap-1">
                             <span className="text-md font-black text-slate-950 dark:text-white tracking-tight">
-                                ₹{price}
+                                ₹{resolvedPrice}
                             </span>
-                            {!!originalPrice && originalPrice > price && (
+                            {!!resolvedOriginalPrice && resolvedOriginalPrice > resolvedPrice && (
                                 <span className="text-[10px] text-slate-400 dark:text-slate-500 line-through font-bold">
-                                    ₹{originalPrice}
+                                    ₹{resolvedOriginalPrice}
                                 </span>
                             )}
                         </div>
