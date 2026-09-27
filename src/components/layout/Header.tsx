@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { usePathname } from "next/navigation";
-import { Search, User, LogIn, Menu, X, PlusCircle, MapPin, ChevronDown, LayoutDashboard, Plus, Loader2, Home, Percent, ShoppingBag, Locate, Package, Tag, ArrowRight, Heart } from "lucide-react";
+import { Search, User, LogIn, Menu, X, PlusCircle, MapPin, ChevronDown, LayoutDashboard, Plus, Loader2, Home, Percent, ShoppingBag, Locate, Package, Tag, ArrowRight, Heart, Video } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSession, signIn, signOut } from "next-auth/react";
@@ -26,6 +26,7 @@ import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { useTranslation } from "@/hooks/useTranslation";
 import { SearchResultData } from "@/lib/types/search";
 import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
+import { useMyShops } from "@/hooks/useApi";
 import { getGlobalSearch } from "@/lib/api/userOffersService";
 import { useLocationContext } from "@/context/LocationContext";
 import { Arrow } from "@radix-ui/react-popover";
@@ -447,8 +448,26 @@ const Header = () => {
     type SessionUser = {
         business_name?: string | null;
         full_name?: string | null;
+        shopId?: string | number | null;
     } & Record<string, unknown>;
     const user = session?.user as SessionUser | undefined;
+
+    const isBusinessUser = isRegistered && Boolean(user?.business_name || (user as any)?.role === 2);
+    const { data: shopsResponse } = useMyShops({
+        enabled: isRegistered && isBusinessUser,
+    });
+
+    const myShops = useMemo(() => {
+        if (!shopsResponse?.success || !shopsResponse?.data) return [];
+        const result = shopsResponse.data as any;
+        return Array.isArray(result) ? result : (result.data || []);
+    }, [shopsResponse]);
+
+    const hasShop = Boolean(
+        (session as any)?.shopId ??
+        user?.shopId ??
+        myShops.length > 0
+    );
     const pathname = usePathname();
     const headerRef = useRef<HTMLElement | null>(null);
     const { locale } = useTranslation();
@@ -579,11 +598,13 @@ const Header = () => {
                 ? "Offers"
                 : pathname.startsWith("/products")
                     ? "Products"
-                    : pathname.startsWith("/shop-manager")
-                        ? "Shop Manager"
-                        : pathname.startsWith("/profile")
-                            ? "Profile"
-                            : "OfferNearU";
+                    : pathname.startsWith("/shop-manager/add-shop")
+                        ? "Create Shop"
+                        : pathname.startsWith("/shop-manager")
+                            ? "Shop Manager"
+                            : pathname.startsWith("/profile")
+                                ? "Profile"
+                                : "OfferNearU";
 
     const mobileMenu = (
         <div className={cn(
@@ -624,15 +645,22 @@ const Header = () => {
                                     </Link>
 
                                     <Link
-                                        href={user?.business_name ? "/shop-manager" : "/shop-registration"}
+                                        href={user?.business_name ? (hasShop ? "/shop-manager" : "/shop-manager/add-shop") : "/shop-registration"}
                                         onClick={() => setMobileMenuOpen(false)}
                                         className="flex flex-col items-center justify-center gap-1 py-3 px-1 hover:bg-orange-500/10 transition-all duration-300 text-orange-600 dark:text-orange-500"
                                     >
                                         {user?.business_name ? (
-                                            <>
-                                                <LayoutDashboard className="w-5 h-5 text-orange-500" />
-                                                <span className="text-[10px] sm:text-xs font-bold text-center leading-tight">Shop</span>
-                                            </>
+                                            hasShop ? (
+                                                <>
+                                                    <LayoutDashboard className="w-5 h-5 text-orange-500" />
+                                                    <span className="text-[10px] sm:text-xs font-bold text-center leading-tight">Shop</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <PlusCircle className="w-5 h-5 text-orange-500" />
+                                                    <span className="text-[10px] sm:text-xs font-bold text-center leading-tight">Create Shop</span>
+                                                </>
+                                            )
                                         ) : (
                                             <>
                                                 <PlusCircle className="w-5 h-5 text-orange-500" />
@@ -761,38 +789,44 @@ const Header = () => {
                                 {/* Middle: Desktop Nav or Mobile Location */}
                                 <div className="flex-1 flex justify-center">
                                     {/* Desktop Nav */}
-                                    <nav className="hidden lg:flex items-center gap-6 xl:gap-8">
+                                    <nav className="hidden lg:flex items-center gap-2 xl:gap-3">
                                         <Link href="/" className={cn(
-                                            "relative transition-all font-medium group text-sm xl:text-base flex items-center gap-1.5",
-                                            pathname === "/" ? "text-orange-500 font-bold" : "text-foreground hover:text-orange-500"
+                                            "relative transition-all font-medium group text-sm flex items-center gap-1.5 px-3.5 py-1.5 rounded-full",
+                                            pathname === "/" ? "bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 font-bold shadow-sm" : "text-slate-700 dark:text-slate-300 hover:text-orange-500 hover:bg-slate-50 dark:hover:bg-slate-900/50"
                                         )}>
                                             <Home className="w-3.5 h-3.5 shrink-0" />
                                             <span className="relative z-10">Home</span>
                                         </Link>
                                         <Link href="/offers" className={cn(
-                                            "relative transition-all font-medium group text-sm xl:text-base flex items-center gap-1.5",
-                                            (pathname === "/offers" || pathname.startsWith('/offer/')) ? "text-orange-500 font-bold" : "text-foreground hover:text-orange-500"
+                                            "relative transition-all font-medium group text-sm flex items-center gap-1.5 px-3.5 py-1.5 rounded-full",
+                                            (pathname === "/offers" || pathname.startsWith('/offer/')) ? "bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 font-bold shadow-sm" : "text-slate-700 dark:text-slate-300 hover:text-orange-500 hover:bg-slate-50 dark:hover:bg-slate-900/50"
                                         )}>
                                             <Tag className="w-3.5 h-3.5 shrink-0" />
                                             <span className="relative z-10">Offers</span>
                                         </Link>
                                         <Link href="/products" className={cn(
-                                            "relative transition-all font-medium group text-sm xl:text-base flex items-center gap-1.5",
-                                            pathname.startsWith("/products") ? "text-orange-500 font-bold" : "text-foreground hover:text-orange-500"
+                                            "relative transition-all font-medium group text-sm flex items-center gap-1.5 px-3.5 py-1.5 rounded-full",
+                                            pathname.startsWith("/products") ? "bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 font-bold shadow-sm" : "text-slate-700 dark:text-slate-300 hover:text-orange-500 hover:bg-slate-50 dark:hover:bg-slate-900/50"
                                         )}>
                                             <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
                                             <span className="relative z-10">Products</span>
                                         </Link>
+                                        <Link href="/promotions" className={cn(
+                                            "relative transition-all font-medium group text-sm flex items-center gap-1.5 px-3.5 py-1.5 rounded-full",
+                                            pathname.startsWith("/promotions") ? "bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 font-bold shadow-sm" : "text-slate-700 dark:text-slate-300 hover:text-orange-500 hover:bg-slate-50 dark:hover:bg-slate-900/50"
+                                        )}>
+                                            <Video className="w-3.5 h-3.5 shrink-0" />
+                                            <span className="relative z-10">Promo</span>
+                                        </Link>
 
                                         <button
                                             onClick={() => setLocationOpen(true)}
-                                            className="relative text-foreground hover:text-primary transition-all font-medium flex items-center gap-1.5 group border-0 outline-none select-none max-w-[220px] xl:max-w-[320px] min-w-0"
+                                            className="relative text-foreground hover:text-primary transition-all font-medium flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-slate-50 dark:hover:bg-slate-900/50 group border-0 outline-none select-none max-w-[220px] xl:max-w-[320px] min-w-0 ml-1"
                                             title={selectedLocation}
                                         >
                                             <MapPin className="w-4 h-4 text-orange-500 group-hover:scale-110 transition-transform shrink-0" />
                                             <span className="relative z-10 truncate text-sm font-semibold">{selectedLocation.split(',')[0]}</span>
-                                            <ChevronDown className="w-4 h-4 transition-transform group-hover:scale-110 shrink-0" />
-                                            <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-primary to-secondary group-hover:w-full transition-all duration-300" />
+                                            <ChevronDown className="w-3.5 h-3.5 transition-transform group-hover:scale-110 shrink-0 text-slate-400" />
                                         </button>
                                     </nav>
 
@@ -839,14 +873,14 @@ const Header = () => {
                                         <TooltipProvider delayDuration={300}>
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
-                                                    <Link 
-                                                        href="/favorites" 
+                                                    <Link
+                                                        href="/favorites"
                                                         className={cn(
                                                             "px-4 py-1.5 rounded-full transition-colors flex items-center justify-center group",
-                                                            pathname.startsWith("/favorites") 
-                                                                ? "text-orange-600 bg-orange-300/20 dark:bg-orange-300/20" 
+                                                            pathname.startsWith("/favorites")
+                                                                ? "text-orange-600 bg-orange-300/20 dark:bg-orange-300/20"
                                                                 : "text-orange-500 dark:text-orange-400 bg-orange-300/20 dark:bg-orange-300/20 hover:text-orange-600 hover:bg-orange-300/20 dark:hover:bg-orange-300/20"
-                                                        )} 
+                                                        )}
                                                     >
                                                         <Heart className="w-5 h-5 fill-current" />
                                                     </Link>
@@ -880,10 +914,17 @@ const Header = () => {
                                                 )}
                                             >
                                                 {user?.business_name ? (
-                                                    <Link href="/shop-manager" className="flex items-center">
-                                                        <LayoutDashboard className="w-4 h-4 mr-2" />
-                                                        <span className="inline">Manage Shop</span>
-                                                    </Link>
+                                                    hasShop ? (
+                                                        <Link href="/shop-manager" className="flex items-center">
+                                                            <LayoutDashboard className="w-4 h-4 mr-2" />
+                                                            <span className="inline">Manage Shop</span>
+                                                        </Link>
+                                                    ) : (
+                                                        <Link href="/shop-manager/add-shop" className="flex items-center">
+                                                            <PlusCircle className="w-4 h-4 mr-2" />
+                                                            <span className="inline">Create Shop</span>
+                                                        </Link>
+                                                    )
                                                 ) : (
                                                     <Link href="/profile" className="flex items-center">
                                                         <User className="w-4 h-4 mr-2" />
@@ -1107,7 +1148,7 @@ const Header = () => {
                             {/* Mobile Navigation and Search */}
                             <div className="lg:hidden mt-2.5 flex flex-col gap-2 px-0.5 animate-in slide-in-from-top-3 duration-300">
                                 {/* Premium Button Links */}
-                                <div className="grid grid-cols-3 gap-2">
+                                <div className="grid grid-cols-4 gap-2">
                                     <Link
                                         href="/"
                                         className={cn(
@@ -1143,6 +1184,18 @@ const Header = () => {
                                     >
                                         <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
                                         <span>Products</span>
+                                    </Link>
+                                    <Link
+                                        href="/promotions"
+                                        className={cn(
+                                            "flex items-center justify-center gap-1 py-2.5 px-2 rounded-xl border text-[10px] sm:text-xs font-bold transition-all duration-300 transform active:scale-95 shadow-sm",
+                                            pathname.startsWith("/promotions")
+                                                ? "bg-gradient-to-r from-orange-500/10 to-amber-500/10 border-orange-500/30 text-orange-600 shadow-orange-500/5"
+                                                : "bg-white/40 dark:bg-black/20 border-primary/5 text-muted-foreground hover:bg-white/70 hover:text-foreground"
+                                        )}
+                                    >
+                                        <Video className="w-3.5 h-3.5 shrink-0" />
+                                        <span>Promo</span>
                                     </Link>
                                 </div>
 
