@@ -94,20 +94,25 @@ const FeaturedProducts = ({ products, disableLocationFetch = false }: FeaturedPr
             <div className="container mx-auto px-4 relative z-10">
                 {/* Header section */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between mb-6 gap-6">
-                    <div>
-                        <Heading className="text-3xl md:text-5xl font-extrabold tracking-tight">
-                            Latest <span className="text-gradient">Products</span>
-                        </Heading>
-                        <Text className="text-sm md:text-base text-muted-foreground mt-2 max-w-xl">
-                            Discover premium items available at your favorite local businesses.
-                        </Text>
+                    <div className="flex items-center gap-3 sm:gap-4">
+                        <div className="p-2.5 sm:p-3 rounded-2xl bg-orange-500/10 border border-orange-500/20 shadow-sm shadow-orange-500/5">
+                            <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500 fill-orange-500" />
+                        </div>
+                        <div>
+                            <Heading className="text-2xl sm:text-3xl md:text-5xl font-extrabold tracking-tight">
+                                <span>Featured</span> <span className="text-orange-500">Products</span>
+                            </Heading>
+                            <Text className="text-sm md:text-base text-muted-foreground mt-1 max-w-xl">
+                                Discover premium items available at your favorite local businesses.
+                            </Text>
+                        </div>
                     </div>
 
                     <PremiumButton
                         variant="outline"
                         data-loader-text="Loading products catalog..."
                         onClick={() => router.push("/products")}
-                        className="rounded-2xl px-6 h-12 bg-white hover:bg-slate-50 border-slate-200 hover:border-orange-500 text-slate-800 hover:text-orange-600 transition-all font-semibold flex items-center shrink-0 self-start md:self-end"
+                        className="rounded-2xl px-6 h-12 bg-white hover:bg-orange-50 border-orange-500/30 hover:border-orange-500 text-slate-800 hover:text-orange-600 transition-all font-semibold flex items-center shrink-0 self-start md:self-end"
                         rightIcon={ArrowRight}
                     >
                         Explore All Products
@@ -115,9 +120,9 @@ const FeaturedProducts = ({ products, disableLocationFetch = false }: FeaturedPr
                 </div>
 
                 {sortedProducts.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-dashed border-gray-200 animate-in fade-in duration-300">
-                        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
-                            <Search className="w-8 h-8 text-gray-300" />
+                    <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-dashed border-orange-500/20 animate-in fade-in duration-300">
+                        <div className="w-16 h-16 bg-orange-500/10 rounded-full flex items-center justify-center mb-4">
+                            <Search className="w-8 h-8 text-orange-400" />
                         </div>
                         <h3 className="text-xl font-bold text-gray-900 mb-2">No products found</h3>
                         <p className="text-gray-500">Try to change your location preferences</p>

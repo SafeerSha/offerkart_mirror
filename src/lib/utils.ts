@@ -96,8 +96,8 @@ export function getSocialEmbedInfo(platform: string, url: string): {
             return { 
                 embedUrl,
                 nativeEmbedUrl,
-                aspectClass: isReel ? "aspect-[9/16] w-full" : "aspect-[3/4] w-full max-h-[60vh] h-[480px]",
-                isVertical: isReel
+                aspectClass: isReel ? "aspect-[9/16] w-full max-h-[72vh] max-w-[390px] mx-auto" : "aspect-[3/4] w-full max-h-[72vh] max-w-[420px] mx-auto",
+                isVertical: true
             };
         }
     }

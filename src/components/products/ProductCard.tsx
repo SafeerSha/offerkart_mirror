@@ -10,7 +10,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
 import { useFavorites, useAddFavorite, useRemoveFavorite } from "@/hooks/useFavorites";
 import { useSession } from "next-auth/react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 interface ProductCardProps {
     id: number;
@@ -67,7 +67,6 @@ const ProductCard = ({
     const [isHovered, setIsHovered] = useState(false);
 
     const { data: session } = useSession();
-    const { toast } = useToast();
     const { data: favorites } = useFavorites();
     const addFavorite = useAddFavorite();
     const removeFavorite = useRemoveFavorite();
@@ -85,11 +84,10 @@ const ProductCard = ({
     const handleFavoriteClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (!session) {
-            toast({
-                title: "Authentication required",
+            toast.warning("Authentication required", {
                 description: "Please login to save favorites.",
-                variant: "destructive",
             });
+            router.push("/login");
             return;
         }
 

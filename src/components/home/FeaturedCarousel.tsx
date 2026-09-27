@@ -156,15 +156,25 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
 
       <div className="container mx-auto px-3 sm:px-4 relative">
         <div className="flex items-center justify-between mb-4 gap-4">
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-2xl bg-primary/10 border border-primary/20">
-              <Star className="w-6 h-6 text-primary fill-primary/20" />
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="p-2.5 sm:p-3 rounded-2xl bg-orange-500/10 border border-orange-500/20 shadow-sm shadow-orange-500/5">
+              <Star className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500 fill-orange-500" />
             </div>
             <div>
-              <Subheading className="sm:text-3xl font-bold mb-0">
-                {t("featuredOffers.title")}
+              <Subheading className="text-xl sm:text-3xl font-bold mb-0">
+                {(() => {
+                  const title = t("featuredOffers.title") || "Featured Offers";
+                  const parts = title.split(" ");
+                  if (parts.length <= 1) return <span className="text-orange-500">{title}</span>;
+                  return (
+                    <>
+                      <span>{parts[0]}</span>{" "}
+                      <span className="text-orange-500">{parts.slice(1).join(" ")}</span>
+                    </>
+                  );
+                })()}
               </Subheading>
-              <Text className="text-sm mt-1">{t("featuredOffers.subtitle")}</Text>
+              <Text className="text-xs sm:text-sm mt-0.5 sm:mt-1 text-muted-foreground">{t("featuredOffers.subtitle")}</Text>
             </div>
           </div>
 
@@ -177,7 +187,7 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
                 onMouseEnter={() => setIsAutoPlaying(false)}
                 onMouseLeave={() => setIsAutoPlaying(true)}
                 aria-label="Previous offer"
-                className="rounded-full border-orange-500/50 hover:border-orange-500 h-8 w-8 sm:h-10 sm:w-10 group cursor-pointer"
+                className="rounded-full border-orange-500/40 hover:border-orange-500 hover:bg-orange-50 h-8 w-8 sm:h-10 sm:w-10 group cursor-pointer"
               >
                 <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500 group-hover:scale-110 transition-transform" />
               </PremiumButton>
@@ -188,7 +198,7 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
                 onMouseEnter={() => setIsAutoPlaying(false)}
                 onMouseLeave={() => setIsAutoPlaying(true)}
                 aria-label="Next offer"
-                className="rounded-full border-orange-500/50 hover:border-orange-500 h-8 w-8 sm:h-10 sm:w-10 group cursor-pointer"
+                className="rounded-full border-orange-500/40 hover:border-orange-500 hover:bg-orange-50 h-8 w-8 sm:h-10 sm:w-10 group cursor-pointer"
               >
                 <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500 group-hover:scale-110 transition-transform" />
               </PremiumButton>

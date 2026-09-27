@@ -10,7 +10,7 @@ import { Poster } from "@/lib/types/offer";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useFavorites, useAddFavorite, useRemoveFavorite } from "@/hooks/useFavorites";
 import { useSession } from "next-auth/react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 interface OfferCardProps {
   id?: number | string;
@@ -50,7 +50,6 @@ const OfferCard = ({
   const [aspectRatio, setAspectRatio] = useState<number | null>(null);
 
   const { data: session } = useSession();
-  const { toast } = useToast();
   const { data: favorites } = useFavorites();
   const addFavorite = useAddFavorite();
   const removeFavorite = useRemoveFavorite();
@@ -63,11 +62,10 @@ const OfferCard = ({
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!session) {
-      toast({
-        title: "Authentication required",
+      toast.warning("Authentication required", {
         description: "Please login to save favorites.",
-        variant: "destructive",
       });
+      router.push("/login");
       return;
     }
 
