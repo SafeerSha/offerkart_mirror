@@ -241,10 +241,10 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
                       <div
                         data-loader-text="Loading offer..."
                         className={cn(
-                          "relative aspect-[1/1.414] w-full rounded-2xl overflow-hidden shadow-xl ring-[1.5px] ring-orange-500 ring-offset-2 sm:ring-offset-4 ring-offset-background transition-all duration-300 ease-out bg-white",
+                          "relative aspect-[1/1.414] w-full rounded-2xl overflow-hidden transition-all duration-300 ease-out bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800",
                           isActive
-                            ? "scale-100 opacity-100 shadow-2xl"
-                            : "scale-[0.93] opacity-50 hover:opacity-75"
+                            ? "scale-100 opacity-100 shadow-[0_12px_32px_rgba(0,0,0,0.12),0_4px_16px_rgba(249,115,22,0.12)] border-orange-500/30"
+                            : "scale-[0.93] opacity-50 hover:opacity-75 shadow-md"
                         )}
                       >
                         <img
@@ -320,8 +320,10 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
                       <button
                         data-loader-text="Loading offer..."
                         className={cn(
-                          "relative w-full h-full rounded-2xl overflow-hidden shadow-2xl group transition-all duration-300 flex items-center justify-center p-0 cursor-pointer text-left ring-[1.5px] ring-orange-500 hover:ring-orange-400 ring-offset-2 sm:ring-offset-4 ring-offset-background shadow-[0_0_20px_rgba(249,115,22,0.2)] bg-white",
-                          isWing && "cursor-pointer"
+                          "relative w-full h-full rounded-2xl overflow-hidden group transition-all duration-500 flex items-center justify-center p-0 cursor-pointer text-left bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800",
+                          isWing
+                            ? "shadow-md hover:shadow-lg opacity-75 hover:opacity-90"
+                            : "shadow-[0_14px_40px_rgba(0,0,0,0.10),0_4px_14px_rgba(0,0,0,0.06)] hover:shadow-[0_22px_50px_rgba(249,115,22,0.18)] hover:border-orange-500/40"
                         )}
                         onClick={() => {
                           if (isLeftWing) {

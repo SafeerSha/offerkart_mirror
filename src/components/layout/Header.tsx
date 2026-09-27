@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Search, User, LogIn, Menu, X, PlusCircle, MapPin, ChevronDown, LayoutDashboard, Plus, Loader2, Home, Percent, ShoppingBag, Locate, Package, Tag, ArrowRight, Heart, Video } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -469,6 +470,18 @@ const Header = () => {
         myShops.length > 0
     );
     const pathname = usePathname();
+    const router = useRouter();
+
+    const handleFavoritesClick = () => {
+        if (isRegistered) {
+            router.push("/favorites");
+        } else {
+            toast.warning("Authentication required", {
+                description: "Please log in to view your favorites.",
+            });
+            router.push("/login");
+        }
+    };
     const headerRef = useRef<HTMLElement | null>(null);
     const { locale } = useTranslation();
     const localeNames: Record<string, string> = {
@@ -863,34 +876,33 @@ const Header = () => {
                                                         <User className="w-5 h-5 transition-transform group-hover:scale-110 duration-200" />
                                                     </Link>
                                                 </TooltipTrigger>
-                                                <TooltipContent side="bottom" sideOffset={5} className="font-semibold px-2 py-1 bg-slate-800 text-white dark:bg-slate-700">
+                                                <TooltipContent side="bottom" sideOffset={5}>
                                                     My Profile
                                                 </TooltipContent>
                                             </Tooltip>
                                         </TooltipProvider>
                                     )}
-                                    {isRegistered && (
-                                        <TooltipProvider delayDuration={300}>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Link
-                                                        href="/favorites"
-                                                        className={cn(
-                                                            "px-4 py-1.5 rounded-full transition-colors flex items-center justify-center group",
-                                                            pathname.startsWith("/favorites")
-                                                                ? "text-orange-600 bg-orange-300/20 dark:bg-orange-300/20"
-                                                                : "text-orange-500 dark:text-orange-400 bg-orange-300/20 dark:bg-orange-300/20 hover:text-orange-600 hover:bg-orange-300/20 dark:hover:bg-orange-300/20"
-                                                        )}
-                                                    >
-                                                        <Heart className="w-5 h-5 fill-current" />
-                                                    </Link>
-                                                </TooltipTrigger>
-                                                <TooltipContent side="bottom" sideOffset={5} className="font-semibold px-2 py-1 bg-slate-800 text-white dark:bg-slate-700">
-                                                    Favorites
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                    )}
+                                    <TooltipProvider delayDuration={300}>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <button
+                                                    onClick={handleFavoritesClick}
+                                                    className={cn(
+                                                        "px-4 py-1.5 rounded-full transition-colors flex items-center justify-center group",
+                                                        pathname.startsWith("/favorites")
+                                                            ? "text-orange-600 bg-orange-300/20 dark:bg-orange-300/20"
+                                                            : "text-orange-500 dark:text-orange-400 bg-orange-300/20 dark:bg-orange-300/20 hover:text-orange-600 hover:bg-orange-300/20 dark:hover:bg-orange-300/20"
+                                                    )}
+                                                    aria-label="Favorites"
+                                                >
+                                                    <Heart className={cn("w-5 h-5 transition-transform group-hover:scale-110 duration-200", isRegistered ? "fill-current" : "")} />
+                                                </button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="bottom" sideOffset={5}>
+                                                {isRegistered ? "My Favorites" : "Login to view Favorites"}
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
                                     <div className="hidden lg:flex items-center gap-2 sm:gap-3">
                                         {!isRegistered ? (
                                             <PremiumButton
