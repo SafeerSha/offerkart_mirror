@@ -159,12 +159,24 @@ const FeaturedShops = ({
         <div className={cn("mx-auto", variant === "full" && "container px-4")}>
           {variant === "full" && (
             <div className="flex sm:flex-row items-center justify-between mb-4 gap-1">
-              <div className="flex items-center gap-4">
-                <div className="p-2.5 rounded-xl bg-primary/10 border border-primary/20 shadow-sm shadow-primary/5">
-                  <Store className="w-6 h-6 text-primary" />
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="p-2.5 sm:p-3 rounded-2xl bg-orange-500/10 border border-orange-500/20 shadow-sm shadow-orange-500/5">
+                  <Store className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500" />
                 </div>
                 <div>
-                  <Subheading className="text-2xl sm:text-3xl font-bold mb-0">{t("featuredShops.title")}</Subheading>
+                  <Subheading className="text-xl sm:text-3xl font-bold mb-0">
+                    {(() => {
+                      const title = t("featuredShops.title") || "Featured Shops";
+                      const parts = title.split(" ");
+                      if (parts.length <= 1) return <span className="text-orange-500">{title}</span>;
+                      return (
+                        <>
+                          <span>{parts[0]}</span>{" "}
+                          <span className="text-orange-500">{parts.slice(1).join(" ")}</span>
+                        </>
+                      );
+                    })()}
+                  </Subheading>
                 </div>
               </div>
 

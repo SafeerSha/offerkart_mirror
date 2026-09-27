@@ -1,17 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUp } from "lucide-react";
 import { FaXTwitter, FaInstagram, FaFacebookF, FaLinkedinIn } from "react-icons/fa6";
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
-
-  const scrollToTop = () => {
-    if (typeof window !== "undefined") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
-  };
 
   return (
     <footer 
@@ -69,8 +62,8 @@ export default function Footer() {
             </a>
           </div>
 
-          {/* Right: Terms, Privacy & Top button */}
-          <div className="flex items-center gap-2.5 sm:gap-5 text-orange-600 shrink-0 font-medium">
+          {/* Right: Terms & Privacy */}
+          <div className="flex items-center gap-3 sm:gap-5 text-orange-600 shrink-0 font-medium">
             <Link 
               href="/terms" 
               className="hover:text-orange-700 transition-colors whitespace-nowrap"
@@ -85,15 +78,6 @@ export default function Footer() {
             >
               Privacy
             </Link>
-            <button
-              onClick={scrollToTop}
-              type="button"
-              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-orange-50/80 border border-orange-200/80 hover:bg-orange-500 hover:border-orange-500 hover:text-white text-orange-600 transition-all duration-200 inline-flex items-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500"
-              aria-label="Back to top of page"
-            >
-              <ArrowUp className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              <span className="hidden sm:inline text-xs font-medium">Top</span>
-            </button>
           </div>
 
         </div>

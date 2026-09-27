@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getFavorites, addFavorite, removeFavorite, FavoriteItem } from "@/lib/api/favorites";
+import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 
 export const favoriteKeys = {
@@ -7,9 +8,12 @@ export const favoriteKeys = {
 };
 
 export function useFavorites() {
+  const { status } = useSession();
+
   return useQuery({
     queryKey: favoriteKeys.all,
     queryFn: getFavorites,
+    enabled: status === "authenticated",
     staleTime: 5 * 60 * 1000,
   });
 }

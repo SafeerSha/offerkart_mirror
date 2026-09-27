@@ -14,6 +14,7 @@ import Providers from "./providers";
 import { ConditionalHeader } from "@/components/layout/ConditionalHeader";
 import { ConditionalFooter } from "@/components/layout/ConditionalFooter";
 import { OfflineDetector } from "@/components/layout/OfflineDetector";
+import ScrollToTop from "@/components/layout/ScrollToTop";
 import { cookies } from "next/headers";
 import { Locale } from "@/lib/i18n/config";
 
@@ -110,6 +111,7 @@ export default async function RootLayout({
                 {children}
               </main>
               <ConditionalFooter />
+              <ScrollToTop />
             </div>
           </OfflineDetector>
         </Providers>
