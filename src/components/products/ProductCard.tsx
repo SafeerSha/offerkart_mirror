@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image, { StaticImageData } from "next/image";
 import { useRouter } from "next/navigation";
-import { ShoppingCart, Star, Heart, Tag, IndianRupee, ShoppingBag, ArrowRight } from "lucide-react";
+import { ShoppingCart, Star, Heart, Percent, IndianRupee, ShoppingBag, ArrowRight } from "lucide-react";
 import { PremiumCard } from "@/components/shared/PremiumCard";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -151,14 +151,14 @@ const ProductCard = ({
                 <div className="absolute top-2 left-2 right-2 sm:top-2 sm:left-2 sm:right-2 flex justify-between items-start pointer-events-none z-10">
                     <div className="flex flex-col gap-1.5 items-start">
                         {displaySaving > 0 ? (
-                            <span className="px-3 py-1.5 rounded-full text-[10px] font-black bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/25 flex items-center gap-1">
-                                <Tag className="w-3.5 h-3.5" />
-                                SAVE {displaySaving}%
+                            <span className="px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded-full text-[9px] sm:text-[10px] font-black bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/20 inline-flex items-center gap-1 tracking-tight whitespace-nowrap shrink-0">
+                                <Percent className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[3] shrink-0" />
+                                <span>SAVE {displaySaving}</span>
                             </span>
                         ) : discount ? (
-                            <span className="px-3 py-1.5 rounded-full text-[10px] font-black bg-orange-500 text-white shadow-lg shadow-orange-500/20 flex items-center gap-1">
-                                <Tag className="w-3.5 h-3.5" />
-                                {discount}
+                            <span className="px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded-full text-[9px] sm:text-[10px] font-black bg-orange-500 text-white shadow-md shadow-orange-500/20 inline-flex items-center gap-1 tracking-tight whitespace-nowrap shrink-0">
+                                <Percent className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[3] shrink-0" />
+                                <span>{discount.replace(/%$/, "")}</span>
                             </span>
                         ) : null}
                     </div>

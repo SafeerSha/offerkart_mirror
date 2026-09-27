@@ -58,11 +58,12 @@ export const queryKeys = {
 
 // ============ SHOP HOOKS ============
 
-export function useMyShops() {
+export function useMyShops(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: queryKeys.myShops,
     queryFn: getMyShops,
     staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled: options?.enabled ?? true,
   });
 }
 
