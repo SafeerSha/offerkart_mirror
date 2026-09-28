@@ -18,8 +18,10 @@ export async function GET(request: NextRequest) {
         const maxPrice = maxPriceStr ? Number(maxPriceStr) : undefined;
         const latitudeStr = searchParams.get("latitude");
         const longitudeStr = searchParams.get("longitude");
+        const radiusStr = searchParams.get("radius");
         const latitude = latitudeStr ? Number(latitudeStr) : undefined;
         const longitude = longitudeStr ? Number(longitudeStr) : undefined;
+        const radius = radiusStr ? Number(radiusStr) : undefined;
 
         const result = await getUserOfferProducts({
             search,
@@ -32,7 +34,8 @@ export async function GET(request: NextRequest) {
             page,
             limit,
             latitude,
-            longitude
+            longitude,
+            radius
         });
 
         return NextResponse.json(result);

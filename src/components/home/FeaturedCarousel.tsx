@@ -8,11 +8,15 @@ import useEmblaCarousel from "embla-carousel-react";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { Subheading, Text } from "@/components/shared/Typography";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useDistancePreference } from "@/hooks/useDistancePreference";
+import { withinRadius, isAllLocation } from "@/lib/distance";
+
 import { useLocationContext } from "@/context/LocationContext";
 import { cn } from "@/lib/utils";
 import { useFeaturedOffers } from "@/hooks/useApi";
 
 interface FeaturedOffer {
+  distanceKm?: number | null;
   id: number;
   name: string;
   offer: string;
@@ -51,11 +55,14 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
   const { t } = useTranslation("home");
   const router = useRouter();
   const { location: userLocation, hydrated } = useLocationContext();
+  const { radius, locationReady } = useDistancePreference();
 
-  const hasLocation = userLocation.latitude !== null && userLocation.longitude !== null;
+  const isAll = isAllLocation(userLocation.name);
+  const hasLocation = isAll || (userLocation.latitude !== null && userLocation.longitude !== null);
   const { data: dynamicData } = useFeaturedOffers(
-    userLocation.latitude,
-    userLocation.longitude,
+    isAll ? undefined : userLocation.latitude,
+    isAll ? undefined : userLocation.longitude,
+    radius,
     {
       enabled: hydrated && hasLocation
     }
@@ -63,11 +70,12 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
 
   const displayOffers: FeaturedOffer[] = useMemo(() => {
     if (hydrated && hasLocation && dynamicData && dynamicData.success) {
-      return (dynamicData.data || []) as FeaturedOffer[];
+      return ((dynamicData.data || []) as FeaturedOffer[]).filter(offer => radius === null || (locationReady && withinRadius(offer.distanceKm, radius)));
     }
-    return (offers || []) as FeaturedOffer[];
-  }, [hydrated, hasLocation, dynamicData, offers]);
+    return radius === null ? (offers || []) as FeaturedOffer[] : [];
+  }, [hydrated, hasLocation, dynamicData, offers, radius, locationReady]);
 
+  const isSingle = displayOffers.length === 1;
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
 
@@ -215,13 +223,13 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
             {/* 1. Mobile View (Track-based: zero overlay lag, native butter-smooth touch swipes) */}
             <div
               className="block lg:hidden overflow-hidden"
-              ref={emblaRef}
+              ref={isSingle ? undefined : emblaRef}
               onTouchStart={() => setIsAutoPlaying(false)}
               onTouchEnd={() => setIsAutoPlaying(true)}
             >
-              <div className="flex -ml-3 items-center py-2">
+              <div className={cn("flex items-center py-2", isSingle ? "justify-center" : "-ml-3")}>
                 {displayOffers.map((offer: FeaturedOffer, idx: number) => {
-                  const isActive = idx === currentIndex;
+                  const isActive = idx === currentIndex || isSingle;
                   const imageSrc = typeof offer.image === 'string'
                     ? offer.image
                     : (offer.image as any)?.src || "";
@@ -229,7 +237,12 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
                   return (
                     <button
                       key={offer.id || `mobile-offer-${idx}`}
-                      className="min-w-0 shrink-0 grow-0 basis-[82%] xs:basis-[76%] sm:basis-[64%] pl-3 bg-transparent border-none p-0 cursor-pointer text-left"
+                      className={cn(
+                        "min-w-0 bg-transparent border-none p-0 cursor-pointer text-left",
+                        isSingle
+                          ? "shrink-0 basis-[82%] xs:basis-[76%] sm:basis-[64%] max-w-[380px]"
+                          : "shrink-0 grow-0 basis-[82%] xs:basis-[76%] sm:basis-[64%] pl-3"
+                      )}
                       onClick={() => {
                         if (!isActive) {
                           goToSlide(idx);
@@ -276,7 +289,6 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
             >
               <div className="absolute inset-0 flex items-center justify-center">
                 {displayOffers.map((offer: FeaturedOffer, idx: number) => {
-                  const isSingle = displayOffers.length === 1;
                   const diff = getOfferOffset(idx);
 
                   const isPrimaryLeft = diff === 0;

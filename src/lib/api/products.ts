@@ -1,3 +1,4 @@
+import { resolveShopDistance } from "@/lib/distance";
 import { backend, type BackendRequestOptions, unwrapApiEnvelope } from './backendClient';
 import { ENDPOINTS } from './endpoints';
 import { OfferProductPayload, Product, PaginatedResponse } from '../types';
@@ -6,7 +7,7 @@ import { CACHE_TAGS } from './cache-tags';
 import { getUserOfferProducts } from './userOffersService';
 
 
-export function mapUserProductToProduct(item: any): any {
+export function mapUserProductToProduct(item: any, latitude?: number | null, longitude?: number | null): any {
     if (!item) return null;
     const primaryImage = item.imageUrl || item.image || item.image_url || item.product_image || (Array.isArray(item.images) && item.images.length > 0 ? item.images[0] : null) || null;
     const finalOriginalPrice = item.originalPrice !== undefined ? item.originalPrice : (item.original_price !== undefined ? item.original_price : (item.oldPrice !== undefined ? item.oldPrice : (item.old_price !== undefined ? item.old_price : (item.price !== undefined ? item.price : 0))));
@@ -24,6 +25,7 @@ export function mapUserProductToProduct(item: any): any {
         id: item.id ?? item.productId ?? item._id,
         name: item.displayName || item.name || item.title || item.product_name || item.productName || "Unnamed Product",
         shopName,
+        distanceKm: resolveShopDistance(item, latitude, longitude),
         shopLogo,
         shopId: item.shop?.id || item.shopId || item.shop_id || null,
         price: finalOfferPrice,
@@ -232,11 +234,12 @@ export async function getUserProducts(query: {
     limit?: number;
     latitude?: number;
     longitude?: number;
+    radius?: number | null;
 }, cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">): Promise<PaginatedResponse<Product>> {
     const page = query.page || 1;
     const limit = query.limit || 20;
     const sort = query.sort || "newest";
-    const { search, categoryId, subcategoryId, shopId, minPrice, maxPrice, latitude, longitude } = query;
+    const { search, categoryId, subcategoryId, shopId, minPrice, maxPrice, latitude, longitude, radius } = query;
 
     const params = new URLSearchParams({
         page: String(page),
@@ -251,6 +254,9 @@ export async function getUserProducts(query: {
     if (maxPrice !== undefined) params.set("maxPrice", String(maxPrice));
     if (latitude !== undefined) params.set("latitude", String(latitude));
     if (longitude !== undefined) params.set("longitude", String(longitude));
+    if (radius !== undefined && radius !== null && Number(radius) > 0) {
+        params.set("radius", String(radius));
+    }
 
     let response: any;
     try {
@@ -294,7 +300,7 @@ export async function getUserProducts(query: {
         }
     }
 
-    const mappedProducts = productsArray.map((p: any) => mapUserProductToProduct(p));
+    const mappedProducts = productsArray.map((p: any) => mapUserProductToProduct(p, latitude, longitude));
 
     if (!pagination) {
         const startIndex = (page - 1) * limit;
@@ -335,15 +341,17 @@ export async function getUserProducts(query: {
  */
 export async function getUserProductSimilar(
     id: string | number,
-    query: { latitude?: number | null; longitude?: number | null } = {},
+    query: { latitude?: number | null; longitude?: number | null; radius?: number | null } = {},
     cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">
 ) {
     const params = new URLSearchParams();
     const normalizedLatitude = query.latitude !== undefined && query.latitude !== null ? String(query.latitude) : undefined;
     const normalizedLongitude = query.longitude !== undefined && query.longitude !== null ? String(query.longitude) : undefined;
+    const normalizedRadius = query.radius !== undefined && query.radius !== null && Number(query.radius) > 0 ? String(query.radius) : undefined;
 
     if (normalizedLatitude) params.set("latitude", normalizedLatitude);
     if (normalizedLongitude) params.set("longitude", normalizedLongitude);
+    if (normalizedRadius) params.set("radius", normalizedRadius);
 
     let response: any;
     try {
@@ -369,7 +377,7 @@ export async function getUserProductSimilar(
 
     const apiData = unwrapApiEnvelope(response.data);
     const productsArray = Array.isArray(apiData) ? apiData : (Array.isArray(apiData.data) ? apiData.data : []);
-    const mappedProducts = productsArray.map((p: any) => mapUserProductToProduct(p));
+    const mappedProducts = productsArray.map((p: any) => mapUserProductToProduct(p, query.latitude, query.longitude));
 
     return {
         success: true,
@@ -383,8 +391,13 @@ export async function getProductShops(
     categoryId?: number | string | null,
     subcategoryId?: number | string | null,
     search?: string | null,
+    radiusOrCacheOptions?: number | null | Pick<BackendRequestOptions, "next" | "tags" | "revalidate">,
     cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">
 ): Promise<{ success: boolean; data: any[] }> {
+    const isOptions = typeof radiusOrCacheOptions === "object" && radiusOrCacheOptions !== null && ("next" in radiusOrCacheOptions || "tags" in radiusOrCacheOptions || "revalidate" in radiusOrCacheOptions);
+    const radius = isOptions ? undefined : radiusOrCacheOptions;
+    const finalCacheOptions = isOptions ? radiusOrCacheOptions : cacheOptions;
+
     try {
         const params = new URLSearchParams();
         if (latitude !== undefined && latitude !== null) {
@@ -402,11 +415,14 @@ export async function getProductShops(
         if (search !== undefined && search !== null && search !== "") {
             params.set("search", String(search));
         }
+        if (radius !== undefined && radius !== null && Number(radius) > 0) {
+            params.set("radius", String(radius));
+        }
         const queryString = params.toString() ? `?${params.toString()}` : "";
 
         const response = await backend.get<any>(`${ENDPOINTS.USER_OFFER.PRODUCTS_SHOPS}${queryString}`, {
             next: { tags: [CACHE_TAGS.PRODUCTS, CACHE_TAGS.HOME], revalidate: 60 },
-            ...cacheOptions,
+            ...finalCacheOptions,
         });
 
         if (response && response.success && response.data) {

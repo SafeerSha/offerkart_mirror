@@ -7,10 +7,15 @@ import { Heading, Text } from "@/components/shared/Typography";
 import { Sparkles, ArrowRight, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useLocationContext } from "@/context/LocationContext";
-import { useUserProductsFiltered } from "@/hooks/useApi";
+import { useDistancePreference } from "@/hooks/useDistancePreference";
+import { useRadiusResults } from "@/hooks/useRadiusResults";
+import { DistanceListingFeedback } from "@/components/shared/DistanceControl";
+import { isAllLocation } from "@/lib/distance";
+
+import { useUserProductsFiltered, useInfiniteUserProducts } from "@/hooks/useApi";
 
 interface Product {
-    id: number;
+    id: number | string;
     name: string;
     shopName: string;
     price: number;
@@ -31,21 +36,27 @@ interface FeaturedProductsProps {
 
 const FeaturedProducts = ({ products, disableLocationFetch = false }: FeaturedProductsProps) => {
     const router = useRouter();
+    const { radius, locationReady } = useDistancePreference();
     const { location: userLocation, hydrated } = useLocationContext();
+
+    const isAll = isAllLocation(userLocation.name);
 
     const queryFilters = useMemo(() => {
         const filters: any = {};
-        if (userLocation.latitude !== null && userLocation.longitude !== null) {
+        if (!isAll && userLocation.latitude !== null && userLocation.longitude !== null) {
             filters.latitude = userLocation.latitude;
             filters.longitude = userLocation.longitude;
         }
+        if (radius !== null) {
+            filters.radius = radius;
+        }
         return filters;
-    }, [userLocation]);
+    }, [userLocation, radius, isAll]);
 
-    const hasLocation = userLocation.latitude !== null && userLocation.longitude !== null;
+    const hasLocation = isAll || (userLocation.latitude !== null && userLocation.longitude !== null);
 
     const { data: dynamicProductsRes, isLoading } = useUserProductsFiltered(queryFilters, {
-        enabled: !disableLocationFetch && hydrated && hasLocation
+        enabled: radius === null && !disableLocationFetch && hydrated && hasLocation
     });
 
     const displayProducts = useMemo(() => {
@@ -55,9 +66,19 @@ const FeaturedProducts = ({ products, disableLocationFetch = false }: FeaturedPr
         return products;
     }, [disableLocationFetch, hydrated, hasLocation, dynamicProductsRes, products]);
 
+    const nearbyQuery = useInfiniteUserProducts(12, { ...queryFilters, radius }, {
+        enabled: radius !== null && !disableLocationFetch && locationReady,
+    });
+    const { items: nearbyProducts, searching } = useRadiusResults<Product>({
+        items: nearbyQuery.data?.pages.flatMap(page => page.data) ?? [],
+        radius, locationReady, hasNextPage: Boolean(nearbyQuery.hasNextPage),
+        isFetching: nearbyQuery.isFetching, error: nearbyQuery.error, fetchNextPage: nearbyQuery.fetchNextPage,
+        distance: product => product.distanceKm,
+    });
+
     const sortedProducts = useMemo(() => {
         if (!displayProducts) return [];
-        let items = displayProducts.map(p => {
+        const items = (radius === null ? displayProducts : nearbyProducts).map(p => {
             return { ...p, distanceKm: p.distanceKm ?? null };
         });
 
@@ -69,9 +90,9 @@ const FeaturedProducts = ({ products, disableLocationFetch = false }: FeaturedPr
             });
         }
         return items;
-    }, [displayProducts, userLocation]);
+    }, [displayProducts, userLocation, nearbyProducts, radius]);
 
-    if (isLoading && hasLocation) {
+    if ((radius === null && isLoading && hasLocation) || (radius !== null && searching && sortedProducts.length === 0)) {
         return (
             <section className="py-8 md:py-12 relative bg-slate-50/50">
                 <div className="container mx-auto px-4">
@@ -119,7 +140,9 @@ const FeaturedProducts = ({ products, disableLocationFetch = false }: FeaturedPr
                     </PremiumButton>
                 </div>
 
-                {sortedProducts.length === 0 ? (
+                {radius !== null && (nearbyQuery.error || !locationReady || sortedProducts.length === 0) ? (
+                    <DistanceListingFeedback subject="products" error={Boolean(nearbyQuery.error)} onRetry={() => { void nearbyQuery.refetch(); }} />
+                ) : sortedProducts.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-dashed border-orange-500/20 animate-in fade-in duration-300">
                         <div className="w-16 h-16 bg-orange-500/10 rounded-full flex items-center justify-center mb-4">
                             <Search className="w-8 h-8 text-orange-400" />

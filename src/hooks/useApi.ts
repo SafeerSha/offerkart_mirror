@@ -30,8 +30,8 @@ export const queryKeys = {
   // Offer keys
   allOffers: (shopId?: string, query?: BusinessOffersQuery) => ["allOffers", shopId, query] as const,
   offerDetails: (id: string) => ["offerDetails", id] as const,
-  featuredShops: (latitude?: number | null, longitude?: number | null, industryId?: number | string | null) => ["featuredShops", latitude, longitude, industryId] as const,
-  featuredOffers: (latitude?: number | null, longitude?: number | null) => ["featuredOffers", latitude, longitude] as const,
+  featuredShops: (latitude?: number | null, longitude?: number | null, industryId?: number | string | null, radius?: number | null) => ["featuredShops", latitude, longitude, industryId, radius] as const,
+  featuredOffers: (latitude?: number | null, longitude?: number | null, radius?: number | null) => ["featuredOffers", latitude, longitude, radius] as const,
   paginatedOffers: (page: number, limit: number) => ["paginatedOffers", page, limit] as const,
   infiniteUserOffers: (filters: any) => ["infiniteUserOffers", filters] as const,
 
@@ -39,7 +39,7 @@ export const queryKeys = {
   allProducts: (shopId?: string, query?: BusinessOfferProductsQuery) => ["allProducts", shopId, query] as const,
   productDetails: (id: string) => ["productDetails", id] as const,
   userProductsFiltered: (filters: any) => ["userProductsFiltered", filters] as const,
-  productShops: (latitude?: number | null, longitude?: number | null, categoryId?: number | string | null, subcategoryId?: number | string | null, search?: string | null) => ["productShops", latitude, longitude, categoryId, subcategoryId, search] as const,
+  productShops: (latitude?: number | null, longitude?: number | null, categoryId?: number | string | null, subcategoryId?: number | string | null, search?: string | null, radius?: number | null) => ["productShops", latitude, longitude, categoryId, subcategoryId, search, radius] as const,
   infiniteUserProducts: (filters: any) => ["infiniteUserProducts", filters] as const,
 
   // Category keys
@@ -51,8 +51,8 @@ export const queryKeys = {
   productViewsAnalytics: (shopId: string, query?: ViewsAnalyticsQuery) => ["productViewsAnalytics", shopId, query] as const,
 
   // Similar keys
-  similarOffers: (offerId: string | number, latitude?: number | null, longitude?: number | null) => ["similarOffers", offerId, latitude, longitude] as const,
-  similarProducts: (productId: string | number, latitude?: number | null, longitude?: number | null) => ["similarProducts", productId, latitude, longitude] as const,
+  similarOffers: (offerId: string | number, latitude?: number | null, longitude?: number | null, radius?: number | null) => ["similarOffers", offerId, latitude, longitude, radius] as const,
+  similarProducts: (productId: string | number, latitude?: number | null, longitude?: number | null, radius?: number | null) => ["similarProducts", productId, latitude, longitude, radius] as const,
 };
 
 
@@ -183,26 +183,32 @@ export function useFeaturedShops(
   latitude?: number | null,
   longitude?: number | null,
   industryId?: number | string | null,
+  radiusOrOptions?: number | null | { enabled?: boolean },
   options: { enabled?: boolean } = {}
 ) {
+  const radius = typeof radiusOrOptions === "object" && radiusOrOptions !== null ? undefined : radiusOrOptions;
+  const finalOptions = typeof radiusOrOptions === "object" && radiusOrOptions !== null ? radiusOrOptions : options;
   return useQuery({
-    queryKey: queryKeys.featuredShops(latitude, longitude, industryId),
-    queryFn: () => getFeaturedShops(latitude, longitude, industryId),
+    queryKey: queryKeys.featuredShops(latitude, longitude, industryId, radius),
+    queryFn: () => getFeaturedShops(latitude, longitude, industryId, radius),
     staleTime: 5 * 60 * 1000,
-    ...options,
+    ...finalOptions,
   });
 }
 
 export function useFeaturedOffers(
   latitude?: number | null,
   longitude?: number | null,
+  radiusOrOptions?: number | null | { enabled?: boolean },
   options: { enabled?: boolean } = {}
 ) {
+  const radius = typeof radiusOrOptions === "object" && radiusOrOptions !== null ? undefined : radiusOrOptions;
+  const finalOptions = typeof radiusOrOptions === "object" && radiusOrOptions !== null ? radiusOrOptions : options;
   return useQuery({
-    queryKey: queryKeys.featuredOffers(latitude, longitude),
-    queryFn: () => getFeaturedOffers(latitude, longitude),
+    queryKey: queryKeys.featuredOffers(latitude, longitude, radius),
+    queryFn: () => getFeaturedOffers(latitude, longitude, radius),
     staleTime: 5 * 60 * 1000,
-    ...options,
+    ...finalOptions,
   });
 }
 
@@ -412,13 +418,16 @@ export function useProductShops(
   categoryId?: number | string | null,
   subcategoryId?: number | string | null,
   search?: string | null,
+  radiusOrOptions?: number | null | { enabled?: boolean },
   options: { enabled?: boolean } = {}
 ) {
+  const radius = typeof radiusOrOptions === "object" && radiusOrOptions !== null ? undefined : radiusOrOptions;
+  const finalOptions = typeof radiusOrOptions === "object" && radiusOrOptions !== null ? radiusOrOptions : options;
   return useQuery({
-    queryKey: queryKeys.productShops(latitude, longitude, categoryId, subcategoryId, search),
-    queryFn: () => getProductShops(latitude, longitude, categoryId, subcategoryId, search),
+    queryKey: queryKeys.productShops(latitude, longitude, categoryId, subcategoryId, search, radius),
+    queryFn: () => getProductShops(latitude, longitude, categoryId, subcategoryId, search, radius),
     staleTime: 5 * 60 * 1000,
-    ...options,
+    ...finalOptions,
   });
 }
 
@@ -575,14 +584,18 @@ export function useSimilarOffers(
   offerId: string | number,
   latitude?: number | null,
   longitude?: number | null,
+  radiusOrOptions?: number | null | { enabled?: boolean },
   options: { enabled?: boolean } = {}
 ) {
+  const radius = typeof radiusOrOptions === "object" && radiusOrOptions !== null ? undefined : radiusOrOptions;
+  const finalOptions = typeof radiusOrOptions === "object" && radiusOrOptions !== null ? radiusOrOptions : options;
   return useQuery({
-    queryKey: queryKeys.similarOffers(offerId, latitude, longitude),
+    queryKey: queryKeys.similarOffers(offerId, latitude, longitude, radius),
     queryFn: async () => {
       const params = new URLSearchParams();
       if (latitude !== null && latitude !== undefined) params.set("latitude", String(latitude));
       if (longitude !== null && longitude !== undefined) params.set("longitude", String(longitude));
+      if (radius !== null && radius !== undefined && Number(radius) > 0) params.set("radius", String(radius));
 
       const res = await fetch(`/api/user/offer/${offerId}/similar?${params.toString()}`);
       const json = await res.json();
@@ -605,7 +618,7 @@ export function useSimilarOffers(
       }
       return [];
     },
-    enabled: !!offerId && (options.enabled ?? true),
+    enabled: !!offerId && (finalOptions.enabled ?? true),
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -614,14 +627,18 @@ export function useSimilarProducts(
   productId: string | number,
   latitude?: number | null,
   longitude?: number | null,
+  radiusOrOptions?: number | null | { enabled?: boolean },
   options: { enabled?: boolean } = {}
 ) {
+  const radius = typeof radiusOrOptions === "object" && radiusOrOptions !== null ? undefined : radiusOrOptions;
+  const finalOptions = typeof radiusOrOptions === "object" && radiusOrOptions !== null ? radiusOrOptions : options;
   return useQuery({
-    queryKey: queryKeys.similarProducts(productId, latitude, longitude),
+    queryKey: queryKeys.similarProducts(productId, latitude, longitude, radius),
     queryFn: async () => {
       const params = new URLSearchParams();
       if (latitude !== null && latitude !== undefined) params.set("latitude", String(latitude));
       if (longitude !== null && longitude !== undefined) params.set("longitude", String(longitude));
+      if (radius !== null && radius !== undefined && Number(radius) > 0) params.set("radius", String(radius));
 
       const res = await fetch(`/api/user/offer/products/${productId}/similar?${params.toString()}`);
       const json = await res.json();
@@ -630,7 +647,7 @@ export function useSimilarProducts(
       }
       return [];
     },
-    enabled: !!productId && (options.enabled ?? true),
+    enabled: !!productId && (finalOptions.enabled ?? true),
     staleTime: 5 * 60 * 1000,
   });
 }

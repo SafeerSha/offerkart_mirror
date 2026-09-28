@@ -13,6 +13,7 @@ import ProductCard from "./ProductCard";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
 import { useLocationContext } from "@/context/LocationContext";
+import { useDistancePreference } from "@/hooks/useDistancePreference";
 import { useSession } from "next-auth/react";
 import { config } from "@/lib/config";
 import { getVisitorId } from "@/lib/visitorId";
@@ -112,7 +113,8 @@ export default function ProductDetailClient({ product, similarProducts: initialS
     const { t } = useTranslation("common");
     const { location } = useLocationContext();
     const { latitude, longitude } = location;
-    const { data: fetchedSimilarProducts } = useSimilarProducts(product.id, latitude, longitude);
+    const { radius } = useDistancePreference();
+    const { data: fetchedSimilarProducts } = useSimilarProducts(product.id, latitude, longitude, radius);
     const similarProducts: Product[] = fetchedSimilarProducts && fetchedSimilarProducts.length > 0 ? fetchedSimilarProducts : initialSimilarProducts;
     const similarProductsRef = useRef<HTMLDivElement>(null);
     const { data: session } = useSession();

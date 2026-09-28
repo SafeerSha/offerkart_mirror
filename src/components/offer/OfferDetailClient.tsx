@@ -26,6 +26,7 @@ import { ConsumerProductModal } from "@/components/offer/ConsumerProductModal";
 import { useSimilarOffers } from "@/hooks/useApi";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useLocationContext } from "@/context/LocationContext";
+import { useDistancePreference } from "@/hooks/useDistancePreference";
 import { useSession } from "next-auth/react";
 import { config } from "@/lib/config";
 import { getVisitorId } from "@/lib/visitorId";
@@ -167,11 +168,12 @@ export default function OfferDetailClient({ offer: initialOffer, similarOffers: 
     const { t } = useTranslation("common");
     const { location } = useLocationContext();
     const { latitude, longitude } = location;
+    const { radius } = useDistancePreference();
     const { data: session } = useSession();
 
     // --- Current offer state (can be changed client-side without page reload) ---
     const [offer, setOffer] = useState(initialOffer);
-    const { data: fetchedSimilarOffers } = useSimilarOffers(offer.id, latitude, longitude);
+    const { data: fetchedSimilarOffers } = useSimilarOffers(offer.id, latitude, longitude, radius);
     const similarOffers: SimilarOffer[] = fetchedSimilarOffers && fetchedSimilarOffers.length > 0 ? fetchedSimilarOffers : initialSimilarOffers;
     const [prevOfferId, setPrevOfferId] = useState(initialPrevId);
     const activeSocialLinks = useMemo(() => {

@@ -1,5 +1,6 @@
 "use client";
 
+import { DistanceBadge } from "@/components/shared/DistanceControl";
 import { useState } from "react";
 import Image, { StaticImageData } from "next/image";
 import { useRouter } from "next/navigation";
@@ -13,6 +14,7 @@ import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 
 interface ProductCardProps {
+    distanceKm?: number | null;
     id: number;
     name?: string;
     displayName?: string;
@@ -58,6 +60,7 @@ const ProductCard = ({
     reviews = 0,
     discount,
     savingPercentage,
+    distanceKm,
     clickEnable = true,
     ...rest
 }: ProductCardProps) => {
@@ -210,6 +213,7 @@ const ProductCard = ({
                         </div>
                     )}
 
+                    <DistanceBadge distance={distanceKm} />
                     {/* Product Name */}
                     <h4 className={cn(
                         "text-base font-extrabold text-slate-800 dark:text-slate-100 tracking-tight leading-snug line-clamp-2 transition-colors",
