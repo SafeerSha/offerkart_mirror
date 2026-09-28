@@ -8,6 +8,11 @@ import { Heading, Text } from "@/components/shared/Typography";
 import FilterPanel from "./FilterPanel";
 import OfferGrid from "./OfferGrid";
 import { Offer } from "@/lib/types/offer";
+import { useDistancePreference } from "@/hooks/useDistancePreference";
+import { useRadiusResults } from "@/hooks/useRadiusResults";
+import { DistanceListingFeedback } from "@/components/shared/DistanceControl";
+import { isAllLocation } from "@/lib/distance";
+
 import { useLocationContext } from "@/context/LocationContext";
 import { useInfiniteUserOffers } from "@/hooks/useApi";
 
@@ -19,37 +24,45 @@ interface FilterableOffersProps {
 
 export default function FilterableOffers({ initialOffers = [], buttonText, disableLocationFetch = false }: FilterableOffersProps) {
     const router = useRouter();
+    const { radius, locationReady } = useDistancePreference();
     const { location: userLocation, hydrated } = useLocationContext();
     const [activeCategory, setActiveCategory] = useState("All");
     const [activeSubcategory, setActiveSubcategory] = useState<string[]>([]);
     const [activeSort, setActiveSort] = useState("latest");
 
+    const isAll = isAllLocation(userLocation.name);
+
     const queryFilters = useMemo(() => {
-        const filters: any = {};
-        if (userLocation.latitude !== null && userLocation.longitude !== null) {
+        const filters: { radius: typeof radius; latitude?: number; longitude?: number } = { radius };
+        if (!isAll && userLocation.latitude !== null && userLocation.longitude !== null) {
             filters.latitude = userLocation.latitude;
             filters.longitude = userLocation.longitude;
         }
         return filters;
-    }, [userLocation]);
+    }, [userLocation, radius, isAll]);
 
-    const hasLocation = !disableLocationFetch && userLocation.latitude !== null && userLocation.longitude !== null;
-    const { data: dynamicData, isLoading } = useInfiniteUserOffers(12, queryFilters, {
-        enabled: !disableLocationFetch && hydrated && hasLocation
+    const hasLocation = !disableLocationFetch && (isAll || (userLocation.latitude !== null && userLocation.longitude !== null));
+    const { data: dynamicData, isLoading, isFetching, hasNextPage, fetchNextPage, error, refetch } = useInfiniteUserOffers(12, queryFilters, {
+        enabled: !disableLocationFetch && hydrated && hasLocation && (radius === null || locationReady)
     });
 
     const displayOffers = useMemo(() => {
         if (hydrated && hasLocation && dynamicData) {
             const pages = dynamicData.pages || [];
             if (pages.length > 0 && pages[0]?.data) {
-                return pages[0].data;
+                return radius === null ? pages[0].data : pages.flatMap(page => page.data);
             }
         }
-        return initialOffers;
-    }, [hydrated, hasLocation, dynamicData, initialOffers]);
+        return radius === null ? initialOffers : [];
+    }, [hydrated, hasLocation, dynamicData, initialOffers, radius]);
+
+    const { items: nearbyOffers, searching } = useRadiusResults<Offer>({
+        items: displayOffers, radius, locationReady, hasNextPage: Boolean(hasNextPage), isFetching,
+        error, fetchNextPage, distance: offer => offer.distanceKm,
+    });
 
     const filteredOffers = useMemo(() => {
-        let result = displayOffers.map((o: Offer) => {
+        let result = nearbyOffers.map((o: Offer) => {
             return { ...o, distanceKm: o.distanceKm ?? null };
         });
 
@@ -89,7 +102,7 @@ export default function FilterableOffers({ initialOffers = [], buttonText, disab
         }
 
         return result;
-    }, [displayOffers, activeCategory, activeSubcategory, activeSort, userLocation]);
+    }, [nearbyOffers, activeCategory, activeSubcategory, activeSort, userLocation]);
 
     return (
         <div className="space-y-6">
@@ -127,13 +140,13 @@ export default function FilterableOffers({ initialOffers = [], buttonText, disab
                 onSortChange={setActiveSort}
             /> */}
 
-            <OfferGrid
-                isLoading={isLoading}
+            {radius !== null && (error || !locationReady || (!isLoading && !searching && filteredOffers.length === 0)) ? <DistanceListingFeedback subject="offers" error={Boolean(error)} onRetry={() => { void refetch(); }} /> : <OfferGrid
+                isLoading={isLoading || (searching && filteredOffers.length === 0)}
                 offers={filteredOffers}
                 redirectToOffers={true}
                 buttonText={buttonText}
                 columns={6}
-            />
+            />}
         </div>
     );
 }

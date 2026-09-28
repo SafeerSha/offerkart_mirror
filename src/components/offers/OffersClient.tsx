@@ -26,6 +26,10 @@ import { Offer } from "@/lib/types/offer";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useInfiniteUserOffers, useIndustries } from "@/hooks/useApi";
 import { cn } from "@/lib/utils";
+import { useDistancePreference } from "@/hooks/useDistancePreference";
+import { useRadiusResults } from "@/hooks/useRadiusResults";
+import { shopsFromResults } from "@/lib/distance";
+import { DistanceListingFeedback } from "@/components/shared/DistanceControl";
 import { useLocationContext } from "@/context/LocationContext";
 
 interface OffersClientProps {
@@ -50,6 +54,7 @@ export default function OffersClient({
     const router = useRouter();
     const searchParams = useSearchParams();
     const { location: globalLocation, hydrated } = useLocationContext();
+    const { radius, locationReady } = useDistancePreference();
 
     const sortOptions = [
         { value: "latest", label: t("catalog.sortLatest") },
@@ -196,6 +201,7 @@ export default function OffersClient({
     const activeIndustryId = activeIndustryObj ? activeIndustryObj.id : undefined;
 
     const queryFilters = {
+        radius,
         sort: activeFilters.sort,
         shopId: activeFilters.shopId,
         industry: activeIndustryId,
@@ -204,7 +210,7 @@ export default function OffersClient({
         longitude: globalLocation.longitude !== null ? globalLocation.longitude : (activeFilters.sort === "nearby" ? userCoordinates?.longitude : undefined),
     };
 
-    const isInitialState = !queryFilters.latitude && !queryFilters.longitude && activeFilters.industry === "All" && activeFilters.sort === "latest" && !activeFilters.search;
+    const isInitialState = radius === null && queryFilters.latitude == null && queryFilters.longitude == null && activeFilters.industry === "All" && activeFilters.sort === "latest" && !activeFilters.search;
 
     const {
         data,
@@ -212,9 +218,10 @@ export default function OffersClient({
         hasNextPage,
         isFetching,
         isFetchingNextPage,
-        error
+        error,
+        refetch
     } = useInfiniteUserOffers(12, queryFilters, {
-        enabled: hydrated,
+        enabled: hydrated && (radius === null || locationReady),
         initialData: (initialOffers.length > 0 && isInitialState)
             ? {
                 pages: [{ data: initialOffers, page: 1, limit: 12, count: initialTotalCount ?? initialOffers.length, total: initialTotalCount ?? initialOffers.length, hasMore: hasMoreInitial }],
@@ -224,17 +231,22 @@ export default function OffersClient({
     });
 
     // Flatten pages into a single array
-    const offers = data !== undefined ? data.pages.flatMap(page => page.data) : (isInitialState ? initialOffers : []);
-    const totalCount = data?.pages?.[0]?.total ?? data?.pages?.[0]?.count ?? (isInitialState ? (initialTotalCount ?? initialOffers.length) : offers.length);
-    // Avoid skeleton flicker when server-rendered initialOffers are already present
-    const isLoading = isFetching && offers.length === 0;
+    const loadedOffers = data !== undefined ? data.pages.flatMap(page => page.data) : (isInitialState ? initialOffers : []);
+    const { items: offers, searching: radiusSearching } = useRadiusResults({
+        items: loadedOffers, radius, locationReady, hasNextPage: Boolean(hasNextPage),
+        isFetching, error, fetchNextPage, distance: offer => offer.distanceKm,
+    });
+    const nearbyShops = shopsFromResults(offers);
+    const visibleShops = radius === null ? featuredShops : nearbyShops;
+    const totalCount = radius !== null ? offers.length : data?.pages?.[0]?.total ?? data?.pages?.[0]?.count ?? (isInitialState ? (initialTotalCount ?? initialOffers.length) : offers.length);
+    const isLoading = (isFetching || radiusSearching) && offers.length === 0;
     const hasMore = hasNextPage;
 
     // Infinite Scroll Observer
     useEffect(() => {
         const observer = new IntersectionObserver(
             (entries) => {
-                if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+                if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage && !error) {
                     fetchNextPage();
                 }
             },
@@ -245,7 +257,7 @@ export default function OffersClient({
         if (target) observer.observe(target);
 
         return () => observer.disconnect();
-    }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+    }, [fetchNextPage, hasNextPage, isFetchingNextPage, error]);
 
     return (
         <div className="min-h-screen bg-gray-50/50">
@@ -347,10 +359,11 @@ export default function OffersClient({
                             </div>
                         </div>
 
-                        {featuredShops.length > 0 && (
+                        {visibleShops.length > 0 && (
                             <div className="mb-1">
                                 <FeaturedShops
-                                    shops={featuredShops}
+                                    shops={visibleShops}
+                                    disableDynamicFetch={radius !== null}
                                     variant="minimal"
                                     activeShopId={activeFilters.shopId}
                                 />
@@ -417,7 +430,10 @@ export default function OffersClient({
                             </div>
                         </div>
 
-                        <OfferGrid isLoading={isLoading} offers={offers} disablePagination={true} columns={5} />
+                        {radiusSearching && <p role="status" className="mb-3 text-xs text-orange-600">Checking nearby shops…</p>}
+                        {error || (radius !== null && (!locationReady || (!isLoading && offers.length === 0))) ? (
+                            <DistanceListingFeedback subject="offers" error={Boolean(error)} onRetry={() => { void refetch(); }} />
+                        ) : <OfferGrid isLoading={isLoading} offers={offers} disablePagination={true} columns={5} />}
 
                         {/* {error && !isLoading && offers.length === 0 && (
                             <div className="flex flex-col items-center justify-center py-16 gap-4">

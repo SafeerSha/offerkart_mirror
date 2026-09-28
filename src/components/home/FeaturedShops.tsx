@@ -8,11 +8,15 @@ import { cn } from "@/lib/utils";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useDistancePreference } from "@/hooks/useDistancePreference";
+import { withinRadius, isAllLocation } from "@/lib/distance";
+
 import { useLocationContext } from "@/context/LocationContext";
 import { useFeaturedShops } from "@/hooks/useApi";
 
 interface FeaturedShop {
-  id: number;
+  distanceKm?: number | null;
+  id: number | string;
   name: string;
   logo: string | StaticImageData;
 }
@@ -62,18 +66,21 @@ const FeaturedShops = ({
     }
   };
 
-  const handleShopClick = (shopId: number) => {
+  const handleShopClick = (shopId: number | string) => {
     router.push(`/shop/${shopId}`);
   };
 
   const { location: userLocation, hydrated } = useLocationContext();
+  const { radius, locationReady } = useDistancePreference();
   const industryId = searchParams.get("industryId") || undefined;
 
-  const hasLocation = userLocation.latitude !== null && userLocation.longitude !== null;
+  const isAll = isAllLocation(userLocation.name);
+  const hasLocation = isAll || (userLocation.latitude !== null && userLocation.longitude !== null);
   const { data: dynamicData, isLoading: queryLoading } = useFeaturedShops(
-    userLocation.latitude,
-    userLocation.longitude,
+    isAll ? undefined : userLocation.latitude,
+    isAll ? undefined : userLocation.longitude,
     industryId,
+    radius,
     {
       enabled: hydrated && (hasLocation || !!industryId) && !disableDynamicFetch
     }
@@ -97,8 +104,9 @@ const FeaturedShops = ({
   }, [hydrated, hasLocation, industryId, dynamicData, shops, disableDynamicFetch]);
 
   const displayShops = useMemo(() => {
-    return filteredShops.slice(0, variant === "minimal" && filteredShops.length > 15 ? 15 : 16);
-  }, [filteredShops, variant]);
+    const nearbyShops = filteredShops.filter((shop: FeaturedShop) => radius === null || (locationReady && withinRadius(shop.distanceKm, radius)));
+    return nearbyShops.slice(0, variant === "minimal" && nearbyShops.length > 15 ? 15 : 16);
+  }, [filteredShops, variant, radius, locationReady]);
 
   useEffect(() => {
     checkScroll();
@@ -263,6 +271,7 @@ const FeaturedShops = ({
                       <Tooltip key={shop.id} delayDuration={100}>
                         <TooltipTrigger asChild>
                           <button
+                            aria-label={shop.name}
                             data-loader-text="Loading shop offers..."
                             className="relative flex flex-col items-center group cursor-pointer transition-all duration-300 flex-shrink-0 snap-start"
                             onClick={() => handleShopClick(shop.id)}

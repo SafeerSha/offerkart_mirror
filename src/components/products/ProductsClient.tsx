@@ -25,6 +25,10 @@ import {
 import { useTranslation } from "@/hooks/useTranslation";
 import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
 import { useInfiniteUserProducts, useProductShops } from "@/hooks/useApi";
+import { useDistancePreference } from "@/hooks/useDistancePreference";
+import { useRadiusResults } from "@/hooks/useRadiusResults";
+import { shopsFromResults } from "@/lib/distance";
+import { DistanceListingFeedback } from "@/components/shared/DistanceControl";
 import { useLocationContext } from "@/context/LocationContext";
 
 interface ProductsClientProps {
@@ -46,6 +50,7 @@ export default function ProductsClient({
     const searchParams = useSearchParams();
     const router = useRouter();
     const { location: globalLocation, hydrated } = useLocationContext();
+    const { radius, locationReady } = useDistancePreference();
 
     const initialCategory = searchParams.get("category") || "All";
     const initialSubcategories = searchParams.getAll("subcategory") || [];
@@ -192,6 +197,7 @@ export default function ProductsClient({
         mainCatId,
         subCatId,
         activeFilters.search,
+        radius,
         {
             enabled: hydrated
         }
@@ -209,6 +215,7 @@ export default function ProductsClient({
     const mappedSort = SORT_MAP[activeFilters.sort] || "newest";
 
     const queryFilters = {
+        radius,
         search: activeFilters.search,
         categoryId: mainCatId ? String(mainCatId) : undefined,
         subcategoryId: subCatId ? String(subCatId) : undefined,
@@ -218,7 +225,7 @@ export default function ProductsClient({
         longitude: globalLocation.longitude !== null ? globalLocation.longitude : undefined,
     };
 
-    const isInitialState = !queryFilters.latitude && !queryFilters.longitude && activeFilters.category === "All" && activeFilters.subcategory.length === 0 && !activeFilters.search && activeFilters.sort === "newest";
+    const isInitialState = radius === null && queryFilters.latitude == null && queryFilters.longitude == null && activeFilters.category === "All" && activeFilters.subcategory.length === 0 && !activeFilters.search && activeFilters.sort === "newest";
 
     const {
         data,
@@ -229,7 +236,7 @@ export default function ProductsClient({
         error,
         refetch
     } = useInfiniteUserProducts(12, queryFilters, {
-        enabled: hydrated,
+        enabled: hydrated && (radius === null || locationReady),
         initialData: (initialProducts.length > 0 && isInitialState)
             ? {
                 pages: [{ data: initialProducts, pagination: { total: initialTotalCount ?? initialProducts.length, page: 1, limit: 12, totalPages: hasMoreInitial ? 2 : 1 } }],
@@ -238,15 +245,20 @@ export default function ProductsClient({
             : undefined
     });
 
-    const filteredProducts = data !== undefined ? data.pages.flatMap(page => page.data) : (isInitialState ? initialProducts : []);
-    const totalCount = data?.pages?.[0]?.pagination?.total ?? (isInitialState ? (initialTotalCount ?? initialProducts.length) : filteredProducts.length);
-    const isLoading = isFetching && filteredProducts.length === 0;
-
+    const loadedProducts = data !== undefined ? data.pages.flatMap(page => page.data) : (isInitialState ? initialProducts : []);
+    const { items: filteredProducts, searching: radiusSearching } = useRadiusResults({
+        items: loadedProducts, radius, locationReady, hasNextPage: Boolean(hasNextPage),
+        isFetching, error, fetchNextPage, distance: product => product.distanceKm,
+    });
+    const nearbyShops = shopsFromResults(filteredProducts);
+    const visibleShops = radius === null ? featuredShops : nearbyShops;
+    const totalCount = radius !== null ? filteredProducts.length : data?.pages?.[0]?.pagination?.total ?? (isInitialState ? (initialTotalCount ?? initialProducts.length) : filteredProducts.length);
+    const isLoading = (isFetching || radiusSearching) && filteredProducts.length === 0;
     // Infinite Scroll Observer
     useEffect(() => {
         const observer = new IntersectionObserver(
             (entries) => {
-                if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+                if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage && !error) {
                     fetchNextPage();
                 }
             },
@@ -257,7 +269,7 @@ export default function ProductsClient({
         if (target) observer.observe(target);
 
         return () => observer.disconnect();
-    }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+    }, [fetchNextPage, hasNextPage, isFetchingNextPage, error]);
 
     return (
         <div className="min-h-screen bg-gray-50/50">
@@ -360,13 +372,13 @@ export default function ProductsClient({
                             </div>
                         </div>
 
-                        {(featuredShops.length > 0 || productShopsLoading) && (
+                        {(visibleShops.length > 0 || (radius === null && productShopsLoading)) && (
                             <div className="mb-1">
                                 <FeaturedShops
-                                    shops={featuredShops}
+                                    shops={visibleShops}
                                     variant="minimal"
                                     activeShopId={activeFilters.shopId}
-                                    isLoading={productShopsLoading}
+                                    isLoading={radius === null && productShopsLoading}
                                     disableDynamicFetch={true}
                                 />
                             </div>
@@ -448,7 +460,10 @@ export default function ProductsClient({
                             </div>
                         )} */}
 
-                        <ProductGrid products={filteredProducts} isLoading={isLoading} />
+                        {radiusSearching && <p role="status" className="mb-3 text-xs text-orange-600">Checking nearby shops…</p>}
+                        {error || (radius !== null && (!locationReady || (!isLoading && filteredProducts.length === 0))) ? (
+                            <DistanceListingFeedback subject="products" error={Boolean(error)} onRetry={() => { void refetch(); }} />
+                        ) : <ProductGrid products={filteredProducts} isLoading={isLoading} />}
 
                         {/* Scroll trigger for infinite loading */}
                         <div id="scroll-trigger" className="w-full py-12 flex items-center justify-center">

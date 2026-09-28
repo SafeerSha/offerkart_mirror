@@ -9,10 +9,12 @@ export async function GET(request: NextRequest) {
         const limit = Number(searchParams.get("limit")) || 12;
         const lat = searchParams.get("latitude");
         const lng = searchParams.get("longitude");
+        const rad = searchParams.get("radius");
         const sort = searchParams.get("sort") || "latest";
 
         const latitude = lat ? Number(lat) : undefined;
         const longitude = lng ? Number(lng) : undefined;
+        const radius = rad ? Number(rad) : undefined;
 
         const result = await getUserOffersList({
             shopId,
@@ -20,6 +22,7 @@ export async function GET(request: NextRequest) {
             limit,
             latitude,
             longitude,
+            radius,
             sort
         });
 

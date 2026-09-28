@@ -1,6 +1,7 @@
 import { backend, unwrapApiEnvelope } from "./backendClient";
 import { ENDPOINTS } from "./endpoints";
 import { CACHE_TAGS } from "./cache-tags";
+import { z } from "zod";
 import { SearchResponse } from "../types/search";
 import { Product, PaginatedResponse } from "../types";
 import { SocialLinksQuery, PaginatedSocialLinksResult, OfferSocialLink } from "../types/socialLinks";
@@ -75,6 +76,7 @@ export async function getUserOffersList(query: {
     limit?: number;
     latitude?: number;
     longitude?: number;
+    radius?: number | null;
     sort?: string;
 }) {
     const page = Number(query.page) || 1;
@@ -83,6 +85,7 @@ export async function getUserOffersList(query: {
     const shopId = query.shopId;
     const latitude = query.latitude;
     const longitude = query.longitude;
+    const radius = query.radius;
 
     const params = new URLSearchParams({
         page: String(page),
@@ -92,6 +95,9 @@ export async function getUserOffersList(query: {
     if (shopId) params.set("shopId", shopId);
     if (latitude !== undefined) params.set("latitude", String(latitude));
     if (longitude !== undefined) params.set("longitude", String(longitude));
+    if (radius !== undefined && radius !== null && Number(radius) > 0) {
+        params.set("radius", String(radius));
+    }
 
     const response = await backend.get<any>(`${ENDPOINTS.USER_OFFER.BASE}?${params.toString()}`, {
         next: { tags: [CACHE_TAGS.OFFERS] },
@@ -164,11 +170,12 @@ export async function getUserOfferProducts(query: {
     limit?: number;
     latitude?: number;
     longitude?: number;
+    radius?: number | null;
 }): Promise<PaginatedResponse<Product>> {
     const page = Number(query.page) || 1;
     const limit = Number(query.limit) || 20;
     const sort = query.sort || "newest";
-    const { search, categoryId, subcategoryId, shopId, minPrice, maxPrice, latitude, longitude } = query;
+    const { search, categoryId, subcategoryId, shopId, minPrice, maxPrice, latitude, longitude, radius } = query;
 
     const params = new URLSearchParams({
         page: String(page),
@@ -183,6 +190,9 @@ export async function getUserOfferProducts(query: {
     if (maxPrice !== undefined) params.set("maxPrice", String(maxPrice));
     if (latitude !== undefined) params.set("latitude", String(latitude));
     if (longitude !== undefined) params.set("longitude", String(longitude));
+    if (radius !== undefined && radius !== null && Number(radius) > 0) {
+        params.set("radius", String(radius));
+    }
 
     const response = await backend.get<any>(`${ENDPOINTS.USER_OFFER.PRODUCTS}?${params.toString()}`, {
         next: { tags: [CACHE_TAGS.OFFERS, CACHE_TAGS.PRODUCTS] },
@@ -209,51 +219,62 @@ export async function getUserOfferProducts(query: {
 
 
 
+const searchSchema = z.object({
+    products: z.array(z.object({
+        name: z.string(), category: z.string(), categoryId: z.number().optional(),
+        totalOfferProducts: z.number(), shopCount: z.number(), minPrice: z.number().optional(),
+    })).default([]),
+    offers: z.array(z.object({
+        offerId: z.number(), offerName: z.string(),
+        shopName: z.string().optional(), shopId: z.number().optional(),
+    })).default([]),
+    shops: z.array(z.object({
+        shopId: z.number().int().positive(),
+        shopName: z.string().trim().min(1),
+        logo: z.string().nullable().optional().transform(value => {
+            if (!value) return null;
+            try {
+                const url = new URL(value);
+                return ["https:", "http:"].includes(url.protocol) ? value : null;
+            } catch { return null; }
+        }),
+        distance: z.number().nonnegative().nullable().optional().default(null),
+    })).default([]),
+});
+
 export async function getGlobalSearch(
     search: string,
     latitude?: number | null,
-    longitude?: number | null
+    longitude?: number | null,
+    radius?: number | null
 ): Promise<SearchResponse> {
-    const params = new URLSearchParams({ search });
-    if (latitude !== undefined && latitude !== null) {
-        params.set("latitude", String(latitude));
-    }
-    if (longitude !== undefined && longitude !== null) {
-        params.set("longitude", String(longitude));
-    }
-    
+    const empty = { products: [], offers: [], shops: [] };
+    if (search.trim().length < 3) return { success: true, data: empty };
+    const params = new URLSearchParams({ search: search.trim() });
+    if (latitude != null) params.set("latitude", String(latitude));
+    if (longitude != null) params.set("longitude", String(longitude));
+    if (radius != null && Number(radius) > 0) params.set("radius", String(radius));
     try {
-        const response = await backend.get<any>(`user/offer/search?${params.toString()}`);
-        if (response && response.success && response.data) {
-            const apiData = response.data;
-            const searchData = unwrapApiEnvelope(apiData);
-            
-            // searchData might still be wrapped in { success, data } if unwrapApiEnvelope didn't peel it
-            const actualData = searchData.data || searchData;
-
-            return {
-                success: true,
-                message: apiData.message || "search details fetched successfully",
-                data: {
-                    products: actualData.products || [],
-                    offers: actualData.offers || []
-                }
-            };
+        const response = await backend.get<unknown>(`user/offer/search?${params.toString()}`);
+        if (!response.success) return { success: false, message: "Search failed", data: empty };
+        let data: unknown = response.data;
+        for (let depth = 0; depth < 4 && data && typeof data === "object" && "data" in data; depth++) {
+            if ("success" in data && data.success === false) throw new Error("Search rejected");
+            data = data.data;
         }
-    } catch (e) {
-        console.warn("Real user offer search failed:", e);
+        if (data && typeof data === "object" && "success" in data && data.success === false) {
+            throw new Error("Search rejected");
+        }
+        if (!data || typeof data !== "object" || !("products" in data || "offers" in data || "shops" in data)) {
+            throw new Error("Invalid search response");
+        }
+        const parsed = searchSchema.safeParse(data);
+        if (parsed.success) return { success: true, data: parsed.data };
+    } catch {
+        // Return a distinct failure state, never a misleading no-match result.
     }
-    
-    return {
-        success: false,
-        message: "Search failed",
-        data: {
-            products: [],
-            offers: []
-        }
-    };
+    return { success: false, message: "Search failed. Please try again.", data: empty };
 }
-
 /**
  * Fetch public offer social links (Promo / Ads page)
  * Corresponds to: GET https://offersnearu.vercel.app/api/user/offer/sociallinks
@@ -349,5 +370,3 @@ export async function getUserOfferSocialLinks(
         };
     }
 }
-
-

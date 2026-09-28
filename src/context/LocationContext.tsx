@@ -83,7 +83,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
         const newLoc = { name, latitude: finalLat, longitude: finalLon };
         setLocationState(newLoc);
-        setIsLocationSet(name !== "Location" && name !== "All");
+        setIsLocationSet(name !== "Location");
 
         if (typeof window !== "undefined") {
             localStorage.setItem("offernearu_location", name);

@@ -1,3 +1,4 @@
+import { resolveShopDistance } from "@/lib/distance";
 import { Offer, OfferPayload, MarkedItem } from "../types/offer";
 import { Shops } from "../types/shop";
 import { backend, BackendRequestOptions, unwrapApiEnvelope } from "./backendClient";
@@ -48,6 +49,7 @@ interface UserOfferQuery {
     longitude?: number | null;
     industry?: number | string | null;
     search?: string;
+    radius?: number | null;
 }
 
 interface PaginatedOffersResult {
@@ -183,6 +185,7 @@ async function fetchUserOffersPage({
     longitude,
     industry,
     search,
+    radius,
 }: UserOfferQuery = {}, cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">): Promise<PaginatedOffersResult> {
     // Map frontend "popular" sort to upstream "top" sort
     const backendSort = sort === "popular" ? "top" : sort;
@@ -210,6 +213,11 @@ async function fetchUserOffersPage({
     const normalizedSearch = normalizeOptionalQueryValue(search);
     if (normalizedSearch !== undefined) {
         params.set("search", normalizedSearch);
+    }
+
+    const normalizedRadius = normalizeOptionalQueryValue(radius);
+    if (normalizedRadius !== undefined && Number(normalizedRadius) > 0) {
+        params.set("radius", normalizedRadius);
     }
 
     let response: any;
@@ -241,7 +249,7 @@ async function fetchUserOffersPage({
     const apiData = unwrapApiEnvelope(result);
 
     const offersArray = Array.isArray(apiData.data) ? apiData.data : [];
-    const mappedOffers = offersArray.map(mapUserOfferToOffer);
+    const mappedOffers = offersArray.map((item: UserOfferApiItem) => mapUserOfferToOffer({ ...item, distanceKm: resolveShopDistance(item, latitude, longitude) }));
     
     // Extract pagination info from the nested pagination object if present
     const pagination = apiData.pagination || {};
@@ -299,8 +307,13 @@ export async function deleteOffer(id: string, shopId?: string) {
 export async function getFeaturedOffers(
     latitude?: number | null,
     longitude?: number | null,
+    radiusOrCacheOptions?: number | null | Pick<BackendRequestOptions, "next" | "tags" | "revalidate">,
     cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">
 ) {
+    const isOptions = typeof radiusOrCacheOptions === "object" && radiusOrCacheOptions !== null && ("next" in radiusOrCacheOptions || "tags" in radiusOrCacheOptions || "revalidate" in radiusOrCacheOptions);
+    const radius: number | null | undefined = isOptions ? undefined : radiusOrCacheOptions as number | null | undefined;
+    const finalCacheOptions = isOptions ? radiusOrCacheOptions : cacheOptions;
+
     try {
         const params = new URLSearchParams();
         if (latitude !== undefined && latitude !== null) {
@@ -309,10 +322,13 @@ export async function getFeaturedOffers(
         if (longitude !== undefined && longitude !== null) {
             params.set("longitude", String(longitude));
         }
+        if (radius !== undefined && radius !== null && Number(radius) > 0) {
+            params.set("radius", String(radius));
+        }
         const queryString = params.toString() ? `?${params.toString()}` : "";
         const response = await backend.get<any>(`${ENDPOINTS.USER_OFFER.FEATURED}${queryString}`, {
             next: { tags: [CACHE_TAGS.OFFERS, CACHE_TAGS.HOME], revalidate: 60 },
-            ...cacheOptions,
+            ...finalCacheOptions,
         });
 
         if (response && response.success && response.data) {
@@ -327,6 +343,7 @@ export async function getFeaturedOffers(
                     data: offersArray.map((item: any) => ({
                         id: item.id,
                         name: item.shop_name || item.shopName || "Unknown Shop",
+                        distanceKm: resolveShopDistance(item, latitude, longitude),
                         offer: item.title || item.offerName || "",
                         image: item.defaultPoster || item.image || DEFAULT_USER_OFFER_IMAGE,
                         shopLogo: item.logo_url || item.logoUrl || item.shop_logo || item.shopLogo || item.shop_logo_url || item.shopLogoUrl || item.logo || item.shop?.logo_url || item.shop?.logoUrl || item.shop?.logo || item.shop?.shop_logo || (item.shops && item.shops[0]?.logo_url) || null,
@@ -341,7 +358,7 @@ export async function getFeaturedOffers(
     }
 
     try {
-        const offersResult = await fetchUserOffersPage({ page: 1, limit: 100 }, cacheOptions);
+        const offersResult = await fetchUserOffersPage({ page: 1, limit: 100, latitude, longitude, radius }, finalCacheOptions);
         const offers = (offersResult && offersResult.success && Array.isArray(offersResult.data))
             ? offersResult.data
             : [];
@@ -379,8 +396,12 @@ export async function getFeaturedShops(
     latitude?: number | null,
     longitude?: number | null,
     industryId?: number | string | null,
+    radiusOrCacheOptions?: number | null | Pick<BackendRequestOptions, "next" | "tags" | "revalidate">,
     cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">
 ): Promise<{ success: boolean; data: any[] }> {
+    const isOptions = typeof radiusOrCacheOptions === "object" && radiusOrCacheOptions !== null && ("next" in radiusOrCacheOptions || "tags" in radiusOrCacheOptions || "revalidate" in radiusOrCacheOptions);
+    const radius: number | null | undefined = isOptions ? undefined : radiusOrCacheOptions as number | null | undefined;
+    const finalCacheOptions = isOptions ? radiusOrCacheOptions : cacheOptions;
     try {
         const params = new URLSearchParams();
         if (latitude !== undefined && latitude !== null) {
@@ -392,10 +413,13 @@ export async function getFeaturedShops(
         if (industryId !== undefined && industryId !== null && industryId !== "") {
             params.set("industryId", String(industryId));
         }
+        if (radius !== undefined && radius !== null && Number(radius) > 0) {
+            params.set("radius", String(radius));
+        }
         const queryString = params.toString() ? `?${params.toString()}` : "";
         const response = await backend.get<any>(`${ENDPOINTS.USER_OFFER.SHOPS}${queryString}`, {
             next: { tags: [CACHE_TAGS.OFFERS, CACHE_TAGS.HOME], revalidate: 60 },
-            ...cacheOptions,
+            ...finalCacheOptions,
         });
         if (response && response.success && response.data) {
             const apiData = response.data;
@@ -410,6 +434,7 @@ export async function getFeaturedShops(
                         return {
                             id: shop.id,
                             name: shop.shop_name,
+                            distanceKm: resolveShopDistance(shop, latitude, longitude),
                             logo: shop.logo_url || null
                         };
                     })
@@ -420,8 +445,10 @@ export async function getFeaturedShops(
         console.error("Failed to fetch featured shops from API:", e);
     }
 
+    if (latitude != null || longitude != null) return { success: false, data: [] };
+
     try {
-        const result = await fetchUserOffersPage({ page: 1, limit: 100 });
+        const result = await fetchUserOffersPage({ page: 1, limit: 100, latitude, longitude, industry: industryId, radius }, finalCacheOptions);
         if (result.success && result.data) {
             const offersMap = new Map();
             for (const offer of result.data) {
@@ -666,7 +693,7 @@ export async function toggleOfferStatus(id: string, shopId: string) {
 
 export async function getUserOfferSimilar(
     id: string | number,
-    query: { latitude?: number | null; longitude?: number | null } = {},
+    query: { latitude?: number | null; longitude?: number | null; radius?: number | null } = {},
     cacheOptions?: Pick<BackendRequestOptions, "next" | "tags" | "revalidate">
 ) {
     const params = new URLSearchParams();
@@ -674,6 +701,11 @@ export async function getUserOfferSimilar(
     const normalizedLongitude = normalizeOptionalQueryValue(query.longitude);
     if (normalizedLatitude !== undefined) params.set("latitude", normalizedLatitude);
     if (normalizedLongitude !== undefined) params.set("longitude", normalizedLongitude);
+
+    const normalizedRadius = normalizeOptionalQueryValue(query.radius);
+    if (normalizedRadius !== undefined && Number(normalizedRadius) > 0) {
+        params.set("radius", normalizedRadius);
+    }
 
     const response = await backend.get<any>(
         `${ENDPOINTS.USER_OFFER.SIMILAR(id)}?${params.toString()}`,
@@ -693,7 +725,7 @@ export async function getUserOfferSimilar(
 
     const apiData = unwrapApiEnvelope(response.data);
     const offersArray = Array.isArray(apiData) ? apiData : (Array.isArray(apiData.data) ? apiData.data : []);
-    const mappedOffers = offersArray.map(mapUserOfferToOffer);
+    const mappedOffers = offersArray.map((item: UserOfferApiItem) => mapUserOfferToOffer({ ...item, distanceKm: resolveShopDistance(item, query.latitude, query.longitude) }));
 
     return {
         success: true,

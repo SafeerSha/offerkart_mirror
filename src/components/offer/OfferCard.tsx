@@ -1,5 +1,6 @@
 "use client";
 
+import { DistanceBadge } from "@/components/shared/DistanceControl";
 import { useState } from "react";
 import { StaticImageData } from "next/image";
 import { useRouter } from "next/navigation";
@@ -13,6 +14,7 @@ import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 
 interface OfferCardProps {
+  distanceKm?: number | null;
   id?: number | string;
   offerId?: number;
   shopName?: string;
@@ -43,6 +45,7 @@ const OfferCard = ({
   posters,
   totalPosters,
   shopLogo,
+  distanceKm,
 }: OfferCardProps) => {
   const { t } = useTranslation("common");
   const router = useRouter();
@@ -189,6 +192,7 @@ const OfferCard = ({
             <p className="w-full text-slate-500 dark:text-slate-500 text-[10px] font-semibold tracking-wider truncate">
               {shopName || "OfferNearU"}
             </p>
+            <DistanceBadge distance={distanceKm} />
             {/* {showDiscount && (
               <span className={cn(
                 "inline-flex items-start text-red-600 dark:text-red-400 text-[8px] sm:text-xs mt-0.5",

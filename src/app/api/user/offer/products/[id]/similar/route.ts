@@ -14,11 +14,13 @@ export async function GET(
         const searchParams = request.nextUrl.searchParams;
         const lat = searchParams.get("latitude");
         const lng = searchParams.get("longitude");
+        const rad = searchParams.get("radius");
 
         const latitude = lat ? Number(lat) : null;
         const longitude = lng ? Number(lng) : null;
+        const radius = rad ? Number(rad) : null;
 
-        const result = await getUserProductSimilar(id, { latitude, longitude });
+        const result = await getUserProductSimilar(id, { latitude, longitude, radius });
 
         if (!result.success) {
             return NextResponse.json(

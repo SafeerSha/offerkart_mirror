@@ -25,7 +25,11 @@ import { config } from "@/lib/config";
 import { getPlacesByPin, getStates } from "indian_places";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { useTranslation } from "@/hooks/useTranslation";
-import { SearchResultData } from "@/lib/types/search";
+import { DistanceControl, DistanceEmptyState } from "@/components/shared/DistanceControl";
+import { useDistancePreference } from "@/hooks/useDistancePreference";
+import { withinRadius } from "@/lib/distance";
+import { ShopSearchResults } from "./ShopSearchResults";
+import { SearchResultData, SearchProductItem } from "@/lib/types/search";
 import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
 import { useMyShops } from "@/hooks/useApi";
 import { getGlobalSearch } from "@/lib/api/userOffersService";
@@ -127,7 +131,7 @@ const LocationModal = ({
                             setLocation(locationName, latitude, longitude);
                             setLocationSearch("");
                             handleSearch("");
-                            onOpenChange(false);
+
                         } else {
                             alert("Could not determine location name from coordinates.");
                         }
@@ -159,25 +163,11 @@ const LocationModal = ({
     };
 
     return (
-        <Dialog open={open} modal={true} onOpenChange={(val) => {
-            // Only allow closing if a location has already been selected
-            if (isLocationSet) {
-                onOpenChange(val);
-            }
-        }}>
+        <Dialog open={open} modal={true} onOpenChange={onOpenChange}>
             <DialogContent
-                onPointerDownOutside={(e) => {
-                    if (!isLocationSet) e.preventDefault();
-                }}
-                onEscapeKeyDown={(e) => {
-                    if (!isLocationSet) e.preventDefault();
-                }}
-                className={cn(
-                    "p-0 overflow-hidden bg-white/95 backdrop-blur-md border border-primary/10 rounded-2xl sm:rounded-2xl shadow-2xl max-w-md w-[calc(100vw-2rem)] gap-0",
-                    !isLocationSet && "[&>button:last-child]:hidden"
-                )}
+                className="p-0 max-h-[calc(100dvh-2rem)] overflow-y-auto bg-white/95 backdrop-blur-md border border-primary/10 rounded-2xl sm:rounded-2xl shadow-2xl max-w-md w-[calc(100vw-2rem)] gap-0"
             >
-                <DialogHeader className="px-4 py-2 border-b border-primary/5 bg-primary/5 text-left shrink-0">
+                <DialogHeader className="px-4 py-2 border-b border-primary/5 bg-primary/5 text-left shrink-0 relative z-20">
                     <DialogTitle className="font-sans font-bold text-lg text-slate-800">
                         Select Location
                     </DialogTitle>
@@ -210,13 +200,13 @@ const LocationModal = ({
                                 </button>
                             )}
                         </div>
+                        <DistanceControl inLocationModal loading={detectingLocation} />
                     </div>
 
                     <p className="text-[10px] text-muted-foreground mt-1 px-1 font-medium italic">
                         {!isLocationSet ? "Please select a location to see deals near you" : "Search for your city or town to see local deals"}
                     </p>
                 </DialogHeader>
-
                 <div className="max-h-72 overflow-y-auto py-2 scrollbar-thin scrollbar-thumb-primary/10 scrollbar-track-transparent">
                     <button
                         onClick={handleDetectLocation}
@@ -269,7 +259,7 @@ const LocationModal = ({
                                         setLocation(loc, coords.lat, coords.lon);
                                         setLocationSearch("");
                                         handleSearch("");
-                                        onOpenChange(false);
+
                                     }}
                                     className={cn(
                                         "rounded-xl cursor-pointer py-2.5 px-3 transition-all duration-200 flex items-center justify-between w-[calc(100%-1rem)] text-left border-0 outline-none bg-transparent mx-2 my-0.5",
@@ -307,12 +297,14 @@ const LocationModal = ({
                         })
                     )}
                 </div>
+                <div className="border-t border-primary/10 px-4 py-3"><button type="button" disabled={!isLocationSet} onClick={() => onOpenChange(false)} className="w-full rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2">Done</button></div>
             </DialogContent>
         </Dialog>
     );
 };
 
 const Header = () => {
+    const { radius, locationReady } = useDistancePreference();
     const [scrolled, setScrolled] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [searchOpen, setSearchOpen] = useState(false);
@@ -394,11 +386,13 @@ const Header = () => {
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState<SearchResultData | null>(null);
     const [isSearching, setIsSearching] = useState(false);
+    const [searchError, setSearchError] = useState(false);
+    const [searchRetry, setSearchRetry] = useState(0);
 
     const groupedProducts = useMemo(() => {
         if (!searchResults || !searchResults.products) return {};
-        const groups: Record<string, any[]> = {};
-        searchResults.products.forEach((p: any) => {
+        const groups: Record<string, SearchProductItem[]> = {};
+        searchResults.products.forEach((p: SearchProductItem) => {
             const cat = p.category || "General";
             if (!groups[cat]) {
                 groups[cat] = [];
@@ -409,7 +403,7 @@ const Header = () => {
     }, [searchResults]);
 
     const { resolveHierarchyById } = useCategoryHierarchy(searchOpen || searchQuery.trim().length > 0);
-    const getProductHref = (p: any) => {
+    const getProductHref = (p: SearchProductItem) => {
         const resolvedCategory = resolveHierarchyById(p.category);
         const categoryParam = resolvedCategory.main ? resolvedCategory.main : (p.category || "All");
         const subcategoryParam = resolvedCategory.sub ? `&subcategory=${encodeURIComponent(resolvedCategory.sub)}` : "";
@@ -417,6 +411,9 @@ const Header = () => {
     };
 
     useEffect(() => {
+        let active = true;
+        setSearchError(false);
+        setSearchResults(null);
         const trimmed = searchQuery.trim();
         if (trimmed.length < 3) {
             setSearchResults(null);
@@ -427,22 +424,23 @@ const Header = () => {
         setIsSearching(true);
         const delayDebounceFn = setTimeout(async () => {
             try {
-                const result = await getGlobalSearch(trimmed, globalLocation.latitude, globalLocation.longitude);
+                const result = await getGlobalSearch(trimmed, globalLocation.latitude, globalLocation.longitude, radius);
+                if (!active) return;
                 if (result.success && result.data) {
-                    setSearchResults(result.data);
+                    setSearchResults({ ...result.data, shops: radius === null ? result.data.shops : locationReady ? result.data.shops.filter(shop => withinRadius(shop.distance, radius)) : [] });
                 } else {
-                    setSearchResults({ products: [], offers: [] });
+                    if (active) setSearchError(true);
                 }
             } catch (error) {
                 console.error("Search fetch failed:", error);
-                setSearchResults({ products: [], offers: [] });
+                if (active) setSearchError(true);
             } finally {
-                setIsSearching(false);
+                if (active) setIsSearching(false);
             }
         }, 300); // 300ms debounce
 
-        return () => clearTimeout(delayDebounceFn);
-    }, [searchQuery, globalLocation.latitude, globalLocation.longitude]);
+        return () => { active = false; clearTimeout(delayDebounceFn); };
+    }, [searchQuery, globalLocation.latitude, globalLocation.longitude, searchRetry, radius, locationReady]);
 
     const { data: session, status } = useSession();
     const isRegistered = status === "authenticated";
@@ -978,7 +976,10 @@ const Header = () => {
                                 </div>
                             </div>
 
-                            <div className="mt-4 flex justify-end hidden lg:flex">
+                            <div className="mt-4 flex justify-end hidden lg:flex"
+                                onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setSearchOpen(false); }}
+                                onKeyDown={(event) => { if (event.key === "Escape") { setSearchQuery(""); setSearchOpen(false); } }}
+                            >
                                 <div
                                     className={cn(
                                         "relative h-11 flex items-center transition-all duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] w-full",
@@ -1009,14 +1010,10 @@ const Header = () => {
                                         type="text"
                                         placeholder={searchOpen ? "Search for shops, offers, products..." : ""}
                                         value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        aria-label="Search shops, offers, products"
+                                            onKeyDown={(e) => { if (e.key === "Escape") { setSearchQuery(""); setSearchOpen(false); } }}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
                                         onFocus={() => setSearchOpen(true)}
-                                        onBlur={(e) => {
-                                            if (e.relatedTarget?.getAttribute('data-clear') === 'true') return;
-                                            setTimeout(() => {
-                                                setSearchOpen(false);
-                                            }, 200);
-                                        }}
                                         className={cn(
                                             "relative z-10 w-full h-full pl-11 pr-11 bg-transparent border-none focus:ring-0 outline-none transition-all duration-[600ms] text-sm font-medium",
                                             !searchOpen && "cursor-pointer"
@@ -1049,24 +1046,30 @@ const Header = () => {
                                     {/* Desktop Search Results Dropdown */}
                                     {searchOpen && searchQuery && (
                                         <div
-                                            onMouseDown={(e) => e.preventDefault()}
+                                            aria-label="Search results"
                                             className="absolute top-full left-0 right-0 mt-3 bg-white dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-[0_16px_48px_-12px_rgba(0,0,0,0.12)] dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.5)] z-50 overflow-hidden max-h-[420px] overflow-y-auto animate-in fade-in slide-in-from-top-3 duration-300"
                                         >
-                                            {isSearching ? (
+                                            {searchQuery.trim().length < 3 ? (
+                                                <p role="status" className="p-4 text-sm text-muted-foreground">Enter at least 3 characters to search</p>
+                                            ) : searchError ? (
+                                                <div role="alert" className="p-4 text-sm text-muted-foreground">Search failed. Please try again. <button type="button" onClick={() => setSearchRetry(value => value + 1)} className="ml-2 rounded text-primary underline focus-visible:ring-2 focus-visible:ring-primary">Retry search</button></div>
+                                            ) : isSearching || !searchResults ? (
                                                 <div className="flex flex-col items-center justify-center py-12 gap-3">
                                                     <div className="relative">
                                                         <div className="w-8 h-8 rounded-full border-2 border-orange-200 dark:border-orange-900/40" />
                                                         <div className="absolute inset-0 w-8 h-8 rounded-full border-2 border-transparent border-t-orange-500 animate-spin" />
                                                     </div>
-                                                    <span className="text-xs text-slate-400 font-medium">Finding results...</span>
+                                                    <span role="status" className="text-xs text-slate-400 font-medium">Finding results...</span>
                                                 </div>
-                                            ) : (!searchResults || !searchResults.products || !searchResults.offers || (searchResults.products.length === 0 && searchResults.offers.length === 0)) ? (
+                                            ) : (searchResults.products.length === 0 && searchResults.offers.length === 0 && searchResults.shops.length === 0) ? (
                                                 <div className="flex flex-col items-center justify-center py-12 gap-2">
                                                     <Search className="w-5 h-5 text-slate-300 dark:text-slate-600" />
-                                                    <span className="text-sm text-slate-400 dark:text-slate-500">No results found</span>
+                                                    <span className="text-sm text-slate-400 dark:text-slate-500">No results found</span>{radius !== null && locationReady ? <DistanceEmptyState compact /> : <p role="status" className="text-xs text-muted-foreground">No matching shops found</p>}
                                                 </div>
                                             ) : (
                                                 <div className="pb-2">
+                                                    {radius !== null && locationReady && searchResults.shops.length === 0 && <DistanceEmptyState compact />}
+                                                    <ShopSearchResults shops={searchResults.shops} onSelect={() => { setSearchQuery(""); setSearchOpen(false); }} />
                                                     {/* Products Section */}
                                                     {searchResults.products && searchResults.products.length > 0 && (
                                                         <div className="mb-3 last:mb-0">
@@ -1222,11 +1225,14 @@ const Header = () => {
                                             type="text"
                                             placeholder="Search shops, offers, products..."
                                             value={searchQuery}
+                                            aria-label="Search shops, offers, products"
+                                            onKeyDown={(e) => { if (e.key === "Escape") { setSearchQuery(""); setSearchOpen(false); } }}
                                             onChange={(e) => setSearchQuery(e.target.value)}
                                             className="w-full py-2.5 pr-8 bg-transparent border-none focus:ring-0 focus:outline-none outline-none text-xs font-medium placeholder:text-muted-foreground/50 text-foreground"
                                         />
                                         {searchQuery && (
                                             <button
+                                                aria-label="Clear search"
                                                 onClick={() => {
                                                     setSearchQuery("");
                                                     setSearchResults(null);
@@ -1241,24 +1247,30 @@ const Header = () => {
                                     {/* Mobile Search Results Dropdown */}
                                     {searchQuery && (
                                         <div
-                                            onMouseDown={(e) => e.preventDefault()}
+                                            aria-label="Search results"
                                             className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-[0_12px_36px_-8px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_36px_-8px_rgba(0,0,0,0.5)] z-50 overflow-hidden max-h-80 overflow-y-auto animate-in fade-in slide-in-from-top-3 duration-300"
                                         >
-                                            {isSearching ? (
+                                            {searchQuery.trim().length < 3 ? (
+                                                <p role="status" className="p-4 text-sm text-muted-foreground">Enter at least 3 characters to search</p>
+                                            ) : searchError ? (
+                                                <div role="alert" className="p-4 text-sm text-muted-foreground">Search failed. Please try again. <button type="button" onClick={() => setSearchRetry(value => value + 1)} className="ml-2 rounded text-primary underline focus-visible:ring-2 focus-visible:ring-primary">Retry search</button></div>
+                                            ) : isSearching || !searchResults ? (
                                                 <div className="flex flex-col items-center justify-center py-10 gap-2.5">
                                                     <div className="relative">
                                                         <div className="w-7 h-7 rounded-full border-2 border-orange-200 dark:border-orange-900/40" />
                                                         <div className="absolute inset-0 w-7 h-7 rounded-full border-2 border-transparent border-t-orange-500 animate-spin" />
                                                     </div>
-                                                    <span className="text-[11px] text-slate-400 font-medium">Finding results...</span>
+                                                    <span role="status" className="text-[11px] text-slate-400 font-medium">Finding results...</span>
                                                 </div>
-                                            ) : (!searchResults || !searchResults.products || !searchResults.offers || (searchResults.products.length === 0 && searchResults.offers.length === 0)) ? (
+                                            ) : (searchResults.products.length === 0 && searchResults.offers.length === 0 && searchResults.shops.length === 0) ? (
                                                 <div className="flex flex-col items-center justify-center py-10 gap-2">
                                                     <Search className="w-4.5 h-4.5 text-slate-300 dark:text-slate-600" />
-                                                    <span className="text-xs text-slate-400 dark:text-slate-500">No results found</span>
+                                                    <span className="text-xs text-slate-400 dark:text-slate-500">No results found</span>{radius !== null && locationReady ? <DistanceEmptyState compact /> : <p role="status" className="text-xs text-muted-foreground">No matching shops found</p>}
                                                 </div>
                                             ) : (
                                                 <div className="pb-1.5">
+                                                    {radius !== null && locationReady && searchResults.shops.length === 0 && <DistanceEmptyState compact />}
+                                                    <ShopSearchResults shops={searchResults.shops} onSelect={() => { setSearchQuery(""); setSearchOpen(false); }} />
                                                     {/* Products */}
                                                     {searchResults.products && searchResults.products.length > 0 && (
                                                         <div className="mb-1 last:mb-0">

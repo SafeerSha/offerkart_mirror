@@ -2,6 +2,8 @@ export interface Product {
     id: number | string;
     name: string;
     shopName: string;
+    shopId?: number | string | null;
+    distanceKm?: number | null;
     price: number;
     originalPrice?: number;
     image: any; // Can be string or StaticImageData
