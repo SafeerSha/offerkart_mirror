@@ -4,7 +4,7 @@ import React, { useEffect, useState, use } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { MapPin, Store, Mail, Phone, ChevronRight, Gift, Tag, ExternalLink } from "lucide-react";
+import { MapPin, Store, Mail, Phone, Globe, ChevronRight, Gift, Tag, ExternalLink } from "lucide-react";
 import { getUserShopDetails, getUserOfferProducts } from "@/lib/api/userOffersService";
 import { getPaginatedOffers } from "@/lib/api/offers";
 import { mapUserProductToProduct } from "@/lib/api/products";
@@ -221,16 +221,36 @@ export default function ShopDetailsPage({ params }: { params: Promise<{ id: stri
                                         {shop.phone}
                                     </a>
                                 )}
-                                {(shop.website || shop.website_url) && (
-                                    <a
-                                        href={(shop.website || shop.website_url).startsWith("http") ? (shop.website || shop.website_url) : `https://${shop.website || shop.website_url}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-500 text-white rounded-full text-sm font-medium hover:bg-[#334155] transition-colors shadow-sm"
-                                    >
-                                        🌐 Website
-                                    </a>
-                                )}
+                                {(() => {
+                                    const raw = shop.website || shop.website_url || shop.web_site || shop.shop_website || shop.url || shop.websites;
+                                    if (!raw) return null;
+                                    const urls: string[] = Array.isArray(raw)
+                                        ? raw.map((item: any) => typeof item === "string" ? item : (item?.url || item?.website || "")).filter(Boolean)
+                                        : typeof raw === "string"
+                                        ? raw.split(/[\n,]+/).map((u: string) => u.trim()).filter(Boolean)
+                                        : [];
+
+                                    if (urls.length === 0) return null;
+
+                                    return urls.map((url: string, i: number) => {
+                                        const href = url.startsWith("http://") || url.startsWith("https://") ? url : `https://${url}`;
+                                        const displayUrl = url.replace(/^https?:\/\//i, "").replace(/\/$/, "");
+                                        return (
+                                            <a
+                                                key={i}
+                                                href={href}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                title={url}
+                                                className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-500 text-white rounded-full text-sm font-medium hover:bg-[#334155] transition-colors shadow-sm"
+                                            >
+                                                <Globe className="w-4 h-4 shrink-0" />
+                                                <span className="truncate max-w-[200px]">{displayUrl}</span>
+                                                <ExternalLink className="w-3.5 h-3.5 opacity-80 shrink-0" />
+                                            </a>
+                                        );
+                                    });
+                                })()}
                             </div>
                         </div>
                     </div>

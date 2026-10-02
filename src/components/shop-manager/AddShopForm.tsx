@@ -80,7 +80,19 @@ const formSchema = z.object({
     logo: z.any().optional(),
     license: z.any().optional(),
     industry: z.string().min(1, "Please select an industry"),
-    website_url: z.string().url("Please enter a valid URL").optional().or(z.literal('')),
+    website_url: z.string().optional().refine((val) => {
+        if (!val || !val.trim()) return true;
+        const urls = val.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+        return urls.every(u => {
+            const formatted = u.startsWith("http://") || u.startsWith("https://") ? u : `https://${u}`;
+            try {
+                new URL(formatted);
+                return true;
+            } catch {
+                return false;
+            }
+        });
+    }, "Please enter valid URL(s)"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -326,7 +338,7 @@ export default function AddShopForm() {
                         longitude: shop.longitude || undefined,
                         isActive: shop.is_active ?? true,
                         industry: shop.industry ? String(shop.industry) : (shop as any).industry_id ? String((shop as any).industry_id) : (shop as any).industryId ? String((shop as any).industryId) : "",
-                        website_url: shop.website_url || "",
+                        website_url: shop.website || shop.website_url || "",
                     });
 
                     if (shop.logo_url && shop.logo_url !== "null") {
@@ -393,7 +405,9 @@ export default function AddShopForm() {
             if (values.longitude) formData.append("longitude", values.longitude.toString());
 
             formData.append("is_active", String(values.isActive));
-            if (values.website_url) formData.append("website_url", values.website_url);
+            const websiteValue = values.website_url ? values.website_url.trim() : "";
+            formData.append("website_url", websiteValue);
+            formData.append("website", websiteValue);
 
             if (values.industry) {
                 formData.append("industry", values.industry);
@@ -852,7 +866,7 @@ export default function AddShopForm() {
                                 name="website_url"
                                 render={({ field }) => (
                                     <FormItem className="space-y-2">
-                                        <FormLabel className="text-sm font-medium text-gray-700">Website URL (Optional)</FormLabel>
+                                        <FormLabel className="text-sm font-medium text-gray-700">Website URL (If any)</FormLabel>
                                         <FormControl>
                                             <PremiumInput
                                                 placeholder="https://example.com"

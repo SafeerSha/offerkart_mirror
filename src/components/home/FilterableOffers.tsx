@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles, ArrowRight, Flame } from "lucide-react";
+import { ArrowRight, Flame } from "lucide-react";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { Heading, Text } from "@/components/shared/Typography";
 import FilterPanel from "./FilterPanel";
