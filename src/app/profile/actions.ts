@@ -23,17 +23,17 @@ export async function getProfile() {
         // Fallback to session data if backend is not ready or fails
         if (!res.success || !res.data) {
             console.warn("Failed to fetch profile from backend, falling back to session data.", res.error);
-            const user = session.user as any;
+            const user = session.user as Record<string, unknown>;
             return {
                 success: true,
                 data: {
-                    id: user.id || "1",
-                    full_name: user.name || user.full_name || "",
-                    email: user.email || "",
-                    phone: user.phone || "",
-                    role: user.role,
-                    business_name: user.business_name,
-                    shopId: user.shopId
+                    id: String(user.id || "1"),
+                    full_name: String(user.name || user.full_name || ""),
+                    email: String(user.email || ""),
+                    phone: String(user.phone || ""),
+                    role: typeof user.role === "number" ? user.role : undefined,
+                    business_name: typeof user.business_name === "string" ? user.business_name : undefined,
+                    shopId: typeof user.shopId === "string" ? user.shopId : undefined
                 } as UserProfileResponse
             };
         }
