@@ -25,13 +25,19 @@ export function consumeRadiusFocusRequest(): boolean {
 }
 
 function snapshot(): SearchRadius {
-    if (hasUnsavedValue) return memoryValue;
     try {
         const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored === null) return DEFAULT_RADIUS;
-        if (stored === "all" || stored === '"all"') return null;
+        if (stored === null) return hasUnsavedValue ? memoryValue : DEFAULT_RADIUS;
+        if (stored === "all" || stored === '"all"') {
+            hasUnsavedValue = false;
+            return null;
+        }
         const value: unknown = JSON.parse(stored);
-        return isSearchRadius(value) ? value : null;
+        if (isSearchRadius(value)) {
+            hasUnsavedValue = false;
+            return value;
+        }
+        return null;
     } catch { return memoryValue; }
 }
 function subscribe(onChange: () => void) {

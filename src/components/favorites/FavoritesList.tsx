@@ -4,13 +4,11 @@ import { useFavorites } from "@/hooks/useFavorites";
 import { HeartCrack, Loader2 } from "lucide-react";
 import ProductCard from "@/components/products/ProductCard";
 import OfferCard from "@/components/offer/OfferCard";
-import { useTranslation } from "@/hooks/useTranslation";
 import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function FavoritesList() {
   const { data: favorites, isLoading, error } = useFavorites();
-  const { t } = useTranslation("common");
 
   if (isLoading) {
     return (
@@ -29,69 +27,7 @@ export default function FavoritesList() {
     );
   }
 
-  const mockFavorites: any[] = [
-    {
-      id: "m1",
-      item_id: "o1",
-      type: "offer",
-      offer: {
-        id: "o1",
-        offerName: "50% Off Summer Sale",
-        shopName: "Fashion Hub",
-        image: "https://images.unsplash.com/photo-1555529669-e69e7aa0ba9a?auto=format&fit=crop&w=400&q=80",
-        discount: "50% OFF",
-        daysLeft: 5
-      }
-    },
-    {
-      id: "m2",
-      item_id: "o2",
-      type: "offer",
-      offer: {
-        id: "o2",
-        offerName: "Buy 1 Get 1 Free",
-        shopName: "Electro World",
-        image: "https://images.unsplash.com/photo-1498049794561-7780e7231661?auto=format&fit=crop&w=400&q=80",
-        discount: "BOGO",
-        daysLeft: 2
-      }
-    },
-    {
-      id: "m3",
-      item_id: "p1",
-      type: "product",
-      product: {
-        id: "p1",
-        name: "Wireless Noise Cancelling Headphones",
-        price: 2999,
-        originalPrice: 4999,
-        image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=400&q=80",
-        shopName: "Audio Plus",
-        rating: 4.8,
-        category: "Electronics"
-      }
-    },
-    {
-      id: "m4",
-      item_id: "p2",
-      type: "product",
-      product: {
-        id: "p2",
-        name: "Smart Fitness Watch",
-        price: 1499,
-        originalPrice: 2499,
-        image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=400&q=80",
-        shopName: "Tech Wear",
-        rating: 4.5,
-        category: "Electronics"
-      }
-    }
-  ];
-
-  // Use mock data if the API is empty so the user can preview the layout
-  const displayFavorites = (favorites && favorites.length > 0) ? favorites : mockFavorites;
-
-  if (!displayFavorites || displayFavorites.length === 0) {
+  if (!favorites || favorites.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] text-center px-4">
         <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-6">
@@ -111,8 +47,14 @@ export default function FavoritesList() {
     );
   }
 
-  const offers = displayFavorites.filter(f => f.type === 'offer');
-  const products = displayFavorites.filter(f => f.type === 'product');
+  const offers = favorites.filter((f) => {
+    const t = String(f.type || "").toUpperCase();
+    return t === 'OFFER' || (!t.includes('PRODUCT') && Boolean(f.offer));
+  });
+  const products = favorites.filter((f) => {
+    const t = String(f.type || "").toUpperCase();
+    return t.includes('PRODUCT') || Boolean(f.product);
+  });
 
   return (
     <div className="space-y-6">
@@ -142,19 +84,34 @@ export default function FavoritesList() {
           {offers.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
               {offers.map((favorite) => {
-                const offer = favorite.offer || { id: favorite.item_id, offerName: "Unknown Offer" };
+                const offer = favorite.offer || favorite.raw || favorite;
+                const offerId = offer.id ?? offer.offerId ?? favorite.item_id;
+                const offerTitle = offer.title || offer.offerName || offer.name || "Special Offer";
+                const shopName = offer.shop_name || offer.shopName || offer.shop?.business_name || offer.shop?.shop_name || offer.shop?.name;
+                const poster = offer.defaultPoster || offer.image || offer.posterSrc || offer.poster_url || offer.posters?.[0]?.posterSrc;
+                const shopLogo = offer.logo_url || offer.shopLogo || offer.shop?.logo_url || offer.shop?.logo;
+                const totalPosters = offer.totalPosters !== undefined ? Number(offer.totalPosters) : (offer.posters?.length ?? 1);
+
                 return (
-                  <div key={favorite.id}>
+                  <div key={favorite.id || offerId}>
                     <OfferCard
-                      id={offer.id}
-                      offerId={offer.id}
-                      offerName={offer.offerName || offer.title}
-                      shopName={offer.shop?.business_name || offer.shopName}
-                      image={offer.image || offer.posterSrc}
+                      {...offer}
+                      id={offerId}
+                      offerId={Number(offerId)}
+                      offerName={offerTitle}
+                      title={offerTitle}
+                      shopName={shopName}
+                      shop_name={shopName}
+                      image={poster}
+                      defaultPoster={poster}
+                      shopLogo={shopLogo}
+                      logo_url={shopLogo}
                       posters={offer.posters}
-                      totalPosters={offer.totalPosters}
+                      totalPosters={totalPosters}
                       daysLeft={offer.daysLeft}
                       discount={offer.discount}
+                      distanceKm={offer.distanceKm ?? offer.kilometer ?? offer.distance_km ?? offer.distance}
+                      isFavorite={true}
                     />
                   </div>
                 );
@@ -173,18 +130,35 @@ export default function FavoritesList() {
           {products.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
               {products.map((favorite) => {
-                const product = favorite.product || { id: favorite.item_id, name: "Unknown Product", price: 0 };
+                const product = favorite.product || favorite.raw || favorite;
+                const productId = Number(product.id ?? product.productId ?? favorite.item_id);
+                const productName = product.displayName || product.name || product.productName || product.title || "Product";
+                const shopName = product.shop_name || product.shopName || product.shop?.business_name || product.shop?.shop_name || product.shop?.name;
+                const productImage = product.imageUrl || product.image || product.product_image || product.productImages?.[0] || product.image_url;
+                const price = product.offerPrice !== undefined ? Number(product.offerPrice) : (product.price !== undefined ? Number(product.price) : 0);
+                const originalPrice = product.originalPrice !== null && product.originalPrice !== undefined ? Number(product.originalPrice) : undefined;
+                const savingPercentage = product.savingPercentage !== undefined ? Number(product.savingPercentage) : undefined;
+
                 return (
-                  <div key={favorite.id}>
+                  <div key={favorite.id || productId}>
                     <ProductCard
-                      id={product.id}
-                      name={product.name || product.productName}
-                      shopName={product.shop?.business_name || product.shopName}
-                      price={product.price}
-                      originalPrice={product.originalPrice}
-                      image={product.image || product.productImages?.[0]}
-                      category={product.category || "General"}
+                      {...product}
+                      id={productId}
+                      name={productName}
+                      displayName={productName}
+                      shopName={shopName}
+                      shop_name={shopName}
+                      price={price}
+                      offerPrice={price}
+                      originalPrice={originalPrice}
+                      image={productImage}
+                      imageUrl={productImage}
+                      category={product.category}
                       rating={product.rating}
+                      savingPercentage={savingPercentage}
+                      daysLeft={product.daysLeft}
+                      distanceKm={product.distanceKm ?? product.kilometer ?? product.distance_km ?? product.distance}
+                      isFavorite={true}
                     />
                   </div>
                 );

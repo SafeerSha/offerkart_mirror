@@ -1,7 +1,7 @@
 "use client";
 
 import { DistanceBadge } from "@/components/shared/DistanceControl";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { StaticImageData } from "next/image";
 import { useRouter } from "next/navigation";
 import { MapPin, Clock, Heart, Tag, Image as ImageIcon, Store } from "lucide-react";
@@ -9,18 +9,26 @@ import { PremiumCard } from "@/components/shared/PremiumCard";
 import { MarkedPoster } from "@/components/shared/MarkedPoster";
 import { Poster } from "@/lib/types/offer";
 import { useTranslation } from "@/hooks/useTranslation";
-import { useFavorites, useAddFavorite, useRemoveFavorite } from "@/hooks/useFavorites";
+import { useFavorites, useToggleFavorite } from "@/hooks/useFavorites";
+import { isItemInFavorites } from "@/lib/api/favorites";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 
 interface OfferCardProps {
-  distanceKm?: number | null;
+  distanceKm?: number | string | null;
+  kilometer?: number | string | null;
+  distance?: number | string | null;
+  distance_km?: number | string | null;
   id?: number | string;
-  offerId?: number;
+  offerId?: number | string;
   shopName?: string;
+  shop_name?: string;
   offerName?: string;
   title?: string;
   image?: string | StaticImageData;
+  posterSrc?: string;
+  defaultPoster?: string;
+  poster_url?: string;
   posters?: Poster[];
   category?: string;
   location?: string;
@@ -29,23 +37,38 @@ interface OfferCardProps {
   discount?: string;
   branchName?: string;
   daysLeft?: number | null;
-  totalPosters?: number;
+  totalPosters?: number | string;
   shopLogo?: string | null;
+  logo_url?: string | null;
+  isFavourite?: boolean;
+  isFavorite?: boolean;
+  [key: string]: any;
 }
 
 const OfferCard = ({
   id,
   offerId,
   shopName,
+  shop_name,
   offerName,
   title,
   image,
+  posterSrc: propPosterSrc,
+  defaultPoster,
+  poster_url,
   discount,
   daysLeft,
   posters,
   totalPosters,
   shopLogo,
+  logo_url,
   distanceKm,
+  kilometer,
+  distance,
+  distance_km,
+  isFavourite: propIsFavourite,
+  isFavorite: propIsFavorite,
+  ...rest
 }: OfferCardProps) => {
   const { t } = useTranslation("common");
   const router = useRouter();
@@ -54,15 +77,19 @@ const OfferCard = ({
 
   const { data: session } = useSession();
   const { data: favorites } = useFavorites();
-  const addFavorite = useAddFavorite();
-  const removeFavorite = useRemoveFavorite();
+  const toggleFavorite = useToggleFavorite();
 
-  const primaryId = id ?? offerId ?? 0;
+  const primaryId = id ?? offerId ?? (rest as any).offer_id ?? 0;
   
-  const isFavorite = Array.isArray(favorites) && favorites.some(f => f.item_id === primaryId && f.type === 'offer');
-  const favoriteItem = Array.isArray(favorites) ? favorites.find(f => f.item_id === primaryId && f.type === 'offer') : undefined;
+  const isFavoritedFromSource = (Array.isArray(favorites) && isItemInFavorites(favorites, primaryId, 'OFFER')) || Boolean(propIsFavourite ?? propIsFavorite);
+  const [isFavorite, setIsFavorite] = useState(isFavoritedFromSource);
 
-  const handleFavoriteClick = (e: React.MouseEvent) => {
+  useEffect(() => {
+    setIsFavorite(isFavoritedFromSource);
+  }, [isFavoritedFromSource]);
+
+  const handleFavoriteClick = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     if (!session) {
       toast.warning("Authentication required", {
@@ -72,15 +99,37 @@ const OfferCard = ({
       return;
     }
 
-    if (isFavorite && favoriteItem) {
-      removeFavorite.mutate(favoriteItem.id);
-    } else {
-      addFavorite.mutate({ itemId: primaryId, type: 'offer' });
-    }
+    const nextFavorite = !isFavorite;
+    setIsFavorite(nextFavorite);
+
+    toggleFavorite.mutate(
+      { itemId: primaryId, type: 'OFFER' },
+      {
+        onError: () => {
+          setIsFavorite(!nextFavorite);
+        }
+      }
+    );
   };
-  const offerDisplayName = offerName || title || t("catalog.untitledOffer");
-  const posterSrc = posters?.[0]?.posterSrc || (typeof image === "string" ? image : image?.src) || "/images/shop-registration-bg-light.png";
-  const postersCount = totalPosters || posters?.length || 0;
+  const offerDisplayName = offerName || title || (rest as any).offer_title || (rest as any).name || t("catalog.untitledOffer");
+  const resolvedShopName = shopName || shop_name || (rest as any).shop?.shop_name || (rest as any).shop?.business_name || (rest as any).shop?.name || "";
+  const resolvedDistance = distanceKm ?? kilometer ?? distance ?? distance_km ?? (rest as any).kilometer ?? (rest as any).distance_km ?? (rest as any).shop?.kilometer ?? null;
+  const posterSrc =
+    posters?.[0]?.posterSrc ||
+    (typeof image === "string" ? image : image?.src) ||
+    propPosterSrc ||
+    defaultPoster ||
+    poster_url ||
+    (rest as any).poster ||
+    (rest as any).default_poster ||
+    "/images/shop-registration-bg-light.png";
+  const postersCount = Number(totalPosters) || (posters && posters.length) || ((rest as any).total_posters ? Number((rest as any).total_posters) : 0);
+  const resolvedShopLogo =
+    shopLogo ||
+    logo_url ||
+    (rest as any).shop?.logo_url ||
+    (rest as any).shop?.logo ||
+    null;
   // Calculate total offers count from marked items
   const totalOffersCount = posters?.reduce((acc, p) => acc + (p.markedItems?.length || 0), 0) || 0;
 
@@ -100,7 +149,13 @@ const OfferCard = ({
       variant="default"
       padding="none"
       className="group cursor-pointer h-full flex flex-col border border-slate-100 dark:border-slate-800 overflow-hidden hover:border-orange-500/40 hover:shadow-[0_0_30px_rgba(249,115,22,0.15)] transition-all duration-500 rounded-t-xl rounded-b-xl mx-auto w-full max-w-full !bg-white dark:!bg-[#1c2018]"
-      onClick={() => router.push(`/offer/${primaryId}`)}
+      onClick={(e) => {
+        const target = e.target as HTMLElement | null;
+        if (target?.closest("button, [role='button'], a, [data-prevent-card-nav]")) {
+          return;
+        }
+        router.push(`/offer/${primaryId}`);
+      }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -111,7 +166,7 @@ const OfferCard = ({
       >
         <MarkedPoster
           src={posterSrc}
-          alt={shopName || offerDisplayName}
+          alt={resolvedShopName || offerDisplayName}
           markedItems={posters?.[0]?.markedItems || []}
           className="w-full h-full"
           showNames={false}
@@ -137,10 +192,10 @@ const OfferCard = ({
 
         {/* Flat Shop Logo Corner */}
         <div className="absolute bottom-0 right-0 w-11 h-11 sm:w-14 sm:h-14 rounded-tl-2xl bg-white dark:bg-[#1c2018] p-1 border-t border-l border-slate-100 dark:border-slate-800/60 z-20 flex items-center justify-center overflow-hidden transition-transform duration-500">
-          {shopLogo ? (
+          {resolvedShopLogo ? (
             <img
-              src={shopLogo}
-              alt={shopName || "Shop Logo"}
+              src={resolvedShopLogo}
+              alt={resolvedShopName || "Shop Logo"}
               className="w-full h-full rounded-xl object-cover"
             />
           ) : (
@@ -150,30 +205,40 @@ const OfferCard = ({
           )}
         </div>
 
-        <div className={`absolute inset-0 transition-all duration-500 bg-black/10 ${isHovered ? "opacity-100" : "opacity-0"}`} />
+        <div className={`absolute inset-0 transition-all duration-500 bg-black/10 pointer-events-none ${isHovered ? "opacity-100" : "opacity-0"}`} />
 
         {/* Top Actions/Badges */}
-        <div className="absolute top-1 left-1 right-1 sm:top-2 sm:left-4 sm:right-2 flex justify-between items-start pointer-events-none z-30">
-          <div className="flex flex-col gap-2 items-start">
-          </div>
+        <div className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 flex justify-end items-start pointer-events-none z-30">
           <button
+            type="button"
+            data-prevent-card-nav="true"
             onClick={handleFavoriteClick}
-            disabled={addFavorite.isPending || removeFavorite.isPending}
+            onMouseDown={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            disabled={toggleFavorite.isPending}
             className={cn(
-              "px-3 py-1 sm:px-3 sm:py-1 rounded-full flex items-center justify-center backdrop-blur-md transition-all pointer-events-auto border",
-              isFavorite
-                ? "bg-orange-500 text-white border-orange-500 shadow-lg shadow-orange-500/20 scale-105"
-                : "bg-white/70 dark:bg-slate-950/70 text-slate-700 dark:text-slate-300 border-white/20 hover:bg-white/95 dark:hover:bg-slate-900",
-              (addFavorite.isPending || removeFavorite.isPending) && "opacity-70 cursor-not-allowed"
+              "p-1 rounded-full flex items-center justify-center transition-all pointer-events-auto group/fav cursor-pointer focus:outline-none",
+              toggleFavorite.isPending && "opacity-70 cursor-not-allowed"
             )}
+            title={isFavorite ? "Remove from favorites" : "Save to favorites"}
+            aria-label={isFavorite ? "Remove from favorites" : "Save to favorites"}
           >
-            <Heart className={cn("w-4 h-4 sm:w-4.5 sm:h-4.5 transition-transform duration-300", isFavorite && "fill-current scale-110", (addFavorite.isPending || removeFavorite.isPending) && "animate-pulse")} />
+            <Heart
+              className={cn(
+                "w-5 h-5 sm:w-5.5 sm:h-5.5 transition-all duration-300 stroke-[2] active:scale-90 group-hover/fav:scale-110",
+                isFavorite
+                  ? "fill-orange-500 stroke-orange-500 drop-shadow-[0_2px_8px_rgba(249,115,22,0.45)] scale-105"
+                  : "fill-black/20 stroke-white drop-shadow-[0_1.5px_3px_rgba(0,0,0,0.6)] group-hover/fav:fill-black/35",
+                toggleFavorite.isPending && "animate-pulse"
+              )}
+            />
           </button>
         </div>
 
         <div className={cn(
-          "absolute inset-0 flex items-center justify-center transition-all duration-500",
-          isHovered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
+          "absolute inset-0 flex items-center justify-center transition-all duration-500 pointer-events-none",
+          isHovered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
         )}>
           <span className="px-4 py-2 rounded-full text-[8px] sm:text-xs font-bold  tracking-wider bg-white/90 dark:bg-slate-900/90 text-orange-600 dark:text-orange-400 shadow-xl backdrop-blur-md border border-white/40 dark:border-white/10 transform hover:scale-105 transition-transform duration-300">
             View Details
@@ -190,9 +255,9 @@ const OfferCard = ({
         <div className="w-full flex items-end justify-between gap-2">
           <div className="flex flex-col min-w-0 flex-1">
             <p className="w-full text-slate-500 dark:text-slate-500 text-[10px] font-semibold tracking-wider truncate">
-              {shopName || "OfferNearU"}
+              {resolvedShopName || "OfferNearU"}
             </p>
-            <DistanceBadge distance={distanceKm} />
+            <DistanceBadge distance={resolvedDistance} />
             {/* {showDiscount && (
               <span className={cn(
                 "inline-flex items-start text-red-600 dark:text-red-400 text-[8px] sm:text-xs mt-0.5",

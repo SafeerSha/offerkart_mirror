@@ -46,9 +46,10 @@ export const ENDPOINTS = {
         SOCIAL_LINKS: `user/offer/sociallinks`,
     },
     FAVORITE: {
-        BASE: `user/favorite`,
-        DETAILS: (id: string | number) => `user/favorite/${id}`,
-        CHECK: (id: string | number) => `user/favorite/check/${id}`,
+        BASE: `user/favorites`,
+        TOGGLE: `user/favorites/toggle`,
+        DETAILS: (id: string | number) => `user/favorites/${id}`,
+        CHECK: (id: string | number) => `user/favorites/check/${id}`,
     },
     CATEGORY: {
         BASE: `business/category`,

@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { useInfiniteSocialLinks } from "@/hooks/useApi";
-import { getIndustries, Industry } from "@/lib/api/industry";
+import { useInfiniteSocialLinks, useIndustries } from "@/hooks/useApi";
+import { Industry } from "@/lib/api/industry";
+import { useDistancePreference } from "@/hooks/useDistancePreference";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
@@ -37,19 +38,27 @@ import VideoPlayerModal from "@/components/shared/VideoPlayerModal";
 
 export default function PromoGallery() {
     const { location: globalLocation } = useLocationContext();
+    const { radius, locationReady } = useDistancePreference();
 
     // Filters and search state
     const [industryId, setIndustryId] = useState<string>("all");
     const [searchQuery, setSearchQuery] = useState<string>("");
-    const [industries, setIndustries] = useState<Industry[]>([]);
     const [selectedVideo, setSelectedVideo] = useState<{ url: string; platform: string; item: OfferSocialLink } | null>(null);
+
+    // Cached Industries from React Query
+    const { data: industriesResponse } = useIndustries();
+    const industries = useMemo(
+        () => (industriesResponse?.success && industriesResponse.data ? industriesResponse.data : []),
+        [industriesResponse]
+    );
 
     // Dynamic filters for API request
     const filters = useMemo(() => ({
         industryId: industryId === "all" ? undefined : industryId,
         latitude: globalLocation.latitude,
         longitude: globalLocation.longitude,
-    }), [industryId, globalLocation.latitude, globalLocation.longitude]);
+        radius: locationReady ? radius : undefined,
+    }), [industryId, globalLocation.latitude, globalLocation.longitude, locationReady, radius]);
 
     const {
         data,
@@ -78,21 +87,6 @@ export default function PromoGallery() {
         observerRef.current = observer;
         return () => observer.disconnect();
     }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
-
-    // Fetch Industries for dropdown and category alignment
-    useEffect(() => {
-        async function fetchInd() {
-            try {
-                const res = await getIndustries();
-                if (res.success && res.data) {
-                    setIndustries(res.data);
-                }
-            } catch (error) {
-                console.error("Failed to load industries:", error);
-            }
-        }
-        fetchInd();
-    }, []);
 
     // Flatten all pages of video items
     const allItems = useMemo(() => {

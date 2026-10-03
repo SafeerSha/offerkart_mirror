@@ -2,6 +2,7 @@
 
 import { useId, useState, useRef, useEffect, useMemo } from "react";
 import { MapPin, ChevronDown, Check, SlidersHorizontal } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useDistancePreference, consumeRadiusFocusRequest } from "@/hooks/useDistancePreference";
 import { DISTANCE_OPTIONS, isSearchRadius, formatDistanceKm, DEFAULT_RADIUS, type SearchRadius } from "@/lib/distance";
 
@@ -454,9 +455,14 @@ export function DistanceEmptyState({ subject = "shops", compact = false }: { sub
     );
 }
 
-export function DistanceBadge({ distance }: { distance: number | null | undefined }) {
+export function DistanceBadge({ distance, className }: { distance: number | string | null | undefined; className?: string }) {
     const text = formatDistanceKm(distance);
-    return text ? <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{text}</span> : null;
+    return text ? (
+        <span className={cn("inline-flex items-center gap-0.5 text-[9px] sm:text-[10px] font-semibold text-slate-500 dark:text-slate-400 shrink-0", className)}>
+            <MapPin className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-orange-500 shrink-0" />
+            <span>{text}</span>
+        </span>
+    ) : null;
 }
 
 export function DistanceListingFeedback({ error, onRetry, subject }: { error?: boolean; onRetry: () => void; subject: string }) {
