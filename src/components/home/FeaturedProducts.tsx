@@ -4,7 +4,7 @@ import React, { useMemo } from "react";
 import ProductCard from "@/components/products/ProductCard";
 import { PremiumButton } from "@/components/shared/PremiumButton";
 import { Heading, Text } from "@/components/shared/Typography";
-import { Sparkles, ArrowRight, Search } from "lucide-react";
+import { ShoppingBag, ArrowRight, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useLocationContext } from "@/context/LocationContext";
 import { useDistancePreference } from "@/hooks/useDistancePreference";
@@ -117,7 +117,7 @@ const FeaturedProducts = ({ products, disableLocationFetch = false }: FeaturedPr
                 <div className="flex flex-col md:flex-row md:items-end justify-between mb-6 gap-6">
                     <div className="flex items-center gap-3 sm:gap-4">
                         <div className="p-2.5 sm:p-3 rounded-2xl bg-orange-500/10 border border-orange-500/20 shadow-sm shadow-orange-500/5">
-                            <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500 fill-orange-500" />
+                            <ShoppingBag className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500" />
                         </div>
                         <div>
                             <Heading className="text-2xl sm:text-3xl md:text-5xl font-extrabold tracking-tight">

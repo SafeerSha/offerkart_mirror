@@ -1,20 +1,24 @@
 "use client";
 
 import { DistanceBadge } from "@/components/shared/DistanceControl";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image, { StaticImageData } from "next/image";
 import { useRouter } from "next/navigation";
-import { ShoppingCart, Star, Heart, Percent, IndianRupee, ShoppingBag, ArrowRight } from "lucide-react";
+import { ShoppingCart, Star, Heart, IndianRupee, ShoppingBag, ArrowRight } from "lucide-react";
 import { PremiumCard } from "@/components/shared/PremiumCard";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
-import { useFavorites, useAddFavorite, useRemoveFavorite } from "@/hooks/useFavorites";
+import { useFavorites, useToggleFavorite } from "@/hooks/useFavorites";
+import { isItemInFavorites } from "@/lib/api/favorites";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 
 interface ProductCardProps {
-    distanceKm?: number | null;
+    distanceKm?: number | string | null;
+    kilometer?: number | string | null;
+    distance?: number | string | null;
+    distance_km?: number | string | null;
     id: number;
     name?: string;
     displayName?: string;
@@ -61,6 +65,9 @@ const ProductCard = ({
     discount,
     savingPercentage,
     distanceKm,
+    kilometer,
+    distance,
+    distance_km,
     clickEnable = true,
     ...rest
 }: ProductCardProps) => {
@@ -71,20 +78,25 @@ const ProductCard = ({
 
     const { data: session } = useSession();
     const { data: favorites } = useFavorites();
-    const addFavorite = useAddFavorite();
-    const removeFavorite = useRemoveFavorite();
+    const toggleFavorite = useToggleFavorite();
 
     // Resilient field fallbacks
     const resolvedName = name || displayName || (rest as any).title || (rest as any).product_name || (rest as any).productName || "Product";
     const resolvedPrice = price !== undefined ? price : (offerPrice !== undefined ? offerPrice : (offer_price !== undefined ? offer_price : 0));
     const resolvedOriginalPrice = originalPrice !== undefined ? originalPrice : (original_price !== undefined ? original_price : undefined);
     const resolvedImage = image || imageUrl || image_url || product_image || (Array.isArray((rest as any).images) && (rest as any).images[0]) || null;
-    const resolvedShopName = shopName || shop_name || (rest as any).shop?.shop_name || (rest as any).shop?.name || "";
+    const resolvedShopName = shopName || shop_name || (rest as any).shop?.business_name || (rest as any).shop?.shop_name || (rest as any).shop?.name || "";
+    const resolvedDistance = distanceKm ?? kilometer ?? distance ?? distance_km ?? (rest as any).kilometer ?? (rest as any).distance_km ?? (rest as any).shop?.kilometer ?? null;
 
-    const isFavorite = Array.isArray(favorites) && favorites.some(f => f.item_id === id && f.type === 'product');
-    const favoriteItem = Array.isArray(favorites) ? favorites.find(f => f.item_id === id && f.type === 'product') : undefined;
+    const isFavoritedFromSource = (Array.isArray(favorites) && isItemInFavorites(favorites, id, 'OFFER_PRODUCT')) || Boolean(rest.isFavourite ?? rest.isFavorite);
+    const [isFavorite, setIsFavorite] = useState(isFavoritedFromSource);
 
-    const handleFavoriteClick = (e: React.MouseEvent) => {
+    useEffect(() => {
+        setIsFavorite(isFavoritedFromSource);
+    }, [isFavoritedFromSource]);
+
+    const handleFavoriteClick = (e: React.MouseEvent | React.TouchEvent) => {
+        e.preventDefault();
         e.stopPropagation();
         if (!session) {
             toast.warning("Authentication required", {
@@ -94,11 +106,17 @@ const ProductCard = ({
             return;
         }
 
-        if (isFavorite && favoriteItem) {
-            removeFavorite.mutate(favoriteItem.id);
-        } else {
-            addFavorite.mutate({ itemId: id, type: 'product' });
-        }
+        const nextFavorite = !isFavorite;
+        setIsFavorite(nextFavorite);
+
+        toggleFavorite.mutate(
+            { itemId: id, type: 'OFFER_PRODUCT' },
+            {
+                onError: () => {
+                    setIsFavorite(!nextFavorite);
+                }
+            }
+        );
     };
 
     const resolvedCategory = resolveHierarchyById(category || "Product");
@@ -122,7 +140,15 @@ const ProductCard = ({
                     ? "cursor-pointer hover:shadow-[0_20px_40px_rgba(249,115,22,0.08)] hover:border-orange-500/20"
                     : "cursor-default"
             )}
-            onClick={() => clickEnable && router.push(`/product/${id}`)}
+            onClick={(e) => {
+                const target = e.target as HTMLElement | null;
+                if (target?.closest("button, [role='button'], a, [data-prevent-card-nav]")) {
+                    return;
+                }
+                if (clickEnable) {
+                    router.push(`/product/${id}`);
+                }
+            }}
             onMouseEnter={() => clickEnable && setIsHovered(true)}
             onMouseLeave={() => clickEnable && setIsHovered(false)}
         >
@@ -144,43 +170,53 @@ const ProductCard = ({
 
                 {/* Hover backdrop overlay */}
                 <div className={cn(
-                    "absolute inset-0 transition-all duration-500 bg-slate-950/20 backdrop-blur-[2px]",
+                    "absolute inset-0 transition-all duration-500 bg-slate-950/20 backdrop-blur-[2px] pointer-events-none",
                     isHovered ? "opacity-100" : "opacity-0"
                 )} />
 
                 {/* Top Actions/Badges */}
-                <div className="absolute top-2 left-2 right-2 sm:top-2 sm:left-2 sm:right-2 flex justify-between items-start pointer-events-none z-10">
-                    <div className="flex flex-col gap-1.5 items-start">
+                <div className="absolute top-1.5 left-1.5 right-1.5 flex justify-between items-start pointer-events-none z-30">
+                    <div className="flex flex-col gap-1 items-start">
                         {displaySaving > 0 ? (
-                            <span className="px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded-full text-[9px] sm:text-[10px] font-black bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/20 inline-flex items-center gap-1 tracking-tight whitespace-nowrap shrink-0">
-                                <Percent className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[3] shrink-0" />
-                                <span>SAVE {displaySaving}</span>
+                            <span className="px-1.5 py-0.5 rounded-full text-[8px] sm:text-[9px] font-bold bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm inline-flex items-center tracking-tight whitespace-nowrap shrink-0">
+                                <span>SAVE {displaySaving}%</span>
                             </span>
                         ) : discount ? (
-                            <span className="px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded-full text-[9px] sm:text-[10px] font-black bg-orange-500 text-white shadow-md shadow-orange-500/20 inline-flex items-center gap-1 tracking-tight whitespace-nowrap shrink-0">
-                                <Percent className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[3] shrink-0" />
-                                <span>{discount.replace(/%$/, "")}</span>
+                            <span className="px-1.5 py-0.5 rounded-full text-[8px] sm:text-[9px] font-bold bg-orange-500 text-white shadow-sm inline-flex items-center tracking-tight whitespace-nowrap shrink-0">
+                                <span>{discount.toUpperCase().startsWith("SAVE") ? discount : `SAVE ${discount.replace(/%$/, "")}%`}</span>
                             </span>
                         ) : null}
                     </div>
 
                     <button
+                        type="button"
+                        data-prevent-card-nav="true"
                         onClick={handleFavoriteClick}
-                        disabled={addFavorite.isPending || removeFavorite.isPending}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onTouchStart={(e) => e.stopPropagation()}
+                        disabled={toggleFavorite.isPending}
                         className={cn(
-                            "px-3 py-1 sm:px-4 sm:py-1 rounded-full flex items-center justify-center backdrop-blur-md transition-all pointer-events-auto border",
-                            isFavorite
-                                ? "bg-orange-500 text-white border-orange-500 shadow-lg shadow-orange-500/20 scale-105"
-                                : "bg-white/70 dark:bg-slate-950/70 text-slate-700 dark:text-slate-300 border-white/20 hover:bg-white/95 dark:hover:bg-slate-900",
-                            (addFavorite.isPending || removeFavorite.isPending) && "opacity-70 cursor-not-allowed"
+                            "p-1 rounded-full flex items-center justify-center transition-all pointer-events-auto group/fav cursor-pointer focus:outline-none shrink-0",
+                            toggleFavorite.isPending && "opacity-70 cursor-not-allowed"
                         )}
+                        title={isFavorite ? "Remove from favorites" : "Save to favorites"}
+                        aria-label={isFavorite ? "Remove from favorites" : "Save to favorites"}
                     >
-                        <Heart className={cn("w-4.5 h-4.5 transition-transform duration-300", isFavorite && "fill-current scale-110", (addFavorite.isPending || removeFavorite.isPending) && "animate-pulse")} />
+                        <Heart
+                            className={cn(
+                                "w-5 h-5 sm:w-5.5 sm:h-5.5 transition-all duration-300 stroke-[2] active:scale-90 group-hover/fav:scale-110",
+                                isFavorite
+                                    ? "fill-orange-500 stroke-orange-500 drop-shadow-[0_2px_8px_rgba(249,115,22,0.45)] scale-105"
+                                    : "fill-black/20 stroke-white drop-shadow-[0_1.5px_3px_rgba(0,0,0,0.6)] group-hover/fav:fill-black/35",
+                                toggleFavorite.isPending && "animate-pulse"
+                            )}
+                        />
                     </button>
                 </div>
 
                 {/* Category tag */}
-                {displayCategoryName?.toLowerCase() !== "product" && (
+                {Boolean(displayCategoryName) && displayCategoryName?.toLowerCase() !== "product" && (
                     <div className="absolute top-3 left-3 pointer-events-none z-10">
                         <span className="px-2 py-0.5 rounded-md text-[8px] sm:text-[9px] font-black uppercase tracking-wider bg-black/60 dark:bg-black/80 text-white backdrop-blur-sm border border-white/10">
                             {displayCategoryName}
@@ -191,8 +227,8 @@ const ProductCard = ({
                 {/* Action Hover Text */}
                 {clickEnable && (
                     <div className={cn(
-                        "absolute inset-0 flex items-center justify-center transition-all duration-500 z-10",
-                        isHovered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3 pointer-events-none"
+                        "absolute inset-0 flex items-center justify-center transition-all duration-500 z-10 pointer-events-none",
+                        isHovered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"
                     )}>
                         <span className="px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest bg-white/95 dark:bg-slate-900/95 text-orange-600 dark:text-orange-400 shadow-xl backdrop-blur-md border border-white/20 transform hover:scale-105 transition-transform duration-300">
                             view details
@@ -204,16 +240,17 @@ const ProductCard = ({
             {/* Content Info */}
             <div className="px-3 pb-2 pt-3 flex-1 flex flex-col bg-white dark:bg-[#1c2018] rounded-b-[2rem]">
                 <div>
-                    {/* Shop details */}
-                    {resolvedShopName && (
-                        <div className="flex items-center gap-1.5 mb-2">
-                            <span className="text-[8px] font-bold text-slate-500 dark:text-slate-400 tracking-wider truncate">
-                                {resolvedShopName}
-                            </span>
+                    {/* Shop details & Distance */}
+                    {(resolvedShopName || resolvedDistance != null) && (
+                        <div className="flex items-center justify-between gap-1.5 mb-1.5 min-w-0">
+                            {resolvedShopName && (
+                                <span className="text-[8px] font-bold text-slate-500 dark:text-slate-400 tracking-wider truncate">
+                                    {resolvedShopName}
+                                </span>
+                            )}
+                            <DistanceBadge distance={resolvedDistance} />
                         </div>
                     )}
-
-                    <DistanceBadge distance={distanceKm} />
                     {/* Product Name */}
                     <h4 className={cn(
                         "text-base font-extrabold text-slate-800 dark:text-slate-100 tracking-tight leading-snug line-clamp-2 transition-colors",

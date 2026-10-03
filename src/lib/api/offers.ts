@@ -23,7 +23,13 @@ interface UserOfferApiItem {
     image?: string | null;
     daysLeft?: number | null;
     distanceKm?: number | null;
+    kilometer?: number | string | null;
+    distance?: number | string | null;
+    distance_km?: number | string | null;
     shopId?: number;
+    isFeatured?: boolean;
+    isFavourite?: boolean;
+    isFavorite?: boolean;
 }
 
 interface UserOfferApiResponse {
@@ -173,6 +179,9 @@ function mapUserOfferToOffer(item: UserOfferApiItem): Offer {
         isActive: true,
         status: "active",
         shopId: (item as any).shop?.id || item.shopId || (item as any).shop_id,
+        isFeatured: item.isFeatured,
+        isFavourite: item.isFavourite ?? item.isFavorite ?? false,
+        isFavorite: item.isFavourite ?? item.isFavorite ?? false,
     };
 }
 

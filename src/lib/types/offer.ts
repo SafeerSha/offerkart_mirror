@@ -45,6 +45,8 @@ export interface Offer {
     
     description?: string;
     isFeatured?: boolean;
+    isFavourite?: boolean;
+    isFavorite?: boolean;
     batchId?: string;
     status?: OfferStatus | string;
     isActive: boolean;

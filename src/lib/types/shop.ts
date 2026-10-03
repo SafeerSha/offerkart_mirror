@@ -10,6 +10,7 @@ export interface AddShopRequest {
     phone: string;
     file?: File | null;
     is_active: string;
+    website?: string;
     website_url?: string;
 }
 
@@ -35,6 +36,7 @@ export interface Shop {
     created_at: string;
     updated_at: string;
     industry?: string | number;
+    website?: string | null;
     website_url?: string | null;
 }
 
@@ -42,4 +44,6 @@ export interface Shops {
     id: number;
     shop_name: string;
     logo_url: string | null;
+    website?: string | null;
+    website_url?: string | null;
 }

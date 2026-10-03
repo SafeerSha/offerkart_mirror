@@ -8,7 +8,7 @@ import { s3Api } from "@/lib/api/s3";
 import { getCategories, getSubCategories } from "@/lib/api/categories";
 import { getIndustries } from "@/lib/api/industry";
 import { getDashboardAnalytics, getOfferViewsAnalytics, getProductViewsAnalytics, ViewsAnalyticsQuery } from "@/lib/api/analytics";
-import { getUserOfferSocialLinks } from "@/lib/api/userOffersService";
+import { getUserOfferSocialLinks, getUserShopDetails } from "@/lib/api/userOffersService";
 import type { SocialLinksQuery } from "@/lib/types/socialLinks";
 import { cleanupOfferImages, cleanupProductImages } from "@/lib/imageUtils";
 
@@ -22,6 +22,7 @@ export const queryKeys = {
   shops: ["shops"] as const,
   myShops: ["myShops"] as const,
   shopDetails: (id: string) => ["shopDetails", id] as const,
+  userShopDetails: (id: string | number) => ["userShopDetails", String(id)] as const,
   
   // Branch keys
   branches: (shopId: string) => ["branches", shopId] as const,
@@ -80,6 +81,15 @@ export function useShopDetails(shopId: string) {
     queryKey: queryKeys.shopDetails(shopId),
     queryFn: () => getShopDetails(shopId),
     enabled: !!shopId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useUserShopDetails(id: string | number | undefined, options: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: id ? queryKeys.userShopDetails(id) : ["userShopDetails", "none"],
+    queryFn: () => getUserShopDetails(id!),
+    enabled: (options.enabled ?? true) && !!id,
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -517,7 +527,7 @@ export function useToggleOfferProductStatus() {
 export function useCategories(enabled: boolean = true, initialData?: any) {
   return useQuery({
     queryKey: queryKeys.categories,
-    queryFn: getCategories,
+    queryFn: () => getCategories(),
     staleTime: 7 * 24 * 60 * 60 * 1000, // 1 week
     gcTime: 7 * 24 * 60 * 60 * 1000,    // 1 week
     refetchOnWindowFocus: false,
@@ -542,7 +552,7 @@ export function useSubcategories(categoryId: string | number | null) {
 export function useIndustries(enabled: boolean = true) {
   return useQuery({
     queryKey: queryKeys.industries,
-    queryFn: getIndustries,
+    queryFn: () => getIndustries(),
     staleTime: 7 * 24 * 60 * 60 * 1000, // 1 week
     gcTime: 7 * 24 * 60 * 60 * 1000,    // 1 week
     refetchOnWindowFocus: false,

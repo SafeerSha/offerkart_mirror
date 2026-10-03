@@ -1,8 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { useInfiniteSocialLinks } from "@/hooks/useApi";
-import { getIndustries, Industry } from "@/lib/api/industry";
+import { useInfiniteSocialLinks, useIndustries, useFeaturedShops } from "@/hooks/useApi";
+import { Industry } from "@/lib/api/industry";
+import { useDistancePreference } from "@/hooks/useDistancePreference";
+import { isAllLocation } from "@/lib/distance";
+import FeaturedShops from "@/components/home/FeaturedShops";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
@@ -37,19 +40,42 @@ import VideoPlayerModal from "@/components/shared/VideoPlayerModal";
 
 export default function PromoGallery() {
     const { location: globalLocation } = useLocationContext();
+    const { radius, locationReady } = useDistancePreference();
 
     // Filters and search state
     const [industryId, setIndustryId] = useState<string>("all");
     const [searchQuery, setSearchQuery] = useState<string>("");
-    const [industries, setIndustries] = useState<Industry[]>([]);
+    const [selectedShopId, setSelectedShopId] = useState<string | number | null>(null);
     const [selectedVideo, setSelectedVideo] = useState<{ url: string; platform: string; item: OfferSocialLink } | null>(null);
+
+    // Fetch featured shops for location and industry
+    const isAll = isAllLocation(globalLocation.name);
+    const hasLocation = isAll || (globalLocation.latitude !== null && globalLocation.longitude !== null);
+    const { data: dynamicShops, isLoading: shopsLoading } = useFeaturedShops(
+        isAll ? undefined : globalLocation.latitude,
+        isAll ? undefined : globalLocation.longitude,
+        industryId === "all" ? undefined : industryId,
+        radius,
+        {
+            enabled: (hasLocation || industryId !== "all") && radius === null
+        }
+    );
+    const featuredShops: any[] = dynamicShops?.success && dynamicShops.data ? dynamicShops.data : [];
+
+    // Cached Industries from React Query
+    const { data: industriesResponse } = useIndustries();
+    const industries = useMemo(
+        () => (industriesResponse?.success && industriesResponse.data ? industriesResponse.data : []),
+        [industriesResponse]
+    );
 
     // Dynamic filters for API request
     const filters = useMemo(() => ({
         industryId: industryId === "all" ? undefined : industryId,
         latitude: globalLocation.latitude,
         longitude: globalLocation.longitude,
-    }), [industryId, globalLocation.latitude, globalLocation.longitude]);
+        radius: locationReady ? radius : undefined,
+    }), [industryId, globalLocation.latitude, globalLocation.longitude, locationReady, radius]);
 
     const {
         data,
@@ -79,38 +105,79 @@ export default function PromoGallery() {
         return () => observer.disconnect();
     }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-    // Fetch Industries for dropdown and category alignment
-    useEffect(() => {
-        async function fetchInd() {
-            try {
-                const res = await getIndustries();
-                if (res.success && res.data) {
-                    setIndustries(res.data);
-                }
-            } catch (error) {
-                console.error("Failed to load industries:", error);
-            }
-        }
-        fetchInd();
-    }, []);
-
     // Flatten all pages of video items
     const allItems = useMemo(() => {
         return data?.pages.flatMap((page) => page.data) || [];
     }, [data]);
 
+    // Extract shops from loaded promo video cards
+    const shopsFromVideos = useMemo(() => {
+        const map = new Map<string, { id: string | number; name: string; logo: string; distanceKm: number | null }>();
+        allItems.forEach((item: any) => {
+            const sId = item.shopId ?? item.shop_id ?? item.shop?.id ?? item.shop_name;
+            const sName = item.shop_name ?? item.shopName ?? item.shop?.name;
+            const sLogo = item.logo_url ?? item.shopLogo ?? item.shop?.logo ?? item.shop?.logo_url ?? "";
+            if (sName) {
+                map.set(String(sId), {
+                    id: sId,
+                    name: sName,
+                    logo: sLogo,
+                    distanceKm: item.distance ?? null,
+                });
+            }
+        });
+        return Array.from(map.values());
+    }, [allItems]);
+
+    // Combined visible shops deduplicated by both ID and Name
+    const visibleShops = useMemo(() => {
+        const seenNames = new Set<string>();
+        const seenIds = new Set<string>();
+        const result: any[] = [];
+
+        // 1. Prioritize featuredShops (they have canonical shop ID and full shop details)
+        (featuredShops || []).forEach((shop: any) => {
+            const idKey = String(shop.id);
+            const nameKey = String(shop.name || "").trim().toLowerCase();
+            if (!seenIds.has(idKey) && (!nameKey || !seenNames.has(nameKey))) {
+                seenIds.add(idKey);
+                if (nameKey) seenNames.add(nameKey);
+                result.push(shop);
+            }
+        });
+
+        // 2. Add any shops extracted from videos that aren't already included
+        shopsFromVideos.forEach((shop: any) => {
+            const idKey = String(shop.id);
+            const nameKey = String(shop.name || "").trim().toLowerCase();
+            if (!seenIds.has(idKey) && (!nameKey || !seenNames.has(nameKey))) {
+                seenIds.add(idKey);
+                if (nameKey) seenNames.add(nameKey);
+                result.push(shop);
+            }
+        });
+
+        return result;
+    }, [shopsFromVideos, featuredShops]);
+
+    // Handle Shop avatar selection toggle
+    const handleShopSelect = (shopId: number | string) => {
+        setSelectedShopId((prev) => (String(prev) === String(shopId) ? null : shopId));
+    };
+
     // Handle Industry dropdown change
     const handleIndustryDropdownChange = (val: string) => {
         setIndustryId(val);
+        setSelectedShopId(null);
     };
 
-    // Filter items based on valid video links and search query
+    // Filter items based on valid video links, search query, and selected shop
     const filteredItems = useMemo(() => {
-        return allItems.filter((item) => {
+        return allItems.filter((item: any) => {
             // Must have at least one supported video link
             const hasVideo =
                 item.socialLinks &&
-                item.socialLinks.some((l) =>
+                item.socialLinks.some((l: any) =>
                     ["youtube", "instagram", "facebook"].includes(l.platform.toLowerCase())
                 );
             if (!hasVideo) return false;
@@ -123,9 +190,21 @@ export default function PromoGallery() {
                 if (!titleMatch && !shopMatch) return false;
             }
 
+            // Shop filter
+            if (selectedShopId !== null && selectedShopId !== undefined) {
+                const sId = item.shopId ?? item.shop_id ?? item.shop?.id;
+                const sName = (item.shop_name ?? item.shopName ?? item.shop?.name ?? "").trim().toLowerCase();
+                const targetId = String(selectedShopId);
+                const matchesId = sId !== undefined && sId !== null && String(sId) === targetId;
+                const selectedShop = visibleShops.find((s) => String(s.id) === targetId);
+                const selectedShopName = (selectedShop?.name || "").trim().toLowerCase();
+                const matchesName = sName && (sName === targetId.toLowerCase() || (selectedShopName && selectedShopName === sName));
+                if (!matchesId && !matchesName) return false;
+            }
+
             return true;
         });
-    }, [allItems, searchQuery]);
+    }, [allItems, searchQuery, selectedShopId, visibleShops]);
 
     // Open Video Player Modal Popup
     const handleVideoClick = (item: OfferSocialLink) => {
@@ -174,6 +253,7 @@ export default function PromoGallery() {
     const handleResetFilters = () => {
         setIndustryId("all");
         setSearchQuery("");
+        setSelectedShopId(null);
     };
 
 
@@ -359,6 +439,41 @@ export default function PromoGallery() {
             </section>
 
             {/* ============================================================== */}
+            {/* SHOPS FILTER SECTION (Same minimal bar as Products & Offers)   */}
+            {/* ============================================================== */}
+            {(visibleShops.length > 0 || (radius === null && shopsLoading)) && (
+                <section className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 mb-4 sm:mb-6">
+                    <div className="mb-1">
+                        <FeaturedShops
+                            shops={visibleShops}
+                            variant="minimal"
+                            activeShopId={selectedShopId || undefined}
+                            onShopClick={handleShopSelect}
+                            isLoading={radius === null && shopsLoading}
+                            disableDynamicFetch={true}
+                        />
+                    </div>
+                    {selectedShopId && (
+                        <div className="flex items-center gap-2 mt-2">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800 shadow-sm animate-in fade-in duration-200">
+                                <span>
+                                    Shop: {visibleShops.find((s) => String(s.id) === String(selectedShopId))?.name || `Shop #${selectedShopId}`}
+                                </span>
+                                <button
+                                    onClick={() => setSelectedShopId(null)}
+                                    className="shrink-0 w-4 h-4 rounded-full bg-orange-100 dark:bg-orange-900/60 hover:bg-orange-200 dark:hover:bg-orange-800 flex items-center justify-center text-xs font-bold transition-colors cursor-pointer text-orange-600 dark:text-orange-300"
+                                    title="Clear shop filter"
+                                    aria-label="Clear shop filter"
+                                >
+                                    ×
+                                </button>
+                            </span>
+                        </div>
+                    )}
+                </section>
+            )}
+
+            {/* ============================================================== */}
             {/* D. PROMOTIONAL VIDEO GRID / SKELETONS / EMPTY / ERROR STATES   */}
             {/* ============================================================== */}
             <section className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
@@ -402,6 +517,8 @@ export default function PromoGallery() {
                         <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 mb-5 sm:mb-6">
                             {searchQuery
                                 ? `No results matching "${searchQuery}". Try different keywords or reset your filters.`
+                                : selectedShopId
+                                ? `No promotional videos found for this shop. Try clearing the shop filter or reset all filters.`
                                 : "No promotional videos currently match the selected criteria."}
                         </p>
                         <button

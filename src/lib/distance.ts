@@ -30,21 +30,46 @@ export function nextRadius(radius: SearchRadius): SearchRadius {
     return DISTANCE_OPTIONS.find(option => radius !== null && option > radius) ?? null;
 }
 
+export function parseDistanceValue(value: unknown): number | null {
+    if (typeof value === "number") {
+        return Number.isFinite(value) && value >= 0 ? value : null;
+    }
+    if (typeof value === "string") {
+        const cleaned = value.replace(/km|kilometer|kilometers|m|miles/gi, "").trim();
+        const parsed = Number(cleaned);
+        return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+    }
+    return null;
+}
+
 export function formatDistanceKm(value: unknown): string | null {
-    const km = validDistance(value);
+    const km = parseDistanceValue(value);
     if (km === null) return null;
     return km > 0 && km < 0.1 ? "<0.1 km away" : `${Number(km.toFixed(1))} km away`;
 }
 
-/** Prefer the API's kilometre distance; otherwise use actual shop coordinates. */
+/** Prefer the API's kilometre/distance property; otherwise use actual shop coordinates. */
 export function resolveShopDistance(item: unknown, latitude?: number | null, longitude?: number | null): number | null {
     if (!item || typeof item !== "object") return null;
     const record = item as Record<string, unknown>;
-    const reported = validDistance(record.distanceKm ?? record.distance);
+    const reported = parseDistanceValue(
+        record.kilometer ??
+        record.kilometers ??
+        record.distanceKm ??
+        record.distance_km ??
+        record.distance ??
+        record.distanceInKm ??
+        record.km ??
+        (record.shop as any)?.kilometer ??
+        (record.shop as any)?.kilometers ??
+        (record.shop as any)?.distanceKm ??
+        (record.shop as any)?.distance_km ??
+        (record.shop as any)?.distance
+    );
     if (reported !== null) return reported;
     const shop = record.shop && typeof record.shop === "object" ? record.shop as Record<string, unknown> : record;
-    const lat = shop.latitude;
-    const lon = shop.longitude;
+    const lat = shop.latitude ?? record.latitude;
+    const lon = shop.longitude ?? record.longitude;
     if (!hasCoordinates(latitude, longitude) || !hasCoordinates(lat, lon)) return null;
     const radians = Math.PI / 180;
     const a = Math.sin(((lat as number) - (latitude as number)) * radians / 2) ** 2

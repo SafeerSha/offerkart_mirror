@@ -48,6 +48,8 @@ export function mapUserProductToProduct(item: any, latitude?: number | null, lon
         validFrom: item.validFrom ?? null,
         validTo: item.validTo ?? null,
         availableBranches: item.availableBranches || null,
+        isFavourite: item.isFavourite ?? item.isFavorite ?? false,
+        isFavorite: item.isFavourite ?? item.isFavorite ?? false,
     };
 }
 

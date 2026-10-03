@@ -1,10 +1,17 @@
 import { backend } from "./backendClient";
 import { ENDPOINTS } from "./endpoints";
+import { CACHE_TAGS } from "./cache-tags";
 
 export interface Industry {
     id: number;
     name: string;
     slug: string;
+}
+
+export interface IndustryResponse {
+    success: boolean;
+    data: Industry[];
+    error?: string;
 }
 
 interface RawIndustryResponse {
@@ -13,8 +20,14 @@ interface RawIndustryResponse {
     [key: string]: any;
 }
 
-export async function getIndustries() {
-    const response = await backend.get<RawIndustryResponse | Industry[]>(ENDPOINTS.INDUSTRY.BASE);
+export async function getIndustries(cacheOptions?: { next?: { tags?: string[]; revalidate?: number | false } }): Promise<IndustryResponse> {
+    const response = await backend.get<RawIndustryResponse | Industry[]>(
+        ENDPOINTS.INDUSTRY.BASE,
+        {
+            next: { tags: [CACHE_TAGS.OFFERS], revalidate: 86400 },
+            ...cacheOptions,
+        }
+    );
 
     if (!response.success || !response.data) {
         return {

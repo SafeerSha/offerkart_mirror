@@ -118,9 +118,13 @@ export async function getUserOffersList(query: {
     return response;
 }
 
-export async function getUserShopDetails(id: string | number) {
+export async function getUserShopDetails(
+    id: string | number,
+    cacheOptions?: { next?: { tags?: string[]; revalidate?: number | false } }
+) {
     const response = await backend.get<any>(ENDPOINTS.USER_OFFER.SHOP(id), {
-        cache: "no-store"
+        next: { tags: [CACHE_TAGS.SHOPS, CACHE_TAGS.OFFERS], revalidate: 300 },
+        ...cacheOptions,
     });
 
     if (!response.success || !response.data) {

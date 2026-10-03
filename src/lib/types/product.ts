@@ -23,6 +23,8 @@ export interface Product {
     categoryId?: number | string;
     subcategoryId?: number | string | null;
     isHighlighted?: boolean;
+    isFavourite?: boolean;
+    isFavorite?: boolean;
     isActive?: boolean;
     categoryObject?: any;
     offerId?: number | string | null;

@@ -98,6 +98,10 @@ export function GlobalLoaderProvider({ children }: { children: React.ReactNode }
             // 2. Intercept cards or clickable containers with data-href or data-navigate
             const navCard = target.closest("[data-navigate-card], [data-href], [data-navigate], [role='link']") as HTMLElement | null;
             if (navCard) {
+                // If user clicked an inner interactive button/input/link inside the card, ignore card navigation
+                if (target.closest("button, a, input, select, textarea, [role='button'], [data-prevent-card-nav]")) {
+                    return;
+                }
                 const targetHref = navCard.getAttribute("data-href") || navCard.getAttribute("data-navigate");
                 const loaderText = navCard.getAttribute("data-loader-text") || "Navigating...";
 

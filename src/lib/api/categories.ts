@@ -1,5 +1,6 @@
 import { backend } from "./backendClient";
 import { ENDPOINTS } from "./endpoints";
+import { CACHE_TAGS } from "./cache-tags";
 
 export interface BackendSubCategory {
     id: number;
@@ -29,11 +30,17 @@ interface RawCategoryResponse {
  * Normalizes the response to always present a flat array of categories 
  * in the data field of the ApiResponse object.
  */
-export async function getCategories() {
+export async function getCategories(cacheOptions?: { next?: { tags?: string[]; revalidate?: number | false } }) {
     try {
         const [categoriesRes, subcategoriesRes] = await Promise.all([
-            backend.get<RawCategoryResponse | BackendCategory[]>(ENDPOINTS.CATEGORY.BASE),
-            backend.get<any>(ENDPOINTS.CATEGORY.ALL_SUBCATEGORIES)
+            backend.get<RawCategoryResponse | BackendCategory[]>(ENDPOINTS.CATEGORY.BASE, {
+                next: { tags: [CACHE_TAGS.PRODUCTS], revalidate: 86400 },
+                ...cacheOptions,
+            }),
+            backend.get<any>(ENDPOINTS.CATEGORY.ALL_SUBCATEGORIES, {
+                next: { tags: [CACHE_TAGS.PRODUCTS], revalidate: 86400 },
+                ...cacheOptions,
+            })
         ]);
 
         if (!categoriesRes.success || !categoriesRes.data) {
@@ -98,8 +105,17 @@ export async function getCategories() {
     }
 }
 
-export async function getSubCategories(categoryId: number | string) {
-    const response = await backend.get<RawCategoryResponse | BackendSubCategory[]>(ENDPOINTS.CATEGORY.SUBCATEGORIES(categoryId));
+export async function getSubCategories(
+    categoryId: number | string,
+    cacheOptions?: { next?: { tags?: string[]; revalidate?: number | false } }
+) {
+    const response = await backend.get<RawCategoryResponse | BackendSubCategory[]>(
+        ENDPOINTS.CATEGORY.SUBCATEGORIES(categoryId),
+        {
+            next: { tags: [CACHE_TAGS.PRODUCTS], revalidate: 86400 },
+            ...cacheOptions,
+        }
+    );
 
     if (!response.success || !response.data) {
         return {
