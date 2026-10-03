@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Search, User, LogIn, Menu, X, PlusCircle, MapPin, ChevronDown, LayoutDashboard, Plus, Loader2, Home, Percent, ShoppingBag, Locate, Package, Tag, ArrowRight, Heart, Video } from "lucide-react";
+import { Search, User, LogIn, Menu, X, PlusCircle, MapPin, ChevronDown, LayoutDashboard, Plus, Loader2, Home, Percent, ShoppingBag, Locate, Package, Tag, ArrowRight, Heart, Clapperboard } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSession, signIn, signOut } from "next-auth/react";
@@ -826,7 +826,7 @@ const Header = () => {
                                             "relative transition-all font-medium group text-sm flex items-center gap-1.5 px-3.5 py-1.5 rounded-full",
                                             pathname.startsWith("/promotions") ? "bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 font-bold shadow-sm" : "text-slate-700 dark:text-slate-300 hover:text-orange-500 hover:bg-slate-50 dark:hover:bg-slate-900/50"
                                         )}>
-                                            <Video className="w-3.5 h-3.5 shrink-0" />
+                                            <Clapperboard className="w-3.5 h-3.5 shrink-0" />
                                             <span className="relative z-10">Promo</span>
                                         </Link>
 
@@ -1209,7 +1209,7 @@ const Header = () => {
                                                 : "bg-white/40 dark:bg-black/20 border-primary/5 text-muted-foreground hover:bg-white/70 hover:text-foreground"
                                         )}
                                     >
-                                        <Video className="w-3.5 h-3.5 shrink-0" />
+                                        <Clapperboard className="w-3.5 h-3.5 shrink-0" />
                                         <span>Promo</span>
                                     </Link>
                                 </div>

@@ -27,6 +27,7 @@ interface FeaturedShopsProps {
   activeShopId?: string | number;
   isLoading?: boolean;
   disableDynamicFetch?: boolean;
+  onShopClick?: (shopId: number | string) => void;
 }
 
 const FeaturedShops = ({ 
@@ -34,7 +35,8 @@ const FeaturedShops = ({
   variant = "full", 
   activeShopId, 
   isLoading: propsLoading,
-  disableDynamicFetch = false 
+  disableDynamicFetch = false,
+  onShopClick
 }: FeaturedShopsProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -67,7 +69,11 @@ const FeaturedShops = ({
   };
 
   const handleShopClick = (shopId: number | string) => {
-    router.push(`/shop/${shopId}`);
+    if (onShopClick) {
+      onShopClick(shopId);
+    } else {
+      router.push(`/shop/${shopId}`);
+    }
   };
 
   const { location: userLocation, hydrated } = useLocationContext();

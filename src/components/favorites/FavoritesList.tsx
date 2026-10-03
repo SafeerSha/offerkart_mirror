@@ -60,17 +60,17 @@ export default function FavoritesList() {
     <div className="space-y-6">
       <Tabs defaultValue={offers.length > 0 ? "offers" : "products"} className="w-full">
         <div className="flex justify-center w-full mb-8">
-          <TabsList className="h-auto p-1 bg-slate-100 dark:bg-slate-800/50 rounded-xl inline-flex w-full sm:w-auto justify-start sm:justify-center overflow-hidden">
-            <TabsTrigger value="offers" className="rounded-lg px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:text-orange-500 data-[state=active]:shadow-sm">
-              <span className="flex items-center gap-2 font-semibold">
+          <TabsList className="h-auto p-1 bg-slate-100 dark:bg-slate-800/50 rounded-xl inline-flex w-full max-w-xs sm:w-auto justify-center overflow-hidden">
+            <TabsTrigger value="offers" className="flex-1 sm:flex-initial rounded-lg px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:text-orange-500 data-[state=active]:shadow-sm">
+              <span className="flex items-center justify-center gap-2 font-semibold">
                 Offers
                 <span className="bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs py-0.5 px-2 rounded-full">
                   {offers.length}
                 </span>
               </span>
             </TabsTrigger>
-            <TabsTrigger value="products" className="rounded-lg px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:text-orange-500 data-[state=active]:shadow-sm">
-              <span className="flex items-center gap-2 font-semibold">
+            <TabsTrigger value="products" className="flex-1 sm:flex-initial rounded-lg px-6 py-2.5 data-[state=active]:bg-white data-[state=active]:text-orange-500 data-[state=active]:shadow-sm">
+              <span className="flex items-center justify-center gap-2 font-semibold">
                 Products
                 <span className="bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs py-0.5 px-2 rounded-full">
                   {products.length}
