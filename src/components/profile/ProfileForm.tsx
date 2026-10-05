@@ -74,7 +74,7 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
 
   return (
     <div className={cn(
-      "relative rounded-3xl p-6 sm:p-8",
+      "relative rounded-2xl sm:rounded-3xl p-4 sm:p-7",
       "bg-card/90 backdrop-blur-xl border border-border/80 shadow-card",
       "overflow-hidden animate-fade-in"
     )}>
@@ -82,17 +82,17 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
       <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
 
       {/* Header section */}
-      <div className="mb-8 relative z-10 flex items-start justify-between gap-4">
+      <div className="mb-4 sm:mb-6 relative z-10 flex items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
-              <User className="w-5 h-5" />
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+              <User className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <h2 className="text-xl sm:text-2xl font-black text-foreground tracking-tight font-sans">
+            <h2 className="text-lg sm:text-2xl font-black text-foreground tracking-tight font-sans">
               Personal Information
             </h2>
           </div>
-          <p className="text-xs sm:text-sm text-muted-foreground ml-11">
+          <p className="text-xs sm:text-sm text-muted-foreground ml-9 sm:ml-11">
             Update your public profile and manage personal account details.
           </p>
         </div>
@@ -105,9 +105,9 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
         )}
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 max-w-2xl relative z-10">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5 sm:space-y-5 max-w-2xl relative z-10">
         {/* Full Name */}
-        <div className="space-y-2">
+        <div className="space-y-1 sm:space-y-1.5">
           <Label htmlFor="full_name" className="text-xs sm:text-sm font-semibold text-foreground">
             Full Name <span className="text-primary">*</span>
           </Label>
@@ -120,7 +120,7 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
               type="text"
               placeholder="e.g. Alex Johnson"
               className={cn(
-                "pl-10 h-11 rounded-2xl bg-background/70 border-border/80 text-foreground placeholder:text-muted-foreground",
+                "pl-10 h-10 sm:h-11 rounded-xl sm:rounded-2xl bg-background/70 border-border/80 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground",
                 "focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary transition-all",
                 errors.full_name && "border-destructive focus-visible:ring-destructive"
               )}
@@ -136,7 +136,7 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
         </div>
 
         {/* Email Address */}
-        <div className="space-y-2">
+        <div className="space-y-1 sm:space-y-1.5">
           <div className="flex items-center justify-between">
             <Label htmlFor="email" className="text-xs sm:text-sm font-semibold text-foreground">
               Email Address <span className="text-primary">*</span>
@@ -156,7 +156,7 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
               type="email"
               placeholder="alex@example.com"
               className={cn(
-                "pl-10 h-11 rounded-2xl bg-background/70 border-border/80 text-foreground placeholder:text-muted-foreground",
+                "pl-10 h-10 sm:h-11 rounded-xl sm:rounded-2xl bg-background/70 border-border/80 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground",
                 "focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary transition-all",
                 errors.email && "border-destructive focus-visible:ring-destructive"
               )}
@@ -172,7 +172,7 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
         </div>
 
         {/* Phone Number */}
-        <div className="space-y-2">
+        <div className="space-y-1 sm:space-y-1.5">
           <Label htmlFor="phone" className="text-xs sm:text-sm font-semibold text-foreground">
             Phone Number
           </Label>
@@ -185,7 +185,7 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
               type="tel"
               placeholder="+91 9876543210"
               className={cn(
-                "pl-10 h-11 rounded-2xl bg-background/70 border-border/80 text-foreground placeholder:text-muted-foreground",
+                "pl-10 h-10 sm:h-11 rounded-xl sm:rounded-2xl bg-background/70 border-border/80 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground",
                 "focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary transition-all",
                 errors.phone && "border-destructive focus-visible:ring-destructive"
               )}
@@ -201,10 +201,10 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
         </div>
 
         {/* Business Name (Optional / Partner) */}
-        <div className="space-y-2">
+        <div className="space-y-1 sm:space-y-1.5">
           <div className="flex items-center justify-between">
             <Label htmlFor="business_name" className="text-xs sm:text-sm font-semibold text-foreground">
-              Store / Business Name
+              Business Name
             </Label>
             <span className="text-[11px] text-muted-foreground">Optional</span>
           </div>
@@ -217,7 +217,7 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
               type="text"
               placeholder="e.g. Fresh Mart Grocery"
               className={cn(
-                "pl-10 h-11 rounded-2xl bg-background/70 border-border/80 text-foreground placeholder:text-muted-foreground",
+                "pl-10 h-10 sm:h-11 rounded-xl sm:rounded-2xl bg-background/70 border-border/80 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground",
                 "focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary transition-all",
                 errors.business_name && "border-destructive focus-visible:ring-destructive"
               )}
@@ -233,8 +233,8 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
         </div>
 
         {/* Form Actions */}
-        <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-border/60">
-          <div className="text-xs text-muted-foreground">
+        <div className="pt-3 sm:pt-4 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 border-t border-border/60">
+          <div className="text-xs text-muted-foreground text-center sm:text-left">
             {isDirty ? (
               <span className="text-amber-500 font-medium flex items-center gap-1">
                 <Sparkles className="w-3.5 h-3.5" />
@@ -249,7 +249,7 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
             type="submit"
             disabled={isSubmitting || !isDirty || !isValid}
             className={cn(
-              "w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3 rounded-2xl text-xs sm:text-sm font-bold",
+              "w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 sm:px-7 sm:py-3 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-bold",
               "bg-primary text-primary-foreground hover:opacity-95 shadow-md shadow-primary/25",
               "transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:pointer-events-none disabled:hover:scale-100"
             )}

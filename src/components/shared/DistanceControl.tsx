@@ -6,7 +6,15 @@ import { cn } from "@/lib/utils";
 import { useDistancePreference, consumeRadiusFocusRequest } from "@/hooks/useDistancePreference";
 import { DISTANCE_OPTIONS, isSearchRadius, formatDistanceKm, DEFAULT_RADIUS, type SearchRadius } from "@/lib/distance";
 
-export function DistanceControl({ loading = false, inLocationModal = false }: { loading?: boolean; inLocationModal?: boolean }) {
+export function DistanceControl({ 
+    loading = false, 
+    inLocationModal = false,
+    embedded = false,
+}: { 
+    loading?: boolean; 
+    inLocationModal?: boolean;
+    embedded?: boolean;
+}) {
     const id = useId();
     const containerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -147,8 +155,14 @@ export function DistanceControl({ loading = false, inLocationModal = false }: { 
 
     if (inLocationModal) {
         return (
-            <div ref={containerRef} className="relative shrink-0">
-                <div className={`relative flex items-center h-[42px] w-32 sm:w-40 rounded-xl border border-primary/10 bg-white shadow-inner transition-all ${isOpen ? "ring-2 ring-primary/20 border-primary" : "focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20"} ${!locationReady ? "opacity-50 cursor-not-allowed bg-slate-50" : ""} dark:border-slate-700 dark:bg-slate-900`}>
+            <div ref={containerRef} className={cn("relative shrink-0", embedded && "h-full")}>
+                <div className={cn(
+                    "relative flex items-center transition-all",
+                    embedded
+                        ? "h-full w-[95px] sm:w-[115px] bg-transparent border-0 shadow-none px-1"
+                        : `h-[42px] w-32 sm:w-40 rounded-xl border border-primary/10 bg-white shadow-inner ${isOpen ? "ring-2 ring-primary/20 border-primary" : "focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20"} dark:border-slate-700 dark:bg-slate-900`,
+                    !locationReady && "opacity-50 cursor-not-allowed bg-slate-50"
+                )}>
                     <label htmlFor={id} className="sr-only">Search radius</label>
                     <div className="flex items-center pl-2.5 text-orange-500 shrink-0 pointer-events-none" title="Search radius">
                         <MapPin aria-hidden="true" className="h-3.5 w-3.5" />

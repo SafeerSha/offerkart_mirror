@@ -260,8 +260,8 @@ export default function FavoritesList() {
 
   const gridClass =
     viewMode === "grid"
-      ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6"
-      : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto";
+      ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-2.5 md:gap-3"
+      : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3.5 max-w-5xl mx-auto";
 
   const totalFilteredCount =
     activeTab === "all"
@@ -272,14 +272,6 @@ export default function FavoritesList() {
 
   return (
     <div className="space-y-6">
-      {/* Header with Stats */}
-      <FavoritesHeader
-        totalCount={favorites.length}
-        offersCount={rawOffers.length}
-        productsCount={rawProducts.length}
-        storesCount={availableStores.length}
-      />
-
       {/* Toolbar: Tabs, Search, Filter, Sort, View Toggle */}
       <FavoritesToolbar
         activeTab={activeTab}
@@ -309,20 +301,20 @@ export default function FavoritesList() {
           onResetFilters={handleClearFilters}
         />
       ) : (
-        <div className="space-y-10 animate-fade-in">
+        <div className="space-y-4 sm:space-y-6 animate-fade-in">
           {/* ALL ITEMS TAB */}
           {activeTab === "all" && (
             <>
               {/* Offers Section */}
               {filteredOffers.length > 0 && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between pb-2 border-b border-border/60">
+                <div className="space-y-2.5 sm:space-y-3">
+                  <div className="flex items-center justify-between pb-1.5 border-b border-border/60">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-orange-500/10 text-orange-500 flex items-center justify-center">
-                        <Ticket className="w-4 h-4" />
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-orange-500/10 text-orange-500 flex items-center justify-center">
+                        <Ticket className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       </div>
-                      <h2 className="text-lg font-bold text-foreground font-sans">
-                        Offers & Flyers
+                      <h2 className="text-base sm:text-lg font-bold text-foreground font-sans">
+                        Offers
                       </h2>
                       <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary">
                         {filteredOffers.length}
@@ -360,13 +352,13 @@ export default function FavoritesList() {
 
               {/* Products Section */}
               {filteredProducts.length > 0 && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between pb-2 border-b border-border/60">
+                <div className="space-y-2.5 sm:space-y-3">
+                  <div className="flex items-center justify-between pb-1.5 border-b border-border/60">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
-                        <ShoppingBag className="w-4 h-4" />
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
+                        <ShoppingBag className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       </div>
-                      <h2 className="text-lg font-bold text-foreground font-sans">
+                      <h2 className="text-base sm:text-lg font-bold text-foreground font-sans">
                         Saved Products
                       </h2>
                       <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500">

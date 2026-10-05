@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function PromotionsPage() {
   return (
-    <main className="min-h-screen bg-background text-foreground relative overflow-hidden pt-44 sm:pt-40 lg:pt-32 pb-24">
+    <main className="min-h-screen bg-background text-foreground relative overflow-hidden pt-36 sm:pt-32 lg:pt-24 pb-20">
       {/* Atmospheric Background Ambient Glows */}
       <div 
         aria-hidden="true"

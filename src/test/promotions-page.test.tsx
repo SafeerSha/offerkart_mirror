@@ -25,7 +25,7 @@ describe("Promotions Page Components", () => {
   };
 
   describe("PromoHeader", () => {
-    it("renders headline, breadcrumbs, and stats chips correctly", () => {
+    it("renders headline and breadcrumbs correctly", () => {
       render(
         <PromoHeader
           totalVideosCount={24}
@@ -33,11 +33,8 @@ describe("Promotions Page Components", () => {
         />
       );
 
-      expect(screen.getAllByText("Promotions & Videos").length).toBeGreaterThanOrEqual(1);
-      expect(screen.getByText("Store Video Showcase")).toBeDefined();
-      expect(screen.getByText("24+")).toBeDefined();
-      expect(screen.getByText("8")).toBeDefined();
-      expect(screen.getByText("Live Commercials")).toBeDefined();
+      expect(screen.getByText("Promotions")).toBeDefined();
+      expect(screen.getByText("Showcase")).toBeDefined();
     });
   });
 

@@ -7,7 +7,11 @@ import {
   RotateCcw, 
   Video, 
   Layers,
-  Sparkles
+  Sparkles,
+  Film,
+  Youtube,
+  Instagram,
+  Facebook
 } from "lucide-react";
 import { Industry } from "@/lib/api/industry";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -40,17 +44,17 @@ export function PromoToolbar({
 }: PromoToolbarProps) {
   const platforms = [
     { id: "all" as const, label: "All Platforms", icon: Layers },
-    { id: "youtube" as const, label: "YouTube", icon: Video },
-    { id: "instagram" as const, label: "Reels", icon: Sparkles },
-    { id: "facebook" as const, label: "Facebook", icon: Video },
+    { id: "youtube" as const, label: "YouTube", icon: Youtube },
+    { id: "instagram" as const, label: "Reels", icon: Instagram },
+    { id: "facebook" as const, label: "Facebook", icon: Facebook },
   ];
 
   return (
-    <div className="space-y-4 mb-6">
-      {/* Search Bar & Platform Tabs Row */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+    <div className="mb-2.5 sm:mb-3">
+      {/* Main Toolbar Row: Platform Tabs + Combined Search & Industry Field */}
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2 sm:gap-2.5">
         {/* Platform Segmented Tabs */}
-        <div className="p-1.5 bg-slate-100/90 dark:bg-card/70 border border-border/70 rounded-2xl inline-flex self-start md:self-auto overflow-x-auto max-w-full shadow-2xs">
+        <div className="p-1 bg-slate-100/90 dark:bg-card/70 border border-border/70 rounded-xl inline-flex self-start lg:self-auto overflow-x-auto max-w-full shadow-2xs shrink-0">
           {platforms.map((tab) => {
             const Icon = tab.icon;
             const isActive = selectedPlatform === tab.id;
@@ -60,7 +64,7 @@ export function PromoToolbar({
                 type="button"
                 onClick={() => onPlatformChange(tab.id)}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 shrink-0 cursor-pointer",
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 shrink-0 cursor-pointer",
                   isActive
                     ? "bg-white dark:bg-card text-primary shadow-xs"
                     : "text-muted-foreground hover:text-foreground hover:bg-slate-200/50 dark:hover:bg-muted/40"
@@ -73,57 +77,56 @@ export function PromoToolbar({
           })}
         </div>
 
-        {/* Search Bar */}
-        <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search commercials, shops, products..."
-            className={cn(
-              "w-full pl-10 pr-9 py-2.5 rounded-2xl text-xs sm:text-sm",
-              "bg-card border border-border/80 text-foreground placeholder:text-muted-foreground",
-              "focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all",
-              "shadow-2xs"
-            )}
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => onSearchChange("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Secondary Row: Industry Selector & Active Reset */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Industry Dropdown */}
-          <div className="w-[180px] sm:w-[220px]">
-            <Select value={industryId} onValueChange={onIndustryChange}>
-              <SelectTrigger className="w-full h-9 sm:h-10 rounded-2xl bg-card border-border/80 shadow-2xs text-xs sm:text-sm font-medium text-foreground focus:ring-primary/40 px-3">
-                <SelectValue placeholder="All Industries" />
-              </SelectTrigger>
-              <SelectContent className="rounded-2xl bg-card border border-border shadow-xl max-h-64 z-[100]">
-                <SelectItem value="all" className="font-semibold text-xs sm:text-sm cursor-pointer hover:bg-primary/10 hover:text-primary">
-                  All Industries
-                </SelectItem>
-                {industries.map((ind) => (
-                  <SelectItem
-                    key={ind.id}
-                    value={String(ind.id)}
-                    className="text-xs sm:text-sm cursor-pointer hover:bg-primary/10 hover:text-primary"
-                  >
-                    {ind.name}
+        {/* Combined Industry Filter + Search Bar in a single compact row field */}
+        <div className="flex items-center gap-2 flex-1 lg:max-w-xl">
+          <div className="flex items-center w-full bg-card border border-border/80 rounded-xl shadow-2xs focus-within:ring-2 focus-within:ring-primary/40 focus-within:border-primary transition-all overflow-hidden h-9 sm:h-10">
+            {/* Industry Dropdown Section */}
+            <div className="w-[115px] sm:w-[145px] shrink-0 h-full">
+              <Select value={industryId} onValueChange={onIndustryChange}>
+                <SelectTrigger className="w-full h-full border-0 bg-transparent rounded-none px-2.5 text-xs font-medium text-foreground focus:ring-0 focus:ring-offset-0 shadow-none hover:bg-muted/40 transition-colors cursor-pointer">
+                  <SelectValue placeholder="All Industries" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl !bg-white dark:!bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl max-h-64 z-[100] text-slate-900 dark:text-slate-100">
+                  <SelectItem value="all" className="font-semibold text-xs cursor-pointer hover:bg-orange-50 dark:hover:bg-slate-800 hover:text-orange-600 focus:bg-orange-50 focus:text-orange-600 dark:focus:bg-slate-800 dark:focus:text-orange-400">
+                    All Industries
                   </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  {industries.map((ind) => (
+                    <SelectItem
+                      key={ind.id}
+                      value={String(ind.id)}
+                      className="text-xs cursor-pointer hover:bg-orange-50 dark:hover:bg-slate-800 hover:text-orange-600 focus:bg-orange-50 focus:text-orange-600 dark:focus:bg-slate-800 dark:focus:text-orange-400"
+                    >
+                      {ind.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Vertical Divider */}
+            <div className="h-4 w-[1px] bg-border shrink-0" />
+
+            {/* Search Input Section */}
+            <div className="relative flex-1 flex items-center h-full min-w-0">
+              <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 pointer-events-none shrink-0" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => onSearchChange(e.target.value)}
+                placeholder="Search commercials, shops, products..."
+                className="w-full h-full pl-8 pr-7 text-xs bg-transparent border-0 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-0"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => onSearchChange("")}
+                  className="absolute right-2 p-0.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                  aria-label="Clear search"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Reset Filters Chip */}
@@ -131,10 +134,11 @@ export function PromoToolbar({
             <button
               type="button"
               onClick={onResetFilters}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-500 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-rose-500 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-colors cursor-pointer shrink-0"
             >
               <RotateCcw className="w-3 h-3" />
-              <span>Reset Filters</span>
+              <span className="hidden sm:inline">Reset Filters</span>
+              <span className="sm:hidden">Reset</span>
             </button>
           )}
         </div>

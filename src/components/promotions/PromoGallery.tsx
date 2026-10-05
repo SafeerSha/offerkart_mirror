@@ -5,6 +5,14 @@ import { useInfiniteSocialLinks, useIndustries, useFeaturedShops } from "@/hooks
 import { useDistancePreference } from "@/hooks/useDistancePreference";
 import { isAllLocation } from "@/lib/distance";
 import FeaturedShops from "@/components/home/FeaturedShops";
+import type { StaticImageData } from "next/image";
+
+interface FeaturedShop {
+  distanceKm?: number | null;
+  id: number | string;
+  name: string;
+  logo: string | StaticImageData;
+}
 import { 
   Loader2, 
   RotateCcw, 
@@ -45,7 +53,7 @@ export default function PromoGallery() {
   );
   const featuredShops = useMemo(() => {
     return dynamicShops?.success && Array.isArray(dynamicShops.data) 
-      ? (dynamicShops.data as Record<string, unknown>[]) 
+      ? (dynamicShops.data as FeaturedShop[]) 
       : [];
   }, [dynamicShops]);
 
@@ -121,7 +129,7 @@ export default function PromoGallery() {
   const visibleShops = useMemo(() => {
     const seenNames = new Set<string>();
     const seenIds = new Set<string>();
-    const result: Record<string, unknown>[] = [];
+    const result: FeaturedShop[] = [];
 
     featuredShops.forEach((shop) => {
       const idKey = String(shop.id);
@@ -139,7 +147,7 @@ export default function PromoGallery() {
       if (!seenIds.has(idKey) && (!nameKey || !seenNames.has(nameKey))) {
         seenIds.add(idKey);
         if (nameKey) seenNames.add(nameKey);
-        result.push(shop as unknown as Record<string, unknown>);
+        result.push(shop);
       }
     });
 
@@ -231,7 +239,7 @@ export default function PromoGallery() {
     : null;
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full">
       {/* 1. Header with Stats */}
       <PromoHeader
         totalVideosCount={allItems.length}
@@ -253,7 +261,7 @@ export default function PromoGallery() {
 
       {/* 3. Featured Shops Carousel Filter */}
       {(visibleShops.length > 0 || (radius === null && shopsLoading)) && (
-        <section className="mb-6 space-y-2">
+        <section className="mb-2.5 sm:mb-3">
           <FeaturedShops
             shops={visibleShops}
             variant="minimal"

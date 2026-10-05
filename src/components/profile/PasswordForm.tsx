@@ -94,7 +94,7 @@ export function PasswordForm({ initialData }: PasswordFormProps) {
 
   return (
     <div className={cn(
-      "relative rounded-3xl p-6 sm:p-8",
+      "relative rounded-2xl sm:rounded-3xl p-4 sm:p-7",
       "bg-card/90 backdrop-blur-xl border border-border/80 shadow-card",
       "overflow-hidden animate-fade-in"
     )}>
@@ -102,23 +102,23 @@ export function PasswordForm({ initialData }: PasswordFormProps) {
       <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
 
       {/* Header section */}
-      <div className="mb-8 relative z-10">
+      <div className="mb-4 sm:mb-6 relative z-10">
         <div className="flex items-center gap-2 mb-1">
-          <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
-            <ShieldCheck className="w-5 h-5" />
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+            <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
-          <h2 className="text-xl sm:text-2xl font-black text-foreground tracking-tight font-sans">
+          <h2 className="text-lg sm:text-2xl font-black text-foreground tracking-tight font-sans">
             Security & Password
           </h2>
         </div>
-        <p className="text-xs sm:text-sm text-muted-foreground ml-11">
+        <p className="text-xs sm:text-sm text-muted-foreground ml-9 sm:ml-11">
           Update your login password to ensure your account and saved deals remain protected.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 max-w-2xl relative z-10">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5 sm:space-y-5 max-w-2xl relative z-10">
         {/* Read-only Account Email */}
-        <div className="space-y-2">
+        <div className="space-y-1 sm:space-y-1.5">
           <Label className="text-xs sm:text-sm font-semibold text-foreground">
             Account Identifier
           </Label>
@@ -130,13 +130,13 @@ export function PasswordForm({ initialData }: PasswordFormProps) {
               type="text"
               value={initialData.email || ""}
               readOnly
-              className="pl-10 h-11 rounded-2xl bg-muted/40 text-muted-foreground cursor-not-allowed border-border/60"
+              className="pl-10 h-10 sm:h-11 rounded-xl sm:rounded-2xl bg-muted/40 text-xs sm:text-sm text-muted-foreground cursor-not-allowed border-border/60"
             />
           </div>
         </div>
 
         {/* Current Password */}
-        <div className="space-y-2">
+        <div className="space-y-1 sm:space-y-1.5">
           <Label htmlFor="current_password" className="text-xs sm:text-sm font-semibold text-foreground">
             Current Password <span className="text-primary">*</span>
           </Label>
@@ -149,7 +149,7 @@ export function PasswordForm({ initialData }: PasswordFormProps) {
               type={showCurrent ? "text" : "password"}
               placeholder="Enter current password"
               className={cn(
-                "pl-10 pr-10 h-11 rounded-2xl bg-background/70 border-border/80 text-foreground placeholder:text-muted-foreground",
+                "pl-10 pr-10 h-10 sm:h-11 rounded-xl sm:rounded-2xl bg-background/70 border-border/80 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground",
                 "focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary transition-all",
                 errors.current_password && "border-destructive focus-visible:ring-destructive"
               )}
@@ -172,7 +172,7 @@ export function PasswordForm({ initialData }: PasswordFormProps) {
         </div>
 
         {/* New Password */}
-        <div className="space-y-2">
+        <div className="space-y-1 sm:space-y-1.5">
           <Label htmlFor="new_password" className="text-xs sm:text-sm font-semibold text-foreground">
             New Password <span className="text-primary">*</span>
           </Label>
@@ -185,7 +185,7 @@ export function PasswordForm({ initialData }: PasswordFormProps) {
               type={showNew ? "text" : "password"}
               placeholder="Minimum 6 characters"
               className={cn(
-                "pl-10 pr-10 h-11 rounded-2xl bg-background/70 border-border/80 text-foreground placeholder:text-muted-foreground",
+                "pl-10 pr-10 h-10 sm:h-11 rounded-xl sm:rounded-2xl bg-background/70 border-border/80 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground",
                 "focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary transition-all",
                 errors.new_password && "border-destructive focus-visible:ring-destructive"
               )}
@@ -202,7 +202,7 @@ export function PasswordForm({ initialData }: PasswordFormProps) {
 
           {/* Password strength indicator */}
           {newPasswordValue.length > 0 && (
-            <div className="space-y-1.5 pt-1">
+            <div className="space-y-1 pt-0.5">
               <div className="flex items-center justify-between text-[11px]">
                 <span className="text-muted-foreground">Password strength:</span>
                 <span className="font-semibold text-foreground">{strengthLabels[strength]}</span>
@@ -230,7 +230,7 @@ export function PasswordForm({ initialData }: PasswordFormProps) {
         </div>
 
         {/* Confirm Password */}
-        <div className="space-y-2">
+        <div className="space-y-1 sm:space-y-1.5">
           <Label htmlFor="confirm_password" className="text-xs sm:text-sm font-semibold text-foreground">
             Confirm New Password <span className="text-primary">*</span>
           </Label>
@@ -243,7 +243,7 @@ export function PasswordForm({ initialData }: PasswordFormProps) {
               type={showConfirm ? "text" : "password"}
               placeholder="Re-enter new password"
               className={cn(
-                "pl-10 pr-10 h-11 rounded-2xl bg-background/70 border-border/80 text-foreground placeholder:text-muted-foreground",
+                "pl-10 pr-10 h-10 sm:h-11 rounded-xl sm:rounded-2xl bg-background/70 border-border/80 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground",
                 "focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary transition-all",
                 errors.confirm_password && "border-destructive focus-visible:ring-destructive"
               )}
@@ -266,11 +266,7 @@ export function PasswordForm({ initialData }: PasswordFormProps) {
         </div>
 
         {/* Real-time Checklist */}
-        <div className="p-3.5 rounded-2xl bg-background/50 border border-border/60 text-xs space-y-2">
-          <div className="font-semibold text-foreground flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-primary" />
-            Password Checklist
-          </div>
+        <div className="p-3 sm:p-3.5 rounded-xl sm:rounded-2xl bg-background/50 border border-border/60 text-xs space-y-1.5 sm:space-y-2">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-muted-foreground">
             <div className="flex items-center gap-2">
               {newPasswordValue.length >= 6 ? (
@@ -296,12 +292,12 @@ export function PasswordForm({ initialData }: PasswordFormProps) {
         </div>
 
         {/* Form Actions */}
-        <div className="pt-4 flex items-center justify-end border-t border-border/60">
+        <div className="pt-3 sm:pt-4 flex items-center justify-end border-t border-border/60">
           <button
             type="submit"
             disabled={isSubmitting || !isValid}
             className={cn(
-              "w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3 rounded-2xl text-xs sm:text-sm font-bold",
+              "w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 sm:px-7 sm:py-3 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-bold",
               "bg-primary text-primary-foreground hover:opacity-95 shadow-md shadow-primary/25",
               "transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:pointer-events-none disabled:hover:scale-100"
             )}

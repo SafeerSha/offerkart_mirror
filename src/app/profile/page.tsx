@@ -22,7 +22,7 @@ export default async function ProfilePage() {
   const profileResponse = await getProfile();
 
   return (
-    <main className="min-h-screen bg-background relative overflow-hidden pt-44 sm:pt-40 lg:pt-32 pb-20">
+    <main className="min-h-screen bg-background relative overflow-hidden pt-36 sm:pt-32 lg:pt-24 pb-16">
       {/* Ambient Atmospheric Background Glows */}
       <div 
         aria-hidden="true"
@@ -54,7 +54,7 @@ export default async function ProfilePage() {
             </Link>
           </div>
         ) : (
-          <div className="space-y-8 animate-fade-in">
+          <div className="space-y-3.5 sm:space-y-6 animate-fade-in">
             {/* Profile Identity & Header */}
             <ProfileHeader profile={profileResponse.data} />
 

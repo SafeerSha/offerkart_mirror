@@ -171,13 +171,15 @@ const LocationModal = ({
                     <DialogTitle className="font-sans font-bold text-lg text-slate-800">
                         Select Location
                     </DialogTitle>
-                    <div className="flex items-center gap-2 mt-1 w-full">
-                        <div className="relative flex-1 group">
-                            <div className="absolute left-3 top-1/2 -translate-y-1/2">
+                    {/* Combined Search & KM Filter Unified Row Field */}
+                    <div className="mt-1.5 w-full flex items-center bg-white dark:bg-slate-900 border border-primary/15 dark:border-slate-800 rounded-xl shadow-2xs focus-within:ring-2 focus-within:ring-primary/25 focus-within:border-primary transition-all overflow-visible h-11 relative">
+                        {/* Search Input */}
+                        <div className="relative flex-1 flex items-center h-full min-w-0">
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
                                 {loading ? (
                                     <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
                                 ) : (
-                                    <Search className="w-4 h-4 text-primary opacity-50 group-hover:opacity-100 transition-opacity" />
+                                    <Search className="w-4 h-4 text-primary opacity-60" />
                                 )}
                             </div>
                             <input
@@ -189,45 +191,52 @@ const LocationModal = ({
                                     setLocationSearch(value);
                                     handleSearch(value);
                                 }}
-                                className="w-full pl-10 pr-10 py-2.5 text-sm bg-white border border-primary/10 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary focus:outline-none transition-all shadow-inner"
+                                className="w-full h-full pl-9 pr-7 text-xs sm:text-sm bg-transparent border-0 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-0"
                             />
                             {locationSearch && (
                                 <button
+                                    type="button"
                                     onClick={() => { setLocationSearch(""); handleSearch(""); }}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-primary/10 rounded-full transition-colors"
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-primary/10 rounded-full transition-colors cursor-pointer"
+                                    aria-label="Clear location search"
                                 >
                                     <X className="w-3.5 h-3.5 text-muted-foreground" />
                                 </button>
                             )}
                         </div>
-                        <DistanceControl inLocationModal loading={detectingLocation} />
+
+                        {/* Divider */}
+                        <div className="h-5 w-[1px] bg-border/70 dark:bg-slate-700 shrink-0" />
+
+                        {/* Embedded KM Radius Filter */}
+                        <DistanceControl inLocationModal loading={detectingLocation} embedded />
                     </div>
 
                     <p className="text-[10px] text-muted-foreground mt-1 px-1 font-medium italic">
                         {!isLocationSet ? "Please select a location to see deals near you" : "Search for your city or town to see local deals"}
                     </p>
                 </DialogHeader>
-                <div className="max-h-72 overflow-y-auto py-2 scrollbar-thin scrollbar-thumb-primary/10 scrollbar-track-transparent">
+                <div className="max-h-72 overflow-y-auto py-1 scrollbar-thin scrollbar-thumb-primary/10 scrollbar-track-transparent">
                     <button
                         onClick={handleDetectLocation}
                         disabled={detectingLocation}
-                        className="mx-2 rounded-xl cursor-pointer py-2 px-2 flex items-center w-[calc(100%-1rem)] text-left border border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10 transition-all duration-200 outline-none mb-3 shrink-0"
+                        className="mx-2 rounded-xl cursor-pointer py-1.5 px-2.5 flex items-center w-[calc(100%-1rem)] text-left border border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10 transition-all duration-200 outline-none mb-1.5 shrink-0"
                     >
-                        <div className="w-7 h-7 rounded-lg flex items-center justify-center mr-3 bg-orange-500/20 shrink-0">
+                        <div className="w-6 h-6 rounded-md flex items-center justify-center mr-2.5 bg-orange-500/20 shrink-0">
                             {detectingLocation ? (
-                                <Loader2 className="w-4 h-4 animate-spin text-orange-600" />
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-600" />
                             ) : (
-                                <Locate className="w-4 h-4 text-orange-600" />
+                                <Locate className="w-3.5 h-3.5 text-orange-600" />
                             )}
                         </div>
                         <div className="flex flex-col min-w-0">
-                            <span className="text-sm font-bold text-orange-600">
+                            <span className="text-xs sm:text-sm font-bold text-orange-600 leading-none">
                                 {detectingLocation ? "Detecting location..." : "Use current location"}
                             </span>
                         </div>
                     </button>
 
-                    <div className="flex items-center justify-between px-4 py-1 mb-1">
+                    <div className="flex items-center justify-between px-3 py-0.5 mb-0.5">
                         <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                             {locationSearch ? "Search Results" : "Suggested Locations"}
                         </span>
@@ -259,37 +268,36 @@ const LocationModal = ({
                                         setLocation(loc, coords.lat, coords.lon);
                                         setLocationSearch("");
                                         handleSearch("");
-
                                     }}
                                     className={cn(
-                                        "rounded-xl cursor-pointer py-2.5 px-3 transition-all duration-200 flex items-center justify-between w-[calc(100%-1rem)] text-left border-0 outline-none bg-transparent mx-2 my-0.5",
+                                        "rounded-lg cursor-pointer py-1.5 px-2.5 transition-all duration-150 flex items-center justify-between w-[calc(100%-1rem)] text-left border-0 outline-none bg-transparent mx-2 my-0.5",
                                         isSelected
-                                            ? "bg-primary/10 text-primary font-semibold shadow-sm"
+                                            ? "bg-primary/10 text-primary font-semibold shadow-2xs"
                                             : "hover:bg-primary/5 focus:bg-primary/5 text-slate-800 dark:text-slate-200"
                                     )}
                                 >
                                     <div className="flex items-center w-full min-w-0">
                                         <div className={cn(
-                                            "w-8 h-8 rounded-lg flex items-center justify-center transition-colors shrink-0 mr-2.5",
-                                            isSelected ? "bg-primary/20 text-primary" : "bg-secondary text-muted-foreground"
+                                            "w-6 h-6 rounded-md flex items-center justify-center transition-colors shrink-0 mr-2",
+                                            isSelected ? "bg-primary/20 text-primary" : "bg-secondary/70 text-muted-foreground"
                                         )}>
-                                            <MapPin className={cn("w-4 h-4", isSelected ? "text-primary" : "text-muted-foreground")} />
+                                            <MapPin className={cn("w-3.5 h-3.5", isSelected ? "text-primary" : "text-muted-foreground")} />
                                         </div>
-                                        <div className="flex items-baseline min-w-0 text-left gap-1.5 flex-1">
+                                        <div className="flex items-baseline min-w-0 text-left gap-1.5 flex-1 leading-snug">
                                             <span className={cn(
-                                                "text-sm font-semibold truncate max-w-[65%]",
+                                                "text-xs sm:text-sm font-semibold truncate max-w-[65%]",
                                                 isSelected ? "text-primary font-bold" : "text-slate-800 dark:text-slate-200"
                                             )} title={loc}>
                                                 {mainName}
                                             </span>
                                             {subtitle && (
-                                                <span className="text-xs text-slate-400 dark:text-slate-500 truncate flex-1">
+                                                <span className="text-[11px] sm:text-xs text-slate-400 dark:text-slate-500 truncate flex-1">
                                                     {subtitle}
                                                 </span>
                                             )}
                                         </div>
                                         {isSelected && (
-                                            <div className="ml-auto w-2 h-2 rounded-full bg-primary animate-pulse shrink-0 ml-2" />
+                                            <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary animate-pulse shrink-0 ml-1.5" />
                                         )}
                                     </div>
                                 </button>
@@ -976,10 +984,12 @@ const Header = () => {
                                 </div>
                             </div>
 
-                            <div className="mt-4 flex justify-end hidden lg:flex"
-                                onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setSearchOpen(false); }}
-                                onKeyDown={(event) => { if (event.key === "Escape") { setSearchQuery(""); setSearchOpen(false); } }}
-                            >
+                            {/* Desktop Search Bar (Hidden on pages with dedicated search toolbar like Favorites) */}
+                            {!pathname.startsWith("/favorites") && (
+                                <div className="mt-4 flex justify-end hidden lg:flex"
+                                    onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setSearchOpen(false); }}
+                                    onKeyDown={(event) => { if (event.key === "Escape") { setSearchQuery(""); setSearchOpen(false); } }}
+                                >
                                 <div
                                     className={cn(
                                         "relative h-11 flex items-center transition-all duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] w-full",
@@ -1159,6 +1169,7 @@ const Header = () => {
                                     )}
                                 </div>
                             </div>
+                            )}
 
                             {/* Mobile Navigation and Search */}
                             <div className="lg:hidden mt-2.5 flex flex-col gap-2 px-0.5 animate-in slide-in-from-top-3 duration-300">

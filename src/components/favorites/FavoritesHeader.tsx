@@ -1,14 +1,12 @@
 "use client";
 
 import React from "react";
-import Link from "next/link";
+import Breadcrumbs from "@/components/shared/Breadcrumbs";
 import { 
   Heart, 
   Ticket, 
   ShoppingBag, 
-  Store, 
-  ChevronRight,
-  BookmarkCheck
+  Store 
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,7 +25,7 @@ export default function FavoritesHeader({
 }: FavoritesHeaderProps) {
   const stats = [
     {
-      label: "Total Saved",
+      label: "Total",
       value: totalCount,
       icon: Heart,
       color: "text-rose-500 dark:text-rose-400",
@@ -35,7 +33,7 @@ export default function FavoritesHeader({
       borderColor: "border-rose-500/20",
     },
     {
-      label: "Offers & Flyers",
+      label: "Offers",
       value: offersCount,
       icon: Ticket,
       color: "text-orange-500 dark:text-orange-400",
@@ -43,7 +41,7 @@ export default function FavoritesHeader({
       borderColor: "border-orange-500/20",
     },
     {
-      label: "Saved Products",
+      label: "Products",
       value: productsCount,
       icon: ShoppingBag,
       color: "text-amber-500 dark:text-amber-400",
@@ -51,7 +49,7 @@ export default function FavoritesHeader({
       borderColor: "border-amber-500/20",
     },
     {
-      label: "Local Stores",
+      label: "Stores",
       value: storesCount,
       icon: Store,
       color: "text-emerald-500 dark:text-emerald-400",
@@ -61,59 +59,40 @@ export default function FavoritesHeader({
   ];
 
   return (
-    <div className="relative mb-8 pb-4">
-      {/* Breadcrumb Navigation */}
-      <nav className="flex items-center gap-1.5 text-xs text-muted-foreground mb-4 font-medium">
-        <Link 
-          href="/" 
-          className="hover:text-primary transition-colors flex items-center gap-1"
-        >
-          Home
-        </Link>
-        <ChevronRight className="w-3.5 h-3.5 opacity-40" />
-        <span className="text-foreground font-semibold flex items-center gap-1">
-          <BookmarkCheck className="w-3.5 h-3.5 text-primary" />
-          Favorites
-        </span>
-      </nav>
+    <div className="relative mb-2.5 sm:mb-3">
+      {/* Standard Shared Breadcrumb Navigation */}
+      <Breadcrumbs items={[{ label: "Favorites" }]} className="mb-1" />
 
-      {/* Main Title Section */}
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
-        <div className="space-y-3 max-w-2xl">
-
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-foreground font-sans">
-            My Saved <span className="text-gradient">Favorites</span>
+      {/* Main Title & Compact Stats Section */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2 sm:gap-3">
+        <div>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-foreground font-sans">
+            My <span className="text-gradient">Favorites</span>
           </h1>
-
-          <p className="text-muted-foreground text-sm sm:text-base leading-relaxed">
-            Keep track of your favorite local flyers, special discounts, and top products. 
-            All your bookmarks synchronized and ready for your next shopping run.
-          </p>
         </div>
 
-        {/* Quick Summary Stat Chips / Cards */}
+        {/* Quick Summary Stat Chips in a single row */}
         {totalCount > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 shrink-0">
+          <div className="grid grid-cols-4 gap-1.5 sm:gap-2.5 w-full lg:w-auto shrink-0">
             {stats.map((stat, idx) => {
               const Icon = stat.icon;
               return (
                 <div
                   key={idx}
                   className={cn(
-                    "flex items-center gap-3 p-3 rounded-2xl",
+                    "flex items-center justify-center sm:justify-start gap-1 sm:gap-2 p-1.5 sm:p-2 rounded-xl min-w-0",
                     "bg-card/80 backdrop-blur-md border border-border/80",
-                    "shadow-xs hover:shadow-md transition-all duration-300",
-                    "hover:-translate-y-0.5"
+                    "shadow-2xs hover:shadow-xs transition-all duration-200"
                   )}
                 >
-                  <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border", stat.bgColor, stat.borderColor)}>
-                    <Icon className={cn("w-5 h-5", stat.color)} />
+                  <div className={cn("w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center shrink-0 border", stat.bgColor, stat.borderColor)}>
+                    <Icon className={cn("w-3 h-3 sm:w-3.5 sm:h-3.5", stat.color)} />
                   </div>
-                  <div>
-                    <div className="text-xl font-black text-foreground tracking-tight">
+                  <div className="min-w-0">
+                    <div className="text-xs sm:text-base font-black text-foreground tracking-tight leading-none">
                       {stat.value}
                     </div>
-                    <div className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">
+                    <div className="text-[9px] sm:text-[11px] font-medium text-muted-foreground truncate leading-none mt-0.5">
                       {stat.label}
                     </div>
                   </div>

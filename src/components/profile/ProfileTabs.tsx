@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { User, ShieldCheck, Settings, Sparkles, CheckCircle2 } from "lucide-react";
+import { User, ShieldCheck, Settings, Sparkles, CheckCircle2, Lock, LockIcon } from "lucide-react";
 import { ProfileForm } from "@/components/profile/ProfileForm";
 import { PasswordForm } from "@/components/profile/PasswordForm";
 import { ProfilePreferences } from "@/components/profile/ProfilePreferences";
@@ -39,11 +39,11 @@ export function ProfileTabs({ initialData }: ProfileTabsProps) {
   ];
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-6 items-start">
       {/* ── Left Sidebar Nav (4 cols on lg) ── */}
-      <div className="lg:col-span-4 space-y-4">
+      <div className="lg:col-span-4 space-y-3">
         {/* Mobile: Pill Switcher */}
-        <div className="flex lg:hidden p-1.5 bg-slate-100 dark:bg-card border border-border/80 rounded-2xl overflow-x-auto shadow-2xs">
+        <div className="flex lg:hidden p-1 bg-muted/60 dark:bg-card border border-border/80 rounded-xl overflow-x-auto shadow-2xs gap-1">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -53,9 +53,9 @@ export function ProfileTabs({ initialData }: ProfileTabsProps) {
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  "flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all shrink-0",
+                  "flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg text-xs font-semibold sm:font-bold transition-all shrink-0",
                   isActive
-                    ? "bg-white dark:bg-muted text-primary shadow-xs"
+                    ? "bg-background text-primary shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
@@ -114,7 +114,7 @@ export function ProfileTabs({ initialData }: ProfileTabsProps) {
         {/* Quick Security Tip Box in Sidebar */}
         <div className="hidden lg:block p-4 rounded-3xl bg-gradient-to-br from-primary/5 via-amber-500/5 to-transparent border border-border/60 shadow-2xs">
           <div className="flex items-center gap-2 mb-1.5 text-xs font-bold text-foreground">
-            <Sparkles className="w-3.5 h-3.5 text-primary" />
+            <LockIcon className="w-3.5 h-3.5 text-primary" />
             <span>Account Security</span>
           </div>
           <p className="text-[11px] text-muted-foreground leading-relaxed mb-3">
