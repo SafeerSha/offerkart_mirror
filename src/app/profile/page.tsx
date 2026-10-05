@@ -2,42 +2,67 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { getProfile } from "./actions";
+import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { ProfileTabs } from "@/components/profile/ProfileTabs";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, RotateCw } from "lucide-react";
+import Link from "next/link";
 
 export const metadata = {
-    title: "My Profile - OfferNearU",
-    description: "Manage your personal information and account settings.",
+  title: "My Profile | OfferNearU",
+  description: "Manage your personal information, security settings, and shopping bookmarks.",
 };
 
 export default async function ProfilePage() {
-    const session = await getServerSession(authOptions);
+  const session = await getServerSession(authOptions);
 
-    if (!session?.user) {
-        redirect("/login");
-    }
+  if (!session?.user) {
+    redirect("/login?callbackUrl=/profile");
+  }
 
-    const profileResponse = await getProfile();
+  const profileResponse = await getProfile();
 
-    return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pt-44 sm:pt-40 pb-12 px-4 sm:px-6 lg:px-8 lg:pt-28">
-            <div className="max-w-4xl mx-auto space-y-8">
-             
+  return (
+    <main className="min-h-screen bg-background relative overflow-hidden pt-36 sm:pt-32 lg:pt-24 pb-16">
+      {/* Ambient Atmospheric Background Glows */}
+      <div 
+        aria-hidden="true"
+        className="absolute top-16 left-1/4 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[130px] pointer-events-none -translate-y-1/2" 
+      />
+      <div 
+        aria-hidden="true"
+        className="absolute top-80 right-1/4 w-[400px] h-[400px] bg-accent/10 rounded-full blur-[120px] pointer-events-none translate-y-1/3" 
+      />
 
-                {!profileResponse.success || !profileResponse.data ? (
-                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6 flex flex-col items-center justify-center text-center space-y-3">
-                        <AlertCircle className="w-10 h-10 text-red-500" />
-                        <div>
-                            <h3 className="text-lg font-semibold text-red-800 dark:text-red-200">Failed to load profile</h3>
-                            <p className="text-sm text-red-600 dark:text-red-300 mt-1">
-                                {profileResponse.error || "An unexpected error occurred while fetching your profile."}
-                            </p>
-                        </div>
-                    </div>
-                ) : (
-                    <ProfileTabs initialData={profileResponse.data} />
-                )}
+      <div className="container mx-auto px-4 max-w-6xl relative z-10">
+        {!profileResponse.success || !profileResponse.data ? (
+          <div className="bg-card/90 backdrop-blur-xl border border-destructive/20 rounded-3xl p-8 max-w-xl mx-auto flex flex-col items-center justify-center text-center space-y-4 shadow-card">
+            <div className="w-14 h-14 rounded-2xl bg-destructive/10 text-destructive flex items-center justify-center">
+              <AlertCircle className="w-8 h-8" />
             </div>
-        </div>
-    );
+            <div>
+              <h2 className="text-xl font-bold text-foreground">Failed to load profile</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                {profileResponse.error || "An unexpected error occurred while fetching your profile."}
+              </p>
+            </div>
+            <Link
+              href="/profile"
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-xs font-semibold bg-primary text-primary-foreground hover:opacity-90 shadow-md shadow-primary/20 transition-all hover:scale-105"
+            >
+              <RotateCw className="w-3.5 h-3.5" />
+              <span>Retry</span>
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-3.5 sm:space-y-6 animate-fade-in">
+            {/* Profile Identity & Header */}
+            <ProfileHeader profile={profileResponse.data} />
+
+            {/* Profile Navigation Tabs & Forms */}
+            <ProfileTabs initialData={profileResponse.data} />
+          </div>
+        )}
+      </div>
+    </main>
+  );
 }

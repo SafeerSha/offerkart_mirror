@@ -6,7 +6,7 @@ import FavoritesList from "@/components/favorites/FavoritesList";
 
 export const metadata: Metadata = {
   title: "My Favorites | OfferNearU",
-  description: "View and manage your favorite offers and products.",
+  description: "View, filter, and manage your saved local offers, flyers, and favorite products in one place.",
 };
 
 export default async function FavoritesPage() {
@@ -17,8 +17,18 @@ export default async function FavoritesPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50/50 dark:bg-slate-900/50 pt-44 sm:pt-40 lg:pt-28 pb-12">
-      <div className="container mx-auto px-4 max-w-7xl pt-0">
+    <main className="min-h-screen bg-background relative overflow-hidden pt-36 sm:pt-32 lg:pt-24 pb-16">
+      {/* Ambient Atmospheric Background Glows */}
+      <div 
+        aria-hidden="true"
+        className="absolute top-16 left-1/4 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[130px] pointer-events-none -translate-y-1/2" 
+      />
+      <div 
+        aria-hidden="true"
+        className="absolute top-80 right-1/4 w-[400px] h-[400px] bg-accent/10 rounded-full blur-[120px] pointer-events-none translate-y-1/3" 
+      />
+
+      <div className="container mx-auto px-4 max-w-7xl relative z-10">
         <FavoritesList />
       </div>
     </main>

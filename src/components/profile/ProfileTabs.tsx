@@ -1,83 +1,138 @@
 "use client";
 
-import { useState } from "react";
-import { User, ShieldCheck } from "lucide-react";
+import React, { useState } from "react";
+import { User, ShieldCheck, Settings, Sparkles, CheckCircle2, Lock, LockIcon } from "lucide-react";
 import { ProfileForm } from "@/components/profile/ProfileForm";
 import { PasswordForm } from "@/components/profile/PasswordForm";
+import { ProfilePreferences } from "@/components/profile/ProfilePreferences";
 import { UserProfileResponse } from "@/lib/types/profile";
 import { cn } from "@/lib/utils";
 
 interface ProfileTabsProps {
-    initialData: UserProfileResponse;
+  initialData: UserProfileResponse;
 }
 
+export type ProfileTabType = "personal" | "security" | "preferences";
+
 export function ProfileTabs({ initialData }: ProfileTabsProps) {
-    const [activeTab, setActiveTab] = useState<"personal" | "security">("personal");
+  const [activeTab, setActiveTab] = useState<ProfileTabType>("personal");
 
-    const tabs = [
-        { id: "personal" as const, label: "Profile Details", icon: User },
-        { id: "security" as const, label: "Security Settings", icon: ShieldCheck },
-    ];
+  const tabs = [
+    {
+      id: "personal" as const,
+      label: "Personal Details",
+      description: "Manage your name, contact, & store info",
+      icon: User,
+    },
+    {
+      id: "security" as const,
+      label: "Security & Login",
+      description: "Password change & account protection",
+      icon: ShieldCheck,
+    },
+    {
+      id: "preferences" as const,
+      label: "Preferences & Session",
+      description: "Wishlist, alerts, & sign out",
+      icon: Settings,
+    },
+  ];
 
-    return (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-            {/* ── Left: Vertical Sidebar Nav (desktop) + Pill Switcher (mobile) ── */}
-            <div className="lg:col-span-1">
-                {/* Mobile: pill switcher */}
-                <div className="flex lg:hidden p-1 bg-slate-200/50 dark:bg-slate-800/50 rounded-xl overflow-hidden shadow-sm">
-                    {tabs.map((tab) => (
-                        <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            className={cn(
-                                "flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all duration-300",
-                                activeTab === tab.id
-                                    ? "bg-white dark:bg-slate-900 text-orange-600 shadow-sm"
-                                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
-                            )}
-                        >
-                            <tab.icon className="w-4 h-4" />
-                            {tab.label}
-                        </button>
-                    ))}
-                </div>
-
-                {/* Desktop: vertical nav */}
-                <nav className="hidden lg:flex flex-col space-y-1 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm p-3">
-                    {tabs.map((tab) => (
-                        <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            className={cn(
-                                "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 text-left w-full group",
-                                activeTab === tab.id
-                                    ? "bg-white dark:bg-slate-800 text-orange-600 dark:text-orange-500 shadow-sm border border-orange-100 dark:border-orange-900/30"
-                                    : "text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200 border border-transparent"
-                            )}
-                        >
-                            <span className={cn(
-                                "flex items-center justify-center w-8 h-8 rounded-lg transition-colors",
-                                activeTab === tab.id
-                                    ? "bg-orange-50 dark:bg-orange-900/20 text-orange-500"
-                                    : "bg-slate-100 dark:bg-slate-700 text-slate-400 group-hover:bg-orange-50 dark:group-hover:bg-orange-900/20 group-hover:text-orange-500"
-                            )}>
-                                <tab.icon className="w-4 h-4" />
-                            </span>
-                            <span>{tab.label}</span>
-                        </button>
-                    ))}
-                </nav>
-            </div>
-
-            {/* ── Right: Tab Content (full width) ── */}
-            <div className="lg:col-span-2">
-                {activeTab === "personal" ? (
-                    <ProfileForm initialData={initialData} />
-                ) : (
-                    <PasswordForm initialData={initialData} />
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-6 items-start">
+      {/* ── Left Sidebar Nav (4 cols on lg) ── */}
+      <div className="lg:col-span-4 space-y-3">
+        {/* Mobile: Pill Switcher */}
+        <div className="flex lg:hidden p-1 bg-muted/60 dark:bg-card border border-border/80 rounded-xl overflow-x-auto shadow-2xs gap-1">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg text-xs font-semibold sm:font-bold transition-all shrink-0",
+                  isActive
+                    ? "bg-background text-primary shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
                 )}
-            </div>
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span className="truncate">{tab.label.split(" ")[0]}</span>
+              </button>
+            );
+          })}
         </div>
-    );
+
+        {/* Desktop: Vertical Card Navigation */}
+        <nav className="hidden lg:flex flex-col space-y-2 p-2 rounded-3xl bg-card/80 backdrop-blur-xl border border-border/80 shadow-xs">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  "flex items-start gap-3.5 p-3.5 rounded-2xl text-left w-full transition-all duration-200 group cursor-pointer",
+                  isActive
+                    ? "bg-primary/10 border border-primary/20 shadow-xs text-primary"
+                    : "hover:bg-muted/50 text-muted-foreground hover:text-foreground border border-transparent"
+                )}
+              >
+                <div
+                  className={cn(
+                    "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors border",
+                    isActive
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background text-muted-foreground border-border/60 group-hover:text-primary group-hover:border-primary/30"
+                  )}
+                >
+                  <Icon className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div
+                    className={cn(
+                      "text-sm font-bold tracking-tight",
+                      isActive ? "text-primary" : "text-foreground"
+                    )}
+                  >
+                    {tab.label}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground leading-snug line-clamp-1 mt-0.5">
+                    {tab.description}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Quick Security Tip Box in Sidebar */}
+        <div className="hidden lg:block p-4 rounded-3xl bg-gradient-to-br from-primary/5 via-amber-500/5 to-transparent border border-border/60 shadow-2xs">
+          <div className="flex items-center gap-2 mb-1.5 text-xs font-bold text-foreground">
+            <LockIcon className="w-3.5 h-3.5 text-primary" />
+            <span>Account Security</span>
+          </div>
+          <p className="text-[11px] text-muted-foreground leading-relaxed mb-3">
+            Keep your contact details up to date so store merchants and offer notifications reach you directly.
+          </p>
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span>2-Step Protection Active</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Right Content Area (8 cols on lg) ── */}
+      <div className="lg:col-span-8">
+        {activeTab === "personal" && <ProfileForm initialData={initialData} />}
+        {activeTab === "security" && <PasswordForm initialData={initialData} />}
+        {activeTab === "preferences" && <ProfilePreferences profile={initialData} />}
+      </div>
+    </div>
+  );
 }

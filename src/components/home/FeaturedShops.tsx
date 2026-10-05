@@ -158,7 +158,7 @@ const FeaturedShops = ({
     <TooltipProvider>
       <section className={cn(
         "bg-background relative",
-        variant === "full" ? "py-8" : "pt-1 pb-3"
+        variant === "full" ? "py-8" : "py-0"
       )}>
         {/* Scrollbar Hide Utility */}
         <style jsx global>{`
@@ -217,7 +217,7 @@ const FeaturedShops = ({
 
           {/* Mobile swipe hint (Top Right Above Section) */}
           {showNav && (
-            <div className={cn("flex justify-end lg:hidden mb-1.5", variant === "minimal" ? "pr-2" : "hidden")}>
+            <div className={cn("flex justify-end lg:hidden mb-1", variant === "minimal" ? "pr-2" : "hidden")}>
               <span className="text-[10px] text-gray-500 font-bold tracking-widest flex items-center gap-1">
                 Swipe for more <ChevronRight className="w-3 h-3 -ml-0.5 text-primary/70" />
               </span>
@@ -225,8 +225,8 @@ const FeaturedShops = ({
           )}
 
           <div className={cn(
-            "relative z-20 border border-orange-500/25 bg-orange-500/[0.02] rounded-2xl shadow-sm",
-            variant === "minimal" ? "shadow-[0_2px_12px_rgba(249,115,22,0.04)] border-orange-500/30" : "border-orange-500/20"
+            "relative z-20 border border-orange-500/25 bg-orange-500/[0.02] shadow-sm",
+            variant === "minimal" ? "shadow-[0_2px_12px_rgba(249,115,22,0.04)] border-orange-500/30 rounded-xl" : "border-orange-500/20 rounded-2xl"
           )}>
             {/* Fading gradients */}
             <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-background via-background/80 to-transparent z-10 pointer-events-none rounded-l-3xl" />
@@ -240,7 +240,7 @@ const FeaturedShops = ({
                     onClick={() => scroll('left')}
                     disabled={!canScrollLeft}
                     className={cn(
-                      "hidden lg:flex absolute -left-4 top-[calc(50%-24px)] -translate-y-1/2 z-40 p-2 rounded-full bg-white text-orange-500 shadow-sm shadow-orange-500/20 border border-orange-500 transition-all duration-300 hover:bg-orange-50 hover:scale-110 active:scale-95 disabled:opacity-0 disabled:pointer-events-none",
+                      "hidden lg:flex absolute -left-4 top-1/2 -translate-y-1/2 z-40 p-2 rounded-full bg-white text-orange-500 shadow-sm shadow-orange-500/20 border border-orange-500 transition-all duration-300 hover:bg-orange-50 hover:scale-110 active:scale-95 disabled:opacity-0 disabled:pointer-events-none",
                       variant === "full" ? "hidden" : ""
                     )}
                   >
@@ -250,7 +250,7 @@ const FeaturedShops = ({
                     onClick={() => scroll('right')}
                     disabled={!canScrollRight}
                     className={cn(
-                      "hidden lg:flex absolute -right-4 top-[calc(50%-24px)] -translate-y-1/2 z-40 p-2 rounded-full bg-white text-orange-500 shadow-sm shadow-orange-500/20 border border-orange-500 transition-all duration-300 hover:bg-orange-50 hover:scale-110 active:scale-95 disabled:opacity-0 disabled:pointer-events-none",
+                      "hidden lg:flex absolute -right-4 top-1/2 -translate-y-1/2 z-40 p-2 rounded-full bg-white text-orange-500 shadow-sm shadow-orange-500/20 border border-orange-500 transition-all duration-300 hover:bg-orange-50 hover:scale-110 active:scale-95 disabled:opacity-0 disabled:pointer-events-none",
                       variant === "full" ? "hidden" : ""
                     )}
                   >
@@ -261,14 +261,14 @@ const FeaturedShops = ({
 
               <div className={cn(
                 "overflow-hidden relative z-0",
-                variant === "full" ? "pt-0 pb-5 -mt-0 -mb-10" : "pt-0 pb-6 -mt-0 -mb-12"
+                variant === "full" ? "pt-0 pb-5 -mt-0 -mb-10" : "p-0"
               )}>
                 <div
                   ref={scrollRef}
                   onScroll={checkScroll}
                   className={cn(
-                    "flex gap-1 overflow-x-auto scrollbar-hide snap-x snap-mandatory scroll-smooth relative",
-                    variant === "full" ? "pt-2 pb-8 px-3" : "pt-2 pb-8 px-3"
+                    "flex gap-1.5 overflow-x-auto scrollbar-hide snap-x snap-mandatory scroll-smooth relative items-center",
+                    variant === "full" ? "pt-2 pb-8 px-3" : "py-1.5 px-2"
                   )}
                 >
                   {displayShops.map((shop) => {
