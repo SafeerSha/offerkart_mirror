@@ -28,7 +28,7 @@ export interface Product {
     isActive?: boolean;
     categoryObject?: any;
     offerId?: number | string | null;
-    daysLeft?: number | null;
+    daysLeft?: number | string | null;
     shopLogo?: string | null;
     availableBranches?: {
         id: number | string;

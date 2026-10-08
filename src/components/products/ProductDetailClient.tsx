@@ -397,7 +397,7 @@ export default function ProductDetailClient({ product, similarProducts: initialS
                                 {!!product.originalPrice && product.originalPrice > product.price && (
                                     <div className="flex items-center gap-2 pt-2 border-t border-gray-200/60">
                                         <span className="px-2.5 py-1 bg-green-500 text-white font-black text-[9px] uppercase tracking-wider rounded-md shadow-sm">
-                                            SAVE {discountPercent}%
+                                            Save {discountPercent}%
                                         </span>
                                         <span className="text-xs font-bold text-green-700">
                                             You save ₹{savingsAmount.toLocaleString()} on this offer

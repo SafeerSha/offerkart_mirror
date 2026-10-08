@@ -44,7 +44,13 @@ export function mapUserProductToProduct(item: any, latitude?: number | null, lon
         ],
         images: [primaryImage],
         offerId: item.offerId || item.offer_id || null,
-        daysLeft: item.daysLeft !== undefined ? item.daysLeft : null,
+        daysLeft: item.daysLeft !== undefined && item.daysLeft !== null && item.daysLeft !== ""
+            ? Number(item.daysLeft)
+            : (item.validTo ? (() => {
+                const end = new Date(item.validTo).getTime();
+                const diff = Math.ceil((end - Date.now()) / (1000 * 60 * 60 * 24));
+                return !Number.isNaN(diff) ? diff : null;
+              })() : null),
         validFrom: item.validFrom ?? null,
         validTo: item.validTo ?? null,
         availableBranches: item.availableBranches || null,
