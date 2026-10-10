@@ -36,7 +36,7 @@ interface OfferCardProps {
   validTo?: string;
   discount?: string;
   branchName?: string;
-  daysLeft?: number | null;
+  daysLeft?: number | string | null;
   totalPosters?: number | string;
   shopLogo?: string | null;
   logo_url?: string | null;
@@ -58,6 +58,7 @@ const OfferCard = ({
   poster_url,
   discount,
   daysLeft,
+  validTo,
   posters,
   totalPosters,
   shopLogo,
@@ -133,12 +134,34 @@ const OfferCard = ({
   // Calculate total offers count from marked items
   const totalOffersCount = posters?.reduce((acc, p) => acc + (p.markedItems?.length || 0), 0) || 0;
 
-  const isUrgent = typeof daysLeft === "number" && daysLeft <= 3;
+  // Safely parse daysLeft (number, string, or fallback calculation from validTo)
+  const rawDaysLeft = daysLeft ?? (rest as any).days_left ?? (rest as any).daysLeft;
+  const parsedDaysLeft: number | null = (() => {
+    if (rawDaysLeft !== undefined && rawDaysLeft !== null && rawDaysLeft !== "") {
+      const num = Number(rawDaysLeft);
+      if (!Number.isNaN(num)) return num;
+    }
+    const validToStr = validTo || (rest as any).valid_to;
+    if (validToStr) {
+      const end = new Date(validToStr).getTime();
+      const now = Date.now();
+      const diffDays = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+      if (!Number.isNaN(diffDays)) return diffDays;
+    }
+    return null;
+  })();
+
+  const isUrgent = parsedDaysLeft !== null && parsedDaysLeft <= 3;
+  const isExpiringSoon = parsedDaysLeft !== null && parsedDaysLeft > 3 && parsedDaysLeft <= 7;
+
   const getDaysLeftText = () => {
-    if (typeof daysLeft !== "number") return null;
-    if (daysLeft <= 0) return t("catalog.endsToday");
-    if (daysLeft === 1) return t("catalog.dayLeft");
-    return t("catalog.daysLeft").replace("{count}", String(daysLeft));
+    if (parsedDaysLeft === null) return null;
+    if (parsedDaysLeft <= 0) return t("catalog.endsToday") || "Ends today";
+    if (parsedDaysLeft === 1) return t("catalog.dayLeft") || "1 day left";
+    const template = t("catalog.daysLeft");
+    return template && template.includes("{count}")
+      ? template.replace("{count}", String(parsedDaysLeft))
+      : `${parsedDaysLeft} days left`;
   };
   const daysLeftText = getDaysLeftText();
   const showDiscount = discount && !discount.toLowerCase().includes("left") && !discount.includes("ബാക്കിയുണ്ട്");
@@ -177,14 +200,25 @@ const OfferCard = ({
         {/* Subtle top overlay gradient for badge readability */}
         <div className="absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-black/40 to-transparent pointer-events-none z-10" />
 
+        {/* Days Left Floating Badge */}
         {daysLeftText && (
-          <div className="absolute top-0 left-0 z-20 pointer-events-none">
-            <span className={cn(
-              "px-3 py-1 rounded-tl-xl rounded-br-xl text-[9px] sm:text-[8px] font-black tracking-wider flex items-center shadow-sm backdrop-blur-md border-b border-r shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)]",
-              isUrgent
-                ? "bg-red-500/15 dark:bg-red-500/25 text-slate-800 dark:text-slate-200 border-red-500/30 dark:border-red-500/20"
-                : "bg-white/30 dark:bg-black/30 text-slate-800 dark:text-slate-200 border-white/40 dark:border-white/15"
-            )}>
+          <div className="absolute top-2 left-2 sm:top-2.5 sm:left-2.5 z-20 pointer-events-none">
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 sm:gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold tracking-tight shadow-lg backdrop-blur-md border transition-all",
+                isUrgent
+                  ? "bg-rose-600/90 text-white border-rose-400/40 shadow-rose-950/20"
+                  : isExpiringSoon
+                  ? "bg-amber-500/90 text-white border-amber-300/40 shadow-amber-950/20"
+                  : "bg-slate-900/80 dark:bg-black/80 text-white border-white/20 shadow-black/30"
+              )}
+            >
+              <Clock
+                className={cn(
+                  "w-3 h-3 shrink-0",
+                  isUrgent ? "text-white animate-pulse" : isExpiringSoon ? "text-amber-100" : "text-orange-400"
+                )}
+              />
               <span>{daysLeftText}</span>
             </span>
           </div>
@@ -248,13 +282,13 @@ const OfferCard = ({
 
       {/* Content Info with white background */}
       <div className="bg-white dark:bg-[#1c2018] px-2 pb-2 pt-2 sm:px-3 sm:pb-3 sm:pt-3 flex flex-col items-start gap-1">
-        <h4 className="w-full text-sm sm:text-base md:text-md font-bold text-slate-800 dark:text-slate-800 leading-snug group-hover:text-orange-500 transition-colors truncate">
+        <h4 className="w-full text-sm sm:text-base md:text-md font-bold text-slate-800 dark:text-slate-100 leading-snug group-hover:text-orange-500 transition-colors truncate">
           {offerDisplayName}
         </h4>
 
         <div className="w-full flex items-end justify-between gap-2">
           <div className="flex flex-col min-w-0 flex-1">
-            <p className="w-full text-slate-500 dark:text-slate-500 text-[10px] font-semibold tracking-wider truncate">
+            <p className="w-full text-slate-500 dark:text-slate-400 text-[10px] font-semibold tracking-wider truncate">
               {resolvedShopName || "OfferNearU"}
             </p>
             <DistanceBadge distance={resolvedDistance} />

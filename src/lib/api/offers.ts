@@ -21,7 +21,7 @@ interface UserOfferApiItem {
     totalPosters?: number;
     defaultPoster?: string | null;
     image?: string | null;
-    daysLeft?: number | null;
+    daysLeft?: number | string | null;
     distanceKm?: number | null;
     kilometer?: number | string | null;
     distance?: number | string | null;
@@ -94,16 +94,21 @@ function formatDistance(distanceKm: number | null | undefined) {
     return `${distanceKm.toFixed(distanceKm < 10 ? 1 : 0)} km away`;
 }
 
-function formatDaysLeft(daysLeft: number | null | undefined) {
-    if (daysLeft === null || daysLeft === undefined || Number.isNaN(daysLeft)) {
+function formatDaysLeft(daysLeft: number | string | null | undefined) {
+    if (daysLeft === null || daysLeft === undefined || daysLeft === "") {
         return undefined;
     }
 
-    if (daysLeft <= 0) {
+    const num = Number(daysLeft);
+    if (Number.isNaN(num)) {
+        return undefined;
+    }
+
+    if (num <= 0) {
         return "Ends today";
     }
 
-    return `${daysLeft} day${daysLeft === 1 ? "" : "s"} left`;
+    return `${num} day${num === 1 ? "" : "s"} left`;
 }
 
 function mapUserOfferToOffer(item: UserOfferApiItem): Offer {
@@ -172,7 +177,13 @@ function mapUserOfferToOffer(item: UserOfferApiItem): Offer {
         validTo: (item as any).validTo || undefined,
         totalPosters: item.totalPosters,
         numberOfPosters: item.totalPosters,
-        daysLeft: item.daysLeft,
+        daysLeft: item.daysLeft !== undefined && item.daysLeft !== null && item.daysLeft !== ""
+            ? Number(item.daysLeft)
+            : ((item as any).validTo ? (() => {
+                const end = new Date((item as any).validTo).getTime();
+                const diff = Math.ceil((end - Date.now()) / (1000 * 60 * 60 * 24));
+                return !Number.isNaN(diff) ? diff : null;
+              })() : null),
         distanceKm: item.distanceKm,
         shopLogo: item.shopLogo || item.logo_url,
         description: `${item.offerName || item.title} from ${item.shopName || item.shop_name}`,

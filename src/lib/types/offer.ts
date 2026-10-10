@@ -35,7 +35,7 @@ export interface Offer {
     postedAt?: number | string;
     numberOfPosters?: number;
     totalPosters?: number;
-    daysLeft?: number | null;
+    daysLeft?: number | string | null;
     distanceKm?: number | null;
     shopLogo?: string | null;
     branches?: {

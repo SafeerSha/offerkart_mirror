@@ -4,7 +4,7 @@ import { DistanceBadge } from "@/components/shared/DistanceControl";
 import { useState, useEffect } from "react";
 import Image, { StaticImageData } from "next/image";
 import { useRouter } from "next/navigation";
-import { ShoppingCart, Star, Heart, IndianRupee, ShoppingBag, ArrowRight } from "lucide-react";
+import { ShoppingCart, Star, Heart, IndianRupee, ShoppingBag, ArrowRight, Clock } from "lucide-react";
 import { PremiumCard } from "@/components/shared/PremiumCard";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -39,6 +39,8 @@ interface ProductCardProps {
     reviews?: number;
     discount?: string;
     savingPercentage?: number;
+    daysLeft?: number | string | null;
+    validTo?: string | null;
     clickEnable?: boolean;
     [key: string]: any;
 }
@@ -64,6 +66,8 @@ const ProductCard = ({
     reviews = 0,
     discount,
     savingPercentage,
+    daysLeft,
+    validTo,
     distanceKm,
     kilometer,
     distance,
@@ -129,6 +133,37 @@ const ProductCard = ({
             ? Math.round(((resolvedOriginalPrice - resolvedPrice) / resolvedOriginalPrice) * 100)
             : 0);
 
+    // Safely parse daysLeft (number, string, or fallback calculation from validTo)
+    const rawDaysLeft = daysLeft ?? (rest as any).days_left ?? (rest as any).daysLeft;
+    const parsedDaysLeft: number | null = (() => {
+        if (rawDaysLeft !== undefined && rawDaysLeft !== null && rawDaysLeft !== "") {
+            const num = Number(rawDaysLeft);
+            if (!Number.isNaN(num)) return num;
+        }
+        const validToStr = validTo || (rest as any).valid_to || (rest as any).validTo;
+        if (validToStr) {
+            const end = new Date(validToStr).getTime();
+            const now = Date.now();
+            const diffDays = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+            if (!Number.isNaN(diffDays)) return diffDays;
+        }
+        return null;
+    })();
+
+    const isUrgent = parsedDaysLeft !== null && parsedDaysLeft <= 3;
+    const isExpiringSoon = parsedDaysLeft !== null && parsedDaysLeft > 3 && parsedDaysLeft <= 7;
+
+    const getDaysLeftText = () => {
+        if (parsedDaysLeft === null) return null;
+        if (parsedDaysLeft <= 0) return t("catalog.endsToday") || "Ends today";
+        if (parsedDaysLeft === 1) return t("catalog.dayLeft") || "1 day left";
+        const template = t("catalog.daysLeft");
+        return template && template.includes("{count}")
+            ? template.replace("{count}", String(parsedDaysLeft))
+            : `${parsedDaysLeft} days left`;
+    };
+    const daysLeftText = getDaysLeftText();
+
     return (
         <PremiumCard
             data-navigate-card={clickEnable ? "true" : undefined}
@@ -176,16 +211,37 @@ const ProductCard = ({
 
                 {/* Top Actions/Badges */}
                 <div className="absolute top-1.5 left-1.5 right-1.5 flex justify-between items-start pointer-events-none z-30">
-                    <div className="flex flex-col gap-1 items-start">
+                    <div className="flex items-center gap-1 flex-wrap max-w-[calc(100%-2.25rem)]">
                         {displaySaving > 0 ? (
-                            <span className="px-1.5 py-0.5 rounded-full text-[8px] sm:text-[9px] font-bold bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm inline-flex items-center tracking-tight whitespace-nowrap shrink-0">
-                                <span>SAVE {displaySaving}%</span>
+                            <span className="h-4 px-1.5 rounded-full text-[8px] font-bold bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm inline-flex items-center tracking-tight whitespace-nowrap shrink-0 border border-transparent leading-none box-border">
+                                <span className="leading-none">Save {displaySaving}%</span>
                             </span>
                         ) : discount ? (
-                            <span className="px-1.5 py-0.5 rounded-full text-[8px] sm:text-[9px] font-bold bg-orange-500 text-white shadow-sm inline-flex items-center tracking-tight whitespace-nowrap shrink-0">
-                                <span>{discount.toUpperCase().startsWith("SAVE") ? discount : `SAVE ${discount.replace(/%$/, "")}%`}</span>
+                            <span className="h-4 px-1.5 rounded-full text-[8px] font-bold bg-orange-500 text-white shadow-sm inline-flex items-center tracking-tight whitespace-nowrap shrink-0 border border-transparent leading-none box-border">
+                                <span className="leading-none">{discount.toLowerCase().startsWith("save") ? `Save ${discount.replace(/^save\s*/i, "")}` : `Save ${discount.replace(/%$/, "")}%`}</span>
                             </span>
                         ) : null}
+
+                        {daysLeftText && (
+                            <span
+                                className={cn(
+                                    "h-4 px-1.5 rounded-full text-[8px] font-bold shadow-sm inline-flex items-center gap-0.5 tracking-tight whitespace-nowrap shrink-0 backdrop-blur-md border leading-none box-border transition-all",
+                                    isUrgent
+                                        ? "bg-rose-600/90 text-white border-rose-400/40"
+                                        : isExpiringSoon
+                                        ? "bg-amber-500/90 text-white border-amber-300/40"
+                                        : "bg-slate-900/80 dark:bg-black/80 text-white border-white/20"
+                                )}
+                            >
+                                <Clock
+                                    className={cn(
+                                        "w-2 h-2 sm:w-2.5 sm:h-2.5 shrink-0",
+                                        isUrgent ? "animate-pulse" : isExpiringSoon ? "text-amber-100" : "text-orange-400"
+                                    )}
+                                />
+                                <span className="leading-none">{daysLeftText}</span>
+                            </span>
+                        )}
                     </div>
 
                     <button
