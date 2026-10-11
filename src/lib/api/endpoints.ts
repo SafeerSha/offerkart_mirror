@@ -1,6 +1,6 @@
 export const ENDPOINTS = {
     USER: {
-        PROFILE: `user/profile`,
+        PROFILE: `auth/user/profile`,
     },
     AUTH: {
         REGISTER: `auth/register`,
@@ -8,6 +8,13 @@ export const ENDPOINTS = {
         RESEND_EMAIL_OTP: `auth/resend-email-otp`,
         VERIFY_EMAIL_OTP: `auth/verify-email-otp`,
         USER: `auth/user`,
+        USER_PROFILE: `auth/user/profile`,
+        CONTACT_CHANGE: {
+            REQUEST_CURRENT_OTP: `auth/user/contact-change/request-current-otp`,
+            VERIFY_CURRENT_OTP: `auth/user/contact-change/verify-current-otp`,
+            REQUEST_NEW_OTP: `auth/user/contact-change/request-new-otp`,
+            VERIFY_NEW_OTP: `auth/user/contact-change/verify-new-otp`,
+        },
         CHANGE_PASSWORD: `auth/change-password`,
         FORGOT_PASSWORD: `auth/forgot-password`,
         VERIFY_RESET_OTP: `auth/verify-reset-otp`,

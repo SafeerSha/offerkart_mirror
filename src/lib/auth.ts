@@ -67,8 +67,16 @@ export const authOptions: NextAuthOptions = {
                     token.shopId = (user as any).shopId;
                 }
             }
-            if (trigger === "update" && session?.shopId) {
-                token.shopId = session.shopId;
+            if (trigger === "update" && session) {
+                if (session.shopId) {
+                    token.shopId = session.shopId;
+                }
+                if (session.user) {
+                    token.user = {
+                        ...(token.user as Record<string, unknown> || {}),
+                        ...(session.user as Record<string, unknown>),
+                    };
+                }
             }
             return token;
         },

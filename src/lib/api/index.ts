@@ -7,5 +7,13 @@ export { s3Api } from './s3';
 export { createOffer, updateOffer } from './offers';
 export { getCategories, getSubCategories } from './categories';
 export { getOfferProductById, createOfferProduct, updateOfferProduct } from './offerproduct';
-export { getUserProfile, changePasswordApi } from './user';
+export { 
+    getUserProfile, 
+    changePasswordApi, 
+    updateBasicProfileApi,
+    requestCurrentContactOtpApi,
+    verifyCurrentContactOtpApi,
+    requestNewContactOtpApi,
+    verifyNewContactOtpApi
+} from './user';
 export { getUserShopDetails, getUserOfferSocialLinks, getUserOffersList } from './userOffersService';

@@ -234,7 +234,6 @@ export default function ShopDetailsPage({ params }: { params: Promise<{ id: stri
 
                                     return urls.map((url: string, i: number) => {
                                         const href = url.startsWith("http://") || url.startsWith("https://") ? url : `https://${url}`;
-                                        const displayUrl = url.replace(/^https?:\/\//i, "").replace(/\/$/, "");
                                         return (
                                             <a
                                                 key={i}
@@ -245,7 +244,7 @@ export default function ShopDetailsPage({ params }: { params: Promise<{ id: stri
                                                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-500 text-white rounded-full text-sm font-medium hover:bg-[#334155] transition-colors shadow-sm"
                                             >
                                                 <Globe className="w-4 h-4 shrink-0" />
-                                                <span className="truncate max-w-[200px]">{displayUrl}</span>
+                                                <span>Go to Website</span>
                                                 <ExternalLink className="w-3.5 h-3.5 opacity-80 shrink-0" />
                                             </a>
                                         );
