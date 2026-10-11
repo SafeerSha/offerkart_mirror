@@ -27,3 +27,44 @@ export async function changePasswordApi(data: ChangePasswordRequest) {
         new_password: data.new_password,
     });
 }
+
+/**
+ * Update user basic profile information (full_name, business_name)
+ * Corresponds to: PATCH https://offersnearu.vercel.app/api/auth/user/profile
+ */
+export async function updateBasicProfileApi(data: { full_name: string; business_name?: string }) {
+    return await backend.patch(ENDPOINTS.AUTH.USER_PROFILE, data);
+}
+
+/**
+ * Step 1: Request OTP on current registered contact
+ * Corresponds to: GET https://offersnearu.vercel.app/api/auth/user/contact-change/request-current-otp
+ */
+export async function requestCurrentContactOtpApi() {
+    return await backend.get(ENDPOINTS.AUTH.CONTACT_CHANGE.REQUEST_CURRENT_OTP);
+}
+
+/**
+ * Step 2: Verify OTP for current contact
+ * Corresponds to: POST https://offersnearu.vercel.app/api/auth/user/contact-change/verify-current-otp
+ */
+export async function verifyCurrentContactOtpApi(data: { otp: string }) {
+    return await backend.post(ENDPOINTS.AUTH.CONTACT_CHANGE.VERIFY_CURRENT_OTP, data);
+}
+
+/**
+ * Step 3: Request OTP for new contact (EMAIL or PHONE)
+ * Corresponds to: POST https://offersnearu.vercel.app/api/auth/user/contact-change/request-new-otp
+ */
+export async function requestNewContactOtpApi(data: { type: "EMAIL" | "PHONE"; newValue: string }) {
+    return await backend.post(ENDPOINTS.AUTH.CONTACT_CHANGE.REQUEST_NEW_OTP, data);
+}
+
+/**
+ * Step 4: Verify OTP for new contact & finalize change
+ * Corresponds to: POST https://offersnearu.vercel.app/api/auth/user/contact-change/verify-new-otp
+ */
+export async function verifyNewContactOtpApi(data: { type: "EMAIL" | "PHONE"; otp: string }) {
+    return await backend.post(ENDPOINTS.AUTH.CONTACT_CHANGE.VERIFY_NEW_OTP, data);
+}
+

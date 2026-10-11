@@ -4,8 +4,29 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { backend } from "@/lib/api/backendClient";
 import { ENDPOINTS } from "@/lib/api/endpoints";
-import { getUserProfile, changePasswordApi } from "@/lib/api/user";
-import { UserProfileFormData, UserProfileSchema, UserProfileResponse, PasswordChangeFormData, PasswordChangeSchema } from "@/lib/types/profile";
+import { revalidatePath, revalidateTag } from "next/cache";
+import { 
+    getUserProfile, 
+    changePasswordApi, 
+    updateBasicProfileApi,
+    requestCurrentContactOtpApi,
+    verifyCurrentContactOtpApi,
+    requestNewContactOtpApi,
+    verifyNewContactOtpApi
+} from "@/lib/api/user";
+import { 
+    BasicProfileFormData, 
+    BasicProfileSchema, 
+    UserProfileResponse, 
+    PasswordChangeFormData, 
+    PasswordChangeSchema,
+    VerifyCurrentOtpFormData,
+    VerifyCurrentOtpSchema,
+    RequestNewContactOtpFormData,
+    RequestNewContactOtpSchema,
+    VerifyNewContactOtpFormData,
+    VerifyNewContactOtpSchema
+} from "@/lib/types/profile";
 
 export async function getProfile() {
     try {
@@ -45,7 +66,11 @@ export async function getProfile() {
     }
 }
 
-export async function updateProfile(data: UserProfileFormData) {
+/**
+ * Updates basic user profile details (full_name, business_name)
+ * Directly calls PATCH /api/auth/user/profile
+ */
+export async function updateProfile(data: { full_name: string; business_name?: string }) {
     try {
         const session = await getServerSession(authOptions);
         
@@ -53,23 +78,142 @@ export async function updateProfile(data: UserProfileFormData) {
             return { success: false, error: "Unauthorized" };
         }
 
-        const validation = UserProfileSchema.safeParse(data);
+        const validation = BasicProfileSchema.safeParse(data);
         if (!validation.success) {
-            return { success: false, error: "Invalid data provided" };
+            const firstError = validation.error.issues[0]?.message || "Invalid data provided";
+            return { success: false, error: firstError };
         }
 
-        const res = await backend.put(ENDPOINTS.USER.PROFILE, validation.data);
+        const res = await updateBasicProfileApi({
+            full_name: validation.data.full_name,
+            business_name: validation.data.business_name || "",
+        });
 
-        // If backend is not ready, we will just mock a success response to allow UI testing
-        if (!res.success && res.error?.includes("404")) {
-            console.warn("Backend endpoint not found, mocking success response for updateProfile.");
-            return { success: true, message: "Profile updated successfully (Mock)" };
+        if (res.success) {
+            try {
+                revalidateTag("user-profile", "max");
+                revalidatePath("/profile");
+            } catch (err) {
+                // Revalidation errors shouldn't fail the request
+                console.warn("Tag revalidation warning:", err);
+            }
+            return { 
+                success: true, 
+                message: (res.data as Record<string, unknown>)?.message as string || "Profile updated successfully!",
+                data: res.data 
+            };
+        }
+
+        return { 
+            success: false, 
+            error: res.error || "Failed to update profile." 
+        };
+    } catch (error) {
+        console.error("Error in updateProfile action:", error);
+        return { success: false, error: "An unexpected error occurred while updating profile" };
+    }
+}
+
+/**
+ * Contact Change Step 1: Request OTP on current registered contact
+ */
+export async function requestCurrentContactOtp() {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return { success: false, error: "Unauthorized" };
+        }
+
+        const res = await requestCurrentContactOtpApi();
+        return res;
+    } catch (error) {
+        console.error("Error in requestCurrentContactOtp action:", error);
+        return { success: false, error: "Failed to request verification code" };
+    }
+}
+
+/**
+ * Contact Change Step 2: Verify OTP for current contact
+ */
+export async function verifyCurrentContactOtp(data: VerifyCurrentOtpFormData) {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return { success: false, error: "Unauthorized" };
+        }
+
+        const validation = VerifyCurrentOtpSchema.safeParse(data);
+        if (!validation.success) {
+            return { success: false, error: validation.error.issues[0]?.message || "Invalid OTP code" };
+        }
+
+        const res = await verifyCurrentContactOtpApi({ otp: validation.data.otp });
+        return res;
+    } catch (error) {
+        console.error("Error in verifyCurrentContactOtp action:", error);
+        return { success: false, error: "Failed to verify verification code" };
+    }
+}
+
+/**
+ * Contact Change Step 3: Request OTP for new contact (EMAIL or PHONE)
+ */
+export async function requestNewContactOtp(data: RequestNewContactOtpFormData) {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return { success: false, error: "Unauthorized" };
+        }
+
+        const validation = RequestNewContactOtpSchema.safeParse(data);
+        if (!validation.success) {
+            return { success: false, error: validation.error.issues[0]?.message || "Invalid contact input" };
+        }
+
+        const res = await requestNewContactOtpApi({
+            type: validation.data.type,
+            newValue: validation.data.newValue,
+        });
+        return res;
+    } catch (error) {
+        console.error("Error in requestNewContactOtp action:", error);
+        return { success: false, error: "Failed to request code for new contact" };
+    }
+}
+
+/**
+ * Contact Change Step 4: Verify OTP for new contact & finalize change
+ */
+export async function verifyNewContactOtp(data: VerifyNewContactOtpFormData) {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return { success: false, error: "Unauthorized" };
+        }
+
+        const validation = VerifyNewContactOtpSchema.safeParse(data);
+        if (!validation.success) {
+            return { success: false, error: validation.error.issues[0]?.message || "Invalid OTP code" };
+        }
+
+        const res = await verifyNewContactOtpApi({
+            type: validation.data.type,
+            otp: validation.data.otp,
+        });
+
+        if (res.success) {
+            try {
+                revalidateTag("user-profile", "max");
+                revalidatePath("/profile");
+            } catch (err) {
+                console.warn("Tag revalidation warning:", err);
+            }
         }
 
         return res;
     } catch (error) {
-        console.error("Error in updateProfile action:", error);
-        return { success: false, error: "An unexpected error occurred" };
+        console.error("Error in verifyNewContactOtp action:", error);
+        return { success: false, error: "Failed to finalize contact update" };
     }
 }
 

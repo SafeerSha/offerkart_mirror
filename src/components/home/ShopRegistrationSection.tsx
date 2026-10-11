@@ -129,11 +129,11 @@ export default function ShopRegistrationSection() {
                                 {/* Card Header */}
                                 <div className="flex items-center justify-between gap-2 mb-4 pb-3.5 border-b border-gray-100 dark:border-white/5">
                                     <div>
-                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 text-[11px] font-semibold mb-1">
+                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 text-[10px] sm:text-[11px] font-semibold mb-1">
                                             <Headphones className="w-3 h-3" />
                                             <span>Official Platform Support</span>
                                         </div>
-                                        <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white leading-snug">
+                                        <h3 className="text-[15px] sm:text-lg font-bold text-gray-900 dark:text-white leading-snug">
                                             Need Assistance Launching?
                                         </h3>
                                     </div>
@@ -160,11 +160,11 @@ export default function ShopRegistrationSection() {
                                             <div className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                                                 Phone Hotline
                                             </div>
-                                            <div className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white truncate">
+                                            <div className="text-[11px] sm:text-sm font-bold text-gray-900 dark:text-white truncate">
                                                 {OFFICIAL_PLATFORM_CONTACT.formattedPhone}
                                             </div>
                                         </div>
-                                        <div className="pt-2 mt-2 border-t border-gray-100 dark:border-white/5 flex items-center justify-between text-[11px] font-semibold text-orange-600 dark:text-orange-400">
+                                        <div className="pt-2 mt-2 border-t border-gray-100 dark:border-white/5 flex items-center justify-between text-[10px] sm:text-[11px] font-semibold text-orange-600 dark:text-orange-400">
                                             <span>Call Hotline</span>
                                             <MoveRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
                                         </div>
@@ -184,11 +184,11 @@ export default function ShopRegistrationSection() {
                                             <div className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                                                 Official Email
                                             </div>
-                                            <div className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white truncate">
+                                            <div className="text-[11px] sm:text-sm font-bold text-gray-900 dark:text-white break-all">
                                                 {OFFICIAL_PLATFORM_CONTACT.supportEmail}
                                             </div>
                                         </div>
-                                        <div className="pt-2 mt-2 border-t border-gray-100 dark:border-white/5 flex items-center justify-between text-[11px] font-semibold text-blue-600 dark:text-blue-400">
+                                        <div className="pt-2 mt-2 border-t border-gray-100 dark:border-white/5 flex items-center justify-between text-[10px] sm:text-[11px] font-semibold text-blue-600 dark:text-blue-400">
                                             <span>Email Desk</span>
                                             <MoveRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
                                         </div>
@@ -210,11 +210,11 @@ export default function ShopRegistrationSection() {
                                             <div className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                                                 WhatsApp Chat
                                             </div>
-                                            <div className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white truncate">
+                                            <div className="text-[11px] sm:text-sm font-bold text-gray-900 dark:text-white truncate">
                                                 Instant Messaging
                                             </div>
                                         </div>
-                                        <div className="pt-2 mt-2 border-t border-gray-100 dark:border-white/5 flex items-center justify-between text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                                        <div className="pt-2 mt-2 border-t border-gray-100 dark:border-white/5 flex items-center justify-between text-[10px] sm:text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
                                             <span>WhatsApp Chat</span>
                                             <MoveRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
                                         </div>
@@ -234,11 +234,11 @@ export default function ShopRegistrationSection() {
                                             <div className="text-[10px] font-semibold text-orange-600 dark:text-orange-400 uppercase tracking-wide">
                                                 Support Desk
                                             </div>
-                                            <div className="text-xs sm:text-sm font-bold text-gray-900 dark:text-white truncate">
+                                            <div className="text-[11px] sm:text-sm font-bold text-gray-900 dark:text-white truncate">
                                                 Inquiry Form
                                             </div>
                                         </div>
-                                        <div className="pt-2 mt-2 border-t border-orange-500/20 flex items-center justify-between text-[11px] font-bold text-orange-600 dark:text-orange-400">
+                                        <div className="pt-2 mt-2 border-t border-orange-500/20 flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-orange-600 dark:text-orange-400">
                                             <span>Open Contact Desk</span>
                                             <MoveRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
                                         </div>
@@ -246,7 +246,7 @@ export default function ShopRegistrationSection() {
                                 </div>
 
                                 {/* Compact Card Footer */}
-                                <div className="mt-3.5 pt-3 border-t border-gray-100 dark:border-white/5 flex items-center justify-between gap-2 text-[11px] text-gray-500 dark:text-gray-400">
+                                <div className="mt-3.5 pt-3 border-t border-gray-100 dark:border-white/5 flex items-center justify-between gap-2 text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-400">
                                     <div className="flex items-center gap-1 truncate">
                                         <Clock className="w-3 h-3 text-orange-500 shrink-0" />
                                         <span className="truncate">{OFFICIAL_PLATFORM_CONTACT.hours}</span>
