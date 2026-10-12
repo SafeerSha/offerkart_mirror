@@ -771,12 +771,16 @@ const Header = () => {
                 {/* Visual Background Layer */}
                 <div
                     className={cn(
-                        "absolute left-1/2 -translate-x-1/2 transition-all duration-300 ease-out transform-gpu origin-top pointer-events-none",
-                        scrolled
-                            ? (scrolled && !islandExpanded)
-                                ? "top-4 w-[min(520px,calc(100vw-1.5rem))] h-12 rounded-full border shadow-xl bg-background/55 backdrop-blur-xl backdrop-saturate-150 border-border/50"
-                                : "top-0 w-full h-full rounded-none border-transparent glass-header shadow-md"
-                            : "top-0 w-full h-full rounded-none border-transparent bg-transparent shadow-none"
+                        "absolute top-0 w-full transition-all duration-300 ease-out transform-gpu origin-top pointer-events-none",
+                        pathname === "/"
+                            ? scrolled
+                                ? "left-0 right-0 h-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-md shadow-sm border-b border-slate-200/80 dark:border-slate-800"
+                                : "left-0 right-0 h-full bg-transparent border-b border-transparent shadow-none"
+                            : scrolled
+                                ? (scrolled && !islandExpanded)
+                                    ? "left-1/2 -translate-x-1/2 top-4 w-[min(520px,calc(100vw-1.5rem))] h-12 rounded-full border shadow-xl bg-background/55 backdrop-blur-xl backdrop-saturate-150 border-border/50"
+                                    : "left-0 right-0 h-full rounded-none border-transparent glass-header shadow-md"
+                                : "left-0 right-0 h-full rounded-none border-transparent bg-transparent shadow-none"
                     )}
                 />
 
@@ -785,9 +789,11 @@ const Header = () => {
                     {/* Full Header Content */}
                     <div className={cn(
                         "transition-all duration-150 ease-out origin-top py-2.5 lg:py-4",
-                        (scrolled && !islandExpanded)
-                            ? "opacity-0 pointer-events-none absolute inset-x-0 top-0 scale-[0.95] translate-y-2"
-                            : "opacity-100 scale-100 relative translate-y-0"
+                        pathname === "/"
+                            ? "opacity-100 scale-100 relative translate-y-0"
+                            : (scrolled && !islandExpanded)
+                                ? "opacity-0 pointer-events-none absolute inset-x-0 top-0 scale-[0.95] translate-y-2"
+                                : "opacity-100 scale-100 relative translate-y-0"
                     )}>
                         <div className="container mx-auto px-4 relative">
                             <div className="flex items-center justify-between gap-4">
@@ -986,7 +992,10 @@ const Header = () => {
 
                             {/* Desktop Search Bar (Hidden on pages with dedicated search toolbar like Favorites) */}
                             {!pathname.startsWith("/favorites") && (
-                                <div className="mt-4 flex justify-end hidden lg:flex"
+                                <div className={cn(
+                                    "mt-4 flex justify-end hidden lg:flex transition-all duration-300",
+                                    pathname === "/" && !scrolled && "lg:opacity-0 lg:pointer-events-none lg:h-0 lg:mt-0 lg:overflow-hidden"
+                                )}
                                     onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setSearchOpen(false); }}
                                     onKeyDown={(event) => { if (event.key === "Escape") { setSearchQuery(""); setSearchOpen(false); } }}
                                 >
@@ -1376,12 +1385,13 @@ const Header = () => {
                     </div>
 
                     {/* Compact Dynamic Island Content */}
-                    <div className={cn(
-                        "transition-all duration-150 ease-out origin-top max-w-[min(520px,calc(100vw-1.5rem))] mx-auto pt-4",
-                        (scrolled && !islandExpanded)
-                            ? "opacity-100 scale-100 relative translate-y-0"
-                            : "opacity-0 pointer-events-none absolute inset-x-0 top-0 scale-[0.95] -translate-y-2"
-                    )}>
+                    {pathname !== "/" && (
+                        <div className={cn(
+                            "transition-all duration-150 ease-out origin-top max-w-[min(520px,calc(100vw-1.5rem))] mx-auto pt-4",
+                            (scrolled && !islandExpanded)
+                                ? "opacity-100 scale-100 relative translate-y-0"
+                                : "opacity-0 pointer-events-none absolute inset-x-0 top-0 scale-[0.95] -translate-y-2"
+                        )}>
                         <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 px-4 text-foreground h-12">
                             <div className="flex items-center justify-start min-w-0">
                                 <Image src="/logo_only.png" alt="Logo" width={28} height={28} className="h-6 sm:h-7 w-auto object-contain" />
@@ -1409,6 +1419,7 @@ const Header = () => {
                             </div>
                         </div>
                     </div>
+                )}
                 </div>
             </div>
 

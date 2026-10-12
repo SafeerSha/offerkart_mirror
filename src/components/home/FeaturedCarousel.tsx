@@ -287,6 +287,9 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
               onMouseEnter={() => setIsAutoPlaying(false)}
               onMouseLeave={() => setIsAutoPlaying(true)}
             >
+              {/* Soft Ambient Backlight Stage */}
+              <div className="absolute inset-x-16 top-8 bottom-6 bg-gradient-to-r from-orange-500/10 via-amber-500/15 to-orange-500/10 rounded-[3rem] blur-3xl pointer-events-none -z-10" />
+
               <div className="absolute inset-0 flex items-center justify-center">
                 {displayOffers.map((offer: FeaturedOffer, idx: number) => {
                   const diff = getOfferOffset(idx);
