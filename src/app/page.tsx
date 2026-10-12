@@ -1,3 +1,4 @@
+import HeroSection from "@/components/home/HeroSection";
 import FeaturedCarousel from "@/components/home/FeaturedCarousel";
 import FeaturedShops from "@/components/home/FeaturedShops";
 import FilterableOffers from "@/components/home/FilterableOffers";
@@ -31,19 +32,20 @@ export default async function HomePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Spacer for Fixed Header */}
-      <div className="h-40 lg:h-28" />
+      {/* Production-Grade Hero Section with Docked Flyer Showcase */}
+      <HeroSection>
+        <FeaturedCarousel offers={featuredOffers} />
+      </HeroSection>
 
-      {/* Featured Offers Carousel */}
-      <FeaturedCarousel offers={featuredOffers} />
+      {/* Featured Shops (Social Proof / Brand Logos) */}
+      <section className="py-6 md:py-8 bg-slate-50/70 dark:bg-slate-900/40 border-b border-slate-100 dark:border-slate-850">
+        <Suspense fallback={<div className="container mx-auto px-4 py-4 h-20 animate-pulse bg-slate-100 dark:bg-slate-800 rounded-2xl" />}>
+          <FeaturedShops shops={featuredShops} />
+        </Suspense>
+      </section>
 
-      {/* Featured Shops */}
-      <Suspense fallback={<div className="container mx-auto px-4 py-8 h-20 animate-pulse bg-slate-50 rounded-2xl" />}>
-        <FeaturedShops shops={featuredShops} />
-      </Suspense>
-
-      {/* Offers Section */}
-      <section className="py-4 md:py-7">
+      {/* Latest Offers Section */}
+      <section className="py-8 md:py-12">
         <div className="container mx-auto px-4">
           <FilterableOffers
             initialOffers={allOffers}
@@ -53,10 +55,9 @@ export default async function HomePage() {
       </section>
 
       {/* Featured Products */}
-      <FeaturedProducts products={allProducts || []} />
-
-      {/* Shop Registration Section */}
-      <ShopRegistrationSection />
+      <section className="py-8 md:py-12 bg-slate-50/50 dark:bg-slate-900/30 border-y border-slate-100 dark:border-slate-850">
+        <FeaturedProducts products={allProducts || []} />
+      </section>
 
       {/* Premium Choice Section */}
       <section className="py-16 md:py-20 relative overflow-hidden bg-white">
@@ -134,6 +135,9 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Shop Registration Section (B2B Merchant Growth Banner) */}
+      <ShopRegistrationSection />
     </div>
   );
 }
