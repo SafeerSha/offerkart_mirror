@@ -6,6 +6,7 @@ import FeaturedProducts from "@/components/home/FeaturedProducts";
 import ShopRegistrationSection from "@/components/home/ShopRegistrationSection";
 import { getFeaturedShops, getFeaturedOffers, getPaginatedOffers } from "@/lib/api/offers";
 import { getAllProducts } from "@/lib/api/products";
+import { getIndustries } from "@/lib/api/industry";
 import { CACHE_TAGS } from "@/lib/api/cache-tags";
 import { Store, Ticket, MapPin, Award } from "lucide-react";
 import { Heading, Subheading, Text } from "@/components/shared/Typography";
@@ -17,23 +18,25 @@ export const dynamic = "force-static";
 export const revalidate = false;
 
 export default async function HomePage() {
-  const [featuredOffersRes, featuredShopsRes, allOffersRes, allProducts] = await Promise.all([
+  const [featuredOffersRes, featuredShopsRes, allOffersRes, allProducts, industriesRes] = await Promise.all([
     getFeaturedOffers(),
     getFeaturedShops(),
     getPaginatedOffers(1, 12, {}, { next: { tags: [CACHE_TAGS.HOME, CACHE_TAGS.OFFERS] } }),
     getAllProducts(undefined, { next: { tags: [CACHE_TAGS.PRODUCTS] } }),
+    getIndustries(),
   ]);
 
   const featuredOffers = featuredOffersRes.success ? (featuredOffersRes.data || []) : [];
   const featuredShops = featuredShopsRes.success ? (featuredShopsRes.data || []) : [];
   const allOffers = allOffersRes.success ? allOffersRes.data : [];
+  const initialIndustries = industriesRes?.success && Array.isArray(industriesRes.data) ? industriesRes.data : [];
 
   const { t } = await getTranslations("home");
 
   return (
     <div className="min-h-screen bg-background">
       {/* Production-Grade Hero Section with Docked Flyer Showcase */}
-      <HeroSection>
+      <HeroSection initialIndustries={initialIndustries}>
         <FeaturedCarousel offers={featuredOffers} />
       </HeroSection>
 
