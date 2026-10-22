@@ -345,7 +345,7 @@ function DashboardContent() {
 
     if (
         sessionStatus === "loading" ||
-        (sessionStatus === "authenticated" && (isLoadingShops || (shopsResponse && !shopsResponse.success)))
+        (sessionStatus === "authenticated" && isLoadingShops)
     ) {
         return <DashboardSkeleton />;
     }
