@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Search, User, LogIn, Menu, X, PlusCircle, MapPin, ChevronDown, LayoutDashboard, Plus, Loader2, Home, Percent, ShoppingBag, Locate, Package, Tag, ArrowRight, Heart, Clapperboard } from "lucide-react";
+import { Search, User, LogIn, LogOut, Menu, X, PlusCircle, MapPin, ChevronDown, LayoutDashboard, Plus, Loader2, Home, Percent, ShoppingBag, Locate, Package, Tag, ArrowRight, Heart, Clapperboard } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSession, signIn, signOut } from "next-auth/react";
@@ -13,6 +13,14 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
     Tooltip,
     TooltipContent,
@@ -461,7 +469,7 @@ const Header = () => {
 
     const isBusinessUser = isRegistered && Boolean(user?.business_name || (user as any)?.role === 2);
     const { data: shopsResponse } = useMyShops({
-        enabled: isRegistered && isBusinessUser,
+        enabled: isRegistered,
     });
 
     const myShops = useMemo(() => {
@@ -486,6 +494,16 @@ const Header = () => {
                 description: "Please log in to view your favorites.",
             });
             router.push("/login");
+        }
+    };
+
+    const handleLogout = async () => {
+        try {
+            setIsLoggingOut(true);
+            await signOut({ callbackUrl: "/" });
+        } catch (error) {
+            console.error("Logout error:", error);
+            setIsLoggingOut(false);
         }
     };
     const headerRef = useRef<HTMLElement | null>(null);
@@ -664,22 +682,15 @@ const Header = () => {
                                     </Link>
 
                                     <Link
-                                        href={user?.business_name ? (hasShop ? "/shop-manager" : "/shop-manager/add-shop") : "/shop-registration"}
+                                        href="/shop-manager"
                                         onClick={() => setMobileMenuOpen(false)}
                                         className="flex flex-col items-center justify-center gap-1 py-3 px-1 hover:bg-orange-500/10 transition-all duration-300 text-orange-600 dark:text-orange-500"
                                     >
-                                        {user?.business_name ? (
-                                            hasShop ? (
-                                                <>
-                                                    <LayoutDashboard className="w-5 h-5 text-orange-500" />
-                                                    <span className="text-[10px] sm:text-xs font-bold text-center leading-tight">Shop</span>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <PlusCircle className="w-5 h-5 text-orange-500" />
-                                                    <span className="text-[10px] sm:text-xs font-bold text-center leading-tight">Create Shop</span>
-                                                </>
-                                            )
+                                        {hasShop ? (
+                                            <>
+                                                <LayoutDashboard className="w-5 h-5 text-orange-500" />
+                                                <span className="text-[10px] sm:text-xs font-bold text-center leading-tight">Shop</span>
+                                            </>
                                         ) : (
                                             <>
                                                 <PlusCircle className="w-5 h-5 text-orange-500" />
@@ -689,10 +700,7 @@ const Header = () => {
                                     </Link>
 
                                     <button
-                                        onClick={() => {
-                                            setIsLoggingOut(true);
-                                            signOut({ callbackUrl: "/" });
-                                        }}
+                                        onClick={handleLogout}
                                         disabled={isLoggingOut}
                                         className="flex flex-col items-center justify-center gap-1 py-3 px-1 hover:bg-orange-500/10 transition-all duration-300 text-orange-600 dark:text-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
@@ -873,26 +881,72 @@ const Header = () => {
                                 {/* Right: Desktop Buttons or Mobile Toggle */}
                                 <div className="flex items-center gap-2 sm:gap-3">
                                     {isRegistered && (
-                                        <TooltipProvider delayDuration={300}>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <button
+                                                    type="button"
+                                                    className={cn(
+                                                        "hidden lg:flex px-3 py-1.5 rounded-full transition-all duration-200 items-center justify-center group cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-orange-500",
+                                                        pathname.startsWith("/profile")
+                                                            ? "text-orange-600 bg-orange-300/25 dark:bg-orange-300/25"
+                                                            : "text-orange-500 dark:text-orange-400 bg-orange-300/20 dark:bg-orange-300/20 hover:text-orange-600 hover:bg-orange-300/30"
+                                                    )}
+                                                    aria-label="User account menu"
+                                                >
+                                                    <User className="w-5 h-5 transition-transform group-hover:scale-110 duration-200" />
+                                                </button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent
+                                                align="end"
+                                                sideOffset={8}
+                                                className="w-56 p-2 rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800 shadow-xl shadow-slate-900/10 dark:shadow-black/40 z-50 animate-in fade-in-0 zoom-in-95 duration-150"
+                                            >
+                                                <DropdownMenuLabel className="p-2 font-normal">
+                                                    <div className="flex items-center gap-2.5">
+                                                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 text-white flex items-center justify-center text-xs font-bold uppercase shadow-sm shrink-0">
+                                                            {(user?.full_name || session?.user?.name || "U").charAt(0)}
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
+                                                                {user?.full_name || session?.user?.name || user?.business_name || "User"}
+                                                            </p>
+                                                            {session?.user?.email && (
+                                                                <p className="text-xs text-slate-500 dark:text-slate-400 truncate font-medium">
+                                                                    {session.user.email}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </DropdownMenuLabel>
+
+                                                <DropdownMenuSeparator className="my-1.5 bg-slate-100 dark:bg-slate-800" />
+
+                                                <DropdownMenuItem asChild>
                                                     <Link
                                                         href="/profile"
-                                                        className={cn(
-                                                            "hidden lg:flex px-3 py-1.5 rounded-full transition-all duration-200 items-center justify-center group",
-                                                            pathname === "/profile"
-                                                                ? "text-orange-600 bg-orange-300/20 dark:bg-orange-300/20"
-                                                                : "text-orange-500 dark:text-orange-400 bg-orange-300/20 dark:bg-orange-300/20 hover:text-orange-600"
-                                                        )}
+                                                        className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/30 transition-colors cursor-pointer w-full"
                                                     >
-                                                        <User className="w-5 h-5 transition-transform group-hover:scale-110 duration-200" />
+                                                        <User className="w-4 h-4 text-orange-500" />
+                                                        <span>View Profile</span>
                                                     </Link>
-                                                </TooltipTrigger>
-                                                <TooltipContent side="bottom" sideOffset={5}>
-                                                    My Profile
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
+                                                </DropdownMenuItem>
+
+                                                <DropdownMenuSeparator className="my-1.5 bg-slate-100 dark:bg-slate-800" />
+
+                                                <DropdownMenuItem
+                                                    onClick={handleLogout}
+                                                    disabled={isLoggingOut}
+                                                    className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-sm font-semibold text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer w-full focus:bg-red-50 focus:text-red-700"
+                                                >
+                                                    {isLoggingOut ? (
+                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                    ) : (
+                                                        <LogOut className="w-4 h-4" />
+                                                    )}
+                                                    <span>{isLoggingOut ? "Logging out..." : "Logout"}</span>
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
                                     )}
                                     <TooltipProvider delayDuration={300}>
                                         <Tooltip>
@@ -917,61 +971,54 @@ const Header = () => {
                                     </TooltipProvider>
                                     <div className="hidden lg:flex items-center gap-2 sm:gap-3">
                                         {!isRegistered ? (
-                                            <PremiumButton
-                                                variant="outline"
-                                                size="sm"
-                                                className="rounded-2xl px-3 sm:px-4 lg:px-6 border-primary/20 hover:bg-primary/5 transition-all duration-300"
-                                                onClick={() => signIn()}
-                                            >
-                                                <div className="flex items-center">
-                                                    <LogIn className="w-4 h-4 mr-2" />
-                                                    <span className="inline">Login</span>
-                                                </div>
-                                            </PremiumButton>
+                                            <>
+                                                <PremiumButton
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="rounded-2xl px-3 sm:px-4 lg:px-6 border-primary/20 hover:bg-primary/5 transition-all duration-300"
+                                                    onClick={() => signIn()}
+                                                >
+                                                    <div className="flex items-center">
+                                                        <LogIn className="w-4 h-4 mr-2" />
+                                                        <span className="inline">Login</span>
+                                                    </div>
+                                                </PremiumButton>
+
+                                                <PremiumButton
+                                                    asChild
+                                                    size="sm"
+                                                    className={cn(
+                                                        "rounded-2xl px-3 sm:px-4 lg:px-6 shadow-lg shadow-primary/20 transition-all duration-300",
+                                                        pathname.startsWith("/shop-registration") && "ring-2 ring-primary ring-offset-2 scale-105"
+                                                    )}
+                                                >
+                                                    <Link href="/shop-registration" className="flex items-center">
+                                                        <PlusCircle className="w-4 h-4 mr-2" />
+                                                        <span className="inline">Add your shop</span>
+                                                    </Link>
+                                                </PremiumButton>
+                                            </>
                                         ) : (
                                             <PremiumButton
                                                 asChild
                                                 size="sm"
                                                 className={cn(
                                                     "rounded-2xl px-3 sm:px-4 lg:px-6 shadow-lg shadow-primary/20 transition-all duration-300",
-                                                    (pathname.startsWith("/shop-manager") || pathname === "/profile") && "ring-2 ring-primary ring-offset-2 scale-95"
+                                                    pathname.startsWith("/shop-manager") && "ring-2 ring-primary ring-offset-2 scale-95"
                                                 )}
                                             >
-                                                {user?.business_name ? (
-                                                    hasShop ? (
-                                                        <Link href="/shop-manager" className="flex items-center">
+                                                <Link href="/shop-manager" className="flex items-center">
+                                                    {hasShop ? (
+                                                        <>
                                                             <LayoutDashboard className="w-4 h-4 mr-2" />
                                                             <span className="inline">Manage Shop</span>
-                                                        </Link>
+                                                        </>
                                                     ) : (
-                                                        <Link href="/shop-manager/add-shop" className="flex items-center">
+                                                        <>
                                                             <PlusCircle className="w-4 h-4 mr-2" />
-                                                            <span className="inline">Create Shop</span>
-                                                        </Link>
-                                                    )
-                                                ) : (
-                                                    <Link href="/profile" className="flex items-center">
-                                                        <User className="w-4 h-4 mr-2" />
-                                                        <span className="inline">
-                                                            {user?.full_name || "Profile"}
-                                                        </span>
-                                                    </Link>
-                                                )}
-                                            </PremiumButton>
-                                        )}
-
-                                        {(!isRegistered || !user?.business_name) && (
-                                            <PremiumButton
-                                                asChild
-                                                size="sm"
-                                                className={cn(
-                                                    "rounded-2xl px-3 sm:px-4 lg:px-6 shadow-lg shadow-primary/20 transition-all duration-300",
-                                                    pathname.startsWith("/shop-registration") && "ring-2 ring-primary ring-offset-2 scale-105"
-                                                )}
-                                            >
-                                                <Link href="/shop-registration" className="flex items-center">
-                                                    <PlusCircle className="w-4 h-4 mr-2" />
-                                                    <span className="inline">Add your shop</span>
+                                                            <span className="inline">Add your shop</span>
+                                                        </>
+                                                    )}
                                                 </Link>
                                             </PremiumButton>
                                         )}
@@ -1235,7 +1282,10 @@ const Header = () => {
                                 </div>
 
                                 {/* Classic Search Bar */}
-                                <div className="relative w-full group">
+                                <div className={cn(
+                                    "relative w-full group transition-all duration-300",
+                                    pathname === "/" && !scrolled && "opacity-0 pointer-events-none h-0 -mt-2 overflow-hidden"
+                                )}>
                                     <div className="absolute inset-0 bg-gradient-to-r from-orange-500/5 to-amber-500/5 rounded-xl blur-md opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 pointer-events-none" />
                                     <div className="relative flex items-center bg-white/50 dark:bg-black/20 border border-primary/10 group-focus-within:border-orange-500/30 group-focus-within:bg-white rounded-xl shadow-sm transition-all duration-300 overflow-hidden">
                                         <div className="pl-3 pr-2 py-2.5 flex items-center pointer-events-none">
