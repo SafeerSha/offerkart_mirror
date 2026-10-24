@@ -201,7 +201,7 @@ export default function HeroSection({ children, initialIndustries }: HeroSection
   return (
     <section
       aria-label="Hero discovery section"
-      className="relative isolate pt-36 sm:pt-38 lg:pt-32 pb-4 sm:pb-6 lg:pb-8 overflow-x-clip bg-[#faf5ee] dark:bg-slate-950 border-b border-orange-100/60 dark:border-slate-800/80"
+      className="relative isolate min-h-[calc(100dvh-4rem)] sm:min-h-[calc(100dvh-4.5rem)] lg:min-h-[calc(100dvh-4.5rem)] flex flex-col justify-between pt-24 sm:pt-28 lg:pt-24 pb-4 sm:pb-6 overflow-x-clip bg-[#faf5ee] dark:bg-slate-950 border-b border-orange-100/60 dark:border-slate-800/80"
     >
       {/* Hero Background Illustration */}
       <div
@@ -239,11 +239,11 @@ export default function HeroSection({ children, initialIndustries }: HeroSection
         className="absolute -top-32 left-1/2 -translate-x-1/2 w-[900px] h-[400px] bg-gradient-to-r from-orange-500/10 via-amber-400/10 to-rose-400/5 rounded-full blur-[120px] pointer-events-none z-0"
       />
 
-      <div className="relative z-10 container mx-auto px-4">
+      <div className="relative z-10 container mx-auto px-4 flex-1 flex flex-col justify-center">
         {/* Top Header & Value Proposition */}
         <div className={cn("max-w-4xl mx-auto lg:mr-auto lg:ml-0 xl:ml-4 lg:max-w-2xl xl:max-w-3xl text-center lg:text-left", children ? "mb-8 lg:mb-12" : "mb-0")}>
           {/* H1 Main Heading */}
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-slate-950 dark:text-white leading-[1.14] mb-4">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-slate-950 dark:text-white leading-[1.14] mb-3 sm:mb-4">
             Your Neighborhood <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 via-amber-500 to-orange-500">
               Your Savings
@@ -251,13 +251,13 @@ export default function HeroSection({ children, initialIndustries }: HeroSection
           </h1>
 
           {/* Subtitle */}
-          <p className="max-w-3xl mx-auto lg:mx-0 text-base sm:text-lg text-slate-700 dark:text-slate-300 font-medium leading-relaxed mb-7 sm:mb-9">
+          <p className="max-w-3xl mx-auto lg:mx-0 text-base sm:text-lg text-slate-700 dark:text-slate-300 font-medium leading-relaxed mb-6 sm:mb-7">
             Find supermarket offers, discount coupons, and great deals from shops near you.
           </p>
 
           {/* Hero Search Bar & Dropdown */}
           <div
-            className="max-w-2xl mx-auto lg:mx-0 relative mb-6 sm:mb-8 z-30"
+            className="max-w-2xl mx-auto lg:mx-0 relative mb-5 sm:mb-7 z-30"
             onBlur={(event) => {
               if (!event.currentTarget.contains(event.relatedTarget)) {
                 setSearchOpen(false);
@@ -492,8 +492,8 @@ export default function HeroSection({ children, initialIndustries }: HeroSection
           </div>
 
           {/* Quick Categories Bar */}
-          <div className="flex flex-col items-center lg:items-start gap-3">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+          <div className="flex flex-col items-center lg:items-start gap-2.5 sm:gap-3">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-950 dark:text-white">
               Popular Categories
             </span>
             <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2 sm:gap-2.5 max-w-3xl min-h-[42px]">
@@ -527,7 +527,7 @@ export default function HeroSection({ children, initialIndustries }: HeroSection
           </div>
 
           {/* Trust Metrics Pill */}
-          <div className="mt-7 pt-6 border-t border-orange-200/50 dark:border-slate-800/60 flex flex-wrap items-center justify-center lg:justify-start gap-6 sm:gap-10 text-xs font-semibold text-slate-700 dark:text-slate-300">
+          <div className="mt-6 pt-5 sm:mt-7 sm:pt-6 border-t border-orange-200/50 dark:border-slate-800/60 flex flex-wrap items-center justify-center lg:justify-start gap-6 sm:gap-10 text-xs font-semibold text-slate-700 dark:text-slate-300">
             <div className="flex items-center gap-2">
               <Store className="w-4 h-4 text-orange-500" />
               <span>Verified Shops</span>

@@ -248,38 +248,40 @@ export function PosterPreviewPanel({
                 )}
             </div>
 
-            {/* Thumbnail Navigation Strip */}
-            <div className="mt-1 shrink-0">
-                <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide px-1 py-2">
-                    {posters.map((p, i) => (
-                        <button
-                            key={p.id}
-                            onClick={() => !isPreparing && setCurrentIndex(i)}
-                            disabled={isPreparing}
-                            className={cn(
-                                "relative w-14 h-[70px] sm:w-16 sm:h-20 rounded-xl overflow-hidden border-2 transition-all shrink-0 active:scale-95 p-0",
-                                i === currentIndex
-                                    ? "border-orange-500 ring-1 ring-orange-500/10 scale-105 z-10 shadow-lg"
-                                    : "border-gray-100 opacity-60 hover:opacity-100 hover:border-gray-200",
-                                isPreparing && "cursor-not-allowed"
-                            )}
-                        >
-                            {p.previewUrl && (
-                                <Image src={p.previewUrl} alt="" fill className="object-cover" unoptimized />
-                            )}
-                            <div className={cn(
-                                "absolute inset-0 bg-orange-500/10",
-                                i !== currentIndex && "hidden"
-                            )} />
-                            {p.type === "marked_poster" && (
-                                <div className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full bg-orange-500 flex items-center justify-center border border-white shadow-sm">
-                                    <MousePointerClick className="w-2 h-2 text-white" />
-                                </div>
-                            )}
-                        </button>
-                    ))}
+            {/* Thumbnail Navigation Strip - only needed when multiple posters exist */}
+            {posters.length > 1 && (
+                <div className="mt-1 shrink-0">
+                    <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide px-1 py-1.5">
+                        {posters.map((p, i) => (
+                            <button
+                                key={p.id}
+                                onClick={() => !isPreparing && setCurrentIndex(i)}
+                                disabled={isPreparing}
+                                className={cn(
+                                    "relative w-12 h-14 sm:w-14 sm:h-16 rounded-xl overflow-hidden border-2 transition-all shrink-0 active:scale-95 p-0",
+                                    i === currentIndex
+                                        ? "border-orange-500 ring-1 ring-orange-500/10 scale-105 z-10 shadow-lg"
+                                        : "border-gray-100 opacity-60 hover:opacity-100 hover:border-gray-200",
+                                    isPreparing && "cursor-not-allowed"
+                                )}
+                            >
+                                {p.previewUrl && (
+                                    <Image src={p.previewUrl} alt="" fill className="object-cover" unoptimized />
+                                )}
+                                <div className={cn(
+                                    "absolute inset-0 bg-orange-500/10",
+                                    i !== currentIndex && "hidden"
+                                )} />
+                                {p.type === "marked_poster" && (
+                                    <div className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full bg-orange-500 flex items-center justify-center border border-white shadow-sm">
+                                        <MousePointerClick className="w-2 h-2 text-white" />
+                                    </div>
+                                )}
+                            </button>
+                        ))}
+                    </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 

@@ -2,6 +2,10 @@ import { OfferStatus, PosterType } from "./enums";
 
 export interface MarkedItem {
     id: string;
+    productId?: string;
+    offerProductId?: string;
+    isActive?: boolean;
+    status?: string;
     x: number;
     y: number;
     width: number;

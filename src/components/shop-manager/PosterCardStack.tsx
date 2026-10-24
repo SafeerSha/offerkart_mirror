@@ -58,6 +58,9 @@ interface PosterCardStackProps {
     editorReturnUrl?: string;
     onSaveDraft?: (posters: PosterItem[]) => void;
     onPhaseChange?: (phase: Phase) => void;
+    selectedPosterIndex?: number;
+    onSelectPoster?: (index: number) => void;
+    onPostersChange?: (posters: PosterItem[]) => void;
 }
 
 type Phase = "upload" | "classify" | "summary";
@@ -81,6 +84,9 @@ export const PosterCardStack = forwardRef<
     editorReturnUrl,
     onSaveDraft,
     onPhaseChange,
+    selectedPosterIndex,
+    onSelectPoster,
+    onPostersChange,
 }, ref) => {
     const [phase, setPhase] = useState<Phase>("upload");
     const [posters, setPosters] = useState<PosterItem[]>([]);
@@ -949,13 +955,18 @@ export const PosterCardStack = forwardRef<
             {/* Reorderable Poster List */}
             <PosterOrderGrid
                 posters={posters}
-                onReorder={setPosters}
+                onReorder={(newPosters) => {
+                    setPosters(newPosters);
+                    onPostersChange?.(newPosters);
+                }}
                 previewIndex={previewIndex}
                 onPreviewSelect={setPreviewIndex}
                 onPreviewClose={() => setPreviewIndex(null)}
                 onEditMarking={handlePreviewEditMarking}
                 onAddMarking={handlePreviewAddMarking}
                 onPreviewChange={onPreviewChange}
+                selectedPosterIndex={selectedPosterIndex}
+                onSelectPoster={onSelectPoster}
             />
 
             {posters.length >= maxPosters && (

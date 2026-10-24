@@ -40,6 +40,7 @@ import { storage } from "@/lib/storage";
 import { PosterCardStack, PosterItem } from "@/components/shop-manager/PosterCardStack";
 import type { PosterPreviewState } from "@/components/shop-manager/PosterCardStack";
 import { PosterPreviewPanel } from "@/components/shop-manager/PosterPreviewPanel";
+import { PosterProductsPanel } from "@/components/shop-manager/PosterProductsPanel";
 import { SocialLinksEditor, type SocialLink } from "@/components/offer/SocialLinksEditor";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -99,8 +100,11 @@ function EditOfferContent() {
     // UI state mirroring create-offer
     const [isEditing, setIsEditing] = useState(false);
     const [previewState, setPreviewState] = useState<PosterPreviewState | null>(null);
+    const [selectedPosterIndex, setSelectedPosterIndex] = useState(0);
     const [stackPhase, setStackPhase] = useState<"upload" | "classify" | "summary">("summary");
     const posterStackRef = useRef<{ handleCancel: () => boolean } | null>(null);
+
+    const safeSelectedPosterIndex = Math.min(selectedPosterIndex, Math.max(0, posters.length - 1));
 
     // ── Load offer from local storage, list API, or detail API ────────────────
     useEffect(() => {
@@ -270,24 +274,96 @@ function EditOfferContent() {
 
                             if (marked.length === 0 && p.offerProducts && Array.isArray(p.offerProducts)) {
                                 marked = p.offerProducts.flatMap((prod: any) => {
+                                    const isProdActive = prod.isActive ?? (prod.status === 'active' || prod.status === 'ACTIVE' || (prod.is_active !== undefined ? prod.is_active : true));
+                                    const prodStatus = prod.status || (isProdActive ? 'active' : 'inactive');
+                                    const prodId = String(prod.id || '');
+
                                     const areas = prod.areas || prod.offerProductAreas || [];
+                                    if (!areas || areas.length === 0) {
+                                        return [{
+                                            id: prodId || String(Math.random().toString(36).substr(2, 9)),
+                                            productId: prodId,
+                                            offerProductId: prodId,
+                                            isActive: isProdActive,
+                                            status: prodStatus,
+                                            x: 0,
+                                            y: 0,
+                                            width: 0,
+                                            height: 0,
+                                            name: prod.displayName || prod.display_name || prod.title || '',
+                                            description: prod.displayDescription || prod.display_description || prod.description || '',
+                                            oldPrice: prod.originalPrice || prod.original_price || 0,
+                                            offerPrice: prod.offerPrice || prod.offer_price || 0,
+                                            productImage: prod.imageUrl || prod.image_url || prod.image || '',
+                                            currency: '₹',
+                                            mainCategory: prod.mainCategory || prod.main_category || prod.category || '',
+                                            subcategories: prod.subcategories || prod.sub_categories || [],
+                                            productUrl: prod.productUrl || prod.product_url || ''
+                                        }];
+                                    }
                                     return areas.map((area: any) => ({
-                                        id: String(area.id || Math.random().toString(36).substr(2, 9)),
+                                        id: String(area.id || prodId || Math.random().toString(36).substr(2, 9)),
+                                        areaId: String(area.id || ''),
+                                        productId: prodId,
+                                        offerProductId: prodId,
+                                        isActive: isProdActive,
+                                        status: prodStatus,
                                         x: area.xPercent ?? area.x_percent ?? 0,
                                         y: area.yPercent ?? area.y_percent ?? 0,
                                         width: area.widthPercent ?? area.width_percent ?? 0,
                                         height: area.heightPercent ?? area.height_percent ?? 0,
-                                        name: prod.displayName || prod.display_name || '',
-                                        description: prod.displayDescription || prod.display_description || '',
+                                        name: prod.displayName || prod.display_name || prod.title || '',
+                                        description: prod.displayDescription || prod.display_description || prod.description || '',
                                         oldPrice: prod.originalPrice || prod.original_price || 0,
                                         offerPrice: prod.offerPrice || prod.offer_price || 0,
-                                        productImage: prod.imageUrl || prod.image_url || '',
+                                        productImage: prod.imageUrl || prod.image_url || prod.image || '',
                                         currency: '₹',
-                                        mainCategory: prod.mainCategory || prod.main_category || '',
+                                        mainCategory: prod.mainCategory || prod.main_category || prod.category || '',
                                         subcategories: prod.subcategories || prod.sub_categories || [],
                                         productUrl: prod.productUrl || prod.product_url || ''
                                     }));
                                 });
+                            }
+
+                            // Fallback extraction from rawDesigner for Builder templates
+                            if (marked.length === 0 && offer.rawDesigner) {
+                                try {
+                                    const designer = typeof offer.rawDesigner === 'string' ? JSON.parse(offer.rawDesigner) : offer.rawDesigner;
+                                    if (designer?.pages && Array.isArray(designer.pages)) {
+                                        const page = designer.pages[i] || designer.pages[0];
+                                        if (page?.products) {
+                                            const prods = Object.values(page.products);
+                                            marked = prods.map((prod: any) => {
+                                                const isProdActive = prod.isActive ?? (prod.status === 'active' || true);
+                                                const prodStatus = prod.status || (isProdActive ? 'active' : 'inactive');
+                                                const prodId = String(prod.id || prod.sourceProductId || '');
+
+                                                return {
+                                                    id: prodId || String(Math.random().toString(36).substr(2, 9)),
+                                                    productId: prodId,
+                                                    offerProductId: prodId,
+                                                    isActive: isProdActive,
+                                                    status: prodStatus,
+                                                    x: 0,
+                                                    y: 0,
+                                                    width: 0,
+                                                    height: 0,
+                                                    name: prod.title || prod.displayName || '',
+                                                    description: prod.description || '',
+                                                    oldPrice: prod.oldPrice || 0,
+                                                    offerPrice: prod.offerPrice || 0,
+                                                    productImage: prod.image || prod.imageUrl || '',
+                                                    currency: prod.currency || '₹',
+                                                    mainCategory: prod.category || '',
+                                                    subcategories: prod.subcategories || [],
+                                                    productUrl: ''
+                                                };
+                                            });
+                                        }
+                                    }
+                                } catch (e) {
+                                    console.warn("Failed to parse rawDesigner for products:", e);
+                                }
                             }
 
                             return {
@@ -503,6 +579,28 @@ function EditOfferContent() {
         setShowDetailsModal(true);
     };
 
+    const handleProductStatusChange = (posterIndex: number, targetId: string, newStatus: boolean) => {
+        setPosters((prev) =>
+            prev.map((poster, pIdx) => {
+                if (pIdx !== posterIndex) return poster;
+                return {
+                    ...poster,
+                    markedItems: (poster.markedItems || []).map((item: any) => {
+                        const itemId = String(item.offerProductId || item.productId || item.id);
+                        if (itemId === targetId) {
+                            return {
+                                ...item,
+                                isActive: newStatus,
+                                status: newStatus ? "active" : "inactive"
+                            };
+                        }
+                        return item;
+                    })
+                };
+            })
+        );
+    };
+
     if (isLoading) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center gap-4">
@@ -523,8 +621,8 @@ function EditOfferContent() {
                 <div className="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/2 w-[400px] h-[400px] bg-secondary/5 rounded-full blur-3xl pointer-events-none" />
 
                 <div className={cn(
-                    "mx-auto relative px-4 lg:px-8 py-4 md:py-12 transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]",
-                    isEditing ? "max-w-[1400px]" : previewState ? "max-w-full" : "max-w-6xl"
+                    "mx-auto relative px-4 lg:px-8 pt-2 md:pt-3 pb-8 md:pb-12 transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]",
+                    isEditing ? "max-w-[1400px]" : "max-w-7xl"
                 )}>
                     {!isEditing && (
                         <Breadcrumbs items={[
@@ -535,12 +633,12 @@ function EditOfferContent() {
 
                     <div className={cn(
                         "transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col gap-10",
-                        isEditing ? "mt-0" : "mt-8 lg:flex-row",
-                        !isEditing && (previewState ? "lg:items-stretch" : "lg:items-start")
+                        isEditing ? "mt-0" : (previewState ? "mt-4 lg:flex-row" : "mt-8 lg:flex-row"),
+                        !isEditing && "lg:items-start"
                     )}>
                         <div className={cn(
                             "space-y-1 flex flex-col min-h-0 transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] w-full",
-                            isEditing ? "w-full" : previewState ? "lg:flex-1" : "lg:flex-[2]"
+                            isEditing ? "w-full" : "lg:flex-1"
                         )}>
                             {!isEditing && (
                                 <div className="space-y-1">
@@ -563,6 +661,12 @@ function EditOfferContent() {
                                     onEditingChange={setIsEditing}
                                     onPreviewChange={setPreviewState}
                                     onPhaseChange={setStackPhase}
+                                    selectedPosterIndex={safeSelectedPosterIndex}
+                                    onSelectPoster={(index) => {
+                                        setSelectedPosterIndex(index);
+                                        setPreviewState(null);
+                                    }}
+                                    onPostersChange={setPosters}
                                     submitButtonText="Save Updates"
                                     editorReturnTo="edit-offer"
                                     editorReturnUrl={`/shop-manager/edit-offer/${offerId}`}
@@ -584,15 +688,58 @@ function EditOfferContent() {
                                     Cancel & Go Back
                                 </PremiumButton>
                             )}
+
+                            {/* Mobile Poster Products Section */}
+                            {!isEditing && !previewState && posters.length > 0 && (
+                                <div className="lg:hidden mt-6">
+                                    <PosterProductsPanel
+                                        posters={posters}
+                                        selectedPosterIndex={safeSelectedPosterIndex}
+                                        onSelectPosterIndex={setSelectedPosterIndex}
+                                        className="h-[480px] sm:h-[520px]"
+                                        onProductStatusChange={handleProductStatusChange}
+                                        onPreviewPoster={(index) => {
+                                            setPreviewState({
+                                                posters: posters,
+                                                index: index,
+                                                onClose: () => setPreviewState(null),
+                                                onEditMarking: (idx) => {
+                                                    const p = posters[idx];
+                                                    if (p) {
+                                                        storage.setItem("currentEditingPosters", posters);
+                                                        storage.setItem("edit_offer_return", `/shop-manager/edit-offer/${offerId}?resume=true`);
+                                                        router.push(`/shop-manager/create-offer/editor?posterId=${p.id}&returnUrl=${encodeURIComponent(`/shop-manager/edit-offer/${offerId}?resume=true`)}`);
+                                                    }
+                                                },
+                                                onAddMarking: (idx) => {
+                                                    const p = posters[idx];
+                                                    if (p) {
+                                                        storage.setItem("currentEditingPosters", posters);
+                                                        storage.setItem("edit_offer_return", `/shop-manager/edit-offer/${offerId}?resume=true`);
+                                                        router.push(`/shop-manager/create-offer/editor?posterId=${p.id}&returnUrl=${encodeURIComponent(`/shop-manager/edit-offer/${offerId}?resume=true`)}`);
+                                                    }
+                                                }
+                                            });
+                                        }}
+                                        onEditMarking={(index) => {
+                                            const p = posters[index];
+                                            if (p) {
+                                                storage.setItem("currentEditingPosters", posters);
+                                                storage.setItem("edit_offer_return", `/shop-manager/edit-offer/${offerId}?resume=true`);
+                                                router.push(`/shop-manager/create-offer/editor?posterId=${p.id}&returnUrl=${encodeURIComponent(`/shop-manager/edit-offer/${offerId}?resume=true`)}`);
+                                            }
+                                        }}
+                                    />
+                                </div>
+                            )}
                         </div>
 
                         {!isEditing && (
                             <div className={cn(
-                                "transition-all w-full flex flex-col relative",
-                                previewState ? "lg:flex-1 duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]" : "space-y-6 lg:flex-1 duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
+                                "transition-all w-full flex flex-col relative lg:flex-1 lg:sticky lg:top-20 duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
                             )}>
-                                {previewState && (
-                                    <div className="hidden lg:block h-full min-h-[500px] relative">
+                                {previewState ? (
+                                    <div className="hidden lg:block w-full h-[calc(100dvh-9rem)] min-h-[460px] max-h-[820px] relative">
                                         <PosterPreviewPanel
                                             posters={previewState.posters}
                                             initialIndex={previewState.index}
@@ -601,6 +748,46 @@ function EditOfferContent() {
                                             onEditMarking={(i) => { previewState.onEditMarking(i); }}
                                             onAddMarking={(i) => { previewState.onAddMarking(i); }}
                                             variant="inline"
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="hidden lg:block w-full h-[calc(100dvh-9rem)] min-h-[460px] max-h-[820px] relative">
+                                        <PosterProductsPanel
+                                            posters={posters}
+                                            selectedPosterIndex={safeSelectedPosterIndex}
+                                            onSelectPosterIndex={setSelectedPosterIndex}
+                                            onProductStatusChange={handleProductStatusChange}
+                                            onPreviewPoster={(index) => {
+                                                setPreviewState({
+                                                    posters: posters,
+                                                    index: index,
+                                                    onClose: () => setPreviewState(null),
+                                                    onEditMarking: (idx) => {
+                                                        const p = posters[idx];
+                                                        if (p) {
+                                                            storage.setItem("currentEditingPosters", posters);
+                                                            storage.setItem("edit_offer_return", `/shop-manager/edit-offer/${offerId}?resume=true`);
+                                                            router.push(`/shop-manager/create-offer/editor?posterId=${p.id}&returnUrl=${encodeURIComponent(`/shop-manager/edit-offer/${offerId}?resume=true`)}`);
+                                                        }
+                                                    },
+                                                    onAddMarking: (idx) => {
+                                                        const p = posters[idx];
+                                                        if (p) {
+                                                            storage.setItem("currentEditingPosters", posters);
+                                                            storage.setItem("edit_offer_return", `/shop-manager/edit-offer/${offerId}?resume=true`);
+                                                            router.push(`/shop-manager/create-offer/editor?posterId=${p.id}&returnUrl=${encodeURIComponent(`/shop-manager/edit-offer/${offerId}?resume=true`)}`);
+                                                        }
+                                                    }
+                                                });
+                                            }}
+                                            onEditMarking={(index) => {
+                                                const p = posters[index];
+                                                if (p) {
+                                                    storage.setItem("currentEditingPosters", posters);
+                                                    storage.setItem("edit_offer_return", `/shop-manager/edit-offer/${offerId}?resume=true`);
+                                                    router.push(`/shop-manager/create-offer/editor?posterId=${p.id}&returnUrl=${encodeURIComponent(`/shop-manager/edit-offer/${offerId}?resume=true`)}`);
+                                                }
+                                            }}
                                         />
                                     </div>
                                 )}
