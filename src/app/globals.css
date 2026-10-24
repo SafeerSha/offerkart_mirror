@@ -155,6 +155,7 @@
 
   * {
     scrollbar-width: thin;
+    scrollbar-color: rgba(156, 163, 175, 0.4) transparent;
   }
 
   .scrollbar-hide {

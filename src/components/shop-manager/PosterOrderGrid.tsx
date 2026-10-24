@@ -16,6 +16,8 @@ interface PosterOrderGridProps {
     onEditMarking: (index: number) => void;
     onAddMarking: (index: number) => void;
     onPreviewChange?: (state: PosterPreviewState | null) => void;
+    selectedPosterIndex?: number;
+    onSelectPoster?: (index: number) => void;
 }
 
 export const PosterOrderGrid = ({
@@ -27,6 +29,8 @@ export const PosterOrderGrid = ({
     onEditMarking,
     onAddMarking,
     onPreviewChange,
+    selectedPosterIndex,
+    onSelectPoster,
 }: PosterOrderGridProps) => {
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
@@ -64,7 +68,18 @@ export const PosterOrderGrid = ({
         e.preventDefault();
     };
 
-    const handleThumbnailClick = (posterIdx: number) => {
+    const handleTileClick = (posterIdx: number) => {
+        if (onSelectPoster) {
+            onSelectPoster(posterIdx);
+        }
+    };
+
+    const handleThumbnailClick = (e: React.MouseEvent, posterIdx: number) => {
+        if (onSelectPoster) {
+            e.stopPropagation();
+            onSelectPoster(posterIdx);
+            return;
+        }
         onPreviewSelect(posterIdx);
         onPreviewChange?.({
             posters,
@@ -81,38 +96,47 @@ export const PosterOrderGrid = ({
     return (
         <div className="relative w-full max-w-3xl overflow-hidden rounded-xl border border-border/10">
             <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 max-h-[440px] overflow-y-auto scrollbar-hide py-3 px-3">
-                {posters.map((poster, posterIdx) => (
-                    <div
-                        key={poster.id}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, posterIdx)}
-                        onDragOver={handleDragOver}
-                        onDragEnter={(e) => handleDragEnter(e, posterIdx)}
-                        onDragEnd={handleDragEnd}
-                        onDrop={(e) => handleDrop(e, posterIdx)}
-                        className={cn(
-                            "group relative flex items-center gap-2.5 p-2 rounded-xl border transition-all duration-200",
-                            draggedIndex !== null && draggedIndex !== posterIdx ? "opacity-30 scale-95" : "opacity-100",
-                            draggedIndex === posterIdx
-                                ? "bg-white shadow-2xl z-50 border-orange-500 scale-[1.02] cursor-grabbing"
-                                : previewIndex === posterIdx && draggedIndex === null
-                                    ? "bg-orange-50/50 border-orange-500 border-2 shadow-sm"
-                                    : "bg-card/50 border-border/50 hover:border-primary/30"
-                        )}
-                    >
-                        {/* Drag Handle */}
-                        <div className="cursor-grab active:cursor-grabbing p-0.5 opacity-30 group-hover:opacity-100 transition-opacity">
-                            <GripVertical className="w-4 h-4" />
-                        </div>
+                {posters.map((poster, posterIdx) => {
+                    const isSelected = selectedPosterIndex !== undefined
+                        ? selectedPosterIndex === posterIdx
+                        : previewIndex === posterIdx;
 
-                        {/* Thumbnail */}
+                    return (
                         <div
-                            onClick={() => handleThumbnailClick(posterIdx)}
-                            className="relative w-12 h-12 rounded-lg overflow-hidden border border-border/50 shrink-0 cursor-pointer"
-                        >
-                            {poster.previewUrl && (
-                                <Image src={poster.previewUrl} alt="" fill className="object-cover" unoptimized />
+                            key={poster.id}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, posterIdx)}
+                            onDragOver={handleDragOver}
+                            onDragEnter={(e) => handleDragEnter(e, posterIdx)}
+                            onDragEnd={handleDragEnd}
+                            onDrop={(e) => handleDrop(e, posterIdx)}
+                            onClick={() => handleTileClick(posterIdx)}
+                            className={cn(
+                                "group relative flex items-center gap-2.5 p-2 rounded-xl border transition-all duration-200 cursor-pointer select-none",
+                                draggedIndex !== null && draggedIndex !== posterIdx ? "opacity-30 scale-95" : "opacity-100",
+                                draggedIndex === posterIdx
+                                    ? "bg-white shadow-2xl z-50 border-orange-500 scale-[1.02] cursor-grabbing"
+                                    : isSelected && draggedIndex === null
+                                        ? "bg-orange-50/70 border-orange-500 border-2 shadow-sm ring-1 ring-orange-500/20"
+                                        : "bg-card/50 border-border/50 hover:border-primary/40 hover:bg-muted/30"
                             )}
+                        >
+                            {/* Drag Handle */}
+                            <div
+                                onClick={(e) => e.stopPropagation()}
+                                className="cursor-grab active:cursor-grabbing p-0.5 opacity-30 group-hover:opacity-100 transition-opacity"
+                            >
+                                <GripVertical className="w-4 h-4" />
+                            </div>
+
+                            {/* Thumbnail */}
+                            <div
+                                onClick={(e) => handleThumbnailClick(e, posterIdx)}
+                                className="relative w-12 h-12 rounded-lg overflow-hidden border border-border/50 shrink-0 cursor-pointer hover:opacity-90 transition-opacity"
+                            >
+                                {poster.previewUrl && (
+                                    <Image src={poster.previewUrl} alt="" fill className="object-cover" unoptimized />
+                                )}
                             <div className="absolute top-0.5 left-0.5 bg-black/60 text-white text-[8px] font-bold px-1 py-0.5 rounded backdrop-blur-md">
                                 {posterIdx + 1}
                             </div>
@@ -164,8 +188,9 @@ export const PosterOrderGrid = ({
                             </button>
                         </div>
                     </div>
-                ))}
-            </div>
+                );
+            })}
+        </div>
 
             {/* Bottom Fade Overlay — shows when more than 10 posters (5 rows) */}
             {posters.length > 10 && (

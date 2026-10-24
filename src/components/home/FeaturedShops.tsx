@@ -123,8 +123,8 @@ const FeaturedShops = ({
   if (isComponentLoading) {
     return (
       <section className={cn(
-        "bg-background relative animate-pulse",
-        variant === "full" ? "py-8" : "pt-1 pb-3"
+        "relative animate-pulse",
+        variant === "full" ? "py-6 md:py-8 bg-slate-50/70 dark:bg-slate-900/40 border-b border-slate-100 dark:border-slate-850" : "pt-1 pb-3 bg-background"
       )}>
         <div className={cn("mx-auto", variant === "full" && "container px-4")}>
           {variant === "full" && (
@@ -157,8 +157,8 @@ const FeaturedShops = ({
   return (
     <TooltipProvider>
       <section className={cn(
-        "bg-background relative",
-        variant === "full" ? "py-8" : "py-0"
+        "relative",
+        variant === "full" ? "py-6 md:py-8 bg-slate-50/70 dark:bg-slate-900/40 border-b border-slate-100 dark:border-slate-850" : "py-0 bg-background"
       )}>
         {/* Scrollbar Hide Utility */}
         <style jsx global>{`

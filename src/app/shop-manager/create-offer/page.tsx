@@ -583,7 +583,7 @@ function CreateOfferContent() {
 
             <main className="w-full relative bg-background min-h-screen border-t border-border/40">
                 <div className={cn(
-                    "mx-auto relative px-4 lg:px-8 py-8 md:py-12 transition-all duration-300",
+                    "mx-auto relative px-4 lg:px-8 pt-2 md:pt-3 pb-8 md:pb-12 transition-all duration-300",
                     isEditing ? "max-w-[1400px]" : previewState ? "max-w-full" : (drafts.length > 0 ? "max-w-6xl" : "max-w-4xl")
                 )}>
                     {!isEditing && (
@@ -597,8 +597,8 @@ function CreateOfferContent() {
 
                     <div className={cn(
                         "transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col gap-10",
-                        isEditing ? "mt-0" : (previewState || drafts.length > 0 ? "mt-8 lg:flex-row" : "mt-8"),
-                        !isEditing && (previewState ? "lg:items-stretch" : "lg:items-start")
+                        isEditing ? "mt-0" : (previewState ? "mt-4 lg:flex-row" : drafts.length > 0 ? "mt-8 lg:flex-row" : "mt-8"),
+                        !isEditing && "lg:items-start"
                     )}>
                         <div className={cn(
                             "space-y-6 flex flex-col min-h-0 w-full transition-all duration-300",
@@ -650,10 +650,10 @@ function CreateOfferContent() {
                         {!isEditing && (previewState || drafts.length > 0) && (
                             <div className={cn(
                                 "transition-all w-full flex flex-col relative",
-                                previewState ? "lg:flex-1 duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]" : "space-y-6 lg:flex-1 duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
+                                previewState ? "lg:flex-1 lg:sticky lg:top-20 duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]" : "space-y-6 lg:flex-1 duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
                             )}>
                                 {previewState ? (
-                                    <div className="hidden lg:block h-full min-h-[500px] relative">
+                                    <div className="hidden lg:block w-full h-[calc(100dvh-9rem)] min-h-[460px] max-h-[820px] relative">
                                         <PosterPreviewPanel
                                             posters={previewState.posters}
                                             initialIndex={previewState.index}
