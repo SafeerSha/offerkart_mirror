@@ -9,7 +9,7 @@ import { getAllProducts } from "@/lib/api/products";
 import { getIndustries } from "@/lib/api/industry";
 import { CACHE_TAGS } from "@/lib/api/cache-tags";
 import { Store, Ticket, MapPin, Award } from "lucide-react";
-import { Heading, Subheading, Text } from "@/components/shared/Typography";
+import { Heading, Text } from "@/components/shared/Typography";
 import { cn } from "@/lib/utils";
 import { getTranslations } from "@/lib/i18n/server";
 import { Suspense } from "react";
@@ -35,20 +35,19 @@ export default async function HomePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Production-Grade Hero Section with Docked Flyer Showcase */}
-      <HeroSection initialIndustries={initialIndustries}>
-        <FeaturedCarousel offers={featuredOffers} />
-      </HeroSection>
+      {/* Hero Discovery Section */}
+      <HeroSection initialIndustries={initialIndustries} />
+
+      {/* Featured Offers Carousel */}
+      <FeaturedCarousel offers={featuredOffers} />
 
       {/* Featured Shops (Social Proof / Brand Logos) */}
-      <section className="py-6 md:py-8 bg-slate-50/70 dark:bg-slate-900/40 border-b border-slate-100 dark:border-slate-850">
-        <Suspense fallback={<div className="container mx-auto px-4 py-4 h-20 animate-pulse bg-slate-100 dark:bg-slate-800 rounded-2xl" />}>
-          <FeaturedShops shops={featuredShops} />
-        </Suspense>
-      </section>
+      <Suspense fallback={null}>
+        <FeaturedShops shops={featuredShops} />
+      </Suspense>
 
       {/* Latest Offers Section */}
-      <section className="py-8 md:py-12">
+      <section className="py-6 md:py-10">
         <div className="container mx-auto px-4">
           <FilterableOffers
             initialOffers={allOffers}

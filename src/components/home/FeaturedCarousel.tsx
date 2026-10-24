@@ -154,7 +154,7 @@ const FeaturedCarousel = ({ offers = [] }: FeaturedCarouselProps) => {
   }
 
   return (
-    <section className="py-2 overflow-hidden relative">
+    <section className="py-8 md:py-10 overflow-hidden relative bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-850">
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-5 pointer-events-none">
         <div className="absolute top-10 left-10 w-20 h-20 border border-primary rounded-full" />

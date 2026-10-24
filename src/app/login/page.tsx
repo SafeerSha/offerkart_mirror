@@ -19,6 +19,7 @@ import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { loginShop, resendEmailOtp } from "@/lib/api/shop";
 import OtpVerificationModal from "@/components/shop-registration/OtpVerificationModal";
 import { ForgotPasswordModal } from "@/components/auth/ForgotPasswordModal";
+import { MorphingButton } from "@/components/ui/morphing-button";
 
 export default function LoginPage() {
     const { t } = useTranslation("login");
@@ -289,25 +290,19 @@ export default function LoginPage() {
                                 </label>
                             </div>
 
-                            <button
+                            <MorphingButton
                                 type="submit"
-                                disabled={isLoading}
-                                className="w-full h-12 bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white font-semibold rounded-xl shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-70"
+                                isLoading={isLoading}
+                                className="h-12 bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white font-semibold shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40"
                             >
-                                {isLoading ? (
-                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                ) : (
-                                    <>
-                                        {t("form.submit")}
-                                        <ArrowRight className="w-5 h-5" />
-                                    </>
-                                )}
-                            </button>
+                                <span>{t("form.submit")}</span>
+                                <ArrowRight className="w-5 h-5" />
+                            </MorphingButton>
                         </form>
 
 
                         <div className="mt-8 text-center text-sm">
-                            <span className="text-gray-600">Don't have an account? </span>
+                            <span className="text-gray-600">Don&apos;t have an account? </span>
                             <Link
                                 href="/register"
                                 className="font-semibold text-orange-500 hover:text-orange-600 transition-colors"
