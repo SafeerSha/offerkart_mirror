@@ -42,6 +42,7 @@ import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
 import { useMyShops } from "@/hooks/useApi";
 import { getGlobalSearch } from "@/lib/api/userOffersService";
 import { useLocationContext } from "@/context/LocationContext";
+import { useSearchSync } from "@/hooks/useSearchSync";
 import { Arrow } from "@radix-ui/react-popover";
 
 const locations = [
@@ -399,8 +400,14 @@ const Header = () => {
     const [dropdownLocations, setDropdownLocations] = useState(locations);
     const [loading, setLoading] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
-    const [searchQuery, setSearchQuery] = useState("");
-    const [searchResults, setSearchResults] = useState<SearchResultData | null>(null);
+    const {
+        searchQuery,
+        setSearchQuery,
+        searchResults,
+        setSearchResults,
+        isInitiatorRef,
+        lastResolvedQueryRef,
+    } = useSearchSync("header");
     const [isSearching, setIsSearching] = useState(false);
     const [searchError, setSearchError] = useState(false);
     const [searchRetry, setSearchRetry] = useState(0);
@@ -429,7 +436,6 @@ const Header = () => {
     useEffect(() => {
         let active = true;
         setSearchError(false);
-        setSearchResults(null);
         const trimmed = searchQuery.trim();
         if (trimmed.length < 3) {
             setSearchResults(null);
@@ -437,13 +443,23 @@ const Header = () => {
             return;
         }
 
+        if (!isInitiatorRef.current && searchResults && lastResolvedQueryRef.current === trimmed) {
+            setIsSearching(false);
+            return;
+        }
+
         setIsSearching(true);
         const delayDebounceFn = setTimeout(async () => {
+            if (!isInitiatorRef.current && searchResults && lastResolvedQueryRef.current === trimmed) {
+                if (active) setIsSearching(false);
+                return;
+            }
+
             try {
                 const result = await getGlobalSearch(trimmed, globalLocation.latitude, globalLocation.longitude, radius);
                 if (!active) return;
                 if (result.success && result.data) {
-                    setSearchResults({ ...result.data, shops: radius === null ? result.data.shops : locationReady ? result.data.shops.filter(shop => withinRadius(shop.distance, radius)) : [] });
+                    setSearchResults({ ...result.data, shops: radius === null || !locationReady ? result.data.shops : result.data.shops.filter(shop => withinRadius(shop.distance, radius)) });
                 } else {
                     if (active) setSearchError(true);
                 }
@@ -1049,27 +1065,27 @@ const Header = () => {
                                 <div
                                     className={cn(
                                         "relative h-11 flex items-center transition-all duration-[600ms] ease-[cubic-bezier(0.22,1,0.36,1)] w-full",
-                                        searchOpen ? "max-w-2xl" : "max-w-[280px]"
+                                        searchOpen || searchQuery ? "max-w-2xl" : "max-w-[280px]"
                                     )}
                                 >
                                     <div
                                         onClick={() => !searchOpen && setSearchOpen(true)}
                                         className={cn(
                                             "absolute inset-0 rounded-2xl border transition-all duration-[600ms] overflow-hidden",
-                                            searchOpen
+                                            searchOpen || searchQuery
                                                 ? "bg-white border-primary shadow-xl shadow-primary/10 cursor-default"
                                                 : "bg-white/80 backdrop-blur-sm border-primary/20 shadow-md hover:border-primary/40 hover:bg-white cursor-pointer"
                                         )}
                                     >
                                         <div className={cn(
                                             "absolute inset-0 bg-primary/[0.03] opacity-0 transition-opacity duration-[600ms]",
-                                            searchOpen && "opacity-100"
+                                            (searchOpen || searchQuery) && "opacity-100"
                                         )} />
                                     </div>
 
                                     <Search className={cn(
                                         "absolute left-4 w-4 h-4 z-20 transition-colors duration-300 pointer-events-none",
-                                        searchOpen ? "text-primary" : "text-muted-foreground"
+                                        searchOpen || searchQuery ? "text-primary" : "text-muted-foreground"
                                     )} />
 
                                     <input
@@ -1077,12 +1093,18 @@ const Header = () => {
                                         placeholder={searchOpen ? "Search for shops, offers, products..." : ""}
                                         value={searchQuery}
                                         aria-label="Search shops, offers, products"
-                                            onKeyDown={(e) => { if (e.key === "Escape") { setSearchQuery(""); setSearchOpen(false); } }}
-                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Escape") { setSearchQuery(""); setSearchOpen(false); }
+                                            if (e.key === "Enter" && searchQuery.trim()) {
+                                                setSearchOpen(false);
+                                                router.push(`/offers?search=${encodeURIComponent(searchQuery.trim().slice(0, 100))}`);
+                                            }
+                                        }}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
                                         onFocus={() => setSearchOpen(true)}
                                         className={cn(
                                             "relative z-10 w-full h-full pl-11 pr-11 bg-transparent border-none focus:ring-0 outline-none transition-all duration-[600ms] text-sm font-medium",
-                                            !searchOpen && "cursor-pointer"
+                                            !searchOpen && !searchQuery && "cursor-pointer"
                                         )}
                                     />
 
@@ -1103,7 +1125,7 @@ const Header = () => {
                                         }}
                                         className={cn(
                                             "absolute right-3 z-20 p-1 rounded-full hover:bg-secondary transition-all duration-300",
-                                            searchOpen ? "opacity-100 scale-100" : "opacity-0 scale-75 pointer-events-none"
+                                            searchOpen || searchQuery ? "opacity-100 scale-100" : "opacity-0 scale-75 pointer-events-none"
                                         )}
                                     >
                                         <X className="w-3.5 h-3.5 text-muted-foreground" />
@@ -1167,9 +1189,9 @@ const Header = () => {
                                                                                 </div>
                                                                                 <div className="flex items-center gap-2.5 shrink-0">
                                                                                     <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-700 dark:text-slate-400 tracking-wide bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded-lg select-none">
-                                                                                        <span>{p.totalOfferProducts} {p.totalOfferProducts === 1 ? 'Product' : 'Products'}</span>
+                                                                                        <span>{(p.totalOfferProducts ?? 0)} {(p.totalOfferProducts ?? 0) === 1 ? 'Product' : 'Products'}</span>
                                                                                         <span className="text-slate-300 dark:text-slate-600 font-normal">•</span>
-                                                                                        <span>{p.shopCount} {p.shopCount === 1 ? 'Shop' : 'Shops'}</span>
+                                                                                        <span>{(p.shopCount ?? 0)} {(p.shopCount ?? 0) === 1 ? 'Shop' : 'Shops'}</span>
                                                                                     </div>
                                                                                     <ChevronDown className="w-4 h-4 -rotate-90 text-slate-300 dark:text-slate-600 group-hover/item:text-slate-400 transition-colors shrink-0" />
                                                                                 </div>
@@ -1296,7 +1318,13 @@ const Header = () => {
                                             placeholder="Search shops, offers, products..."
                                             value={searchQuery}
                                             aria-label="Search shops, offers, products"
-                                            onKeyDown={(e) => { if (e.key === "Escape") { setSearchQuery(""); setSearchOpen(false); } }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Escape") { setSearchQuery(""); setSearchOpen(false); }
+                                                if (e.key === "Enter" && searchQuery.trim()) {
+                                                    setSearchOpen(false);
+                                                    router.push(`/offers?search=${encodeURIComponent(searchQuery.trim().slice(0, 100))}`);
+                                                }
+                                            }}
                                             onChange={(e) => setSearchQuery(e.target.value)}
                                             className="w-full py-2.5 pr-8 bg-transparent border-none focus:ring-0 focus:outline-none outline-none text-xs font-medium placeholder:text-muted-foreground/50 text-foreground"
                                         />
@@ -1372,9 +1400,9 @@ const Header = () => {
                                                                                 </div>
                                                                                 <div className="flex items-center gap-1.5 shrink-0">
                                                                                     <div className="flex items-center gap-1 text-[9px] font-bold text-slate-500 dark:text-slate-400 tracking-wide bg-slate-100 dark:bg-slate-800/80 px-1.5 py-0.5 rounded-md select-none">
-                                                                                        <span>{p.totalOfferProducts} {p.totalOfferProducts === 1 ? 'Product' : 'Products'}</span>
+                                                                                        <span>{(p.totalOfferProducts ?? 0)} {(p.totalOfferProducts ?? 0) === 1 ? 'Product' : 'Products'}</span>
                                                                                         <span className="text-slate-300 dark:text-slate-600 font-normal">•</span>
-                                                                                        <span>{p.shopCount} {p.shopCount === 1 ? 'Shop' : 'Shops'}</span>
+                                                                                        <span>{(p.shopCount ?? 0)} {(p.shopCount ?? 0) === 1 ? 'Shop' : 'Shops'}</span>
                                                                                     </div>
                                                                                     <ChevronDown className="w-3.5 h-3.5 -rotate-90 text-slate-300 dark:text-slate-600 group-hover/item:text-slate-400 transition-colors shrink-0" />
                                                                                 </div>

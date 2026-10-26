@@ -225,12 +225,20 @@ export async function getUserOfferProducts(query: {
 
 const searchSchema = z.object({
     products: z.array(z.object({
-        name: z.string(), category: z.string(), categoryId: z.number().optional(),
-        totalOfferProducts: z.number(), shopCount: z.number(), minPrice: z.number().optional(),
+        name: z.string(),
+        category: z.string().nullable().optional(),
+        categoryId: z.number().nullable().optional(),
+        totalOfferProducts: z.number().nullable().optional(),
+        shopCount: z.number().nullable().optional(),
+        minPrice: z.number().nullable().optional(),
+        distance: z.number().nullable().optional(),
     })).default([]),
     offers: z.array(z.object({
-        offerId: z.number(), offerName: z.string(),
-        shopName: z.string().optional(), shopId: z.number().optional(),
+        offerId: z.number(),
+        offerName: z.string(),
+        shopName: z.string().nullable().optional(),
+        shopId: z.number().nullable().optional(),
+        distance: z.number().nullable().optional(),
     })).default([]),
     shops: z.array(z.object({
         shopId: z.number().int().positive(),
@@ -274,6 +282,9 @@ export async function getGlobalSearch(
         }
         const parsed = searchSchema.safeParse(data);
         if (parsed.success) return { success: true, data: parsed.data };
+        if (process.env.NODE_ENV !== "production") {
+            console.warn("Global search schema validation failed:", parsed.error);
+        }
     } catch {
         // Return a distinct failure state, never a misleading no-match result.
     }
