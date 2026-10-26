@@ -31,6 +31,23 @@ describe("global search contract", () => {
         vi.mocked(backend.get).mockResolvedValue({ success: true, data: { products: [], offers: [] } });
         expect(await getGlobalSearch("none")).toEqual({ success: true, data: { products: [], offers: [], shops: [] } });
     });
+    it("safely handles products with null category, categoryId, and distance", async () => {
+        const product = {
+            name: "Marked Product",
+            category: null,
+            categoryId: null,
+            totalOfferProducts: 1,
+            shopCount: 1,
+            distance: null,
+        };
+        vi.mocked(backend.get).mockResolvedValue({
+            success: true,
+            data: { products: [product], offers: [], shops: [] },
+        });
+        const result = await getGlobalSearch("mark");
+        expect(result.success).toBe(true);
+        expect(result.data.products[0]).toEqual(product);
+    });
     it.each([0, -1, 1.5, "bad"])("rejects invalid shop IDs (%s) so no invalid destination is rendered", async shopId => {
         vi.mocked(backend.get).mockResolvedValue({ success: true, data: { shops: [{ ...shop, shopId }] } });
         expect((await getGlobalSearch("byte")).success).toBe(false);

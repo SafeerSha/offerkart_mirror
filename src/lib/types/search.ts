@@ -1,17 +1,19 @@
 export interface SearchProductItem {
     name: string;
-    category: string;
-    categoryId?: number;
-    totalOfferProducts: number;
-    shopCount: number;
-    minPrice?: number;
+    category?: string | null;
+    categoryId?: number | null;
+    totalOfferProducts?: number | null;
+    shopCount?: number | null;
+    minPrice?: number | null;
+    distance?: number | null;
 }
 
 export interface SearchOfferItem {
     offerId: number;
     offerName: string;
-    shopName?: string;
-    shopId?: number;
+    shopName?: string | null;
+    shopId?: number | null;
+    distance?: number | null;
 }
 
 export interface SearchResultData {

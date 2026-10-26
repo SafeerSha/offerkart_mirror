@@ -3,6 +3,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import Header from "@/components/layout/Header";
 import { getGlobalSearch } from "@/lib/api/userOffersService";
 import type { SearchResponse } from "@/lib/types/search";
+import { resetSearchSync } from "@/hooks/useSearchSync";
 
 vi.mock("@/lib/api/userOffersService", () => ({ getGlobalSearch: vi.fn() }));
 vi.mock("@/hooks/useCategoryHierarchy", () => ({ useCategoryHierarchy: () => ({ resolveHierarchyById: () => ({ main: "", sub: "" }) }) }));
@@ -22,8 +23,8 @@ async function search(value: string) {
     return input;
 }
 describe("global search in both header layouts", () => {
-    beforeEach(() => { vi.useFakeTimers(); vi.mocked(getGlobalSearch).mockReset(); });
-    afterEach(() => { cleanup(); vi.useRealTimers(); });
+    beforeEach(() => { resetSearchSync(); vi.useFakeTimers(); vi.mocked(getGlobalSearch).mockReset(); });
+    afterEach(() => { cleanup(); resetSearchSync(); vi.useRealTimers(); });
     it("renders shop-only responses in desktop and mobile and closes on selection", async () => {
         vi.mocked(getGlobalSearch).mockResolvedValue(success);
         render(<Header />);

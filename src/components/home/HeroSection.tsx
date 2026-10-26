@@ -15,6 +15,7 @@ import {
   Home as HomeIcon,
   ArrowRight,
   ShieldCheck,
+  Loader2,
   Store,
   Laptop,
   Car,
@@ -34,9 +35,10 @@ import { useDistancePreference } from "@/hooks/useDistancePreference";
 import { withinRadius } from "@/lib/distance";
 import { useCategoryHierarchy } from "@/hooks/useCategoryHierarchy";
 import { getGlobalSearch } from "@/lib/api/userOffersService";
-import type { SearchResultData, SearchProductItem } from "@/lib/types/search";
 import { ShopSearchResults } from "@/components/layout/ShopSearchResults";
+import type { SearchProductItem } from "@/lib/types/search";
 import { DistanceEmptyState } from "@/components/shared/DistanceControl";
+import { useSearchSync } from "@/hooks/useSearchSync";
 
 interface HeroSectionProps {
   children?: React.ReactNode;
@@ -109,9 +111,15 @@ const FALLBACK_INDUSTRIES: Industry[] = [
 
 export default function HeroSection({ children, initialIndustries }: HeroSectionProps) {
   const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState("");
+  const {
+    searchQuery,
+    setSearchQuery,
+    searchResults,
+    setSearchResults,
+    isInitiatorRef,
+    lastResolvedQueryRef,
+  } = useSearchSync("hero");
   const [searchOpen, setSearchOpen] = useState(false);
-  const [searchResults, setSearchResults] = useState<SearchResultData | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState(false);
   const [searchRetry, setSearchRetry] = useState(0);
@@ -149,6 +157,11 @@ export default function HeroSection({ children, initialIndustries }: HeroSection
 
     let active = true;
     const delayDebounceFn = setTimeout(async () => {
+      if (!isInitiatorRef.current && searchResults && lastResolvedQueryRef.current === trimmed) {
+        setIsSearching(false);
+        return;
+      }
+
       setIsSearching(true);
       setSearchError(false);
       try {
@@ -157,7 +170,7 @@ export default function HeroSection({ children, initialIndustries }: HeroSection
         if (result.success && result.data) {
           setSearchResults({
             ...result.data,
-            shops: radius === null ? result.data.shops : locationReady ? result.data.shops.filter((shop) => withinRadius(shop.distance, radius)) : [],
+            shops: radius === null || !locationReady ? result.data.shops : result.data.shops.filter((shop) => withinRadius(shop.distance, radius)),
           });
         } else {
           if (active) setSearchError(true);
@@ -274,9 +287,9 @@ export default function HeroSection({ children, initialIndustries }: HeroSection
               onSubmit={handleSearchSubmit}
               className="relative flex items-center group"
             >
-              <div className="relative w-full flex items-center rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/90 dark:border-slate-800 shadow-[0_12px_36px_rgb(0,0,0,0.07)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] group-hover:border-orange-500/40 focus-within:border-orange-500 focus-within:ring-4 focus-within:ring-orange-500/10 transition-all p-1.5">
-                <div className="pl-3.5 pr-2 text-slate-400 dark:text-slate-500">
-                  <Search className="w-5 h-5 group-hover:text-orange-500 transition-colors" />
+              <div className="relative w-full flex items-center rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/90 dark:border-slate-800 shadow-[0_12px_36px_rgb(0,0,0,0.07)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] group-hover:border-orange-500/40 focus-within:border-orange-500 focus-within:ring-4 focus-within:ring-orange-500/10 transition-all px-4 py-3 sm:py-3.5">
+                <div className="text-slate-400 dark:text-slate-500 shrink-0 mr-3">
+                  <Search className="w-5 h-5 group-hover:text-orange-500 group-focus-within:text-orange-500 transition-colors" />
                 </div>
                 <input
                   type="text"
@@ -299,27 +312,27 @@ export default function HeroSection({ children, initialIndustries }: HeroSection
                   aria-label="Search deals, shops and flyers"
                   className="w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-sm sm:text-base font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                 />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearchQuery("");
-                      setSearchResults(null);
-                      setSearchOpen(false);
-                    }}
-                    aria-label="Clear search input"
-                    className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 mr-1.5 transition-colors cursor-pointer"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-                <button
-                  type="submit"
-                  className="shrink-0 px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs sm:text-sm tracking-wide shadow-md shadow-orange-500/25 hover:shadow-lg hover:shadow-orange-500/35 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <span>Find Deals</span>
-                  <ArrowRight className="w-4 h-4 hidden sm:inline-block" />
-                </button>
+                <div className="shrink-0 flex items-center gap-1.5 ml-2">
+                  {isSearching && (
+                    <div className="flex items-center justify-center p-1 text-orange-500 animate-in fade-in duration-150" title="Searching...">
+                      <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
+                    </div>
+                  )}
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery("");
+                        setSearchResults(null);
+                        setSearchOpen(false);
+                      }}
+                      aria-label="Clear search input"
+                      className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors cursor-pointer animate-in fade-in duration-150"
+                    >
+                      <X className="w-4 h-4 sm:w-5 sm:h-5" />
+                    </button>
+                  )}
+                </div>
               </div>
             </form>
 
@@ -417,9 +430,9 @@ export default function HeroSection({ children, initialIndustries }: HeroSection
                                   </div>
                                   <div className="flex items-center gap-2.5 shrink-0">
                                     <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-700 dark:text-slate-400 tracking-wide bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded-lg select-none">
-                                      <span>{p.totalOfferProducts} {p.totalOfferProducts === 1 ? "Product" : "Products"}</span>
+                                      <span>{(p.totalOfferProducts ?? 0)} {(p.totalOfferProducts ?? 0) === 1 ? "Product" : "Products"}</span>
                                       <span className="text-slate-300 dark:text-slate-600 font-normal">•</span>
-                                      <span>{p.shopCount} {p.shopCount === 1 ? "Shop" : "Shops"}</span>
+                                      <span>{(p.shopCount ?? 0)} {(p.shopCount ?? 0) === 1 ? "Shop" : "Shops"}</span>
                                     </div>
                                     <ChevronDown className="w-4 h-4 -rotate-90 text-slate-300 dark:text-slate-600 group-hover/item:text-slate-400 transition-colors shrink-0" />
                                   </div>
