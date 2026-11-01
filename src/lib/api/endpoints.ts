@@ -24,6 +24,7 @@ export const ENDPOINTS = {
         BASE: `business/shop`,
         MY_SHOPS: `business/shop/my-shops`,
         DETAILS: (id: string) => `business/shop/${id}`,
+        VERIFICATION: `business/shop/verification`,
     },
     BRANCH: {
         BASE: (shopId: string) => `business/shop/${shopId}/branches`,
@@ -72,4 +73,3 @@ export const ENDPOINTS = {
         INACTIVATE: (id: string) => `business/offerproduct/inactivate/${id}`,
     }
 };
-
