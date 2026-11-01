@@ -82,6 +82,18 @@ const DOCUMENT_OPTIONS: { value: VerificationDocumentType; label: string }[] = [
     { value: "OTHER", label: "Other Government Registration" },
 ];
 
+function dataURLtoFile(dataurl: string, filename: string): File {
+    const arr = dataurl.split(",");
+    const mime = arr[0].match(/:(.*?);/)?.[1] || "image/jpeg";
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new File([u8arr], filename, { type: mime });
+}
+
 export default function ShopVerificationTab({
     shopId,
     shopName,
@@ -162,6 +174,16 @@ export default function ShopVerificationTab({
 
     // Live Camera Modal State
     const [activeCameraCategory, setActiveCameraCategory] = useState<VerificationImageCategory | null>(null);
+    const fileInputRefs = React.useRef<Record<string, HTMLInputElement | null>>({});
+
+    const isMobileDevice = useCallback(() => {
+        if (typeof window === "undefined") return false;
+        return (
+            /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+            (window.matchMedia && window.matchMedia("(max-width: 768px)").matches) ||
+            (navigator.maxTouchPoints && navigator.maxTouchPoints > 1)
+        );
+    }, []);
 
     // Submission states
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -214,6 +236,102 @@ export default function ShopVerificationTab({
             }
         );
     }, [initialLatitude, initialLongitude, gpsCoords.latitude]);
+
+    const DRAFT_KEY = `shop_verification_draft_${shopId || "new"}`;
+
+    const saveFieldToDraft = useCallback((field: string, val: any) => {
+        if (typeof window === "undefined") return;
+        try {
+            const raw = sessionStorage.getItem(DRAFT_KEY);
+            const current = raw ? JSON.parse(raw) : {};
+            current[field] = val;
+            sessionStorage.setItem(DRAFT_KEY, JSON.stringify(current));
+        } catch {}
+    }, [DRAFT_KEY]);
+
+    const saveImageToDraft = useCallback((
+        category: VerificationImageCategory,
+        base64: string,
+        fileName: string,
+        mimeType: string,
+        location: any
+    ) => {
+        if (typeof window === "undefined") return;
+        try {
+            const raw = sessionStorage.getItem(DRAFT_KEY);
+            const current = raw ? JSON.parse(raw) : {};
+            const images = current.images || {};
+            images[category] = { base64, fileName, mimeType, location };
+            current.images = images;
+            sessionStorage.setItem(DRAFT_KEY, JSON.stringify(current));
+        } catch (e) {
+            console.warn("Failed to save image to draft:", e);
+        }
+    }, [DRAFT_KEY]);
+
+    const removeImageFromDraft = useCallback((category: VerificationImageCategory) => {
+        if (typeof window === "undefined") return;
+        try {
+            const raw = sessionStorage.getItem(DRAFT_KEY);
+            if (!raw) return;
+            const current = JSON.parse(raw);
+            if (current.images && current.images[category]) {
+                delete current.images[category];
+                sessionStorage.setItem(DRAFT_KEY, JSON.stringify(current));
+            }
+        } catch {}
+    }, [DRAFT_KEY]);
+
+    const clearDraft = useCallback(() => {
+        if (typeof window === "undefined") return;
+        try {
+            sessionStorage.removeItem(DRAFT_KEY);
+        } catch {}
+    }, [DRAFT_KEY]);
+
+    // Restore draft from sessionStorage on mount (survives Android OS camera reloads and HMR)
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        try {
+            const raw = sessionStorage.getItem(DRAFT_KEY);
+            if (!raw) return;
+            const draft = JSON.parse(raw);
+            if (draft.personName) setPersonName(draft.personName);
+            if (draft.documentType) setDocumentType(draft.documentType);
+            if (draft.documentNumber) setDocumentNumber(draft.documentNumber);
+            if (draft.documentFileName) setDocumentFileName(draft.documentFileName);
+            if (draft.authorizationFileName) setAuthorizationFileName(draft.authorizationFileName);
+
+            if (draft.images) {
+                setImageSlots((prev) => {
+                    const updated = { ...prev };
+                    Object.keys(draft.images).forEach((catKey) => {
+                        const cat = catKey as VerificationImageCategory;
+                        const item = draft.images[cat];
+                        if (item && updated[cat]) {
+                            let fileObj: File | null = null;
+                            if (item.base64 && item.fileName) {
+                                try {
+                                    fileObj = dataURLtoFile(item.base64, item.fileName);
+                                } catch {}
+                            }
+                            updated[cat] = {
+                                ...updated[cat],
+                                file: fileObj,
+                                fileName: item.fileName || "",
+                                previewUrl: item.base64 || null,
+                                mimeType: item.mimeType || "image/jpeg",
+                                location: item.location || null,
+                            };
+                        }
+                    });
+                    return updated;
+                });
+            }
+        } catch (e) {
+            console.warn("Failed to restore verification draft:", e);
+        }
+    }, [DRAFT_KEY]);
 
     // Initial load: Acquire GPS on mount
     useEffect(() => {
@@ -296,6 +414,7 @@ export default function ShopVerificationTab({
 
         setDocumentFile(file);
         setDocumentFileName(file.name);
+        saveFieldToDraft("documentFileName", file.name);
         toast.success(`Document selected: ${file.name}`);
     };
 
@@ -311,6 +430,7 @@ export default function ShopVerificationTab({
 
         setAuthorizationFile(file);
         setAuthorizationFileName(file.name);
+        saveFieldToDraft("authorizationFileName", file.name);
         toast.success(`Authorization letter selected: ${file.name}`);
     };
 
@@ -354,6 +474,19 @@ export default function ShopVerificationTab({
                 },
             },
         }));
+
+        // Convert to base64 and persist in sessionStorage immediately
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const base64Data = reader.result as string;
+            saveImageToDraft(category, base64Data, processedFile.name, processedFile.type || "image/jpeg", {
+                latitude: lat,
+                longitude: lng,
+                accuracyMeters: acc,
+                capturedAt,
+            });
+        };
+        reader.readAsDataURL(processedFile);
 
         toast.success(`Live photo captured for ${imageSlots[category].title}!`);
     };
@@ -403,6 +536,19 @@ export default function ShopVerificationTab({
             },
         }));
 
+        // Convert to base64 and persist in sessionStorage immediately
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const base64Data = reader.result as string;
+            saveImageToDraft(category, base64Data, processedFile.name, processedFile.type || "image/jpeg", {
+                latitude: lat,
+                longitude: lng,
+                accuracyMeters: acc,
+                capturedAt,
+            });
+        };
+        reader.readAsDataURL(processedFile);
+
         toast.success(`Captured ${imageSlots[category].title} with live geotag!`);
     };
 
@@ -418,6 +564,7 @@ export default function ShopVerificationTab({
                 location: null,
             },
         }));
+        removeImageFromDraft(category);
     };
 
     // Construct the structured JSON payload matching user's exact schema
@@ -556,6 +703,7 @@ export default function ShopVerificationTab({
             // Submit payload to backend verification endpoint: https://offersnearu.vercel.app/api/business/shop/verification
             const response = await submitShopVerification(payload, shopId || undefined);
             if (response?.success || (response as any)?.status === "success" || (response as any)?.status === 200) {
+                clearDraft();
                 toast.success("Shop verification submitted successfully!");
                 onSuccess?.();
             } else {
@@ -622,7 +770,10 @@ export default function ShopVerificationTab({
                                 </label>
                                 <Select
                                     value={documentType}
-                                    onValueChange={(val) => setDocumentType(val as VerificationDocumentType)}
+                                    onValueChange={(val) => {
+                                        setDocumentType(val as VerificationDocumentType);
+                                        saveFieldToDraft("documentType", val);
+                                    }}
                                 >
                                     <SelectTrigger className="w-full h-11 bg-background/40 border border-primary/20 focus:border-primary focus:ring-1 focus:ring-primary/30 rounded-xl text-sm text-gray-900 transition-all outline-none cursor-pointer">
                                         <SelectValue placeholder="Select document type" />
@@ -653,7 +804,10 @@ export default function ShopVerificationTab({
                                     placeholder="e.g. LIC123456 or 32AABCU9603R1ZM"
                                     icon={FileText}
                                     value={documentNumber}
-                                    onChange={(e) => setDocumentNumber(e.target.value)}
+                                    onChange={(e) => {
+                                        setDocumentNumber(e.target.value);
+                                        saveFieldToDraft("documentNumber", e.target.value);
+                                    }}
                                     required
                                 />
                                 <p className="text-[11px] text-gray-400">
@@ -844,19 +998,47 @@ export default function ShopVerificationTab({
                                                     </div>
 
                                                     {/* Retake live camera photo */}
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setActiveCameraCategory(categoryKey)}
-                                                        className="block w-full text-center text-xs font-semibold text-orange-600 hover:text-orange-700 cursor-pointer pt-1"
-                                                    >
-                                                        Retake Live Photo
-                                                    </button>
+                                                    <div className="flex items-center justify-center gap-3 pt-1">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => fileInputRefs.current[categoryKey]?.click()}
+                                                            className="text-xs font-semibold text-orange-600 hover:text-orange-700 cursor-pointer"
+                                                        >
+                                                            Retake (Camera App)
+                                                        </button>
+                                                        <span className="text-gray-300">•</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setActiveCameraCategory(categoryKey)}
+                                                            className="text-xs font-semibold text-gray-500 hover:text-gray-700 cursor-pointer"
+                                                        >
+                                                            Viewfinder
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             ) : (
                                                 <div className="h-full flex flex-col items-center justify-center py-6">
+                                                    {/* Hidden native camera capture input */}
+                                                    <input
+                                                        ref={(el) => {
+                                                            fileInputRefs.current[categoryKey] = el;
+                                                        }}
+                                                        type="file"
+                                                        accept="image/*"
+                                                        capture="environment"
+                                                        className="hidden"
+                                                        onChange={(e) => handleImageChange(categoryKey, e)}
+                                                    />
+
                                                     <button
                                                         type="button"
-                                                        onClick={() => setActiveCameraCategory(categoryKey)}
+                                                        onClick={() => {
+                                                            if (isMobileDevice()) {
+                                                                fileInputRefs.current[categoryKey]?.click();
+                                                            } else {
+                                                                setActiveCameraCategory(categoryKey);
+                                                            }
+                                                        }}
                                                         className="cursor-pointer flex flex-col items-center text-center space-y-2 group w-full"
                                                     >
                                                         <div className="w-14 h-14 rounded-2xl bg-orange-50 text-orange-600 border border-orange-200/80 group-hover:bg-orange-100 group-hover:scale-105 transition-all flex items-center justify-center shadow-xs">
@@ -871,6 +1053,24 @@ export default function ShopVerificationTab({
                                                             </span>
                                                         </div>
                                                     </button>
+
+                                                    <div className="flex items-center gap-2 mt-2.5">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => fileInputRefs.current[categoryKey]?.click()}
+                                                            className="text-[11px] font-medium text-orange-600 hover:text-orange-700 hover:underline cursor-pointer"
+                                                        >
+                                                            Device Camera
+                                                        </button>
+                                                        <span className="text-[10px] text-gray-300">•</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setActiveCameraCategory(categoryKey)}
+                                                            className="text-[11px] font-medium text-gray-500 hover:text-gray-700 hover:underline cursor-pointer"
+                                                        >
+                                                            Web Viewfinder
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
