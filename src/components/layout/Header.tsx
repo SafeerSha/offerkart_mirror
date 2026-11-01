@@ -991,7 +991,7 @@ const Header = () => {
                                                 <PremiumButton
                                                     variant="outline"
                                                     size="sm"
-                                                    className="rounded-2xl px-3 sm:px-4 lg:px-6 border-primary/20 hover:bg-primary/5 transition-all duration-300"
+                                                    className="rounded-2xl px-3 sm:px-4 lg:px-6 border-primary/20 hover:bg-primary/5 transition-all duration-300 text-orange-500"
                                                     onClick={() => signIn()}
                                                 >
                                                     <div className="flex items-center">
