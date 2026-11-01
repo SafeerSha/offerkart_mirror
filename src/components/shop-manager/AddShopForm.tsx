@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import {
     Store,
+    ShieldCheck,
     Upload,
     Mail,
     Phone,
@@ -33,6 +34,8 @@ import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import dynamic from "next/dynamic";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import ShopVerificationTab from "@/components/shop-manager/ShopVerificationTab";
 import { addShop, updateShop, getShopDetails } from "@/lib/api/shop";
 import { Shop } from "@/lib/types/shop";
 import { queryKeys, useIndustries } from "@/hooks/useApi";
@@ -105,6 +108,10 @@ export default function AddShopForm() {
     const shopId = searchParams.get('id');
     const returnTo = searchParams.get('returnTo');
     const isEditMode = !!shopId;
+    const requestedTab = searchParams.get('tab');
+    const [activeTab, setActiveTab] = useState<'details' | 'verification'>(
+        requestedTab === 'verification' ? 'verification' : 'details'
+    );
 
     const { data: industriesResponse } = useIndustries();
     const industries = industriesResponse?.success && industriesResponse.data ? industriesResponse.data : [];
@@ -610,34 +617,56 @@ export default function AddShopForm() {
     }
 
     return (
-        <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <div className="mb-4">
-                    <Breadcrumbs
-                        items={[
-                            { label: "Manage Shop", href: "/shop-manager" },
-                            { label: isEditMode ? "Edit Shop" : "Add New Shop" }
-                        ]}
-                    />
+        <div className="space-y-6">
+            <div className="mb-4">
+                <Breadcrumbs
+                    items={[
+                        { label: "Manage Shop", href: "/shop-manager" },
+                        { label: isEditMode ? "Edit Shop" : "Add New Shop" }
+                    ]}
+                />
 
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                        <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-xl bg-white border border-gray-200 flex items-center justify-center shadow-sm">
-                                <Building2 className="w-6 h-6 text-gray-700" />
-                            </div>
-                            <div>
-                                <h1 className="text-3xl md:text-4xl font-bold text-gray-900">
-                                    {isEditMode ? "Edit Shop" : "Add New Shop"}
-                                </h1>
-                                <p className="text-gray-600 mt-1">
-                                    {isEditMode ? "Update your shop information" : "Register a new business branch or location"}
-                                </p>
-                            </div>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-white border border-gray-200 flex items-center justify-center shadow-sm">
+                            <Building2 className="w-6 h-6 text-gray-700" />
+                        </div>
+                        <div>
+                            <h1 className="text-3xl md:text-4xl font-bold text-gray-900">
+                                {isEditMode ? "Edit Shop" : "Add New Shop"}
+                            </h1>
+                            <p className="text-gray-600 mt-1">
+                                {isEditMode ? "Update your shop information" : "Register a new business branch or location"}
+                            </p>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <div className="flex flex-col gap-6">
+            <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as "details" | "verification")} className="w-full">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-200 pb-3 mb-6">
+                    <TabsList className="bg-gray-100/90 p-1.5 rounded-2xl gap-1 w-full sm:w-auto h-auto inline-flex border border-gray-200/80">
+                        <TabsTrigger
+                            value="details"
+                            className="flex-1 sm:flex-none data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm rounded-xl px-5 py-2.5 text-sm font-bold gap-2 transition-all cursor-pointer"
+                        >
+                            <Store className="w-4 h-4 text-blue-600" />
+                            <span>Shop Details</span>
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="verification"
+                            className="flex-1 sm:flex-none data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm rounded-xl px-5 py-2.5 text-sm font-bold gap-2 transition-all cursor-pointer"
+                        >
+                            <ShieldCheck className="w-4 h-4 text-orange-600" />
+                            <span>Shop Verification</span>
+                        </TabsTrigger>
+                    </TabsList>
+                </div>
+
+                <TabsContent value="details" className="mt-0 focus-visible:ring-0">
+                    <Form {...form}>
+                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                            <div className="flex flex-col gap-6">
                     {/* General Information Section */}
                     <PremiumCard padding="none" className="w-full overflow-hidden">
                         <div className="px-4 md:px-8 py-6 border-b border-gray-100 bg-white">
@@ -727,18 +756,23 @@ export default function AddShopForm() {
                                         )}
                                     />
 
-                                    <div className="flex items-start gap-2.5 opacity-50 grayscale mt-1">
-                                        <FileText className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveTab("verification")}
+                                        className="flex items-start gap-2.5 mt-1 p-1.5 -ml-1.5 rounded-xl hover:bg-orange-50 border border-transparent hover:border-orange-200 transition-all text-left group cursor-pointer"
+                                        title="Go to Shop Verification Tab"
+                                    >
+                                        <ShieldCheck className="w-4 h-4 text-orange-600 mt-0.5 shrink-0 group-hover:scale-110 transition-transform" />
                                         <div className="flex flex-col gap-0.5">
                                             <div className="flex items-center gap-1.5 leading-none">
-                                                <span className="text-xs font-bold text-gray-800">License Verification</span>
-                                                <span className="text-[8px] font-black text-orange-600 bg-orange-50 px-1 py-0.2 rounded uppercase">Soon</span>
+                                                <span className="text-xs font-bold text-gray-800 group-hover:text-orange-600 transition-colors">Shop Verification</span>
+                                                <span className="text-[8px] font-black text-orange-600 bg-orange-100 px-1.5 py-0.2 rounded uppercase">Open Tab</span>
                                             </div>
                                             <span className="text-[10px] text-gray-400">
-                                                Verification document upload
+                                                Verification documents & geotags →
                                             </span>
                                         </div>
-                                    </div>
+                                    </button>
                                 </div>
                             </div>
 
@@ -1069,8 +1103,21 @@ export default function AddShopForm() {
                             </>
                         )}
                     </PremiumButton>
-                </div>
-            </form>
-        </Form>
+                        </div>
+                    </form>
+                </Form>
+            </TabsContent>
+
+            <TabsContent value="verification" className="mt-0 focus-visible:ring-0">
+                <ShopVerificationTab
+                    shopId={shopId}
+                    shopName={form.watch("shop_name")}
+                    initialLatitude={form.watch("latitude")}
+                    initialLongitude={form.watch("longitude")}
+                    onSwitchToDetails={() => setActiveTab("details")}
+                />
+            </TabsContent>
+        </Tabs>
+    </div>
     );
 }

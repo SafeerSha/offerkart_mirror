@@ -47,3 +47,51 @@ export interface Shops {
     website?: string | null;
     website_url?: string | null;
 }
+
+export type RelationshipType =
+    | "OWNER"
+    | "MANAGER"
+    | "PARTNER"
+    | "AUTHORIZED_REPRESENTATIVE"
+    | "EMPLOYEE";
+
+export type VerificationDocumentType =
+    | "TRADE_LICENCE"
+    | "GST_CERTIFICATE"
+    | "FSSAI_REGISTRATION"
+    | "SHOP_ESTABLISHMENT"
+    | "MSME_CERTIFICATE"
+    | "OTHER";
+
+export type VerificationImageCategory =
+    | "SHOP_NAME_BOARD"
+    | "SHOP_EXTERIOR"
+    | "SHOP_INTERIOR";
+
+export interface VerificationLocation {
+    latitude: number;
+    longitude: number;
+    accuracyMeters: number;
+    capturedAt: string;
+}
+
+export interface VerificationImageItem {
+    category: VerificationImageCategory;
+    mediaType: "IMAGE";
+    file: string;
+    mimeType: string;
+    location: VerificationLocation;
+}
+
+export interface ShopVerificationPayload {
+    latitude: number;
+    longitude: number;
+    gpsAccuracyMeters: number;
+    personName: string;
+    relationshipType: RelationshipType | string;
+    documentType: VerificationDocumentType | string;
+    documentNumber: string;
+    documentFile: string;
+    authorizationFile: string | null;
+    images: VerificationImageItem[];
+}
