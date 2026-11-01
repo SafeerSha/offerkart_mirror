@@ -70,16 +70,26 @@ export function LiveCameraModal({
                     throw new Error("Live camera is not supported by your browser");
                 }
 
+                // Flexible constraints to avoid OverconstrainedError across mobile and desktop
                 const constraints: MediaStreamConstraints = {
                     video: {
-                        facingMode: { ideal: mode },
-                        width: { ideal: 1920 },
-                        height: { ideal: 1080 }
+                        facingMode: { ideal: mode }
                     },
                     audio: false
                 };
 
-                const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+                let newStream: MediaStream;
+                try {
+                    newStream = await navigator.mediaDevices.getUserMedia(constraints);
+                } catch (firstErr: any) {
+                    // Fallback to basic video constraint if ideal facingMode failed
+                    if (firstErr.name === "OverconstrainedError" || firstErr.name === "ConstraintNotSatisfiedError") {
+                        newStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                    } else {
+                        throw firstErr;
+                    }
+                }
+
                 setStream(newStream);
 
                 if (videoRef.current) {
@@ -88,15 +98,15 @@ export function LiveCameraModal({
                 }
 
                 // Check device count for flip camera support
-                const devices = await navigator.mediaDevices.enumerateDevices();
+                const devices = await navigator.mediaDevices.enumerateDevices().catch(() => []);
                 const videoInputs = devices.filter((d) => d.kind === "videoinput");
                 setHasMultipleCameras(videoInputs.length > 1);
             } catch (err: any) {
                 console.warn("Camera start failed:", err);
                 const msg =
                     err.name === "NotAllowedError" || err.name === "PermissionDeniedError"
-                        ? "Camera access was denied. Please allow camera permissions in your browser."
-                        : err.message || "Failed to start camera.";
+                        ? "Camera access was denied. Please allow camera permissions in your browser or use the native device camera."
+                        : err.message || "Failed to start in-browser camera.";
                 setCameraError(msg);
             } finally {
                 setIsStarting(false);
@@ -226,23 +236,33 @@ export function LiveCameraModal({
                             <p className="text-xs text-gray-400">{cameraError}</p>
                         </div>
 
-                        <div className="pt-2 flex flex-col gap-2">
+                        {/* Direct Native Camera Shutter (Bypasses WebRTC Permissions) */}
+                        <div className="pt-2 flex flex-col gap-2.5">
                             <PremiumButton
                                 type="button"
-                                onClick={() => startCamera(facingMode)}
-                                className="w-full rounded-xl bg-orange-600 hover:bg-orange-700"
+                                onClick={() => nativeInputRef.current?.click()}
+                                className="w-full rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2.5"
                             >
-                                <RefreshCw className="w-4 h-4 mr-2" />
-                                Retry Camera Permission
+                                <Camera className="w-4 h-4 mr-2 shrink-0" />
+                                Launch Native Device Camera
                             </PremiumButton>
 
                             <button
                                 type="button"
-                                onClick={() => nativeInputRef.current?.click()}
-                                className="text-xs text-gray-400 hover:text-white underline py-1 cursor-pointer"
+                                onClick={() => startCamera(facingMode)}
+                                className="text-xs text-gray-400 hover:text-white flex items-center justify-center gap-1.5 py-1 cursor-pointer"
                             >
-                                Launch Native Device Camera
+                                <RefreshCw className="w-3.5 h-3.5" />
+                                Retry In-Browser Camera
                             </button>
+                        </div>
+
+                        {/* Browser Permission Guidance */}
+                        <div className="p-3 rounded-xl bg-gray-800/60 border border-gray-700/60 text-left text-[11px] text-gray-300 space-y-1">
+                            <p className="font-semibold text-orange-400">To allow in-browser camera:</p>
+                            <p className="text-gray-400">1. Tap the lock/tune icon <span className="font-mono bg-black/40 px-1 py-0.5 rounded text-white">🔒</span> in the address bar</p>
+                            <p className="text-gray-400">2. Set <span className="text-white font-medium">Camera</span> to <span className="text-emerald-400 font-medium">Allow</span></p>
+                            <p className="text-gray-400">3. Reload the page or tap Retry</p>
                         </div>
                     </div>
                 ) : (

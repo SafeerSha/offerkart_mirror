@@ -109,9 +109,27 @@ export default function AddShopForm() {
     const returnTo = searchParams.get('returnTo');
     const isEditMode = !!shopId;
     const requestedTab = searchParams.get('tab');
-    const [activeTab, setActiveTab] = useState<'details' | 'verification'>(
-        requestedTab === 'verification' ? 'verification' : 'details'
-    );
+    const [activeTab, setActiveTab] = useState<'details' | 'verification'>(() => {
+        if (typeof window !== "undefined") {
+            try {
+                const saved = sessionStorage.getItem("shop_active_tab");
+                if (saved === "verification" || saved === "details") return saved;
+            } catch {}
+        }
+        return requestedTab === 'verification' ? 'verification' : 'details';
+    });
+
+    const handleTabChange = useCallback((val: "details" | "verification") => {
+        setActiveTab(val);
+        if (typeof window !== "undefined") {
+            try {
+                sessionStorage.setItem("shop_active_tab", val);
+                const params = new URLSearchParams(window.location.search);
+                params.set("tab", val);
+                window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+            } catch {}
+        }
+    }, []);
 
     const { data: industriesResponse } = useIndustries();
     const industries = industriesResponse?.success && industriesResponse.data ? industriesResponse.data : [];
@@ -643,7 +661,7 @@ export default function AddShopForm() {
                 </div>
             </div>
 
-            <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as "details" | "verification")} className="w-full">
+            <Tabs value={activeTab} onValueChange={(val) => handleTabChange(val as "details" | "verification")} className="w-full">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-200 pb-3 mb-6">
                     <TabsList className="bg-gray-100/90 p-1.5 rounded-2xl gap-1 w-full sm:w-auto h-auto inline-flex border border-gray-200/80">
                         <TabsTrigger
@@ -758,7 +776,7 @@ export default function AddShopForm() {
 
                                     <button
                                         type="button"
-                                        onClick={() => setActiveTab("verification")}
+                                        onClick={() => handleTabChange("verification")}
                                         className="flex items-start gap-2.5 mt-1 p-1.5 -ml-1.5 rounded-xl hover:bg-orange-50 border border-transparent hover:border-orange-200 transition-all text-left group cursor-pointer"
                                         title="Go to Shop Verification Tab"
                                     >
@@ -1114,7 +1132,7 @@ export default function AddShopForm() {
                     shopName={form.watch("shop_name")}
                     initialLatitude={form.watch("latitude")}
                     initialLongitude={form.watch("longitude")}
-                    onSwitchToDetails={() => setActiveTab("details")}
+                    onSwitchToDetails={() => handleTabChange("details")}
                 />
             </TabsContent>
         </Tabs>
