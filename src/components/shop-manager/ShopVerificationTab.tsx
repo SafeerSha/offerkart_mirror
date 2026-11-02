@@ -175,9 +175,6 @@ export default function ShopVerificationTab({
     // In-browser WebRTC Live Camera slot state
     const [activeCameraSlot, setActiveCameraSlot] = useState<VerificationImageCategory | null>(null);
 
-    // Gallery / file input refs per category
-    const galleryInputRefs = React.useRef<Record<string, HTMLInputElement | null>>({});
-
     // Submission states
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showJsonInspector, setShowJsonInspector] = useState(false);
@@ -485,17 +482,6 @@ export default function ShopVerificationTab({
         toast.success(`Attached ${imageSlots[category].title} with live geotag!`);
     };
 
-    // Handle image selection via gallery/file input
-    const handleImageChange = async (
-        category: VerificationImageCategory,
-        e: React.ChangeEvent<HTMLInputElement>
-    ) => {
-        const file = e.target.files?.[0];
-        e.target.value = "";
-        if (!file) return;
-        await attachImageFile(category, file);
-    };
-
     // Remove photo from a category slot
     const handleRemoveImage = (category: VerificationImageCategory) => {
         setImageSlots((prev) => ({
@@ -580,6 +566,11 @@ export default function ShopVerificationTab({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (!shopId) {
+            toast.error("Please save your shop details in the 'Basic Details' tab before submitting verification.");
+            return;
+        }
 
         if (!documentNumber.trim()) {
             toast.error("Please enter the official document or licence number");
@@ -855,23 +846,12 @@ export default function ShopVerificationTab({
                     </div>
 
                     <div className="p-4 md:p-8 space-y-4">
-                        {/* Mobile Camera Notice */}
-                        <div className="flex items-start gap-2.5 p-3 rounded-xl bg-orange-50/80 border border-orange-200/80 text-xs text-orange-950">
-                            <Info className="w-4 h-4 text-orange-600 shrink-0 mt-0.5" />
-                            <div>
-                                <p className="font-semibold text-orange-950">In-Browser Live Camera &amp; Gallery</p>
-                                <p className="text-[11px] text-orange-900 mt-0.5 leading-relaxed">
-                                    Take photos directly in your browser without switching apps. If camera permissions are blocked in Chrome, you can allow them in site settings or select <strong>&quot;Choose from Gallery&quot;</strong>.
-                                </p>
-                            </div>
-                        </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                             {(
                                 ["SHOP_NAME_BOARD", "SHOP_EXTERIOR", "SHOP_INTERIOR"] as VerificationImageCategory[]
                             ).map((categoryKey) => {
                                 const slot = imageSlots[categoryKey];
-                                const inputId = `image-input-${categoryKey}`;
 
                                 return (
                                     <div
@@ -892,7 +872,7 @@ export default function ShopVerificationTab({
                                                             : "bg-orange-100 text-orange-700"
                                                     )}
                                                 >
-                                                    {slot.previewUrl || slot.fileName ? "Attached" : "Required"}
+                                                    {slot.previewUrl || slot.fileName ? "Captured" : "Required"}
                                                 </span>
                                             </div>
                                             <p className="text-[11px] text-gray-500 mt-1 line-clamp-1">
@@ -902,17 +882,6 @@ export default function ShopVerificationTab({
 
                                         {/* Photo Area */}
                                         <div className="p-4 flex-1 flex flex-col justify-between">
-                                            {/* Hidden gallery / file picker input */}
-                                            <input
-                                                ref={(el) => {
-                                                    galleryInputRefs.current[categoryKey] = el;
-                                                }}
-                                                type="file"
-                                                accept="image/*"
-                                                className="hidden"
-                                                onChange={(e) => handleImageChange(categoryKey, e)}
-                                            />
-
                                             {slot.previewUrl ? (
                                                 <div className="space-y-3">
                                                     <div className="relative aspect-4/3 w-full rounded-xl overflow-hidden border border-gray-200 bg-black/5 group">
@@ -947,60 +916,36 @@ export default function ShopVerificationTab({
                                                         </div>
                                                     </div>
 
-                                                    {/* Retake actions: Live Camera vs Gallery */}
-                                                    <div className="flex items-center justify-center gap-3 text-[11px] font-semibold pt-1">
+                                                    {/* Retake action */}
+                                                    <div className="flex items-center justify-center pt-1">
                                                         <button
                                                             type="button"
                                                             onClick={() => setActiveCameraSlot(categoryKey)}
-                                                            className="text-orange-600 hover:text-orange-700 cursor-pointer flex items-center gap-1"
+                                                            className="w-full py-1.5 px-3 rounded-lg border border-orange-200 bg-orange-50 hover:bg-orange-100 text-orange-700 text-xs font-semibold cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
                                                         >
                                                             <Camera className="w-3.5 h-3.5" />
-                                                            Retake (Camera)
-                                                        </button>
-                                                        <span className="text-gray-300">•</span>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => galleryInputRefs.current[categoryKey]?.click()}
-                                                            className="text-gray-600 hover:text-gray-800 cursor-pointer flex items-center gap-1"
-                                                        >
-                                                            <UploadCloud className="w-3.5 h-3.5" />
-                                                            From Gallery
+                                                            <span>Retake Photo</span>
                                                         </button>
                                                     </div>
                                                 </div>
                                             ) : (
-                                                <div className="h-full flex flex-col items-center justify-center py-4 space-y-3">
+                                                <div className="h-full flex flex-col items-center justify-center py-6 space-y-3">
                                                     <button
                                                         type="button"
                                                         onClick={() => setActiveCameraSlot(categoryKey)}
-                                                        className="cursor-pointer flex flex-col items-center text-center space-y-2 group w-full"
+                                                        className="cursor-pointer flex flex-col items-center text-center space-y-2.5 group w-full"
                                                     >
-                                                        <div className="w-13 h-13 rounded-2xl bg-orange-50 text-orange-600 border border-orange-200/80 group-hover:bg-orange-100 group-hover:scale-105 transition-all flex items-center justify-center shadow-xs">
-                                                            <Camera className="w-6 h-6" />
+                                                        <div className="w-14 h-14 rounded-2xl bg-orange-50 text-orange-600 border border-orange-200/80 group-hover:bg-orange-500 group-hover:text-white group-hover:scale-105 transition-all flex items-center justify-center shadow-xs">
+                                                            <Camera className="w-7 h-7" />
                                                         </div>
-                                                        <div className="space-y-0.5">
+                                                        <div className="space-y-1">
                                                             <span className="text-xs font-bold text-gray-800 block group-hover:text-orange-600 transition-colors">
-                                                                Take Live Photo
+                                                                Open Live Camera
                                                             </span>
-                                                            <span className="text-[10px] text-gray-400 block max-w-[180px]">
+                                                            <span className="text-[10px] text-gray-400 block max-w-[180px] leading-tight">
                                                                 {slot.recommendedAngle}
                                                             </span>
                                                         </div>
-                                                    </button>
-
-                                                    <div className="flex items-center gap-2 w-full px-2">
-                                                        <div className="flex-1 border-t border-gray-100" />
-                                                        <span className="text-[10px] text-gray-400 uppercase font-medium">or</span>
-                                                        <div className="flex-1 border-t border-gray-100" />
-                                                    </div>
-
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => galleryInputRefs.current[categoryKey]?.click()}
-                                                        className="w-full py-1.5 px-3 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-[11px] font-medium text-gray-700 hover:text-gray-900 transition-colors flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
-                                                    >
-                                                        <UploadCloud className="w-3.5 h-3.5 text-gray-500" />
-                                                        <span>Choose from Gallery</span>
                                                     </button>
                                                 </div>
                                             )}
@@ -1046,7 +991,7 @@ export default function ShopVerificationTab({
                 />
             )}
 
-            {/* In-Browser WebRTC Live Camera Modal */}
+            {/* Native In-Browser Live Camera Viewfinder Modal */}
             <LiveCameraModal
                 isOpen={activeCameraSlot !== null}
                 onClose={() => setActiveCameraSlot(null)}
@@ -1059,11 +1004,6 @@ export default function ShopVerificationTab({
                 description={activeCameraSlot ? imageSlots[activeCameraSlot].description : ""}
                 categoryKey={activeCameraSlot || ""}
                 gpsCoords={gpsCoords}
-                onFallbackToGallery={() => {
-                    if (activeCameraSlot) {
-                        galleryInputRefs.current[activeCameraSlot]?.click();
-                    }
-                }}
             />
         </div>
     );

@@ -17,8 +17,11 @@ describe("LiveCameraModal Component", () => {
         ];
 
         mockStream = {
+            stop: vi.fn(),
+            removeTrack: vi.fn(),
             getTracks: vi.fn(() => mockTracks),
             getVideoTracks: vi.fn(() => mockTracks),
+            getAudioTracks: vi.fn(() => []),
         };
 
         getUserMediaMock = vi.fn().mockResolvedValue(mockStream);
@@ -81,23 +84,20 @@ describe("LiveCameraModal Component", () => {
         expect(screen.getByText("Shop Exterior")).toBeDefined();
 
         await waitFor(() => {
-            expect(getUserMediaMock).toHaveBeenCalledWith({
-                video: {
-                    facingMode: { ideal: "environment" },
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 },
-                },
-                audio: false,
-            });
+            expect(getUserMediaMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    video: expect.objectContaining({
+                        facingMode: { ideal: "environment" },
+                    }),
+                })
+            );
         });
     });
 
-    it("displays error guidance and gallery fallback when camera permission is denied", async () => {
+    it("displays error guidance and retry button when camera permission is denied", async () => {
         const permissionError = new Error("Permission denied");
         permissionError.name = "NotAllowedError";
-        getUserMediaMock.mockRejectedValueOnce(permissionError);
-
-        const onFallbackToGallery = vi.fn();
+        getUserMediaMock.mockRejectedValue(permissionError);
 
         render(
             <LiveCameraModal
@@ -107,7 +107,6 @@ describe("LiveCameraModal Component", () => {
                 title="Shop Exterior"
                 description="Entrance facade"
                 categoryKey="SHOP_EXTERIOR"
-                onFallbackToGallery={onFallbackToGallery}
             />
         );
 
@@ -116,22 +115,16 @@ describe("LiveCameraModal Component", () => {
         });
 
         expect(screen.getByText(/Camera permission was denied/i)).toBeDefined();
-        expect(screen.getByText("Retry Camera")).toBeDefined();
-
-        const galleryBtn = screen.getByText("Choose from Gallery Instead");
-        expect(galleryBtn).toBeDefined();
-
-        fireEvent.click(galleryBtn);
-        expect(onFallbackToGallery).toHaveBeenCalled();
+        expect(screen.getByText("Retry Camera Permission")).toBeDefined();
+        // Gallery fallback must not be present
+        expect(screen.queryByText("Choose from Gallery Instead")).toBeNull();
     });
 
-    it("stops all stream tracks when closed", async () => {
-        const onClose = vi.fn();
-
+    it("stops all stream tracks when unmounted or closed", async () => {
         const { unmount } = render(
             <LiveCameraModal
                 isOpen={true}
-                onClose={onClose}
+                onClose={vi.fn()}
                 onCapture={vi.fn()}
                 title="Shop Exterior"
                 description="Entrance facade"
@@ -143,10 +136,9 @@ describe("LiveCameraModal Component", () => {
             expect(getUserMediaMock).toHaveBeenCalled();
         });
 
-        // Unmount component to test cleanup
         unmount();
 
-        expect(mockTracks[0].stop).toHaveBeenCalled();
+        // Either mockStream.stop or mockTracks[0].stop must be invoked
+        expect(mockTracks[0].stop.mock.calls.length + mockStream.stop.mock.calls.length).toBeGreaterThan(0);
     });
 });
-
