@@ -53,12 +53,29 @@ export function LiveCameraModal({
     const [torchOn, setTorchOn] = useState(false);
     const [showGrid, setShowGrid] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [isPortrait, setIsPortrait] = useState(true);
     const [cameraError, setCameraError] = useState<{
         type: "permission" | "unsupported" | "busy" | "notfound" | "generic";
         message: string;
     } | null>(null);
     const [isCapturing, setIsCapturing] = useState(false);
     const [capturedPhoto, setCapturedPhoto] = useState<CapturedState | null>(null);
+
+    // Track screen orientation to request matching sensor aspect ratio
+    useEffect(() => {
+        const checkOrientation = () => {
+            if (typeof window !== "undefined") {
+                setIsPortrait(window.innerHeight >= window.innerWidth);
+            }
+        };
+        checkOrientation();
+        window.addEventListener("resize", checkOrientation);
+        window.addEventListener("orientationchange", checkOrientation);
+        return () => {
+            window.removeEventListener("resize", checkOrientation);
+            window.removeEventListener("orientationchange", checkOrientation);
+        };
+    }, []);
 
     // Stop all media tracks and release camera hardware
     const stopStream = useCallback(() => {
@@ -91,16 +108,30 @@ export function LiveCameraModal({
         setIsStarting(false);
         setCameraError(null);
 
-        // Check if torch/flashlight is supported on active video track
+        // Check if torch/flashlight and autofocus are supported on active video track
         if (webcamRef.current?.video?.srcObject) {
             const stream = webcamRef.current.video.srcObject as MediaStream;
             const track = stream.getVideoTracks()[0];
-            if (track && typeof (track as any).getCapabilities === "function") {
-                try {
-                    const caps = (track as any).getCapabilities();
-                    setTorchAvailable(!!caps?.torch);
-                } catch {
-                    setTorchAvailable(false);
+            if (track) {
+                if (typeof (track as any).getCapabilities === "function") {
+                    try {
+                        const caps = (track as any).getCapabilities();
+                        setTorchAvailable(!!caps?.torch);
+                    } catch {
+                        setTorchAvailable(false);
+                    }
+                }
+
+                // Apply continuous autofocus & auto-exposure on rear camera hardware
+                if (typeof (track as any).applyConstraints === "function") {
+                    try {
+                        (track as any).applyConstraints({
+                            advanced: [
+                                { focusMode: "continuous" },
+                                { exposureMode: "continuous" }
+                            ]
+                        }).catch(() => {});
+                    } catch {}
                 }
             }
         }
@@ -198,39 +229,70 @@ export function LiveCameraModal({
         onClose();
     }, [stopStream, clearCapturedPhoto, onClose]);
 
-    // Capture photo from webcam
+    // Capture photo from webcam directly at full hardware sensor resolution
     const handleSnapPhoto = () => {
         if (!webcamRef.current || isCapturing) return;
+
+        const videoEl = webcamRef.current.video;
+        if (!videoEl || videoEl.readyState < 2) {
+            fallbackBase64Capture();
+            return;
+        }
 
         setIsCapturing(true);
 
         try {
-            // First attempt zero-copy Canvas to Blob
-            const canvas = webcamRef.current.getCanvas();
-            if (canvas && typeof canvas.toBlob === "function") {
-                canvas.toBlob(
-                    (blob) => {
-                        setIsCapturing(false);
-                        if (!blob) {
-                            fallbackBase64Capture();
-                            return;
-                        }
+            // Read native camera hardware resolution from the video stream
+            const naturalWidth = videoEl.videoWidth || 1920;
+            const naturalHeight = videoEl.videoHeight || 1080;
 
-                        stopStream();
-                        const fileName = `${categoryKey.toLowerCase().replace(/_/g, "-")}-${Date.now()}.jpg`;
-                        const file = new File([blob], fileName, {
-                            type: "image/jpeg",
-                            lastModified: Date.now()
-                        });
-                        const previewUrl = URL.createObjectURL(blob);
-                        setCapturedPhoto({ file, previewUrl });
-                    },
-                    "image/jpeg",
-                    0.88
-                );
-            } else {
+            const canvas = document.createElement("canvas");
+            canvas.width = naturalWidth;
+            canvas.height = naturalHeight;
+
+            const ctx = canvas.getContext("2d", { alpha: false });
+            if (!ctx) {
                 fallbackBase64Capture();
+                return;
             }
+
+            // High-fidelity image smoothing
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = "high";
+
+            // Mirror if using front-facing camera
+            if (facingMode === "user") {
+                ctx.translate(naturalWidth, 0);
+                ctx.scale(-1, 1);
+            }
+
+            // Direct 1:1 hardware frame capture without clientWidth downscaling
+            ctx.drawImage(videoEl, 0, 0, naturalWidth, naturalHeight);
+
+            canvas.toBlob(
+                (blob) => {
+                    // Release canvas memory immediately
+                    canvas.width = 0;
+                    canvas.height = 0;
+
+                    setIsCapturing(false);
+                    if (!blob) {
+                        fallbackBase64Capture();
+                        return;
+                    }
+
+                    stopStream();
+                    const fileName = `${categoryKey.toLowerCase().replace(/_/g, "-")}-${Date.now()}.jpg`;
+                    const file = new File([blob], fileName, {
+                        type: "image/jpeg",
+                        lastModified: Date.now()
+                    });
+                    const previewUrl = URL.createObjectURL(blob);
+                    setCapturedPhoto({ file, previewUrl });
+                },
+                "image/jpeg",
+                0.92
+            );
         } catch (err) {
             console.error("Frame capture error:", err);
             fallbackBase64Capture();
@@ -322,11 +384,13 @@ export function LiveCameraModal({
 
     if (!isOpen) return null;
 
-    // Full resolution constraints
+    // Full HD / 4K adaptive constraints matching device orientation
+    // Portrait sensors need height > width; landscape needs width > height
     const videoConstraints: MediaTrackConstraints = {
         facingMode: { ideal: facingMode },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 }
+        width: { ideal: isPortrait ? 2160 : 3840 },
+        height: { ideal: isPortrait ? 3840 : 2160 },
+        aspectRatio: { ideal: isPortrait ? 9 / 16 : 16 / 9 }
     };
 
     return (
@@ -391,11 +455,12 @@ export function LiveCameraModal({
                     /* Edge-to-Edge Live Camera Feed */
                     <>
                         <Webcam
-                            key={`${facingMode}-${retryKey}`}
+                            key={`${facingMode}-${retryKey}-${isPortrait ? "p" : "l"}`}
                             ref={webcamRef}
                             audio={false}
                             screenshotFormat="image/jpeg"
-                            screenshotQuality={0.88}
+                            screenshotQuality={0.92}
+                            forceScreenshotSourceSize={true}
                             videoConstraints={videoConstraints}
                             onUserMedia={handleUserMedia}
                             onUserMediaError={handleUserMediaError}

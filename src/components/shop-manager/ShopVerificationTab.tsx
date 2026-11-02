@@ -430,10 +430,11 @@ export default function ShopVerificationTab({
         file: File
     ) => {
         let processedFile = file;
-        if (file.size > 150 * 1024) {
+        // Only optimize if image is exceptionally large (> 3MB), compressing to a generous 1.5MB to preserve crisp signage & licence readability
+        if (file.size > 3 * 1024 * 1024) {
             const toastId = toast.loading(`Optimizing ${file.name}...`);
             try {
-                processedFile = await compressImage(file, 200);
+                processedFile = await compressImage(file, 1500);
                 toast.success("Image optimized successfully", { id: toastId });
             } catch {
                 toast.dismiss(toastId);
