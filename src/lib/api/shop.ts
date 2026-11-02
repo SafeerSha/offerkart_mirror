@@ -41,10 +41,24 @@ export async function getShopDetails(shopId: string) {
 }
 
 export async function submitShopVerification(data: ShopVerificationPayload | FormData, shopId?: string) {
+    const query = shopId ? `?shopId=${encodeURIComponent(shopId)}` : "";
+    const headers: Record<string, string> = {};
+    if (shopId) {
+        headers.shopId = shopId;
+        headers.shopid = shopId;
+    }
+    let body = data;
+    if (shopId && !(data instanceof FormData) && typeof data === "object") {
+        body = {
+            ...data,
+            shopId: Number(shopId) || shopId,
+            shop_id: Number(shopId) || shopId
+        };
+    }
     return await backend.post(
-        ENDPOINTS.SHOP.VERIFICATION,
-        data,
-        shopId ? { headers: { shopId } } : undefined
+        `${ENDPOINTS.SHOP.VERIFICATION}${query}`,
+        body,
+        { headers }
     );
 }
 

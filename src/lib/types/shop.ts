@@ -84,6 +84,8 @@ export interface VerificationImageItem {
 }
 
 export interface ShopVerificationPayload {
+    shopId?: number | string;
+    shop_id?: number | string;
     latitude: number;
     longitude: number;
     gpsAccuracyMeters: number;
