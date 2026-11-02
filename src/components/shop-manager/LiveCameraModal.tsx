@@ -108,7 +108,7 @@ export function LiveCameraModal({
         setIsStarting(false);
         setCameraError(null);
 
-        // Check if torch/flashlight and autofocus are supported on active video track
+        // Check if torch/flashlight, zoom, and autofocus are supported on active video track
         if (webcamRef.current?.video?.srcObject) {
             const stream = webcamRef.current.video.srcObject as MediaStream;
             const track = stream.getVideoTracks()[0];
@@ -117,21 +117,29 @@ export function LiveCameraModal({
                     try {
                         const caps = (track as any).getCapabilities();
                         setTorchAvailable(!!caps?.torch);
-                    } catch {
+
+                        // Reset zoom to natural 1x (or minimum optical zoom) to prevent default digital magnification
+                        const advancedConstraints: any[] = [];
+                        if (caps.zoom) {
+                            const defaultZoom = Math.max(1, caps.zoom.min || 1);
+                            advancedConstraints.push({ zoom: defaultZoom });
+                        }
+                        if (caps.focusMode && Array.isArray(caps.focusMode) && caps.focusMode.includes("continuous")) {
+                            advancedConstraints.push({ focusMode: "continuous" });
+                        }
+                        if (caps.exposureMode && Array.isArray(caps.exposureMode) && caps.exposureMode.includes("continuous")) {
+                            advancedConstraints.push({ exposureMode: "continuous" });
+                        }
+
+                        if (advancedConstraints.length > 0 && typeof (track as any).applyConstraints === "function") {
+                            (track as any).applyConstraints({
+                                advanced: advancedConstraints
+                            }).catch(() => {});
+                        }
+                    } catch (err) {
+                        console.warn("Camera track constraint application error:", err);
                         setTorchAvailable(false);
                     }
-                }
-
-                // Apply continuous autofocus & auto-exposure on rear camera hardware
-                if (typeof (track as any).applyConstraints === "function") {
-                    try {
-                        (track as any).applyConstraints({
-                            advanced: [
-                                { focusMode: "continuous" },
-                                { exposureMode: "continuous" }
-                            ]
-                        }).catch(() => {});
-                    } catch {}
                 }
             }
         }
@@ -384,26 +392,94 @@ export function LiveCameraModal({
 
     if (!isOpen) return null;
 
-    // Full HD / 4K adaptive constraints matching device orientation
-    // Portrait sensors need height > width; landscape needs width > height
+    // Full HD (1080p) adaptive constraints for lag-free 30-60fps preview and uncropped 1x optical view
     const videoConstraints: MediaTrackConstraints = {
         facingMode: { ideal: facingMode },
-        width: { ideal: isPortrait ? 2160 : 3840 },
-        height: { ideal: isPortrait ? 3840 : 2160 },
-        aspectRatio: { ideal: isPortrait ? 9 / 16 : 16 / 9 }
+        width: { ideal: isPortrait ? 1080 : 1920 },
+        height: { ideal: isPortrait ? 1920 : 1080 },
+        frameRate: { ideal: 30, max: 60 }
     };
 
     return (
         <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between select-none overflow-hidden animate-in fade-in duration-200">
-            {/* Edge-to-Edge Full Screen Live Camera / Captured Preview */}
-            <div className="absolute inset-0 w-full h-full z-0 overflow-hidden bg-black flex items-center justify-center">
+            {/* Top Controls Bar (Native Camera Header) */}
+            <header className="relative w-full px-4 sm:px-6 pt-4 pb-3 flex items-center justify-between z-20 bg-black/95 backdrop-blur-md shrink-0 border-b border-white/10">
+                {/* Close Button */}
+                <button
+                    type="button"
+                    onClick={handleClose}
+                    className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 active:scale-95 text-white flex items-center justify-center backdrop-blur-md transition-all cursor-pointer shadow-md"
+                    title="Close Camera"
+                >
+                    <X className="w-5 h-5" />
+                </button>
+
+                {/* Title & Live Status */}
+                <div className="flex flex-col items-center text-center">
+                    <span className="text-xs font-bold tracking-widest text-white uppercase font-mono drop-shadow-md">
+                        {title}
+                    </span>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        <span className="text-[10px] text-gray-200 font-mono tracking-wider drop-shadow-sm">
+                            {facingMode === "environment" ? "REAR CAMERA (1x)" : "FRONT CAMERA (1x)"}
+                        </span>
+                    </div>
+                </div>
+
+                {/* Top Action Buttons */}
+                <div className="flex items-center gap-2">
+                    {/* Torch Toggle */}
+                    {torchAvailable && !capturedPhoto && (
+                        <button
+                            type="button"
+                            onClick={toggleTorch}
+                            className={`w-10 h-10 rounded-full flex items-center justify-center backdrop-blur-md border border-white/15 transition-all cursor-pointer shadow-md ${
+                                torchOn
+                                    ? "bg-amber-400 text-black shadow-amber-400/40"
+                                    : "bg-white/10 hover:bg-white/20 text-white"
+                            }`}
+                            title={torchOn ? "Turn off Flash" : "Turn on Flash"}
+                        >
+                            {torchOn ? <Zap className="w-4 h-4 fill-current" /> : <ZapOff className="w-4 h-4" />}
+                        </button>
+                    )}
+
+                    {/* Grid Overlay Toggle */}
+                    {!capturedPhoto && (
+                        <button
+                            type="button"
+                            onClick={() => setShowGrid((g) => !g)}
+                            className={`w-10 h-10 rounded-full flex items-center justify-center backdrop-blur-md border border-white/15 transition-all cursor-pointer shadow-md ${
+                                showGrid ? "bg-white/30 text-yellow-300" : "bg-white/10 hover:bg-white/20 text-gray-300"
+                            }`}
+                            title="Toggle Grid Lines"
+                        >
+                            <Focus className="w-4 h-4" />
+                        </button>
+                    )}
+
+                    {/* Full-screen Toggle */}
+                    <button
+                        type="button"
+                        onClick={toggleFullscreen}
+                        className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 active:scale-95 text-white flex items-center justify-center backdrop-blur-md transition-all cursor-pointer shadow-md"
+                        title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+                    >
+                        {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                    </button>
+                </div>
+            </header>
+
+            {/* Viewfinder Main: Natural 1x Optical View with Zero Digital Zoom & Zero Cropping */}
+            <main className="relative flex-1 w-full h-full overflow-hidden bg-black flex items-center justify-center">
                 {capturedPhoto ? (
-                    /* Review Preview Photo: Full Screen */
+                    /* Review Preview Photo: Uncropped 1x Frame */
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                         src={capturedPhoto.previewUrl}
                         alt="Captured storefront"
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-contain bg-black"
                     />
                 ) : cameraError ? (
                     /* Error State with Browser Permission Guidance */
@@ -464,7 +540,7 @@ export function LiveCameraModal({
                             videoConstraints={videoConstraints}
                             onUserMedia={handleUserMedia}
                             onUserMediaError={handleUserMediaError}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-contain"
                             mirrored={facingMode === "user"}
                         />
 
@@ -512,79 +588,10 @@ export function LiveCameraModal({
                         </div>
                     </>
                 )}
-            </div>
+            </main>
 
-            {/* Top Controls Overlay (Sleek Translucent Native Bar) */}
-            <header className="relative w-full px-4 sm:px-6 pt-4 pb-3 flex items-center justify-between z-20 bg-gradient-to-b from-black/80 via-black/40 to-transparent">
-                {/* Close Button */}
-                <button
-                    type="button"
-                    onClick={handleClose}
-                    className="w-10 h-10 rounded-full bg-black/40 hover:bg-black/60 border border-white/15 active:scale-95 text-white flex items-center justify-center backdrop-blur-md transition-all cursor-pointer shadow-md"
-                    title="Close Camera"
-                >
-                    <X className="w-5 h-5" />
-                </button>
-
-                {/* Title & Live Status */}
-                <div className="flex flex-col items-center text-center">
-                    <span className="text-xs font-bold tracking-widest text-white uppercase font-mono drop-shadow-md">
-                        {title}
-                    </span>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                        <span className="text-[10px] text-gray-200 font-mono tracking-wider drop-shadow-sm">
-                            {facingMode === "environment" ? "REAR CAMERA" : "FRONT CAMERA"}
-                        </span>
-                    </div>
-                </div>
-
-                {/* Top Action Buttons */}
-                <div className="flex items-center gap-2">
-                    {/* Torch Toggle */}
-                    {torchAvailable && !capturedPhoto && (
-                        <button
-                            type="button"
-                            onClick={toggleTorch}
-                            className={`w-10 h-10 rounded-full flex items-center justify-center backdrop-blur-md border border-white/15 transition-all cursor-pointer shadow-md ${
-                                torchOn
-                                    ? "bg-amber-400 text-black shadow-amber-400/40"
-                                    : "bg-black/40 hover:bg-black/60 text-white"
-                            }`}
-                            title={torchOn ? "Turn off Flash" : "Turn on Flash"}
-                        >
-                            {torchOn ? <Zap className="w-4 h-4 fill-current" /> : <ZapOff className="w-4 h-4" />}
-                        </button>
-                    )}
-
-                    {/* Grid Overlay Toggle */}
-                    {!capturedPhoto && (
-                        <button
-                            type="button"
-                            onClick={() => setShowGrid((g) => !g)}
-                            className={`w-10 h-10 rounded-full flex items-center justify-center backdrop-blur-md border border-white/15 transition-all cursor-pointer shadow-md ${
-                                showGrid ? "bg-white/30 text-yellow-300" : "bg-black/40 hover:bg-black/60 text-gray-300"
-                            }`}
-                            title="Toggle Grid Lines"
-                        >
-                            <Focus className="w-4 h-4" />
-                        </button>
-                    )}
-
-                    {/* Full-screen Toggle */}
-                    <button
-                        type="button"
-                        onClick={toggleFullscreen}
-                        className="w-10 h-10 rounded-full bg-black/40 hover:bg-black/60 border border-white/15 active:scale-95 text-white flex items-center justify-center backdrop-blur-md transition-all cursor-pointer shadow-md"
-                        title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
-                    >
-                        {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
-                    </button>
-                </div>
-            </header>
-
-            {/* Bottom Controls Overlay (Sleek Native Camera Deck) */}
-            <footer className="relative w-full px-6 pb-8 pt-6 flex flex-col items-center justify-center gap-3 z-20 bg-gradient-to-t from-black via-black/70 to-transparent">
+            {/* Bottom Controls Bar (Native Camera Deck) */}
+            <footer className="relative w-full px-6 pb-8 pt-4 flex flex-col items-center justify-center gap-3 z-20 bg-black/95 backdrop-blur-md shrink-0 border-t border-white/10">
                 {capturedPhoto ? (
                     /* Review Controls: Retake vs Use Photo */
                     <div className="w-full max-w-sm flex items-center justify-between gap-4">
