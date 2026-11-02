@@ -47,68 +47,74 @@ export const ensureS3Url = async (imageUrl: string | null | undefined, fallbackF
 };
 
 export const compressImage = (file: File, maxSizeKB: number = 100): Promise<File> => {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
         if (file.size <= maxSizeKB * 1024) {
             return resolve(file);
         }
 
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = (event) => {
-            const img = new Image();
-            img.src = event.target?.result as string;
-            img.onload = () => {
-                const canvas = document.createElement("canvas");
-                let width = img.width;
-                let height = img.height;
+        // Memory-efficient image loader using URL.createObjectURL instead of readAsDataURL
+        // Avoids allocating 30MB+ Base64 strings in the JavaScript heap
+        const objectUrl = URL.createObjectURL(file);
+        const img = new Image();
+        img.src = objectUrl;
+        img.onload = () => {
+            URL.revokeObjectURL(objectUrl);
+            const canvas = document.createElement("canvas");
+            let width = img.width;
+            let height = img.height;
 
-                const maxDim = 1200;
-                if (width > maxDim || height > maxDim) {
-                    if (width > height) {
-                        height = Math.round((height * maxDim) / width);
-                        width = maxDim;
-                    } else {
-                        width = Math.round((width * maxDim) / height);
-                        height = maxDim;
-                    }
+            const maxDim = 1200;
+            if (width > maxDim || height > maxDim) {
+                if (width > height) {
+                    height = Math.round((height * maxDim) / width);
+                    width = maxDim;
+                } else {
+                    width = Math.round((width * maxDim) / height);
+                    height = maxDim;
                 }
+            }
 
-                canvas.width = width;
-                canvas.height = height;
+            canvas.width = width;
+            canvas.height = height;
 
-                const ctx = canvas.getContext("2d");
-                if (!ctx) {
-                    return reject(new Error("Could not get 2D context from canvas"));
-                }
+            const ctx = canvas.getContext("2d");
+            if (!ctx) {
+                return resolve(file);
+            }
 
-                ctx.drawImage(img, 0, 0, width, height);
+            ctx.drawImage(img, 0, 0, width, height);
 
-                const tryCompress = (quality: number): void => {
-                    canvas.toBlob(
-                        (blob) => {
-                            if (!blob) {
-                                return reject(new Error("Canvas toBlob returned null"));
-                            }
+            const tryCompress = (quality: number): void => {
+                canvas.toBlob(
+                    (blob) => {
+                        if (!blob) {
+                            canvas.width = 0;
+                            canvas.height = 0;
+                            return resolve(file);
+                        }
 
-                            if (blob.size <= maxSizeKB * 1024 || quality <= 0.1) {
-                                const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".webp", {
-                                    type: "image/webp",
-                                    lastModified: Date.now(),
-                                });
-                                resolve(compressedFile);
-                            } else {
-                                tryCompress(quality - 0.15);
-                            }
-                        },
-                        "image/webp",
-                        quality
-                    );
-                };
-                tryCompress(0.85);
+                        if (blob.size <= maxSizeKB * 1024 || quality <= 0.1) {
+                            canvas.width = 0;
+                            canvas.height = 0;
+                            const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".webp", {
+                                type: "image/webp",
+                                lastModified: Date.now(),
+                            });
+                            resolve(compressedFile);
+                        } else {
+                            tryCompress(quality - 0.15);
+                        }
+                    },
+                    "image/webp",
+                    quality
+                );
             };
-            img.onerror = (err) => reject(err);
+            tryCompress(0.85);
         };
-        reader.onerror = (err) => reject(err);
+        img.onerror = () => {
+            URL.revokeObjectURL(objectUrl);
+            resolve(file);
+        };
     });
 };
 
