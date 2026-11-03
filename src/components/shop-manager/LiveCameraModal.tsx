@@ -47,6 +47,7 @@ export function LiveCameraModal({
     const webcamRef = useRef<Webcam>(null);
 
     const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
+    const [aspectRatioMode, setAspectRatioMode] = useState<"9:16" | "4:3" | "1:1" | "full">("9:16");
     const [isStarting, setIsStarting] = useState(true);
     const [retryKey, setRetryKey] = useState(0);
     const [torchAvailable, setTorchAvailable] = useState(false);
@@ -237,7 +238,7 @@ export function LiveCameraModal({
         onClose();
     }, [stopStream, clearCapturedPhoto, onClose]);
 
-    // Capture photo from webcam directly at full hardware sensor resolution
+    // Capture photo from webcam directly at full hardware sensor resolution matching active aspect ratio
     const handleSnapPhoto = () => {
         if (!webcamRef.current || isCapturing) return;
 
@@ -254,9 +255,50 @@ export function LiveCameraModal({
             const naturalWidth = videoEl.videoWidth || 1920;
             const naturalHeight = videoEl.videoHeight || 1080;
 
+            // Determine target aspect ratio (width / height)
+            let targetAspect: number;
+            if (aspectRatioMode === "9:16") {
+                targetAspect = isPortrait ? 9 / 16 : 16 / 9;
+            } else if (aspectRatioMode === "4:3") {
+                targetAspect = isPortrait ? 3 / 4 : 4 / 3;
+            } else if (aspectRatioMode === "1:1") {
+                targetAspect = 1;
+            } else {
+                // full: match container aspect ratio if available
+                const containerEl = videoEl.parentElement;
+                if (containerEl && containerEl.clientHeight > 0) {
+                    targetAspect = containerEl.clientWidth / containerEl.clientHeight;
+                } else {
+                    targetAspect = isPortrait ? 9 / 16 : 16 / 9;
+                }
+            }
+
+            const streamAspect = naturalWidth / naturalHeight;
+
+            let cropX = 0;
+            let cropY = 0;
+            let cropWidth = naturalWidth;
+            let cropHeight = naturalHeight;
+
+            if (Math.abs(streamAspect - targetAspect) > 0.01) {
+                if (streamAspect > targetAspect) {
+                    // Stream is wider than target -> crop left and right
+                    cropWidth = Math.round(naturalHeight * targetAspect);
+                    cropHeight = naturalHeight;
+                    cropX = Math.round((naturalWidth - cropWidth) / 2);
+                    cropY = 0;
+                } else {
+                    // Stream is taller than target -> crop top and bottom
+                    cropWidth = naturalWidth;
+                    cropHeight = Math.round(naturalWidth / targetAspect);
+                    cropX = 0;
+                    cropY = Math.round((naturalHeight - cropHeight) / 2);
+                }
+            }
+
             const canvas = document.createElement("canvas");
-            canvas.width = naturalWidth;
-            canvas.height = naturalHeight;
+            canvas.width = cropWidth;
+            canvas.height = cropHeight;
 
             const ctx = canvas.getContext("2d", { alpha: false });
             if (!ctx) {
@@ -270,12 +312,22 @@ export function LiveCameraModal({
 
             // Mirror if using front-facing camera
             if (facingMode === "user") {
-                ctx.translate(naturalWidth, 0);
+                ctx.translate(cropWidth, 0);
                 ctx.scale(-1, 1);
             }
 
-            // Direct 1:1 hardware frame capture without clientWidth downscaling
-            ctx.drawImage(videoEl, 0, 0, naturalWidth, naturalHeight);
+            // Draw cropped video frame matching viewfinder framing
+            ctx.drawImage(
+                videoEl,
+                cropX,
+                cropY,
+                cropWidth,
+                cropHeight,
+                0,
+                0,
+                cropWidth,
+                cropHeight
+            );
 
             canvas.toBlob(
                 (blob) => {
@@ -392,9 +444,20 @@ export function LiveCameraModal({
 
     if (!isOpen) return null;
 
-    // Full HD (1080p) adaptive constraints for lag-free 30-60fps preview and uncropped 1x optical view
+    // Adaptive constraints based on selected aspect ratio mode (9:16 default, 4:3, 1:1, full)
+    const getIdealAspectRatio = () => {
+        if (aspectRatioMode === "9:16") return isPortrait ? 9 / 16 : 16 / 9;
+        if (aspectRatioMode === "4:3") return isPortrait ? 3 / 4 : 4 / 3;
+        if (aspectRatioMode === "1:1") return 1;
+        if (typeof window !== "undefined" && window.innerHeight && window.innerWidth) {
+            return window.innerWidth / window.innerHeight;
+        }
+        return isPortrait ? 9 / 16 : 16 / 9;
+    };
+
     const videoConstraints: MediaTrackConstraints = {
         facingMode: { ideal: facingMode },
+        aspectRatio: { ideal: getIdealAspectRatio() },
         width: { ideal: isPortrait ? 1080 : 1920 },
         height: { ideal: isPortrait ? 1920 : 1080 },
         frameRate: { ideal: 30, max: 60 }
@@ -422,13 +485,31 @@ export function LiveCameraModal({
                     <div className="flex items-center gap-1.5 mt-0.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                         <span className="text-[10px] text-gray-200 font-mono tracking-wider drop-shadow-sm">
-                            {facingMode === "environment" ? "REAR CAMERA (1x)" : "FRONT CAMERA (1x)"}
+                            {facingMode === "environment" ? "REAR CAMERA" : "FRONT CAMERA"} • {aspectRatioMode.toUpperCase()}
                         </span>
                     </div>
                 </div>
 
                 {/* Top Action Buttons */}
                 <div className="flex items-center gap-2">
+                    {/* Aspect Ratio Selector Toggle (9:16 default, 4:3, 1:1, Full) */}
+                    {!capturedPhoto && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setAspectRatioMode((current) => {
+                                    if (current === "9:16") return "4:3";
+                                    if (current === "4:3") return "1:1";
+                                    if (current === "1:1") return "full";
+                                    return "9:16";
+                                });
+                            }}
+                            className="px-2.5 h-10 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 active:scale-95 text-white font-mono text-[11px] font-bold flex items-center justify-center backdrop-blur-md transition-all cursor-pointer shadow-md tracking-wider"
+                            title="Toggle Aspect Ratio (9:16, 4:3, 1:1, Full)"
+                        >
+                            {aspectRatioMode.toUpperCase()}
+                        </button>
+                    )}
                     {/* Torch Toggle */}
                     {torchAvailable && !capturedPhoto && (
                         <button
@@ -471,17 +552,9 @@ export function LiveCameraModal({
                 </div>
             </header>
 
-            {/* Viewfinder Main: Natural 1x Optical View with Zero Digital Zoom & Zero Cropping */}
-            <main className="relative flex-1 w-full h-full overflow-hidden bg-black flex items-center justify-center">
-                {capturedPhoto ? (
-                    /* Review Preview Photo: Uncropped 1x Frame */
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                        src={capturedPhoto.previewUrl}
-                        alt="Captured storefront"
-                        className="w-full h-full object-contain bg-black"
-                    />
-                ) : cameraError ? (
+            {/* Viewfinder Main: Dynamic Aspect Ratio Frame (9:16 Default) */}
+            <main className="relative flex-1 w-full h-full overflow-hidden bg-black flex items-center justify-center p-0 sm:p-2">
+                {cameraError ? (
                     /* Error State with Browser Permission Guidance */
                     <div className="w-full max-w-sm p-6 mx-4 rounded-2xl bg-zinc-900/95 border border-red-500/30 text-center space-y-4 shadow-2xl text-white z-20">
                         <div className="w-14 h-14 rounded-full bg-red-500/20 text-red-400 mx-auto flex items-center justify-center">
@@ -528,21 +601,56 @@ export function LiveCameraModal({
                         </div>
                     </div>
                 ) : (
-                    /* Edge-to-Edge Live Camera Feed */
-                    <>
-                        <Webcam
-                            key={`${facingMode}-${retryKey}-${isPortrait ? "p" : "l"}`}
-                            ref={webcamRef}
-                            audio={false}
-                            screenshotFormat="image/jpeg"
-                            screenshotQuality={0.92}
-                            forceScreenshotSourceSize={true}
-                            videoConstraints={videoConstraints}
-                            onUserMedia={handleUserMedia}
-                            onUserMediaError={handleUserMediaError}
-                            className="w-full h-full object-contain"
-                            mirrored={facingMode === "user"}
-                        />
+                    /* Camera Viewfinder Box Framed to Active Aspect Ratio (9:16 Default) */
+                    <div
+                        className={`relative overflow-hidden flex items-center justify-center transition-all duration-200 ${
+                            aspectRatioMode === "full"
+                                ? "w-full h-full"
+                                : aspectRatioMode === "1:1"
+                                ? "aspect-square"
+                                : aspectRatioMode === "4:3"
+                                ? isPortrait ? "aspect-[3/4]" : "aspect-[4/3]"
+                                : isPortrait ? "aspect-[9/16]" : "aspect-[16/9]"
+                        }`}
+                        style={{
+                            width: aspectRatioMode === "full" ? "100%" : isPortrait ? "100%" : "auto",
+                            height: aspectRatioMode === "full" ? "100%" : isPortrait ? "auto" : "100%",
+                            maxWidth: "100%",
+                            maxHeight: "100%",
+                            aspectRatio:
+                                aspectRatioMode === "9:16"
+                                    ? isPortrait ? "9 / 16" : "16 / 9"
+                                    : aspectRatioMode === "4:3"
+                                    ? isPortrait ? "3 / 4" : "4 / 3"
+                                    : aspectRatioMode === "1:1"
+                                    ? "1 / 1"
+                                    : undefined
+                        }}
+                    >
+                        {capturedPhoto ? (
+                            /* Review Preview Photo: Matched to Active Aspect Ratio */
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                                src={capturedPhoto.previewUrl}
+                                alt="Captured storefront"
+                                className="w-full h-full object-cover bg-black"
+                            />
+                        ) : (
+                            /* Edge-to-Edge Live Camera Feed */
+                            <>
+                                <Webcam
+                                    key={`${facingMode}-${retryKey}-${aspectRatioMode}-${isPortrait ? "p" : "l"}`}
+                                    ref={webcamRef}
+                                    audio={false}
+                                    screenshotFormat="image/jpeg"
+                                    screenshotQuality={0.92}
+                                    forceScreenshotSourceSize={true}
+                                    videoConstraints={videoConstraints}
+                                    onUserMedia={handleUserMedia}
+                                    onUserMediaError={handleUserMediaError}
+                                    className="w-full h-full object-cover"
+                                    mirrored={facingMode === "user"}
+                                />
 
                         {isStarting && (
                             <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center gap-3 z-30">
@@ -580,7 +688,7 @@ export function LiveCameraModal({
                         </div>
 
                         {/* Native Corner Framing Target */}
-                        <div className="absolute inset-4 sm:inset-8 pointer-events-none rounded-2xl z-10">
+                        <div className="absolute inset-3 pointer-events-none rounded-2xl z-10">
                             <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-white/60 rounded-tl-lg" />
                             <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-white/60 rounded-tr-lg" />
                             <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-white/60 rounded-bl-lg" />
@@ -588,7 +696,9 @@ export function LiveCameraModal({
                         </div>
                     </>
                 )}
-            </main>
+            </div>
+        )}
+    </main>
 
             {/* Bottom Controls Bar (Native Camera Deck) */}
             <footer className="relative w-full px-6 pb-8 pt-4 flex flex-col items-center justify-center gap-3 z-20 bg-black/95 backdrop-blur-md shrink-0 border-t border-white/10">

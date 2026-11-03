@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, cleanup, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { LiveCameraModal } from "@/components/shop-manager/LiveCameraModal";
 
@@ -140,5 +140,46 @@ describe("LiveCameraModal Component", () => {
 
         // Either mockStream.stop or mockTracks[0].stop must be invoked
         expect(mockTracks[0].stop.mock.calls.length + mockStream.stop.mock.calls.length).toBeGreaterThan(0);
+    });
+
+    it("defaults aspect ratio to 9:16 and allows cycling through ratios", async () => {
+        render(
+            <LiveCameraModal
+                isOpen={true}
+                onClose={vi.fn()}
+                onCapture={vi.fn()}
+                title="Shop Exterior"
+                description="Entrance facade"
+                categoryKey="SHOP_EXTERIOR"
+            />
+        );
+
+        const ratioButton = screen.getByTitle(/Toggle Aspect Ratio/i);
+        expect(ratioButton).toBeDefined();
+        expect(ratioButton.textContent).toBe("9:16");
+
+        // Click to switch to 4:3
+        act(() => {
+            fireEvent.click(ratioButton);
+        });
+        expect(ratioButton.textContent).toBe("4:3");
+
+        // Click to switch to 1:1
+        act(() => {
+            fireEvent.click(ratioButton);
+        });
+        expect(ratioButton.textContent).toBe("1:1");
+
+        // Click to switch to FULL
+        act(() => {
+            fireEvent.click(ratioButton);
+        });
+        expect(ratioButton.textContent).toBe("FULL");
+
+        // Click to wrap back to 9:16
+        act(() => {
+            fireEvent.click(ratioButton);
+        });
+        expect(ratioButton.textContent).toBe("9:16");
     });
 });
