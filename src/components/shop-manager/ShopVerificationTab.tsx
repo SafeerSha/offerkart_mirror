@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import {
@@ -102,6 +103,7 @@ export default function ShopVerificationTab({
     onSuccess,
     onSwitchToDetails
 }: ShopVerificationTabProps) {
+    const router = useRouter();
     const { data: session } = useSession();
 
     // 1. Live GPS Location (Automated behind the scenes in payload)
@@ -681,15 +683,47 @@ export default function ShopVerificationTab({
             if (response?.success || (response as any)?.status === "success" || (response as any)?.status === 200) {
                 clearDraft();
                 toast.success("Shop verification submitted successfully!");
-                onSuccess?.();
+                if (onSuccess) {
+                    onSuccess();
+                } else {
+                    router.push("/shop-manager");
+                }
             } else {
                 const errMsg = response?.message || (response as any)?.error || "Verification submission failed. Please try again.";
-                toast.error(errMsg);
+                const isAlreadySubmitted =
+                    typeof errMsg === "string" && (
+                        errMsg.toLowerCase().includes("already been submitted") ||
+                        errMsg.toLowerCase().includes("already submitted")
+                    );
+
+                if (isAlreadySubmitted) {
+                    clearDraft();
+                    toast.info("Verification has already been submitted for review. Redirecting to dashboard...");
+                    setTimeout(() => {
+                        router.push("/shop-manager");
+                    }, 1200);
+                } else {
+                    toast.error(errMsg);
+                }
             }
         } catch (error: any) {
             console.error("Verification submit error:", error);
             const errMsg = error?.message || "Failed to submit verification. Please try again.";
-            toast.error(errMsg);
+            const isAlreadySubmitted =
+                typeof errMsg === "string" && (
+                    errMsg.toLowerCase().includes("already been submitted") ||
+                    errMsg.toLowerCase().includes("already submitted")
+                );
+
+            if (isAlreadySubmitted) {
+                clearDraft();
+                toast.info("Verification has already been submitted for review. Redirecting to dashboard...");
+                setTimeout(() => {
+                    router.push("/shop-manager");
+                }, 1200);
+            } else {
+                toast.error(errMsg);
+            }
         } finally {
             setIsSubmitting(false);
         }
