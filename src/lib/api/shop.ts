@@ -40,6 +40,40 @@ export async function getShopDetails(shopId: string) {
     return await backend.get(ENDPOINTS.SHOP.DETAILS(shopId));
 }
 
+/**
+ * Convert a ShopVerificationPayload into multipart FormData
+ * so the backend's @fastify/multipart parser can accept it.
+ */
+function toVerificationFormData(payload: ShopVerificationPayload): FormData {
+    const fd = new FormData();
+
+    fd.append("latitude", String(payload.latitude));
+    fd.append("longitude", String(payload.longitude));
+    fd.append("gpsAccuracyMeters", String(payload.gpsAccuracyMeters));
+    fd.append("personName", payload.personName);
+    fd.append("relationshipType", payload.relationshipType);
+    fd.append("documentType", payload.documentType);
+    fd.append("documentNumber", payload.documentNumber);
+    fd.append("documentFile", payload.documentFile);
+
+    if (payload.authorizationFile) {
+        fd.append("authorizationFile", payload.authorizationFile);
+    }
+
+    if (payload.shopId !== undefined) {
+        fd.append("shopId", String(payload.shopId));
+    }
+    if (payload.shop_id !== undefined) {
+        fd.append("shop_id", String(payload.shop_id));
+    }
+
+    // Send images array as a JSON string field — the backend can parse
+    // a single "images" field containing the full array.
+    fd.append("images", JSON.stringify(payload.images));
+
+    return fd;
+}
+
 export async function submitShopVerification(data: ShopVerificationPayload | FormData, shopId?: string) {
     const query = shopId ? `?shopId=${encodeURIComponent(shopId)}` : "";
     const headers: Record<string, string> = {};
@@ -47,14 +81,18 @@ export async function submitShopVerification(data: ShopVerificationPayload | For
         headers.shopId = shopId;
         headers.shopid = shopId;
     }
-    let body = data;
-    if (shopId && !(data instanceof FormData) && typeof data === "object") {
-        body = {
-            ...data,
-            shopId: Number(shopId) || shopId,
-            shop_id: Number(shopId) || shopId
-        };
+
+    let body: FormData;
+    if (data instanceof FormData) {
+        body = data;
+    } else {
+        // Inject shopId into the payload before converting
+        const enriched: ShopVerificationPayload = shopId
+            ? { ...data, shopId: Number(shopId) || shopId, shop_id: Number(shopId) || shopId }
+            : data;
+        body = toVerificationFormData(enriched);
     }
+
     return await backend.post(
         `${ENDPOINTS.SHOP.VERIFICATION}${query}`,
         body,
