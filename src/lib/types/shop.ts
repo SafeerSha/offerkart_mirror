@@ -93,7 +93,7 @@ export interface ShopVerificationPayload {
     relationshipType: RelationshipType | string;
     documentType: VerificationDocumentType | string;
     documentNumber: string;
-    documentFile: string;
-    authorizationFile: string | null;
+    documentFile: string | File;
+    authorizationFile: string | File | null;
     images: VerificationImageItem[];
 }

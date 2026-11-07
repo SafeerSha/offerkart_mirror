@@ -42,7 +42,10 @@ export async function getShopDetails(shopId: string) {
 
 /**
  * Convert a ShopVerificationPayload into multipart FormData
- * so the backend's @fastify/multipart parser can accept it.
+ * matching the backend's Fastify multipart parser expectations:
+ * - documentFile: binary File
+ * - images: multiple binary Files
+ * - imageMetadata: JSON stringified array of [{ category, latitude, longitude, accuracyMeters, capturedAt }]
  */
 function toVerificationFormData(payload: ShopVerificationPayload): FormData {
     const fd = new FormData();
@@ -54,10 +57,21 @@ function toVerificationFormData(payload: ShopVerificationPayload): FormData {
     fd.append("relationshipType", payload.relationshipType);
     fd.append("documentType", payload.documentType);
     fd.append("documentNumber", payload.documentNumber);
-    fd.append("documentFile", payload.documentFile);
+
+    if (payload.documentFile) {
+        if (payload.documentFile instanceof File) {
+            fd.append("documentFile", payload.documentFile, payload.documentFile.name);
+        } else {
+            fd.append("documentFile", String(payload.documentFile));
+        }
+    }
 
     if (payload.authorizationFile) {
-        fd.append("authorizationFile", payload.authorizationFile);
+        if (payload.authorizationFile instanceof File) {
+            fd.append("authorizationFile", payload.authorizationFile, payload.authorizationFile.name);
+        } else {
+            fd.append("authorizationFile", String(payload.authorizationFile));
+        }
     }
 
     if (payload.shopId !== undefined) {
@@ -67,9 +81,25 @@ function toVerificationFormData(payload: ShopVerificationPayload): FormData {
         fd.append("shop_id", String(payload.shop_id));
     }
 
-    // Send images array as a JSON string field — the backend can parse
-    // a single "images" field containing the full array.
-    fd.append("images", JSON.stringify(payload.images));
+    // Backend requires imageMetadata as JSON array of { category, latitude, longitude, accuracyMeters, capturedAt }
+    if (Array.isArray(payload.images)) {
+        const metadataList = payload.images.map((img) => ({
+            category: img.category,
+            latitude: Number((img.location?.latitude ?? payload.latitude).toFixed(6)),
+            longitude: Number((img.location?.longitude ?? payload.longitude).toFixed(6)),
+            accuracyMeters: Math.round(img.location?.accuracyMeters ?? payload.gpsAccuracyMeters ?? 12),
+            capturedAt: img.location?.capturedAt ?? new Date().toISOString()
+        }));
+        fd.append("imageMetadata", JSON.stringify(metadataList));
+
+        // Append actual File objects if present
+        for (const img of payload.images) {
+            if ((img as any).file instanceof File) {
+                const f = (img as any).file as File;
+                fd.append("images", f, f.name);
+            }
+        }
+    }
 
     return fd;
 }
