@@ -292,6 +292,17 @@ export default function ShopVerificationTab({
             if (draft.documentFileName) setDocumentFileName(draft.documentFileName);
             if (draft.authorizationFileName) setAuthorizationFileName(draft.authorizationFileName);
 
+            if (draft.documentFileBase64 && draft.documentFileName) {
+                try {
+                    setDocumentFile(dataURLtoFile(draft.documentFileBase64, draft.documentFileName));
+                } catch {}
+            }
+            if (draft.authorizationFileBase64 && draft.authorizationFileName) {
+                try {
+                    setAuthorizationFile(dataURLtoFile(draft.authorizationFileBase64, draft.authorizationFileName));
+                } catch {}
+            }
+
             if (draft.images) {
                 setImageSlots((prev) => {
                     const updated = { ...prev };
@@ -349,8 +360,12 @@ export default function ShopVerificationTab({
                     if (data.personName) setPersonName(data.personName);
                     if (data.documentType) setDocumentType(data.documentType as VerificationDocumentType);
                     if (data.documentNumber) setDocumentNumber(data.documentNumber);
-                    if (data.documentFile) setDocumentFileName(data.documentFile);
-                    if (data.authorizationFile) setAuthorizationFileName(data.authorizationFile);
+                    if (data.documentFile) {
+                        setDocumentFileName(typeof data.documentFile === "string" ? data.documentFile : data.documentFile.name);
+                    }
+                    if (data.authorizationFile) {
+                        setAuthorizationFileName(typeof data.authorizationFile === "string" ? data.authorizationFile : data.authorizationFile.name);
+                    }
 
                     if (data.latitude && data.longitude) {
                         setGpsCoords({
@@ -405,6 +420,13 @@ export default function ShopVerificationTab({
         setDocumentFile(file);
         setDocumentFileName(file.name);
         saveFieldToDraft("documentFileName", file.name);
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            saveFieldToDraft("documentFileBase64", reader.result as string);
+        };
+        reader.readAsDataURL(file);
+
         toast.success(`Document selected: ${file.name}`);
     };
 
@@ -421,6 +443,13 @@ export default function ShopVerificationTab({
         setAuthorizationFile(file);
         setAuthorizationFileName(file.name);
         saveFieldToDraft("authorizationFileName", file.name);
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            saveFieldToDraft("authorizationFileBase64", reader.result as string);
+        };
+        reader.readAsDataURL(file);
+
         toast.success(`Authorization letter selected: ${file.name}`);
     };
 
@@ -578,19 +607,18 @@ export default function ShopVerificationTab({
             return;
         }
 
-        if (!documentFileName && !documentFile) {
+        if (!documentFile) {
             toast.error("Please upload the required business licence document");
             return;
         }
 
-        // Validate that at least the 3 photos are selected or have default filenames
-        const missingPhotos = (
-            ["SHOP_NAME_BOARD", "SHOP_EXTERIOR", "SHOP_INTERIOR"] as VerificationImageCategory[]
-        ).filter((cat) => !imageSlots[cat].fileName && !imageSlots[cat].file);
+        // Validate that all 3 photos have been captured or selected
+        const categories: VerificationImageCategory[] = ["SHOP_NAME_BOARD", "SHOP_EXTERIOR", "SHOP_INTERIOR"];
+        const missingPhotos = categories.filter((cat) => !imageSlots[cat].file);
 
         if (missingPhotos.length > 0) {
             const missingTitles = missingPhotos.map((cat) => imageSlots[cat].title).join(", ");
-            toast.error(`Please upload photos for: ${missingTitles}`);
+            toast.error(`Please capture or upload photos for: ${missingTitles}`);
             return;
         }
 
@@ -598,46 +626,58 @@ export default function ShopVerificationTab({
         const payload = buildPayload();
 
         try {
-            // Optional: Upload raw files to S3 if live upload endpoint is active
-            if (documentFile) {
-                try {
-                    const docRes = await s3Api.uploadImage(documentFile, "verification-docs");
-                    if (docRes.success && docRes.data?.url) {
-                        payload.documentFile = docRes.data.url;
-                    }
-                } catch (docErr) {
-                    console.info("S3 document upload fallback to filename:", docErr);
-                }
-            }
+            const formData = new FormData();
+            formData.append("shopId", String(shopId));
+            formData.append("shop_id", String(shopId));
+            formData.append("latitude", String(payload.latitude));
+            formData.append("longitude", String(payload.longitude));
+            formData.append("gpsAccuracyMeters", String(payload.gpsAccuracyMeters));
+            formData.append("personName", payload.personName);
+            formData.append("relationshipType", payload.relationshipType);
+            formData.append("documentType", payload.documentType);
+            formData.append("documentNumber", payload.documentNumber);
 
+            // Document file
+            formData.append("documentFile", documentFile, documentFile.name);
+
+            // Optional authorization letter
             if (authorizationFile) {
-                try {
-                    const authRes = await s3Api.uploadImage(authorizationFile, "verification-docs");
-                    if (authRes.success && authRes.data?.url) {
-                        payload.authorizationFile = authRes.data.url;
-                    }
-                } catch (authErr) {
-                    console.info("S3 auth file upload fallback to filename:", authErr);
-                }
+                formData.append("authorizationFile", authorizationFile, authorizationFile.name);
             }
 
-            // Upload image files if present
-            for (const img of payload.images) {
-                const slot = imageSlots[img.category];
+            // Append 3 shop images and construct required imageMetadata array
+            const imageMetadataList: Array<{
+                category: VerificationImageCategory;
+                latitude: number;
+                longitude: number;
+                accuracyMeters: number;
+                capturedAt: string;
+            }> = [];
+
+            for (const cat of categories) {
+                const slot = imageSlots[cat];
                 if (slot.file) {
-                    try {
-                        const imgRes = await s3Api.uploadImage(slot.file, "verification-images");
-                        if (imgRes.success && imgRes.data?.url) {
-                            img.file = imgRes.data.url;
-                        }
-                    } catch (imgErr) {
-                        console.info("S3 image upload fallback to filename:", imgErr);
-                    }
+                    formData.append("images", slot.file, slot.fileName || `${cat.toLowerCase().replace(/_/g, "-")}.jpg`);
                 }
+                const loc = slot.location || {
+                    latitude: payload.latitude,
+                    longitude: payload.longitude,
+                    accuracyMeters: payload.gpsAccuracyMeters || 12,
+                    capturedAt: new Date().toISOString()
+                };
+                imageMetadataList.push({
+                    category: cat,
+                    latitude: Number(loc.latitude.toFixed(6)),
+                    longitude: Number(loc.longitude.toFixed(6)),
+                    accuracyMeters: Math.round(loc.accuracyMeters || 12),
+                    capturedAt: loc.capturedAt
+                });
             }
 
-            // Submit payload to backend verification endpoint: https://offersnearu.vercel.app/api/business/shop/verification
-            const response = await submitShopVerification(payload, shopId || undefined);
+            formData.append("imageMetadata", JSON.stringify(imageMetadataList));
+
+            // Submit multipart FormData to backend verification endpoint
+            const response = await submitShopVerification(formData, shopId || undefined);
             if (response?.success || (response as any)?.status === "success" || (response as any)?.status === 200) {
                 clearDraft();
                 toast.success("Shop verification submitted successfully!");
