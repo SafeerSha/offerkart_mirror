@@ -2,7 +2,7 @@ import { backend } from "./backendClient";
 import { RegisterShopRequest, LoginShopRequest, ResendOtpRequest, VerifyOtpRequest, OtpResponse } from "../types/auth";
 import { ENDPOINTS } from "./endpoints";
 import { AuthLoginData } from "../types/auth";
-import { ShopVerificationPayload } from "../types/shop";
+import { ShopVerificationPayload, ShopVerificationResponseData } from "../types/shop";
 
 export async function registerShop(data: RegisterShopRequest) {
     return await backend.post(ENDPOINTS.AUTH.REGISTER, data);
@@ -131,8 +131,14 @@ export async function submitShopVerification(data: ShopVerificationPayload | For
 }
 
 export async function getShopVerification(shopId?: string) {
-    return await backend.get(
-        shopId ? `${ENDPOINTS.SHOP.VERIFICATION}?shopId=${encodeURIComponent(shopId)}` : ENDPOINTS.SHOP.VERIFICATION,
-        shopId ? { headers: { shopId } } : undefined
+    const query = shopId ? `?shopId=${encodeURIComponent(shopId)}` : "";
+    const headers: Record<string, string> = {};
+    if (shopId) {
+        headers.shopId = shopId;
+        headers.shopid = shopId;
+    }
+    return await backend.get<ShopVerificationResponseData>(
+        `${ENDPOINTS.SHOP.VERIFICATION}${query}`,
+        shopId ? { headers } : undefined
     );
 }

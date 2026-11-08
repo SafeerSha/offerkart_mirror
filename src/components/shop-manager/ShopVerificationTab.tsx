@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import {
@@ -20,7 +21,10 @@ import {
     ChevronDown,
     ChevronUp,
     FileCheck2,
-    FileUp
+    FileUp,
+    Clock,
+    CheckCircle2,
+    ExternalLink
 } from "lucide-react";
 import { toast } from "sonner";
 import { PremiumCard } from "@/components/shared/PremiumCard";
@@ -43,7 +47,8 @@ import {
     VerificationDocumentType,
     VerificationImageCategory,
     ShopVerificationPayload,
-    VerificationImageItem
+    VerificationImageItem,
+    ShopVerificationDetails
 } from "@/lib/types/shop";
 import { cn } from "@/lib/utils";
 
@@ -94,6 +99,22 @@ function dataURLtoFile(dataurl: string, filename: string): File {
     return new File([u8arr], filename, { type: mime });
 }
 
+function formatDateTime(isoString?: string | null): string {
+    if (!isoString) return "";
+    try {
+        const d = new Date(isoString);
+        return d.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+        });
+    } catch {
+        return isoString;
+    }
+}
+
 export default function ShopVerificationTab({
     shopId,
     shopName,
@@ -102,6 +123,7 @@ export default function ShopVerificationTab({
     onSuccess,
     onSwitchToDetails
 }: ShopVerificationTabProps) {
+    const router = useRouter();
     const { data: session } = useSession();
 
     // 1. Live GPS Location (Automated behind the scenes in payload)
@@ -180,6 +202,8 @@ export default function ShopVerificationTab({
     const [showJsonInspector, setShowJsonInspector] = useState(false);
     const [copiedJson, setCopiedJson] = useState(false);
     const [isLoadingExisting, setIsLoadingExisting] = useState(false);
+    const [existingVerification, setExistingVerification] = useState<ShopVerificationDetails | null>(null);
+    const [backendShopName, setBackendShopName] = useState<string | null>(null);
 
     // Fetch device GPS coordinates in background
     const detectGpsLocation = useCallback(() => {
@@ -347,44 +371,59 @@ export default function ShopVerificationTab({
     }, [session]);
 
     // Load existing verification data if editing
-    useEffect(() => {
+    const loadVerification = useCallback(async () => {
         if (!shopId) return;
 
-        let isMounted = true;
-        const loadVerification = async () => {
-            setIsLoadingExisting(true);
-            try {
-                const res = await getShopVerification(shopId);
-                if (isMounted && res && res.success && res.data) {
-                    const data = res.data as Partial<ShopVerificationPayload>;
-                    if (data.personName) setPersonName(data.personName);
-                    if (data.documentType) setDocumentType(data.documentType as VerificationDocumentType);
-                    if (data.documentNumber) setDocumentNumber(data.documentNumber);
-                    if (data.documentFile) {
-                        setDocumentFileName(typeof data.documentFile === "string" ? data.documentFile : data.documentFile.name);
-                    }
-                    if (data.authorizationFile) {
-                        setAuthorizationFileName(typeof data.authorizationFile === "string" ? data.authorizationFile : data.authorizationFile.name);
+        setIsLoadingExisting(true);
+        try {
+            const res = await getShopVerification(shopId);
+            if (res && res.success && res.data) {
+                const raw = res.data as any;
+                if (raw.shopName) {
+                    setBackendShopName(raw.shopName);
+                }
+
+                const v: ShopVerificationDetails | null = raw.verification !== undefined ? raw.verification : raw;
+
+                if (v && v.status) {
+                    setExistingVerification(v);
+
+                    if (v.ownerDetails) {
+                        if (v.ownerDetails.personName) setPersonName(v.ownerDetails.personName);
+                        if (v.ownerDetails.documentType) setDocumentType(v.ownerDetails.documentType as VerificationDocumentType);
+                        if (v.ownerDetails.documentNumber) setDocumentNumber(v.ownerDetails.documentNumber);
+                        if (v.ownerDetails.documentFileUrl) setDocumentFileName(v.ownerDetails.documentFileUrl);
+                        if (v.ownerDetails.authorizationFileUrl) setAuthorizationFileName(v.ownerDetails.authorizationFileUrl);
+                    } else {
+                        const flat = v as any;
+                        if (flat.personName) setPersonName(flat.personName);
+                        if (flat.documentType) setDocumentType(flat.documentType);
+                        if (flat.documentNumber) setDocumentNumber(flat.documentNumber);
+                        if (flat.documentFile) setDocumentFileName(typeof flat.documentFile === "string" ? flat.documentFile : flat.documentFile.name);
+                        if (flat.authorizationFile) setAuthorizationFileName(typeof flat.authorizationFile === "string" ? flat.authorizationFile : flat.authorizationFile.name);
                     }
 
-                    if (data.latitude && data.longitude) {
+                    const loc = v.verificationLocation || (v as any).location;
+                    if (loc?.latitude && loc?.longitude) {
                         setGpsCoords({
-                            latitude: data.latitude,
-                            longitude: data.longitude,
-                            accuracyMeters: data.gpsAccuracyMeters || 12,
-                            lastUpdated: new Date().toISOString(),
+                            latitude: loc.latitude,
+                            longitude: loc.longitude,
+                            accuracyMeters: loc.gpsAccuracyMeters || (loc as any).accuracyMeters || 12,
+                            lastUpdated: v.submittedAt || new Date().toISOString(),
                         });
                     }
 
-                    if (Array.isArray(data.images)) {
+                    if (Array.isArray(v.images)) {
                         setImageSlots((prev) => {
                             const updated = { ...prev };
-                            data.images?.forEach((img) => {
-                                if (img.category && updated[img.category]) {
-                                    updated[img.category] = {
-                                        ...updated[img.category],
-                                        fileName: img.file,
-                                        previewUrl: img.file.startsWith("http") ? img.file : null,
+                            v.images.forEach((img: any) => {
+                                const cat = img.category as VerificationImageCategory;
+                                if (cat && updated[cat]) {
+                                    const url = img.fileUrl || img.file || "";
+                                    updated[cat] = {
+                                        ...updated[cat],
+                                        fileName: url,
+                                        previewUrl: url.startsWith("http") ? url : null,
                                         mimeType: img.mimeType || "image/jpeg",
                                         location: img.location || null,
                                     };
@@ -394,18 +433,17 @@ export default function ShopVerificationTab({
                         });
                     }
                 }
-            } catch (err) {
-                console.info("No existing verification record:", err);
-            } finally {
-                if (isMounted) setIsLoadingExisting(false);
             }
-        };
-
-        loadVerification();
-        return () => {
-            isMounted = false;
-        };
+        } catch (err) {
+            console.info("No existing verification record:", err);
+        } finally {
+            setIsLoadingExisting(false);
+        }
     }, [shopId]);
+
+    useEffect(() => {
+        loadVerification();
+    }, [loadVerification]);
 
     // Handle document upload
     const handleDocumentFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -681,42 +719,220 @@ export default function ShopVerificationTab({
             if (response?.success || (response as any)?.status === "success" || (response as any)?.status === 200) {
                 clearDraft();
                 toast.success("Shop verification submitted successfully!");
-                onSuccess?.();
+                if (onSuccess) {
+                    onSuccess();
+                } else {
+                    router.push("/shop-manager");
+                }
             } else {
                 const errMsg = response?.message || (response as any)?.error || "Verification submission failed. Please try again.";
-                toast.error(errMsg);
+                const isAlreadySubmitted =
+                    typeof errMsg === "string" && (
+                        errMsg.toLowerCase().includes("already been submitted") ||
+                        errMsg.toLowerCase().includes("already submitted")
+                    );
+
+                if (isAlreadySubmitted) {
+                    clearDraft();
+                    toast.info("Verification has already been submitted for review. Redirecting to dashboard...");
+                    setTimeout(() => {
+                        router.push("/shop-manager");
+                    }, 1200);
+                } else {
+                    toast.error(errMsg);
+                }
             }
         } catch (error: any) {
             console.error("Verification submit error:", error);
             const errMsg = error?.message || "Failed to submit verification. Please try again.";
-            toast.error(errMsg);
+            const isAlreadySubmitted =
+                typeof errMsg === "string" && (
+                    errMsg.toLowerCase().includes("already been submitted") ||
+                    errMsg.toLowerCase().includes("already submitted")
+                );
+
+            if (isAlreadySubmitted) {
+                clearDraft();
+                toast.info("Verification has already been submitted for review. Redirecting to dashboard...");
+                setTimeout(() => {
+                    router.push("/shop-manager");
+                }, 1200);
+            } else {
+                toast.error(errMsg);
+            }
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    return (
-        <div className="space-y-2">
-            {/* Minimal Verification Info */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 px-4 rounded-xl bg-orange-50/50 border border-orange-100 text-xs text-gray-600">
-                <div className="flex items-center gap-2.5">
-                    <ShieldCheck className="w-4 h-4 text-orange-600 shrink-0" />
-                    <span>Upload business registration documents and storefront photos to verify your shop.</span>
-                </div>
+    const isUnderReview =
+        existingVerification?.status === "UNDER_REVIEW" ||
+        existingVerification?.status === "SUBMITTED" ||
+        existingVerification?.status === "MANUAL_REVIEW" ||
+        existingVerification?.status === "PENDING";
+    const isApproved = existingVerification?.status === "APPROVED";
+    const isRejected = existingVerification?.status === "REJECTED";
+    const isReadOnly = isUnderReview || isApproved;
 
-                {!shopId && (
-                    <span className="text-[11px] text-amber-800 shrink-0">
-                        New shop?{" "}
-                        <button
-                            type="button"
-                            onClick={onSwitchToDetails}
-                            className="font-semibold underline hover:text-amber-900 cursor-pointer"
-                        >
-                            Save details first
-                        </button>
-                    </span>
-                )}
-            </div>
+    return (
+        <div className="space-y-3">
+            {/* Verification Status Card if verification record exists */}
+            {existingVerification && (
+                <div
+                    className={cn(
+                        "rounded-2xl border p-4 sm:p-5 transition-all shadow-xs",
+                        isUnderReview && "bg-amber-50/70 border-amber-200 text-amber-950",
+                        isApproved && "bg-emerald-50/70 border-emerald-200 text-emerald-950",
+                        isRejected && "bg-rose-50/70 border-rose-200 text-rose-950",
+                        !isUnderReview && !isApproved && !isRejected && "bg-blue-50/70 border-blue-200 text-blue-950"
+                    )}
+                >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3 mb-3 border-black/5">
+                        <div className="flex items-center gap-3">
+                            <div
+                                className={cn(
+                                    "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-xs",
+                                    isUnderReview && "bg-amber-100 text-amber-700",
+                                    isApproved && "bg-emerald-100 text-emerald-700",
+                                    isRejected && "bg-rose-100 text-rose-700",
+                                    !isUnderReview && !isApproved && !isRejected && "bg-blue-100 text-blue-700"
+                                )}
+                            >
+                                {isUnderReview && <Clock className="w-5 h-5 animate-pulse" />}
+                                {isApproved && <CheckCircle2 className="w-5 h-5" />}
+                                {isRejected && <AlertCircle className="w-5 h-5" />}
+                                {!isUnderReview && !isApproved && !isRejected && <ShieldCheck className="w-5 h-5" />}
+                            </div>
+                            <div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <h4 className="text-sm font-bold leading-tight">
+                                        {isUnderReview && "Shop Verification Under Review"}
+                                        {isApproved && "Shop Successfully Verified"}
+                                        {isRejected && "Verification Application Rejected"}
+                                        {!isUnderReview && !isApproved && !isRejected && `Verification Status: ${existingVerification.status}`}
+                                    </h4>
+                                    <span
+                                        className={cn(
+                                            "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border",
+                                            isUnderReview && "bg-amber-100 text-amber-800 border-amber-300",
+                                            isApproved && "bg-emerald-100 text-emerald-800 border-emerald-300",
+                                            isRejected && "bg-rose-100 text-rose-800 border-rose-300",
+                                            !isUnderReview && !isApproved && !isRejected && "bg-blue-100 text-blue-800 border-blue-300"
+                                        )}
+                                    >
+                                        {existingVerification.status?.replace(/_/g, " ")}
+                                    </span>
+                                </div>
+                                <p className="text-[11px] opacity-75 mt-0.5">
+                                    Attempt #{existingVerification.attemptNumber || 1}
+                                    {existingVerification.submittedAt && ` • Submitted ${formatDateTime(existingVerification.submittedAt)}`}
+                                    {existingVerification.reviewedAt && ` • Reviewed ${formatDateTime(existingVerification.reviewedAt)}`}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 self-start sm:self-auto">
+                            <button
+                                type="button"
+                                onClick={() => loadVerification()}
+                                disabled={isLoadingExisting}
+                                className="py-1.5 px-2.5 rounded-xl bg-white hover:bg-gray-50 text-gray-700 border border-black/10 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs hover:shadow-xs disabled:opacity-50"
+                                title="Refresh verification status"
+                            >
+                                <RefreshCw className={cn("w-3.5 h-3.5", isLoadingExisting && "animate-spin")} />
+                                <span>Refresh</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => router.push("/shop-manager")}
+                                className="py-1.5 px-3 rounded-xl bg-white hover:bg-gray-50 text-gray-800 border border-black/10 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs hover:shadow-xs"
+                            >
+                                <span>Dashboard</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Rejection feedback */}
+                    {isRejected && (
+                        <div className="p-3 rounded-xl bg-white/90 border border-rose-200 text-xs space-y-1 mb-3">
+                            <div className="font-bold text-rose-900 flex items-center gap-1.5">
+                                <AlertCircle className="w-4 h-4 text-rose-600" />
+                                <span>Feedback / Rejection Reason:</span>
+                            </div>
+                            <p className="text-gray-700 pl-5">
+                                {existingVerification.rejectionReason || "Verification criteria were not met."}
+                            </p>
+                            {existingVerification.adminRemarks && (
+                                <div className="mt-2 pt-2 border-t border-rose-100 pl-5 text-[11px] text-gray-600">
+                                    <span className="font-semibold text-gray-800">Admin Remarks: </span>
+                                    {existingVerification.adminRemarks}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Metadata Badges: Physical Audit, Owner Details, Proximity, GPS */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-[11px]">
+                        <div className="p-2 rounded-lg bg-white/60 border border-black/5">
+                            <span className="text-[10px] text-gray-500 block">Physical Audit</span>
+                            <span className="font-semibold text-gray-800">
+                                {existingVerification.physicalStatus?.replace(/_/g, " ") || "Pending"}
+                            </span>
+                        </div>
+                        <div className="p-2 rounded-lg bg-white/60 border border-black/5">
+                            <span className="text-[10px] text-gray-500 block">Licence Status</span>
+                            <span className="font-semibold text-gray-800">
+                                {existingVerification.ownerStatus?.replace(/_/g, " ") || "Submitted"}
+                            </span>
+                        </div>
+                        <div className="p-2 rounded-lg bg-white/60 border border-black/5">
+                            <span className="text-[10px] text-gray-500 block">Distance to Shop</span>
+                            <span className="font-semibold text-gray-800">
+                                {existingVerification.verificationLocation?.distanceMeters !== undefined
+                                    ? existingVerification.verificationLocation.distanceMeters < 100
+                                        ? "On-site (< 100m)"
+                                        : `${(existingVerification.verificationLocation.distanceMeters / 1000).toFixed(1)} km away`
+                                    : "GPS recorded"}
+                            </span>
+                        </div>
+                        <div className="p-2 rounded-lg bg-white/60 border border-black/5">
+                            <span className="text-[10px] text-gray-500 block">GPS Accuracy</span>
+                            <span className="font-semibold text-gray-800">
+                                ±{existingVerification.verificationLocation?.gpsAccuracyMeters || 12}m
+                            </span>
+                        </div>
+                    </div>
+
+                    {isUnderReview && (
+                        <p className="text-[11px] text-amber-800 mt-3 pt-2 border-t border-amber-200/50">
+                            🔒 <strong>Notice:</strong> Your verification request is currently locked under administrative review. Once our team approves your establishment photos and documents, your shop will receive the verified badge.
+                        </p>
+                    )}
+                </div>
+            )}
+
+            {/* Verification Guidance Notice */}
+            {!existingVerification && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 px-4 rounded-xl bg-orange-50/50 border border-orange-100 text-xs text-gray-600">
+                    <div className="flex items-center gap-2.5">
+                        <ShieldCheck className="w-4 h-4 text-orange-600 shrink-0" />
+                        <span>Upload business registration documents and storefront photos to verify your shop.</span>
+                    </div>
+
+                    {!shopId && (
+                        <span className="text-[11px] text-amber-800 shrink-0">
+                            New shop?{" "}
+                            <button
+                                type="button"
+                                onClick={onSwitchToDetails}
+                                className="font-semibold underline hover:text-amber-900 cursor-pointer"
+                            >
+                                Save details first
+                            </button>
+                        </span>
+                    )}
+                </div>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-2">
                 {/* 1. Document & Legal Verification */}
@@ -746,12 +962,13 @@ export default function ShopVerificationTab({
                                 </label>
                                 <Select
                                     value={documentType}
+                                    disabled={isReadOnly}
                                     onValueChange={(val) => {
                                         setDocumentType(val as VerificationDocumentType);
                                         saveFieldToDraft("documentType", val);
                                     }}
                                 >
-                                    <SelectTrigger className="w-full h-11 bg-background/40 border border-primary/20 focus:border-primary focus:ring-1 focus:ring-primary/30 rounded-xl text-sm text-gray-900 transition-all outline-none cursor-pointer">
+                                    <SelectTrigger className="w-full h-11 bg-background/40 border border-primary/20 focus:border-primary focus:ring-1 focus:ring-primary/30 rounded-xl text-sm text-gray-900 transition-all outline-none cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed">
                                         <SelectValue placeholder="Select document type" />
                                     </SelectTrigger>
                                     <SelectContent className="rounded-xl !bg-white border border-gray-200 shadow-xl max-h-64 z-[100] text-gray-900">
@@ -780,6 +997,7 @@ export default function ShopVerificationTab({
                                     placeholder="e.g. LIC123456 or 32AABCU9603R1ZM"
                                     icon={FileText}
                                     value={documentNumber}
+                                    disabled={isReadOnly}
                                     onChange={(e) => {
                                         setDocumentNumber(e.target.value);
                                         saveFieldToDraft("documentNumber", e.target.value);
@@ -793,12 +1011,12 @@ export default function ShopVerificationTab({
                         </div>
 
                         {/* File Uploads Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-2">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
                             {/* Primary Document File */}
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-gray-700 flex items-center justify-between">
                                     <span>
-                                        Upload Business Licence Document <span className="text-red-500">*</span>
+                                        Business Licence Document <span className="text-red-500">*</span>
                                     </span>
                                 </label>
 
@@ -807,14 +1025,16 @@ export default function ShopVerificationTab({
                                         "relative border-2 border-dashed rounded-xl p-4 transition-all flex flex-col items-center justify-center text-center",
                                         documentFileName
                                             ? "border-emerald-300 bg-emerald-50/20"
-                                            : "border-gray-200 hover:border-blue-400 bg-gray-50/40"
+                                            : "border-gray-200 hover:border-blue-400 bg-gray-50/40",
+                                        isReadOnly && "opacity-90"
                                     )}
                                 >
                                     <input
                                         type="file"
                                         id="doc-file-input"
                                         accept=".pdf,image/png,image/jpeg,image/webp"
-                                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                                        disabled={isReadOnly}
+                                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full disabled:cursor-not-allowed"
                                         onChange={handleDocumentFileChange}
                                     />
 
@@ -825,27 +1045,44 @@ export default function ShopVerificationTab({
                                                     <FileText className="w-4 h-4" />
                                                 </div>
                                                 <div className="text-left overflow-hidden">
-                                                    <p className="text-xs font-semibold text-gray-800 truncate max-w-[180px] sm:max-w-[240px]">
-                                                        {documentFileName}
+                                                    <p className="text-xs font-semibold text-gray-800 truncate max-w-[140px] sm:max-w-[200px]">
+                                                        {documentFileName.split("/").pop() || documentFileName}
                                                     </p>
                                                     <span className="text-[10px] text-emerald-600 font-medium">
-                                                        Document attached
+                                                        {isReadOnly ? "Submitted Document" : "Document attached"}
                                                     </span>
                                                 </div>
                                             </div>
 
-                                            <button
-                                                type="button"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setDocumentFile(null);
-                                                    setDocumentFileName("");
-                                                }}
-                                                className="p-1 rounded-md text-red-500 hover:bg-red-50 transition-colors"
-                                                title="Remove file"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
+                                            <div className="flex items-center gap-1.5 shrink-0">
+                                                {documentFileName.startsWith("http") && (
+                                                    <a
+                                                        href={documentFileName}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className="py-1 px-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold flex items-center gap-1 transition-colors"
+                                                        title="View uploaded document"
+                                                    >
+                                                        <ExternalLink className="w-3.5 h-3.5" />
+                                                        <span className="text-[11px]">View</span>
+                                                    </a>
+                                                )}
+                                                {!isReadOnly && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setDocumentFile(null);
+                                                            setDocumentFileName("");
+                                                        }}
+                                                        className="p-1 rounded-md text-red-500 hover:bg-red-50 transition-colors"
+                                                        title="Remove file"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
                                     ) : (
                                         <div className="py-4 space-y-2">
@@ -858,6 +1095,96 @@ export default function ShopVerificationTab({
                                                 </p>
                                                 <p className="text-[10px] text-gray-400">
                                                     PDF, JPG, PNG up to 5MB
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Authorization Letter (Optional) */}
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-700 flex items-center justify-between">
+                                    <span>
+                                        Authorization Letter <span className="text-gray-400 font-normal text-xs">(If Representative)</span>
+                                    </span>
+                                </label>
+
+                                <div
+                                    className={cn(
+                                        "relative border-2 border-dashed rounded-xl p-4 transition-all flex flex-col items-center justify-center text-center",
+                                        authorizationFileName
+                                            ? "border-emerald-300 bg-emerald-50/20"
+                                            : "border-gray-200 hover:border-blue-400 bg-gray-50/40",
+                                        isReadOnly && "opacity-90"
+                                    )}
+                                >
+                                    <input
+                                        type="file"
+                                        id="auth-file-input"
+                                        accept=".pdf,image/png,image/jpeg,image/webp"
+                                        disabled={isReadOnly}
+                                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full disabled:cursor-not-allowed"
+                                        onChange={handleAuthorizationFileChange}
+                                    />
+
+                                    {authorizationFileName ? (
+                                        <div className="flex items-center justify-between w-full p-2 bg-white rounded-lg border border-emerald-200 shadow-2xs">
+                                            <div className="flex items-center gap-2.5 overflow-hidden">
+                                                <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                                                    <FileText className="w-4 h-4" />
+                                                </div>
+                                                <div className="text-left overflow-hidden">
+                                                    <p className="text-xs font-semibold text-gray-800 truncate max-w-[140px] sm:max-w-[200px]">
+                                                        {authorizationFileName.split("/").pop() || authorizationFileName}
+                                                    </p>
+                                                    <span className="text-[10px] text-emerald-600 font-medium">
+                                                        {isReadOnly ? "Submitted Authorization" : "Letter attached"}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-1.5 shrink-0">
+                                                {authorizationFileName.startsWith("http") && (
+                                                    <a
+                                                        href={authorizationFileName}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className="py-1 px-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold flex items-center gap-1 transition-colors"
+                                                        title="View authorization letter"
+                                                    >
+                                                        <ExternalLink className="w-3.5 h-3.5" />
+                                                        <span className="text-[11px]">View</span>
+                                                    </a>
+                                                )}
+                                                {!isReadOnly && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setAuthorizationFile(null);
+                                                            setAuthorizationFileName(null);
+                                                        }}
+                                                        className="p-1 rounded-md text-red-500 hover:bg-red-50 transition-colors"
+                                                        title="Remove file"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="py-4 space-y-2">
+                                            <div className="w-10 h-10 rounded-full bg-gray-50 text-gray-500 flex items-center justify-center mx-auto">
+                                                <UploadCloud className="w-5 h-5" />
+                                            </div>
+                                            <div className="space-y-0.5">
+                                                <p className="text-xs font-semibold text-gray-600">
+                                                    Upload Authorization Letter
+                                                </p>
+                                                <p className="text-[10px] text-gray-400">
+                                                    Optional: PDF, JPG, PNG up to 5MB
                                                 </p>
                                             </div>
                                         </div>
@@ -946,35 +1273,57 @@ export default function ShopVerificationTab({
                                                             >
                                                                 <Eye className="w-4 h-4" />
                                                             </button>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleRemoveImage(categoryKey)}
-                                                                className="p-2 rounded-full bg-red-600 text-white hover:bg-red-700 shadow transition-transform hover:scale-105 cursor-pointer"
-                                                                title="Remove image"
-                                                            >
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </button>
+                                                            {!isReadOnly && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleRemoveImage(categoryKey)}
+                                                                    className="p-2 rounded-full bg-red-600 text-white hover:bg-red-700 shadow transition-transform hover:scale-105 cursor-pointer"
+                                                                    title="Remove image"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     </div>
 
-                                                    {/* Retake action */}
-                                                    <div className="flex items-center justify-center pt-1">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setActiveCameraSlot(categoryKey)}
-                                                            className="w-full py-1.5 px-3 rounded-lg border border-orange-200 bg-orange-50 hover:bg-orange-100 text-orange-700 text-xs font-semibold cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
-                                                        >
-                                                            <Camera className="w-3.5 h-3.5" />
-                                                            <span>Retake Photo</span>
-                                                        </button>
-                                                    </div>
+                                                    {/* Retake action when editable, or View when read-only */}
+                                                    {!isReadOnly ? (
+                                                        <div className="flex items-center justify-center pt-1">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setActiveCameraSlot(categoryKey)}
+                                                                className="w-full py-1.5 px-3 rounded-lg border border-orange-200 bg-orange-50 hover:bg-orange-100 text-orange-700 text-xs font-semibold cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
+                                                            >
+                                                                <Camera className="w-3.5 h-3.5" />
+                                                                <span>Retake Photo</span>
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center justify-center pt-1">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setPreviewModalSrc(slot.previewUrl!);
+                                                                    setPreviewModalAlt(slot.title);
+                                                                }}
+                                                                className="w-full py-1.5 px-3 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
+                                                            >
+                                                                <Eye className="w-3.5 h-3.5" />
+                                                                <span>View Full Size</span>
+                                                            </button>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             ) : (
                                                 <div className="h-full flex flex-col items-center justify-center py-6 space-y-3">
                                                     <button
                                                         type="button"
+                                                        disabled={isReadOnly}
                                                         onClick={() => setActiveCameraSlot(categoryKey)}
-                                                        className="cursor-pointer flex flex-col items-center text-center space-y-2.5 group w-full"
+                                                        className={cn(
+                                                            "cursor-pointer flex flex-col items-center text-center space-y-2.5 group w-full",
+                                                            isReadOnly && "opacity-50 cursor-not-allowed"
+                                                        )}
                                                     >
                                                         <div className="w-14 h-14 rounded-2xl bg-orange-50 text-orange-600 border border-orange-200/80 group-hover:bg-orange-500 group-hover:text-white group-hover:scale-105 transition-all flex items-center justify-center shadow-xs">
                                                             <Camera className="w-7 h-7" />
@@ -1001,23 +1350,62 @@ export default function ShopVerificationTab({
                 {/* Form Action Buttons */}
                 <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-gray-100">
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
-                        <PremiumButton
-                            type="submit"
-                            disabled={isSubmitting || isLoadingExisting}
-                            className="rounded-xl px-6 sm:px-8 bg-orange-600 hover:bg-orange-700 text-white w-full sm:w-auto justify-center"
-                        >
-                            {isSubmitting ? (
-                                <>
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    Submitting...
-                                </>
-                            ) : (
-                                <>
-                                    <ShieldCheck className="w-4 h-4 mr-2 shrink-0" />
-                                    <span>Submit for Verification</span>
-                                </>
-                            )}
-                        </PremiumButton>
+                        {isReadOnly ? (
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
+                                <button
+                                    type="button"
+                                    disabled
+                                    className={cn(
+                                        "rounded-xl px-5 py-2.5 text-xs font-bold border flex items-center justify-center gap-2 cursor-not-allowed",
+                                        isApproved
+                                            ? "bg-emerald-50 text-emerald-800 border-emerald-300"
+                                            : "bg-amber-50 text-amber-800 border-amber-300"
+                                    )}
+                                >
+                                    {isApproved ? (
+                                        <>
+                                            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                                            <span>Shop Verified & Active</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Clock className="w-4 h-4 text-amber-600 animate-pulse" />
+                                            <span>Verification Under Review</span>
+                                        </>
+                                    )}
+                                </button>
+                                <PremiumButton
+                                    type="button"
+                                    onClick={() => router.push("/shop-manager")}
+                                    className="rounded-xl px-6 bg-orange-600 hover:bg-orange-700 text-white justify-center text-xs"
+                                >
+                                    <span>Back to Dashboard</span>
+                                </PremiumButton>
+                            </div>
+                        ) : (
+                            <PremiumButton
+                                type="submit"
+                                disabled={isSubmitting || isLoadingExisting}
+                                className="rounded-xl px-6 sm:px-8 bg-orange-600 hover:bg-orange-700 text-white w-full sm:w-auto justify-center"
+                            >
+                                {isSubmitting ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                        Submitting...
+                                    </>
+                                ) : isRejected ? (
+                                    <>
+                                        <RefreshCw className="w-4 h-4 mr-2 shrink-0" />
+                                        <span>Update & Resubmit Verification</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <ShieldCheck className="w-4 h-4 mr-2 shrink-0" />
+                                        <span>Submit for Verification</span>
+                                    </>
+                                )}
+                            </PremiumButton>
+                        )}
                     </div>
                 </div>
             </form>

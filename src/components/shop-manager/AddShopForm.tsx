@@ -1132,6 +1132,7 @@ export default function AddShopForm() {
                     shopName={form.watch("shop_name")}
                     initialLatitude={form.watch("latitude")}
                     initialLongitude={form.watch("longitude")}
+                    onSuccess={() => router.push("/shop-manager")}
                     onSwitchToDetails={() => handleTabChange("details")}
                 />
             </TabsContent>
