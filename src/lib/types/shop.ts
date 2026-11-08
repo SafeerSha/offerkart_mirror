@@ -75,6 +75,68 @@ export interface VerificationLocation {
     capturedAt: string;
 }
 
+export type VerificationStatus =
+    | "PENDING"
+    | "SUBMITTED"
+    | "UNDER_REVIEW"
+    | "APPROVED"
+    | "REJECTED"
+    | "MANUAL_REVIEW";
+
+export interface RegisteredLocation {
+    latitude: number;
+    longitude: number;
+}
+
+export interface VerificationLocationDetails {
+    latitude: number;
+    longitude: number;
+    gpsAccuracyMeters: number;
+    distanceMeters?: number;
+}
+
+export interface VerificationOwnerDetails {
+    personName: string;
+    relationshipType: RelationshipType | string;
+    documentType: VerificationDocumentType | string;
+    documentNumber: string;
+    documentFileUrl: string;
+    authorizationFileUrl: string | null;
+    status: VerificationStatus | string;
+    adminRemarks: string | null;
+}
+
+export interface VerificationImageDetail {
+    id: string;
+    category: VerificationImageCategory;
+    mediaType: "IMAGE" | string;
+    fileUrl: string;
+    mimeType: string;
+    location: VerificationLocation;
+}
+
+export interface ShopVerificationDetails {
+    id: string;
+    attemptNumber: number;
+    status: VerificationStatus | string;
+    physicalStatus: VerificationStatus | string;
+    ownerStatus: VerificationStatus | string;
+    registeredLocation: RegisteredLocation;
+    verificationLocation: VerificationLocationDetails;
+    submittedAt: string;
+    reviewedAt: string | null;
+    adminRemarks: string | null;
+    rejectionReason: string | null;
+    ownerDetails: VerificationOwnerDetails;
+    images: VerificationImageDetail[];
+}
+
+export interface ShopVerificationResponseData {
+    shopId: number;
+    shopName: string;
+    verification: ShopVerificationDetails | null;
+}
+
 export interface VerificationImageItem {
     category: VerificationImageCategory;
     mediaType: "IMAGE";
