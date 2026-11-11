@@ -115,6 +115,317 @@ function formatDateTime(isoString?: string | null): string {
     }
 }
 
+const ALLOWED_DOC_MIME_TYPES = new Set([
+    "application/pdf",
+    "image/png",
+    "image/jpeg",
+    "image/webp",
+]);
+
+/** Validates that a selected supporting document is a PDF or safe raster image. */
+export function isAllowedDocumentFile(file: File): boolean {
+    if (file.type) {
+        return ALLOWED_DOC_MIME_TYPES.has(file.type.toLowerCase());
+    }
+    return /\.(pdf|png|jpe?g|webp)$/i.test(file.name);
+}
+
+/** Returns a validated http(s) URL or null to block unsafe URI schemes like javascript: or data:text/html. */
+export function getSafeExternalDocumentUrl(url: string | null | undefined): string | null {
+    if (!url) return null;
+    const trimmed = url.trim();
+    if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+        return null;
+    }
+    try {
+        const parsed = new URL(trimmed);
+        if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+            return parsed.toString();
+        }
+    } catch {
+        return null;
+    }
+    return null;
+}
+
+/** Returns a safe raster image preview URL (http/https or non-SVG base64 image data URI). */
+export function getSafeImagePreviewUrl(
+    previewUrl: string | null | undefined,
+    fileNameOrUrl: string | null | undefined
+): string | null {
+    if (previewUrl) {
+        const trimmed = previewUrl.trim();
+        if (/^data:image\/(png|jpe?g|webp|gif);base64,/i.test(trimmed)) {
+            return trimmed;
+        }
+        const safeRemote = getSafeExternalDocumentUrl(trimmed);
+        if (safeRemote) return safeRemote;
+    }
+    return getSafeExternalDocumentUrl(fileNameOrUrl);
+}
+
+/** Determines whether a document or URL represents an image that can open in ImagePreviewModal. */
+export function isImageDocument(
+    file: File | null,
+    previewUrl: string | null,
+    fileNameOrUrl: string | null
+): boolean {
+    if (file?.type) {
+        return /^image\/(png|jpe?g|webp|gif)$/i.test(file.type);
+    }
+    if (previewUrl && /^data:image\/(png|jpe?g|webp|gif);base64,/i.test(previewUrl.trim())) {
+        return true;
+    }
+    const candidate = (previewUrl || fileNameOrUrl || "").split("?")[0].split("#")[0].toLowerCase();
+    return /\.(jpe?g|png|webp|gif)$/.test(candidate);
+}
+
+export interface DocumentUploadFieldProps {
+    inputId: string;
+    label: React.ReactNode;
+    file: File | null;
+    fileName: string | null;
+    previewUrl: string | null;
+    isReadOnly: boolean;
+    attachedLabel: string;
+    submittedLabel: string;
+    emptyTitle: string;
+    emptySubtitle: string;
+    emptyAccent?: "blue" | "gray";
+    previewAlt: string;
+    onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    onRemove: () => void;
+    onPreviewImage: (src: string, alt: string) => void;
+    onPreviewPdfError?: (message: string) => void;
+}
+
+/** Reusable supporting-document dropzone & viewer card without overlapping file input interception. */
+export function DocumentUploadField({
+    inputId,
+    label,
+    file,
+    fileName,
+    previewUrl,
+    isReadOnly,
+    attachedLabel,
+    submittedLabel,
+    emptyTitle,
+    emptySubtitle,
+    emptyAccent = "blue",
+    previewAlt,
+    onFileChange,
+    onRemove,
+    onPreviewImage,
+    onPreviewPdfError,
+}: DocumentUploadFieldProps) {
+    const safeExternalUrl = getSafeExternalDocumentUrl(previewUrl) || getSafeExternalDocumentUrl(fileName);
+    const isImg = Boolean(fileName && isImageDocument(file, previewUrl, fileName));
+    const safeImgSrc = isImg ? getSafeImagePreviewUrl(previewUrl, fileName) : null;
+    const displayName = fileName ? fileName.split("/").pop()?.split("?")[0] || fileName : "";
+    const canViewLocalPdf = Boolean(
+        !isImg &&
+            fileName &&
+            !safeExternalUrl &&
+            (file || (previewUrl && /^data:application\/pdf;base64,/i.test(previewUrl.trim())))
+    );
+
+    const handleOpenLocalPdf = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        const blobSource =
+            file ??
+            (previewUrl && /^data:application\/pdf;base64,/i.test(previewUrl.trim())
+                ? dataURLtoFile(previewUrl, displayName || "document.pdf")
+                : null);
+
+        if (!blobSource) return;
+
+        const blobUrl = URL.createObjectURL(blobSource);
+        const opened = window.open(blobUrl, "_blank", "noopener,noreferrer");
+        if (!opened) {
+            URL.revokeObjectURL(blobUrl);
+            onPreviewPdfError?.("Popup blocked. Please allow popups to preview this PDF.");
+            return;
+        }
+        window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+    };
+
+    const handleOpenImage = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (safeImgSrc) {
+            onPreviewImage(safeImgSrc, previewAlt);
+        }
+    };
+
+    return (
+        <div className="space-y-2">
+            <label
+                htmlFor={!fileName && !isReadOnly ? inputId : undefined}
+                className="text-sm font-medium text-gray-700 flex items-center justify-between"
+            >
+                <span>{label}</span>
+            </label>
+
+            <div
+                className={cn(
+                    "relative border-2 border-dashed rounded-xl p-4 transition-all flex flex-col items-center justify-center text-center",
+                    fileName
+                        ? "border-emerald-300 bg-emerald-50/20"
+                        : isReadOnly
+                            ? "border-gray-200 bg-gray-50/40"
+                            : "border-gray-200 hover:border-blue-400 bg-gray-50/40",
+                    isReadOnly && "opacity-90"
+                )}
+            >
+                {fileName ? (
+                    <div className="relative z-10 flex items-center justify-between gap-2 w-full p-2 bg-white rounded-lg border border-emerald-200 shadow-2xs">
+                        <div className="flex items-center gap-2.5 overflow-hidden min-w-0">
+                            {isImg && safeImgSrc ? (
+                                <button
+                                    type="button"
+                                    onClick={handleOpenImage}
+                                    className="relative w-10 h-10 rounded-lg overflow-hidden border border-emerald-200 bg-gray-50 shrink-0 cursor-pointer group"
+                                    title={`Preview ${previewAlt}`}
+                                >
+                                    <Image
+                                        src={safeImgSrc}
+                                        alt={previewAlt}
+                                        fill
+                                        className="object-cover"
+                                        unoptimized
+                                    />
+                                    <span className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                        <Eye className="w-3.5 h-3.5" />
+                                    </span>
+                                </button>
+                            ) : (
+                                <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                                    <FileText className="w-4 h-4" />
+                                </div>
+                            )}
+                            <div className="text-left overflow-hidden min-w-0">
+                                <p className="text-xs font-semibold text-gray-800 truncate max-w-[140px] sm:max-w-[200px]">
+                                    {displayName}
+                                </p>
+                                <span className="text-[10px] text-emerald-600 font-medium">
+                                    {isReadOnly ? submittedLabel : attachedLabel}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                            {isImg && safeImgSrc ? (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={handleOpenImage}
+                                        className="py-1 px-2.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                                        title={`View ${previewAlt}`}
+                                    >
+                                        <Eye className="w-3.5 h-3.5" />
+                                        <span className="text-[11px]">View</span>
+                                    </button>
+                                    {safeExternalUrl && (
+                                        <a
+                                            href={safeExternalUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="p-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200 transition-colors"
+                                            title="Open document in new tab"
+                                            aria-label="Open document in new tab"
+                                        >
+                                            <ExternalLink className="w-3.5 h-3.5" />
+                                        </a>
+                                    )}
+                                </>
+                            ) : safeExternalUrl ? (
+                                <a
+                                    href={safeExternalUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="py-1 px-2.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold flex items-center gap-1 transition-colors"
+                                    title={`View ${previewAlt}`}
+                                >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                    <span className="text-[11px]">View</span>
+                                </a>
+                            ) : canViewLocalPdf ? (
+                                <button
+                                    type="button"
+                                    onClick={handleOpenLocalPdf}
+                                    className="py-1 px-2.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                                    title={`View ${previewAlt}`}
+                                >
+                                    <Eye className="w-3.5 h-3.5" />
+                                    <span className="text-[11px]">View</span>
+                                </button>
+                            ) : null}
+
+                            {!isReadOnly && (
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onRemove();
+                                    }}
+                                    className="p-1.5 rounded-md text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
+                                    title="Remove file"
+                                    aria-label="Remove file"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                ) : (
+                    <>
+                        {/* Mount file input only in empty editable state so it never blocks card action buttons */}
+                        {!isReadOnly && (
+                            <input
+                                type="file"
+                                id={inputId}
+                                accept=".pdf,image/png,image/jpeg,image/webp"
+                                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                                onChange={onFileChange}
+                            />
+                        )}
+                        <div className="py-4 space-y-2">
+                            <div
+                                className={cn(
+                                    "w-10 h-10 rounded-full flex items-center justify-center mx-auto",
+                                    emptyAccent === "blue"
+                                        ? "bg-blue-50 text-blue-600"
+                                        : "bg-gray-50 text-gray-500"
+                                )}
+                            >
+                                <UploadCloud className="w-5 h-5" />
+                            </div>
+                            <div className="space-y-0.5">
+                                <p
+                                    className={cn(
+                                        "text-xs font-semibold",
+                                        isReadOnly
+                                            ? "text-gray-500"
+                                            : emptyAccent === "blue"
+                                                ? "text-blue-600 hover:underline"
+                                                : "text-gray-600"
+                                    )}
+                                >
+                                    {isReadOnly ? "No document uploaded" : emptyTitle}
+                                </p>
+                                <p className="text-[10px] text-gray-400">
+                                    {isReadOnly ? "Not submitted for this verification" : emptySubtitle}
+                                </p>
+                            </div>
+                        </div>
+                    </>
+                )}
+            </div>
+        </div>
+    );
+}
+
 export default function ShopVerificationTab({
     shopId,
     shopName,
@@ -150,8 +461,10 @@ export default function ShopVerificationTab({
     const [documentNumber, setDocumentNumber] = useState("");
     const [documentFile, setDocumentFile] = useState<File | null>(null);
     const [documentFileName, setDocumentFileName] = useState<string>("");
+    const [documentPreviewUrl, setDocumentPreviewUrl] = useState<string | null>(null);
     const [authorizationFile, setAuthorizationFile] = useState<File | null>(null);
     const [authorizationFileName, setAuthorizationFileName] = useState<string | null>(null);
+    const [authorizationPreviewUrl, setAuthorizationPreviewUrl] = useState<string | null>(null);
 
     // 4. Physical Establishment Images (Slot-based)
     const [imageSlots, setImageSlots] = useState<Record<VerificationImageCategory, ImageUploadSlot>>({
@@ -313,15 +626,25 @@ export default function ShopVerificationTab({
             if (draft.personName) setPersonName(draft.personName);
             if (draft.documentType) setDocumentType(draft.documentType);
             if (draft.documentNumber) setDocumentNumber(draft.documentNumber);
-            if (draft.documentFileName) setDocumentFileName(draft.documentFileName);
-            if (draft.authorizationFileName) setAuthorizationFileName(draft.authorizationFileName);
+            if (draft.documentFileName) {
+                setDocumentFileName(draft.documentFileName);
+                const safeDocUrl = getSafeExternalDocumentUrl(draft.documentFileName);
+                if (safeDocUrl) setDocumentPreviewUrl(safeDocUrl);
+            }
+            if (draft.authorizationFileName) {
+                setAuthorizationFileName(draft.authorizationFileName);
+                const safeAuthUrl = getSafeExternalDocumentUrl(draft.authorizationFileName);
+                if (safeAuthUrl) setAuthorizationPreviewUrl(safeAuthUrl);
+            }
 
             if (draft.documentFileBase64 && draft.documentFileName) {
+                setDocumentPreviewUrl(draft.documentFileBase64);
                 try {
                     setDocumentFile(dataURLtoFile(draft.documentFileBase64, draft.documentFileName));
                 } catch {}
             }
             if (draft.authorizationFileBase64 && draft.authorizationFileName) {
+                setAuthorizationPreviewUrl(draft.authorizationFileBase64);
                 try {
                     setAuthorizationFile(dataURLtoFile(draft.authorizationFileBase64, draft.authorizationFileName));
                 } catch {}
@@ -392,15 +715,29 @@ export default function ShopVerificationTab({
                         if (v.ownerDetails.personName) setPersonName(v.ownerDetails.personName);
                         if (v.ownerDetails.documentType) setDocumentType(v.ownerDetails.documentType as VerificationDocumentType);
                         if (v.ownerDetails.documentNumber) setDocumentNumber(v.ownerDetails.documentNumber);
-                        if (v.ownerDetails.documentFileUrl) setDocumentFileName(v.ownerDetails.documentFileUrl);
-                        if (v.ownerDetails.authorizationFileUrl) setAuthorizationFileName(v.ownerDetails.authorizationFileUrl);
+                        if (v.ownerDetails.documentFileUrl) {
+                            setDocumentFileName(v.ownerDetails.documentFileUrl);
+                            setDocumentPreviewUrl(v.ownerDetails.documentFileUrl);
+                        }
+                        if (v.ownerDetails.authorizationFileUrl) {
+                            setAuthorizationFileName(v.ownerDetails.authorizationFileUrl);
+                            setAuthorizationPreviewUrl(v.ownerDetails.authorizationFileUrl);
+                        }
                     } else {
                         const flat = v as any;
                         if (flat.personName) setPersonName(flat.personName);
                         if (flat.documentType) setDocumentType(flat.documentType);
                         if (flat.documentNumber) setDocumentNumber(flat.documentNumber);
-                        if (flat.documentFile) setDocumentFileName(typeof flat.documentFile === "string" ? flat.documentFile : flat.documentFile.name);
-                        if (flat.authorizationFile) setAuthorizationFileName(typeof flat.authorizationFile === "string" ? flat.authorizationFile : flat.authorizationFile.name);
+                        if (flat.documentFile) {
+                            const docVal = typeof flat.documentFile === "string" ? flat.documentFile : flat.documentFile.name;
+                            setDocumentFileName(docVal);
+                            if (typeof flat.documentFile === "string") setDocumentPreviewUrl(flat.documentFile);
+                        }
+                        if (flat.authorizationFile) {
+                            const authVal = typeof flat.authorizationFile === "string" ? flat.authorizationFile : flat.authorizationFile.name;
+                            setAuthorizationFileName(authVal);
+                            if (typeof flat.authorizationFile === "string") setAuthorizationPreviewUrl(flat.authorizationFile);
+                        }
                     }
 
                     const loc = v.verificationLocation || (v as any).location;
@@ -445,51 +782,61 @@ export default function ShopVerificationTab({
         loadVerification();
     }, [loadVerification]);
 
-    // Handle document upload
-    const handleDocumentFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Unified handler for primary document and authorization letter selection
+    const handleSupportingDocSelection = (
+        kind: "document" | "authorization",
+        e: React.ChangeEvent<HTMLInputElement>
+    ) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        if (file.size > 5 * 1024 * 1024) {
-            toast.error("File size exceeds 5MB limit.");
+        if (!isAllowedDocumentFile(file)) {
+            toast.error("Unsupported file format. Please upload PDF, PNG, JPG, or WEBP.");
+            e.target.value = "";
             return;
         }
 
-        setDocumentFile(file);
-        setDocumentFileName(file.name);
-        saveFieldToDraft("documentFileName", file.name);
-
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            saveFieldToDraft("documentFileBase64", reader.result as string);
-        };
-        reader.readAsDataURL(file);
-
-        toast.success(`Document selected: ${file.name}`);
-    };
-
-    // Handle authorization file upload
-    const handleAuthorizationFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
         if (file.size > 5 * 1024 * 1024) {
             toast.error("File size exceeds 5MB limit.");
+            e.target.value = "";
             return;
         }
 
-        setAuthorizationFile(file);
-        setAuthorizationFileName(file.name);
-        saveFieldToDraft("authorizationFileName", file.name);
+        const isPrimary = kind === "document";
+        if (isPrimary) {
+            setDocumentFile(file);
+            setDocumentFileName(file.name);
+        } else {
+            setAuthorizationFile(file);
+            setAuthorizationFileName(file.name);
+        }
+        saveFieldToDraft(isPrimary ? "documentFileName" : "authorizationFileName", file.name);
 
         const reader = new FileReader();
         reader.onloadend = () => {
-            saveFieldToDraft("authorizationFileBase64", reader.result as string);
+            const dataUrl = typeof reader.result === "string" ? reader.result : null;
+            if (!dataUrl) return;
+            if (isPrimary) {
+                setDocumentPreviewUrl(dataUrl);
+            } else {
+                setAuthorizationPreviewUrl(dataUrl);
+            }
+            saveFieldToDraft(isPrimary ? "documentFileBase64" : "authorizationFileBase64", dataUrl);
         };
         reader.readAsDataURL(file);
 
-        toast.success(`Authorization letter selected: ${file.name}`);
+        toast.success(
+            isPrimary
+                ? `Document selected: ${file.name}`
+                : `Authorization letter selected: ${file.name}`
+        );
     };
+
+    const handleDocumentFileChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+        handleSupportingDocSelection("document", e);
+
+    const handleAuthorizationFileChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+        handleSupportingDocSelection("authorization", e);
 
     // Process and attach an image file (from in-browser WebRTC camera or gallery picker)
     const attachImageFile = async (
@@ -1013,184 +1360,70 @@ export default function ShopVerificationTab({
                         {/* File Uploads Grid */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
                             {/* Primary Document File */}
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-700 flex items-center justify-between">
-                                    <span>
+                            <DocumentUploadField
+                                inputId="doc-file-input"
+                                label={
+                                    <>
                                         Business Licence Document <span className="text-red-500">*</span>
-                                    </span>
-                                </label>
-
-                                <div
-                                    className={cn(
-                                        "relative border-2 border-dashed rounded-xl p-4 transition-all flex flex-col items-center justify-center text-center",
-                                        documentFileName
-                                            ? "border-emerald-300 bg-emerald-50/20"
-                                            : "border-gray-200 hover:border-blue-400 bg-gray-50/40",
-                                        isReadOnly && "opacity-90"
-                                    )}
-                                >
-                                    <input
-                                        type="file"
-                                        id="doc-file-input"
-                                        accept=".pdf,image/png,image/jpeg,image/webp"
-                                        disabled={isReadOnly}
-                                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full disabled:cursor-not-allowed"
-                                        onChange={handleDocumentFileChange}
-                                    />
-
-                                    {documentFileName ? (
-                                        <div className="flex items-center justify-between w-full p-2 bg-white rounded-lg border border-emerald-200 shadow-2xs">
-                                            <div className="flex items-center gap-2.5 overflow-hidden">
-                                                <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-                                                    <FileText className="w-4 h-4" />
-                                                </div>
-                                                <div className="text-left overflow-hidden">
-                                                    <p className="text-xs font-semibold text-gray-800 truncate max-w-[140px] sm:max-w-[200px]">
-                                                        {documentFileName.split("/").pop() || documentFileName}
-                                                    </p>
-                                                    <span className="text-[10px] text-emerald-600 font-medium">
-                                                        {isReadOnly ? "Submitted Document" : "Document attached"}
-                                                    </span>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex items-center gap-1.5 shrink-0">
-                                                {documentFileName.startsWith("http") && (
-                                                    <a
-                                                        href={documentFileName}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        onClick={(e) => e.stopPropagation()}
-                                                        className="py-1 px-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold flex items-center gap-1 transition-colors"
-                                                        title="View uploaded document"
-                                                    >
-                                                        <ExternalLink className="w-3.5 h-3.5" />
-                                                        <span className="text-[11px]">View</span>
-                                                    </a>
-                                                )}
-                                                {!isReadOnly && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setDocumentFile(null);
-                                                            setDocumentFileName("");
-                                                        }}
-                                                        className="p-1 rounded-md text-red-500 hover:bg-red-50 transition-colors"
-                                                        title="Remove file"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="py-4 space-y-2">
-                                            <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
-                                                <UploadCloud className="w-5 h-5" />
-                                            </div>
-                                            <div className="space-y-0.5">
-                                                <p className="text-xs font-semibold text-blue-600 hover:underline">
-                                                    Click to browse or drop document
-                                                </p>
-                                                <p className="text-[10px] text-gray-400">
-                                                    PDF, JPG, PNG up to 5MB
-                                                </p>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+                                    </>
+                                }
+                                file={documentFile}
+                                fileName={documentFileName}
+                                previewUrl={documentPreviewUrl}
+                                isReadOnly={isReadOnly}
+                                attachedLabel="Document attached"
+                                submittedLabel="Submitted Document"
+                                emptyTitle="Click to browse or drop document"
+                                emptySubtitle="PDF, JPG, PNG up to 5MB"
+                                emptyAccent="blue"
+                                previewAlt="Business Licence Document"
+                                onFileChange={handleDocumentFileChange}
+                                onRemove={() => {
+                                    setDocumentFile(null);
+                                    setDocumentFileName("");
+                                    setDocumentPreviewUrl(null);
+                                    saveFieldToDraft("documentFileName", "");
+                                    saveFieldToDraft("documentFileBase64", null);
+                                }}
+                                onPreviewImage={(src, alt) => {
+                                    setPreviewModalSrc(src);
+                                    setPreviewModalAlt(alt);
+                                }}
+                                onPreviewPdfError={(msg) => toast.error(msg)}
+                            />
 
                             {/* Authorization Letter (Optional) */}
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-700 flex items-center justify-between">
-                                    <span>
+                            <DocumentUploadField
+                                inputId="auth-file-input"
+                                label={
+                                    <>
                                         Authorization Letter <span className="text-gray-400 font-normal text-xs">(If Representative)</span>
-                                    </span>
-                                </label>
-
-                                <div
-                                    className={cn(
-                                        "relative border-2 border-dashed rounded-xl p-4 transition-all flex flex-col items-center justify-center text-center",
-                                        authorizationFileName
-                                            ? "border-emerald-300 bg-emerald-50/20"
-                                            : "border-gray-200 hover:border-blue-400 bg-gray-50/40",
-                                        isReadOnly && "opacity-90"
-                                    )}
-                                >
-                                    <input
-                                        type="file"
-                                        id="auth-file-input"
-                                        accept=".pdf,image/png,image/jpeg,image/webp"
-                                        disabled={isReadOnly}
-                                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full disabled:cursor-not-allowed"
-                                        onChange={handleAuthorizationFileChange}
-                                    />
-
-                                    {authorizationFileName ? (
-                                        <div className="flex items-center justify-between w-full p-2 bg-white rounded-lg border border-emerald-200 shadow-2xs">
-                                            <div className="flex items-center gap-2.5 overflow-hidden">
-                                                <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-                                                    <FileText className="w-4 h-4" />
-                                                </div>
-                                                <div className="text-left overflow-hidden">
-                                                    <p className="text-xs font-semibold text-gray-800 truncate max-w-[140px] sm:max-w-[200px]">
-                                                        {authorizationFileName.split("/").pop() || authorizationFileName}
-                                                    </p>
-                                                    <span className="text-[10px] text-emerald-600 font-medium">
-                                                        {isReadOnly ? "Submitted Authorization" : "Letter attached"}
-                                                    </span>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex items-center gap-1.5 shrink-0">
-                                                {authorizationFileName.startsWith("http") && (
-                                                    <a
-                                                        href={authorizationFileName}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        onClick={(e) => e.stopPropagation()}
-                                                        className="py-1 px-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold flex items-center gap-1 transition-colors"
-                                                        title="View authorization letter"
-                                                    >
-                                                        <ExternalLink className="w-3.5 h-3.5" />
-                                                        <span className="text-[11px]">View</span>
-                                                    </a>
-                                                )}
-                                                {!isReadOnly && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setAuthorizationFile(null);
-                                                            setAuthorizationFileName(null);
-                                                        }}
-                                                        className="p-1 rounded-md text-red-500 hover:bg-red-50 transition-colors"
-                                                        title="Remove file"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="py-4 space-y-2">
-                                            <div className="w-10 h-10 rounded-full bg-gray-50 text-gray-500 flex items-center justify-center mx-auto">
-                                                <UploadCloud className="w-5 h-5" />
-                                            </div>
-                                            <div className="space-y-0.5">
-                                                <p className="text-xs font-semibold text-gray-600">
-                                                    Upload Authorization Letter
-                                                </p>
-                                                <p className="text-[10px] text-gray-400">
-                                                    Optional: PDF, JPG, PNG up to 5MB
-                                                </p>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+                                    </>
+                                }
+                                file={authorizationFile}
+                                fileName={authorizationFileName}
+                                previewUrl={authorizationPreviewUrl}
+                                isReadOnly={isReadOnly}
+                                attachedLabel="Letter attached"
+                                submittedLabel="Submitted Authorization"
+                                emptyTitle="Upload Authorization Letter"
+                                emptySubtitle="Optional: PDF, JPG, PNG up to 5MB"
+                                emptyAccent="gray"
+                                previewAlt="Authorization Letter"
+                                onFileChange={handleAuthorizationFileChange}
+                                onRemove={() => {
+                                    setAuthorizationFile(null);
+                                    setAuthorizationFileName(null);
+                                    setAuthorizationPreviewUrl(null);
+                                    saveFieldToDraft("authorizationFileName", null);
+                                    saveFieldToDraft("authorizationFileBase64", null);
+                                }}
+                                onPreviewImage={(src, alt) => {
+                                    setPreviewModalSrc(src);
+                                    setPreviewModalAlt(alt);
+                                }}
+                                onPreviewPdfError={(msg) => toast.error(msg)}
+                            />
                         </div>
                     </div>
                 </PremiumCard>
