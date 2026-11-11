@@ -14,6 +14,9 @@ export {
     requestCurrentContactOtpApi,
     verifyCurrentContactOtpApi,
     requestNewContactOtpApi,
-    verifyNewContactOtpApi
+    verifyNewContactOtpApi,
+    forgotPasswordApi,
+    verifyResetOtpApi,
+    resetPasswordApi,
 } from './user';
 export { getUserShopDetails, getUserOfferSocialLinks, getUserOffersList } from './userOffersService';
