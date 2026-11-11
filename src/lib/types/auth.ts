@@ -75,6 +75,31 @@ export interface OtpResponse {
     [key: string]: unknown;
 }
 
+export interface ForgotPasswordRequest {
+    email: string;
+}
+
+export interface VerifyResetOtpRequest {
+    email: string;
+    otp: string;
+}
+
+export interface ResetPasswordRequest {
+    email: string;
+    otp: string;
+    new_password: string;
+    resetToken?: string;
+}
+
+export interface VerifyResetOtpResponse {
+    message?: string;
+    success?: boolean;
+    resetToken?: string;
+    reset_token?: string;
+    token?: string;
+    [key: string]: unknown;
+}
+
 export const UserRegistrationSchema = z.object({
     full_name: z.string().min(2, "Name must be at least 2 characters"),
     email: z.string().email("Please enter a valid email address"),
@@ -88,13 +113,17 @@ export const UserRegistrationSchema = z.object({
 export type UserRegistrationFormData = z.infer<typeof UserRegistrationSchema>;
 
 export const ForgotPasswordSchema = z.object({
-    email: z.string().email("Please enter a valid email address"),
+    email: z.string().trim().email("Please enter a valid email address"),
 });
 
 export type ForgotPasswordFormData = z.infer<typeof ForgotPasswordSchema>;
 
 export const OTPVerificationSchema = z.object({
-    otp: z.string().min(4, "OTP must be at least 4 digits").max(6, "OTP must be at most 6 digits"),
+    otp: z
+        .string()
+        .trim()
+        .min(4, "OTP must be at least 4 digits")
+        .max(6, "OTP must be at most 6 digits"),
 });
 
 export type OTPVerificationFormData = z.infer<typeof OTPVerificationSchema>;

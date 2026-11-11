@@ -1,6 +1,13 @@
 import { backend } from "./backendClient";
 import { ENDPOINTS } from "./endpoints";
 import { UserProfileResponse } from "../types/profile";
+import {
+    ForgotPasswordRequest,
+    VerifyResetOtpRequest,
+    ResetPasswordRequest,
+    VerifyResetOtpResponse,
+    OtpResponse,
+} from "../types/auth";
 
 export interface ChangePasswordRequest {
     current_password: string;
@@ -66,5 +73,36 @@ export async function requestNewContactOtpApi(data: { type: "EMAIL" | "PHONE"; n
  */
 export async function verifyNewContactOtpApi(data: { type: "EMAIL" | "PHONE"; otp: string }) {
     return await backend.post(ENDPOINTS.AUTH.CONTACT_CHANGE.VERIFY_NEW_OTP, data);
+}
+
+/**
+ * Forgot Password Step 1: Request password reset OTP for an account email
+ */
+export async function forgotPasswordApi(data: ForgotPasswordRequest) {
+    return await backend.post<OtpResponse>(ENDPOINTS.AUTH.FORGOT_PASSWORD, {
+        email: data.email.trim(),
+    });
+}
+
+/**
+ * Forgot Password Step 2: Verify reset OTP sent to email
+ */
+export async function verifyResetOtpApi(data: VerifyResetOtpRequest) {
+    return await backend.post<VerifyResetOtpResponse>(ENDPOINTS.AUTH.VERIFY_RESET_OTP, {
+        email: data.email.trim(),
+        otp: data.otp.trim(),
+    });
+}
+
+/**
+ * Forgot Password Step 3: Set a new password using verified email/OTP (and optional reset token)
+ */
+export async function resetPasswordApi(data: ResetPasswordRequest) {
+    return await backend.post<OtpResponse>(ENDPOINTS.AUTH.RESET_PASSWORD, {
+        email: data.email.trim(),
+        otp: data.otp.trim(),
+        new_password: data.new_password,
+        ...(data.resetToken ? { resetToken: data.resetToken } : {}),
+    });
 }
 
