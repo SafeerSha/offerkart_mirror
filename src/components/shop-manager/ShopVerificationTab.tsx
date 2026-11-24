@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/select";
 import { ImagePreviewModal } from "@/components/shared/ImagePreviewModal";
 import { LiveCameraModal } from "./LiveCameraModal";
+import { MobileHandoffCard } from "./MobileHandoffCard";
 import { compressImage } from "@/lib/imageUtils";
 import { s3Api } from "@/lib/api/s3";
 import { submitShopVerification, getShopVerification } from "@/lib/api/shop";
@@ -692,6 +693,19 @@ export default function ShopVerificationTab({
             setPersonName(session.user.name);
         }
     }, [session]);
+
+    // Auto-scroll to storefront photos when opened with #storefront-photos anchor (e.g. from mobile QR code handoff)
+    useEffect(() => {
+        if (typeof window !== "undefined" && window.location.hash === "#storefront-photos") {
+            const timer = setTimeout(() => {
+                const target = document.getElementById("storefront-photos");
+                if (target) {
+                    target.scrollIntoView({ behavior: "smooth", block: "start" });
+                }
+            }, 350);
+            return () => clearTimeout(timer);
+        }
+    }, []);
 
     // Load existing verification data if editing
     const loadVerification = useCallback(async () => {
@@ -1429,7 +1443,7 @@ export default function ShopVerificationTab({
                 </PremiumCard>
 
                 {/* 2. Physical Establishment Verification Photos */}
-                <PremiumCard padding="none" className="w-full overflow-hidden bg-white">
+                <PremiumCard id="storefront-photos" padding="none" className="w-full overflow-hidden bg-white scroll-mt-24">
                     <div className="px-4 md:px-8 py-5 border-b border-gray-100">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center">
@@ -1447,6 +1461,21 @@ export default function ShopVerificationTab({
                     </div>
 
                     <div className="p-4 md:p-8 space-y-4">
+                        {/* Mobile Handoff QR Code card (Desktop only, completely hidden on mobile) */}
+                        {!isReadOnly && (
+                            <MobileHandoffCard
+                                shopId={shopId}
+                                shopName={shopName || backendShopName || undefined}
+                                capturedCount={
+                                    (["SHOP_NAME_BOARD", "SHOP_EXTERIOR", "SHOP_INTERIOR"] as VerificationImageCategory[]).filter(
+                                        (cat) => !!(imageSlots[cat]?.file || imageSlots[cat]?.fileName || imageSlots[cat]?.previewUrl)
+                                    ).length
+                                }
+                                totalCount={3}
+                                onRefresh={loadVerification}
+                                isRefreshing={isLoadingExisting}
+                            />
+                        )}
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                             {(
@@ -1521,7 +1550,7 @@ export default function ShopVerificationTab({
 
                                                     {/* Retake action when editable, or View when read-only */}
                                                     {!isReadOnly ? (
-                                                        <div className="flex items-center justify-center pt-1">
+                                                        <div className="space-y-1.5 pt-1">
                                                             <button
                                                                 type="button"
                                                                 onClick={() => setActiveCameraSlot(categoryKey)}
@@ -1530,6 +1559,29 @@ export default function ShopVerificationTab({
                                                                 <Camera className="w-3.5 h-3.5" />
                                                                 <span>Retake Photo</span>
                                                             </button>
+                                                            {/* Desktop re-upload fallback (hidden on mobile) */}
+                                                            <div className="hidden md:flex items-center justify-center">
+                                                                <label
+                                                                    htmlFor={`desktop-reupload-${categoryKey}`}
+                                                                    className="text-[10px] text-gray-400 hover:text-orange-600 cursor-pointer underline flex items-center gap-1 transition-colors"
+                                                                >
+                                                                    <UploadCloud className="w-3 h-3" />
+                                                                    <span>or upload from computer</span>
+                                                                    <input
+                                                                        id={`desktop-reupload-${categoryKey}`}
+                                                                        type="file"
+                                                                        accept="image/png,image/jpeg,image/webp"
+                                                                        className="hidden"
+                                                                        onChange={(e) => {
+                                                                            const file = e.target.files?.[0];
+                                                                            if (file) {
+                                                                                attachImageFile(categoryKey, file);
+                                                                            }
+                                                                            e.target.value = "";
+                                                                        }}
+                                                                    />
+                                                                </label>
+                                                            </div>
                                                         </div>
                                                     ) : (
                                                         <div className="flex items-center justify-center pt-1">
@@ -1570,6 +1622,32 @@ export default function ShopVerificationTab({
                                                             </span>
                                                         </div>
                                                     </button>
+
+                                                    {/* Desktop convenience file upload (hidden on mobile) */}
+                                                    {!isReadOnly && (
+                                                        <div className="hidden md:flex items-center gap-1.5 pt-1">
+                                                            <label
+                                                                htmlFor={`desktop-upload-${categoryKey}`}
+                                                                className="text-[11px] text-gray-500 hover:text-orange-600 font-medium cursor-pointer underline flex items-center gap-1 transition-colors"
+                                                            >
+                                                                <UploadCloud className="w-3.5 h-3.5 text-gray-400" />
+                                                                <span>or upload photo file</span>
+                                                                <input
+                                                                    id={`desktop-upload-${categoryKey}`}
+                                                                    type="file"
+                                                                    accept="image/png,image/jpeg,image/webp"
+                                                                    className="hidden"
+                                                                    onChange={(e) => {
+                                                                        const file = e.target.files?.[0];
+                                                                        if (file) {
+                                                                            attachImageFile(categoryKey, file);
+                                                                        }
+                                                                        e.target.value = "";
+                                                                    }}
+                                                                />
+                                                            </label>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
