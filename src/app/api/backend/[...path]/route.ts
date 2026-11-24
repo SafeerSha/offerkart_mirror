@@ -14,7 +14,7 @@ const PUBLIC_PATHS = new Set([
     "auth/resend-email-otp",
     "auth/verify-email-otp",
     "auth/forgot-password",
-    "auth/verify-reset-otp",
+    "auth/verify-forgot-password",
     "auth/reset-password",
     "business/industry",
 ]);
