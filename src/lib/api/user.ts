@@ -86,23 +86,23 @@ export async function forgotPasswordApi(data: ForgotPasswordRequest) {
 
 /**
  * Forgot Password Step 2: Verify reset OTP sent to email
+ * Corresponds to: POST https://offersnearu.vercel.app/api/auth/verify-forgot-password
  */
-export async function verifyResetOtpApi(data: VerifyResetOtpRequest) {
-    return await backend.post<VerifyResetOtpResponse>(ENDPOINTS.AUTH.VERIFY_RESET_OTP, {
+export async function verifyForgotPasswordApi(data: VerifyResetOtpRequest) {
+    return await backend.post<VerifyResetOtpResponse>(ENDPOINTS.AUTH.VERIFY_FORGOT_PASSWORD, {
         email: data.email.trim(),
-        otp: data.otp.trim(),
+        otp: Number(String(data.otp).trim()),
     });
 }
 
 /**
- * Forgot Password Step 3: Set a new password using verified email/OTP (and optional reset token)
+ * Forgot Password Step 3: Set a new password for the verified email
+ * Corresponds to: POST https://offersnearu.vercel.app/api/auth/reset-password
  */
 export async function resetPasswordApi(data: ResetPasswordRequest) {
     return await backend.post<OtpResponse>(ENDPOINTS.AUTH.RESET_PASSWORD, {
         email: data.email.trim(),
-        otp: data.otp.trim(),
         new_password: data.new_password,
-        ...(data.resetToken ? { resetToken: data.resetToken } : {}),
     });
 }
 

@@ -17,7 +17,7 @@ export const ENDPOINTS = {
         },
         CHANGE_PASSWORD: `auth/change-password`,
         FORGOT_PASSWORD: `auth/forgot-password`,
-        VERIFY_RESET_OTP: `auth/verify-reset-otp`,
+        VERIFY_FORGOT_PASSWORD: `auth/verify-forgot-password`,
         RESET_PASSWORD: `auth/reset-password`,
     },
     SHOP: {

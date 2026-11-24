@@ -25,10 +25,9 @@ import {
     ResetPasswordSchema,
     ResetPasswordFormData,
 } from "@/lib/types/auth";
-import { unwrapApiEnvelope } from "@/lib/api/backendClient";
 import {
     forgotPasswordApi,
-    verifyResetOtpApi,
+    verifyForgotPasswordApi,
     resetPasswordApi,
 } from "@/lib/api/user";
 import { hasSuspiciousPattern } from "@/lib/security";
@@ -44,21 +43,6 @@ interface ForgotPasswordFlowProps {
 
 const RESEND_COOLDOWN_SECONDS = 30;
 
-/** Extracts an optional reset token without relying on a single response nesting convention. */
-function extractResetToken(data: unknown): string | undefined {
-    if (!data || typeof data !== "object") return undefined;
-    const unwrapped = unwrapApiEnvelope<Record<string, unknown>>(data);
-    if (!unwrapped || typeof unwrapped !== "object") return undefined;
-
-    for (const key of ["resetToken", "reset_token", "token"] as const) {
-        const value = unwrapped[key];
-        if (typeof value === "string" && value.trim().length > 0) {
-            return value.trim();
-        }
-    }
-    return undefined;
-}
-
 export function ForgotPasswordFlow({
     variant = "modal",
     onSuccess,
@@ -70,8 +54,6 @@ export function ForgotPasswordFlow({
     const [isResending, setIsResending] = useState(false);
     const [cooldown, setCooldown] = useState(0);
     const [email, setEmail] = useState("");
-    const [otp, setOtp] = useState("");
-    const [resetToken, setResetToken] = useState<string | undefined>(undefined);
     const [apiError, setApiError] = useState<string | null>(null);
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -109,8 +91,6 @@ export function ForgotPasswordFlow({
     const resetAllState = () => {
         setStep("REQUEST");
         setEmail("");
-        setOtp("");
-        setResetToken(undefined);
         setApiError(null);
         setCooldown(0);
         setShowNewPassword(false);
@@ -158,8 +138,6 @@ export function ForgotPasswordFlow({
             }
 
             setEmail(cleanEmail);
-            setOtp("");
-            setResetToken(undefined);
             resetVerify();
             setCooldown(RESEND_COOLDOWN_SECONDS);
             toast.success(
@@ -202,8 +180,8 @@ export function ForgotPasswordFlow({
 
     const onVerifySubmit = async (data: OTPVerificationFormData) => {
         const cleanOtp = data.otp.trim();
-        if (hasSuspiciousPattern(cleanOtp)) {
-            const msg = "Invalid verification code format.";
+        if (hasSuspiciousPattern(cleanOtp) || !/^\d{4,6}$/.test(cleanOtp)) {
+            const msg = "Please enter a valid 4 to 6 digit numeric code.";
             setApiError(msg);
             toast.error(msg);
             return;
@@ -212,7 +190,7 @@ export function ForgotPasswordFlow({
         setIsLoading(true);
         setApiError(null);
         try {
-            const res = await verifyResetOtpApi({ email, otp: cleanOtp });
+            const res = await verifyForgotPasswordApi({ email, otp: Number(cleanOtp) });
             if (!res.success) {
                 const msg = res.error || res.message || "Invalid or expired OTP. Please try again.";
                 setApiError(msg);
@@ -220,9 +198,6 @@ export function ForgotPasswordFlow({
                 return;
             }
 
-            const token = extractResetToken(res.data);
-            setOtp(cleanOtp);
-            setResetToken(token);
             toast.success(res.message || "OTP verified successfully.");
             setStep("RESET");
         } catch {
@@ -240,9 +215,7 @@ export function ForgotPasswordFlow({
         try {
             const res = await resetPasswordApi({
                 email,
-                otp,
                 new_password: data.new_password,
-                ...(resetToken ? { resetToken } : {}),
             });
 
             if (!res.success) {
@@ -356,8 +329,6 @@ export function ForgotPasswordFlow({
                             type="button"
                             onClick={() => {
                                 setStep("REQUEST");
-                                setOtp("");
-                                setResetToken(undefined);
                                 setApiError(null);
                                 resetVerify();
                             }}
@@ -455,4 +426,3 @@ export function ForgotPasswordFlow({
         </div>
     );
 }
-

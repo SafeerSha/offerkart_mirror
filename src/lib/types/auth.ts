@@ -81,22 +81,17 @@ export interface ForgotPasswordRequest {
 
 export interface VerifyResetOtpRequest {
     email: string;
-    otp: string;
+    otp: number | string;
 }
 
 export interface ResetPasswordRequest {
     email: string;
-    otp: string;
     new_password: string;
-    resetToken?: string;
 }
 
 export interface VerifyResetOtpResponse {
     message?: string;
     success?: boolean;
-    resetToken?: string;
-    reset_token?: string;
-    token?: string;
     [key: string]: unknown;
 }
 
@@ -122,8 +117,7 @@ export const OTPVerificationSchema = z.object({
     otp: z
         .string()
         .trim()
-        .min(4, "OTP must be at least 4 digits")
-        .max(6, "OTP must be at most 6 digits"),
+        .regex(/^\d{4,6}$/, "OTP must be a 4 to 6 digit number"),
 });
 
 export type OTPVerificationFormData = z.infer<typeof OTPVerificationSchema>;

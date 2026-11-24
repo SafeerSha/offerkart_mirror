@@ -45,7 +45,7 @@ vi.mock("@/lib/config", () => ({
 import { POST } from "@/app/api/backend/[...path]/route";
 import {
     forgotPasswordApi,
-    verifyResetOtpApi,
+    verifyForgotPasswordApi,
     resetPasswordApi,
 } from "@/lib/api/user";
 
@@ -55,7 +55,7 @@ describe("Forgot Password API client & proxy public allowlist", () => {
         getTokenMock.mockResolvedValue(null);
     });
 
-    it("calls forgot-password, verify-reset-otp, and reset-password as public endpoints without NextAuth session lookups", async () => {
+    it("calls forgot-password, verify-forgot-password (numeric otp), and reset-password (email + new_password) without NextAuth session lookups", async () => {
         global.fetch = vi.fn().mockImplementation(async () =>
             new Response(JSON.stringify({ success: true, message: "OK" }), {
                 status: 200,
@@ -64,10 +64,9 @@ describe("Forgot Password API client & proxy public allowlist", () => {
         );
 
         await forgotPasswordApi({ email: "  merchant@example.com  " });
-        await verifyResetOtpApi({ email: " merchant@example.com ", otp: " 123456 " });
+        await verifyForgotPasswordApi({ email: " merchant@example.com ", otp: " 123456 " });
         await resetPasswordApi({
-            email: "merchant@example.com",
-            otp: "123456",
+            email: "  merchant@example.com  ",
             new_password: "NewPassword1!",
         });
 
@@ -79,14 +78,13 @@ describe("Forgot Password API client & proxy public allowlist", () => {
         expect(calls[0][0]).toBe("https://api.example.com/auth/forgot-password");
         expect(calls[0][1]?.body).toBe(JSON.stringify({ email: "merchant@example.com" }));
 
-        expect(calls[1][0]).toBe("https://api.example.com/auth/verify-reset-otp");
-        expect(calls[1][1]?.body).toBe(JSON.stringify({ email: "merchant@example.com", otp: "123456" }));
+        expect(calls[1][0]).toBe("https://api.example.com/auth/verify-forgot-password");
+        expect(calls[1][1]?.body).toBe(JSON.stringify({ email: "merchant@example.com", otp: 123456 }));
 
         expect(calls[2][0]).toBe("https://api.example.com/auth/reset-password");
         expect(calls[2][1]?.body).toBe(
             JSON.stringify({
                 email: "merchant@example.com",
-                otp: "123456",
                 new_password: "NewPassword1!",
             })
         );
@@ -100,7 +98,7 @@ describe("Forgot Password API client & proxy public allowlist", () => {
             })
         );
 
-        const res = await verifyResetOtpApi({ email: "user@example.com", otp: "0000" });
+        const res = await verifyForgotPasswordApi({ email: "user@example.com", otp: 1234 });
 
         expect(res.success).toBe(false);
         expect(res.error).toBe("Invalid OTP");
@@ -117,7 +115,7 @@ describe("Forgot Password API client & proxy public allowlist", () => {
 
         for (const segments of [
             ["auth", "forgot-password"],
-            ["auth", "verify-reset-otp"],
+            ["auth", "verify-forgot-password"],
             ["auth", "reset-password"],
         ]) {
             const request = new NextRequest(`http://localhost/api/backend/${segments.join("/")}`, {
@@ -145,4 +143,3 @@ describe("Forgot Password API client & proxy public allowlist", () => {
         expect(global.fetch).toHaveBeenCalledTimes(3);
     });
 });
-

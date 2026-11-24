@@ -4,17 +4,17 @@ import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/re
 
 const {
     forgotPasswordApiMock,
-    verifyResetOtpApiMock,
+    verifyForgotPasswordApiMock,
     resetPasswordApiMock,
 } = vi.hoisted(() => ({
     forgotPasswordApiMock: vi.fn(),
-    verifyResetOtpApiMock: vi.fn(),
+    verifyForgotPasswordApiMock: vi.fn(),
     resetPasswordApiMock: vi.fn(),
 }));
 
 vi.mock("@/lib/api/user", () => ({
     forgotPasswordApi: forgotPasswordApiMock,
-    verifyResetOtpApi: verifyResetOtpApiMock,
+    verifyForgotPasswordApi: verifyForgotPasswordApiMock,
     resetPasswordApi: resetPasswordApiMock,
 }));
 
@@ -36,15 +36,14 @@ beforeEach(() => {
 });
 
 describe("ForgotPasswordFlow API binding", () => {
-    it("completes the 3-step flow and forwards optional resetToken from OTP verification", async () => {
+    it("completes the 3-step flow using forgot-password, numeric OTP verify-forgot-password, and reset-password", async () => {
         forgotPasswordApiMock.mockResolvedValue({
             success: true,
             message: "Reset code sent",
         });
-        verifyResetOtpApiMock.mockResolvedValue({
+        verifyForgotPasswordApiMock.mockResolvedValue({
             success: true,
             message: "OTP verified",
-            data: { resetToken: "rtok-123" },
         });
         resetPasswordApiMock.mockResolvedValue({
             success: true,
@@ -69,7 +68,7 @@ describe("ForgotPasswordFlow API binding", () => {
             expect(screen.getByLabelText(/one-time password/i)).toBeTruthy();
         });
 
-        // Step 2: Verify OTP
+        // Step 2: Verify numeric OTP
         fireEvent.change(screen.getByLabelText(/one-time password/i), {
             target: { value: "482910" },
         });
@@ -80,14 +79,14 @@ describe("ForgotPasswordFlow API binding", () => {
         fireEvent.click(screen.getByRole("button", { name: /verify code/i }));
 
         await waitFor(() => {
-            expect(verifyResetOtpApiMock).toHaveBeenCalledWith({
+            expect(verifyForgotPasswordApiMock).toHaveBeenCalledWith({
                 email: "merchant@example.com",
-                otp: "482910",
+                otp: 482910,
             });
             expect(screen.getByLabelText(/^new password$/i)).toBeTruthy();
         });
 
-        // Step 3: Set New Password
+        // Step 3: Set New Password ({ email, new_password })
         fireEvent.change(screen.getByLabelText(/^new password$/i), {
             target: { value: "StrongPass123!" },
         });
@@ -103,21 +102,16 @@ describe("ForgotPasswordFlow API binding", () => {
         await waitFor(() => {
             expect(resetPasswordApiMock).toHaveBeenCalledWith({
                 email: "merchant@example.com",
-                otp: "482910",
                 new_password: "StrongPass123!",
-                resetToken: "rtok-123",
             });
             expect(onSuccess).toHaveBeenCalledTimes(1);
         });
     });
 
-    it("omits resetToken when OTP verify response does not include one", async () => {
+    it("rejects non-numeric OTP input before calling verify-forgot-password", async () => {
         forgotPasswordApiMock.mockResolvedValue({ success: true });
-        verifyResetOtpApiMock.mockResolvedValue({ success: true, data: {} });
-        resetPasswordApiMock.mockResolvedValue({ success: true });
 
-        const onSuccess = vi.fn();
-        render(<ForgotPasswordFlow variant="page" onSuccess={onSuccess} />);
+        render(<ForgotPasswordFlow variant="page" />);
 
         fireEvent.change(screen.getByLabelText(/email address/i), {
             target: { value: "user@example.com" },
@@ -130,40 +124,20 @@ describe("ForgotPasswordFlow API binding", () => {
 
         await waitFor(() => expect(screen.getByLabelText(/one-time password/i)).toBeTruthy());
         fireEvent.change(screen.getByLabelText(/one-time password/i), {
-            target: { value: "1234" },
+            target: { value: "abcd" },
         });
+
         await waitFor(() => {
+            expect(screen.getByText(/4 to 6 digit number/i)).toBeTruthy();
             const btn = screen.getByRole("button", { name: /verify code/i }) as HTMLButtonElement;
-            expect(btn.disabled).toBe(false);
+            expect(btn.disabled).toBe(true);
         });
-        fireEvent.click(screen.getByRole("button", { name: /verify code/i }));
-
-        await waitFor(() => expect(screen.getByLabelText(/^new password$/i)).toBeTruthy());
-        fireEvent.change(screen.getByLabelText(/^new password$/i), {
-            target: { value: "NewPass99" },
-        });
-        fireEvent.change(screen.getByLabelText(/^confirm password$/i), {
-            target: { value: "NewPass99" },
-        });
-        await waitFor(() => {
-            const btn = screen.getByRole("button", { name: /save new password/i }) as HTMLButtonElement;
-            expect(btn.disabled).toBe(false);
-        });
-        fireEvent.click(screen.getByRole("button", { name: /save new password/i }));
-
-        await waitFor(() => {
-            expect(resetPasswordApiMock).toHaveBeenCalledWith({
-                email: "user@example.com",
-                otp: "1234",
-                new_password: "NewPass99",
-            });
-            expect(onSuccess).toHaveBeenCalledTimes(1);
-        });
+        expect(verifyForgotPasswordApiMock).not.toHaveBeenCalled();
     });
 
     it("does not advance steps and surfaces errors when OTP verification fails", async () => {
         forgotPasswordApiMock.mockResolvedValue({ success: true });
-        verifyResetOtpApiMock.mockResolvedValue({
+        verifyForgotPasswordApiMock.mockResolvedValue({
             success: false,
             error: "Invalid or expired OTP",
         });
