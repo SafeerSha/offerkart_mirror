@@ -46,7 +46,7 @@ export const ensureS3Url = async (imageUrl: string | null | undefined, fallbackF
     return imageUrl;
 };
 
-export const compressImage = (file: File, maxSizeKB: number = 100): Promise<File> => {
+export const compressImage = (file: File, maxSizeKB: number = 100, maxDim: number = 1200): Promise<File> => {
     return new Promise((resolve) => {
         if (file.size <= maxSizeKB * 1024) {
             return resolve(file);
@@ -63,7 +63,6 @@ export const compressImage = (file: File, maxSizeKB: number = 100): Promise<File
             let width = img.width;
             let height = img.height;
 
-            const maxDim = 1200;
             if (width > maxDim || height > maxDim) {
                 if (width > height) {
                     height = Math.round((height * maxDim) / width);

@@ -24,7 +24,8 @@ import {
     FileUp,
     Clock,
     CheckCircle2,
-    ExternalLink
+    ExternalLink,
+    Smartphone
 } from "lucide-react";
 import { toast } from "sonner";
 import { PremiumCard } from "@/components/shared/PremiumCard";
@@ -866,11 +867,11 @@ export default function ShopVerificationTab({
         file: File
     ) => {
         let processedFile = file;
-        // Only optimize if image is exceptionally large (> 3MB), compressing to a generous 1.5MB to preserve crisp signage & licence readability
-        if (file.size > 3 * 1024 * 1024) {
+        // Only optimize if image is exceptionally large (> 5MB), preserving up to 2400px / 2.5MB for crisp HQ signage & licence readability
+        if (file.size > 5 * 1024 * 1024) {
             const toastId = toast.loading(`Optimizing ${file.name}...`);
             try {
-                processedFile = await compressImage(file, 1500);
+                processedFile = await compressImage(file, 2500, 2400);
                 toast.success("Image optimized successfully", { id: toastId });
             } catch {
                 toast.dismiss(toastId);
@@ -1453,8 +1454,10 @@ export default function ShopVerificationTab({
                             />
                         )}
 
-                        {/* Responsive Photo Cards: Compact horizontal rows on mobile, 3-col tiles on sm/desktop */}
-                        <div className="flex flex-col gap-3 sm:grid sm:grid-cols-3 sm:gap-3.5">
+                        {/* Responsive Photo Cards:
+                            - Mobile (< md): compact horizontal row cards with live camera Take Photo / Retake
+                            - Desktop (md+): different preview-only gallery layout (no file upload, no desktop camera) */}
+                        <div className="flex flex-col gap-3 md:grid md:grid-cols-3 md:gap-3.5">
                             {(
                                 ["SHOP_NAME_BOARD", "SHOP_EXTERIOR", "SHOP_INTERIOR"] as VerificationImageCategory[]
                             ).map((categoryKey) => {
@@ -1465,20 +1468,20 @@ export default function ShopVerificationTab({
                                 return (
                                     <div
                                         key={categoryKey}
-                                        className="flex flex-row items-center p-3 gap-3.5 sm:flex-col sm:items-stretch sm:p-0 sm:gap-0 rounded-xl bg-card border border-border/80 shadow-2xs overflow-hidden hover:border-primary/40 transition-all"
+                                        className="flex flex-row items-center p-3 gap-3.5 md:flex-col md:items-stretch md:p-0 md:gap-0 rounded-xl bg-card border border-border/80 shadow-2xs overflow-hidden hover:border-primary/40 transition-all"
                                     >
-                                        {/* Thumbnail / Camera Box */}
-                                        <div className="relative w-20 h-20 rounded-lg sm:w-full sm:h-auto sm:aspect-[4/3] sm:rounded-none bg-secondary/50 overflow-hidden shrink-0 group">
+                                        {/* Thumbnail / Placeholder Box */}
+                                        <div className="relative w-20 h-20 rounded-lg md:w-full md:h-auto md:aspect-[4/3] md:rounded-none bg-secondary/50 overflow-hidden shrink-0 group">
                                             {/* Status pill (desktop top-right only; mobile shows inline badge) */}
                                             <span
                                                 className={cn(
-                                                    "hidden sm:inline-block absolute top-2 right-2 z-10 text-[10px] font-semibold px-2 py-0.5 rounded-full backdrop-blur-xs",
+                                                    "hidden md:inline-block absolute top-2 right-2 z-10 text-[10px] font-semibold px-2 py-0.5 rounded-full backdrop-blur-xs",
                                                     isCaptured
                                                         ? "bg-emerald-500/90 text-white"
-                                                        : "bg-black/50 text-white"
+                                                        : "bg-black/45 text-white"
                                                 )}
                                             >
-                                                {isCaptured ? "Captured" : "Required"}
+                                                {isCaptured ? "Captured" : "Pending"}
                                             </span>
 
                                             {slot.previewUrl && !isBrokenImg ? (
@@ -1496,7 +1499,7 @@ export default function ShopVerificationTab({
                                                             }))
                                                         }
                                                     />
-                                                    {/* Tap/hover preview */}
+                                                    {/* Hover preview overlay */}
                                                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
                                                         <button
                                                             type="button"
@@ -1504,19 +1507,19 @@ export default function ShopVerificationTab({
                                                                 setPreviewModalSrc(slot.previewUrl!);
                                                                 setPreviewModalAlt(slot.title);
                                                             }}
-                                                            className="p-1.5 sm:p-2 rounded-full bg-white/95 text-foreground hover:bg-white shadow cursor-pointer"
+                                                            className="p-1.5 md:p-2 rounded-full bg-white/95 text-foreground hover:bg-white shadow cursor-pointer"
                                                             title="View full size"
                                                         >
-                                                            <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                                            <Eye className="w-3.5 h-3.5 md:w-4 md:h-4" />
                                                         </button>
                                                         {!isReadOnly && (
                                                             <button
                                                                 type="button"
                                                                 onClick={() => handleRemoveImage(categoryKey)}
-                                                                className="p-1.5 sm:p-2 rounded-full bg-destructive text-white hover:bg-destructive/90 shadow cursor-pointer"
+                                                                className="md:hidden p-1.5 rounded-full bg-destructive text-white hover:bg-destructive/90 shadow cursor-pointer"
                                                                 title="Remove image"
                                                             >
-                                                                <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                                                <Trash2 className="w-3.5 h-3.5" />
                                                             </button>
                                                         )}
                                                     </div>
@@ -1528,66 +1531,46 @@ export default function ShopVerificationTab({
                                                         setPreviewModalSrc(slot.previewUrl!);
                                                         setPreviewModalAlt(slot.title);
                                                     }}
-                                                    className="h-full w-full flex flex-col items-center justify-center gap-1 p-2 text-center text-muted-foreground hover:text-primary cursor-pointer transition-colors"
+                                                    className="h-full w-full flex flex-col items-center justify-center gap-1.5 p-2 text-center text-muted-foreground hover:text-primary cursor-pointer transition-colors"
                                                     title="Open uploaded image"
                                                 >
-                                                    <Camera className="w-5 h-5 opacity-60" />
-                                                    <span className="hidden sm:inline text-[10px] font-medium">
-                                                        Tap to view
+                                                    <Eye className="w-5 h-5 opacity-70" />
+                                                    <span className="hidden md:inline text-[11px] font-medium">
+                                                        Preview image
                                                     </span>
                                                 </button>
                                             ) : (
-                                                <div className="h-full w-full flex flex-col items-center justify-center p-2 text-center sm:space-y-2">
+                                                <>
+                                                    {/* Mobile (< md): Live camera trigger */}
                                                     <button
                                                         type="button"
                                                         disabled={isReadOnly}
                                                         onClick={() => setActiveCameraSlot(categoryKey)}
                                                         className={cn(
-                                                            "cursor-pointer flex flex-col items-center text-center space-y-1.5 group/btn",
+                                                            "md:hidden h-full w-full cursor-pointer flex flex-col items-center justify-center text-center group/btn",
                                                             isReadOnly && "opacity-50 cursor-not-allowed"
                                                         )}
                                                     >
-                                                        <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-primary/10 text-primary group-hover/btn:bg-primary group-hover/btn:text-white transition-all flex items-center justify-center">
+                                                        <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary group-hover/btn:bg-primary group-hover/btn:text-white transition-all flex items-center justify-center">
                                                             <Camera className="w-5 h-5" />
                                                         </div>
-                                                        <span className="hidden sm:block text-[11px] font-semibold text-foreground group-hover/btn:text-primary transition-colors">
-                                                            Open Camera
-                                                        </span>
                                                     </button>
 
-                                                    {/* Desktop convenience file upload (hidden on mobile) */}
-                                                    {!isReadOnly && (
-                                                        <label
-                                                            htmlFor={`desktop-upload-${categoryKey}`}
-                                                            className="hidden md:inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary font-medium cursor-pointer underline transition-colors"
-                                                        >
-                                                            <UploadCloud className="w-3 h-3" />
-                                                            <span>or upload</span>
-                                                            <input
-                                                                id={`desktop-upload-${categoryKey}`}
-                                                                type="file"
-                                                                accept="image/png,image/jpeg,image/webp"
-                                                                className="hidden"
-                                                                onChange={(e) => {
-                                                                    const file = e.target.files?.[0];
-                                                                    if (file) {
-                                                                        setFailedSlotPreviews((prev) => ({
-                                                                            ...prev,
-                                                                            [categoryKey]: false,
-                                                                        }));
-                                                                        attachImageFile(categoryKey, file);
-                                                                    }
-                                                                    e.target.value = "";
-                                                                }}
-                                                            />
-                                                        </label>
-                                                    )}
-                                                </div>
+                                                    {/* Desktop (md+): Read-only awaiting mobile capture placeholder */}
+                                                    <div className="hidden md:flex h-full w-full flex-col items-center justify-center p-3 text-center gap-1.5 text-muted-foreground">
+                                                        <div className="w-10 h-10 rounded-xl bg-background border border-border/70 flex items-center justify-center text-muted-foreground/70">
+                                                            <Smartphone className="w-4 h-4" />
+                                                        </div>
+                                                        <span className="text-[11px] font-medium text-muted-foreground">
+                                                            Awaiting mobile capture
+                                                        </span>
+                                                    </div>
+                                                </>
                                             )}
                                         </div>
 
                                         {/* Info & Actions */}
-                                        <div className="flex-1 min-w-0 sm:p-3 sm:flex sm:flex-col sm:justify-between sm:gap-2">
+                                        <div className="flex-1 min-w-0 md:p-3 md:flex md:flex-col md:justify-between md:gap-2.5">
                                             <div>
                                                 <div className="flex items-center justify-between gap-2">
                                                     <h5 className="text-xs font-semibold text-foreground truncate">
@@ -1596,7 +1579,7 @@ export default function ShopVerificationTab({
                                                     {/* Mobile-only compact status badge */}
                                                     <span
                                                         className={cn(
-                                                            "sm:hidden text-[9px] font-semibold px-1.5 py-0.5 rounded-full shrink-0",
+                                                            "md:hidden text-[9px] font-semibold px-1.5 py-0.5 rounded-full shrink-0",
                                                             isCaptured
                                                                 ? "bg-emerald-100 text-emerald-800"
                                                                 : "bg-primary/10 text-primary"
@@ -1611,79 +1594,74 @@ export default function ShopVerificationTab({
                                             </div>
 
                                             {/* Actions */}
-                                            <div className="mt-2 sm:mt-0">
+                                            <div className="mt-2 md:mt-0">
                                                 {isCaptured ? (
-                                                    !isReadOnly ? (
-                                                        <div className="flex items-center gap-1.5">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setActiveCameraSlot(categoryKey)}
-                                                                className="py-1.5 px-2.5 rounded-lg bg-primary/10 hover:bg-primary/15 text-primary text-[11px] font-semibold cursor-pointer inline-flex items-center gap-1 transition-colors flex-1 justify-center"
-                                                            >
-                                                                <Camera className="w-3.5 h-3.5" />
-                                                                <span>Retake</span>
-                                                            </button>
-
-                                                            {/* Mobile remove button for quick access */}
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleRemoveImage(categoryKey)}
-                                                                className="sm:hidden p-1.5 rounded-lg border border-border text-muted-foreground hover:text-destructive cursor-pointer"
-                                                                title="Remove photo"
-                                                            >
-                                                                <Trash2 className="w-3.5 h-3.5" />
-                                                            </button>
-
-                                                            {/* Desktop re-upload fallback (hidden on mobile) */}
-                                                            <label
-                                                                htmlFor={`desktop-reupload-${categoryKey}`}
-                                                                className="hidden md:inline-flex items-center gap-1 py-1.5 px-2 rounded-lg border border-border bg-background hover:bg-secondary/60 text-muted-foreground hover:text-foreground text-[11px] font-medium cursor-pointer transition-colors"
-                                                                title="Upload photo from computer"
-                                                            >
-                                                                <UploadCloud className="w-3.5 h-3.5" />
-                                                                <input
-                                                                    id={`desktop-reupload-${categoryKey}`}
-                                                                    type="file"
-                                                                    accept="image/png,image/jpeg,image/webp"
-                                                                    className="hidden"
-                                                                    onChange={(e) => {
-                                                                        const file = e.target.files?.[0];
-                                                                        if (file) {
-                                                                            setFailedSlotPreviews((prev) => ({
-                                                                                ...prev,
-                                                                                [categoryKey]: false,
-                                                                            }));
-                                                                            attachImageFile(categoryKey, file);
-                                                                        }
-                                                                        e.target.value = "";
-                                                                    }}
-                                                                />
-                                                            </label>
-                                                        </div>
-                                                    ) : (
+                                                    <>
+                                                        {/* Desktop (md+): Preview-only button */}
                                                         <button
                                                             type="button"
                                                             onClick={() => {
                                                                 setPreviewModalSrc(slot.previewUrl!);
                                                                 setPreviewModalAlt(slot.title);
                                                             }}
-                                                            className="w-full py-1.5 px-2.5 rounded-lg border border-border bg-background hover:bg-secondary/60 text-foreground text-[11px] font-medium cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
+                                                            className="hidden md:flex w-full py-1.5 px-2.5 rounded-lg border border-border bg-background hover:bg-secondary/60 text-foreground text-[11px] font-medium cursor-pointer items-center justify-center gap-1.5 transition-colors"
                                                         >
                                                             <Eye className="w-3.5 h-3.5 text-muted-foreground" />
-                                                            <span>View</span>
+                                                            <span>View Preview</span>
                                                         </button>
-                                                    )
+
+                                                        {/* Mobile (< md): Live camera Retake / Remove or View */}
+                                                        {!isReadOnly ? (
+                                                            <div className="flex md:hidden items-center gap-1.5">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setActiveCameraSlot(categoryKey)}
+                                                                    className="py-1.5 px-2.5 rounded-lg bg-primary/10 hover:bg-primary/15 text-primary text-[11px] font-semibold cursor-pointer inline-flex items-center gap-1 transition-colors flex-1 justify-center"
+                                                                >
+                                                                    <Camera className="w-3.5 h-3.5" />
+                                                                    <span>Retake</span>
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleRemoveImage(categoryKey)}
+                                                                    className="p-1.5 rounded-lg border border-border text-muted-foreground hover:text-destructive cursor-pointer"
+                                                                    title="Remove photo"
+                                                                >
+                                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setPreviewModalSrc(slot.previewUrl!);
+                                                                    setPreviewModalAlt(slot.title);
+                                                                }}
+                                                                className="flex md:hidden w-full py-1.5 px-2.5 rounded-lg border border-border bg-background hover:bg-secondary/60 text-foreground text-[11px] font-medium cursor-pointer items-center justify-center gap-1.5 transition-colors"
+                                                            >
+                                                                <Eye className="w-3.5 h-3.5 text-muted-foreground" />
+                                                                <span>View</span>
+                                                            </button>
+                                                        )}
+                                                    </>
                                                 ) : (
-                                                    /* Mobile-only quick Capture button when empty */
-                                                    <button
-                                                        type="button"
-                                                        disabled={isReadOnly}
-                                                        onClick={() => setActiveCameraSlot(categoryKey)}
-                                                        className="sm:hidden py-1.5 px-3 rounded-lg bg-primary/10 text-primary text-[11px] font-semibold inline-flex items-center gap-1.5 cursor-pointer"
-                                                    >
-                                                        <Camera className="w-3.5 h-3.5" />
-                                                        <span>Take Photo</span>
-                                                    </button>
+                                                    <>
+                                                        {/* Mobile (< md): Live camera Take Photo button */}
+                                                        <button
+                                                            type="button"
+                                                            disabled={isReadOnly}
+                                                            onClick={() => setActiveCameraSlot(categoryKey)}
+                                                            className="md:hidden py-1.5 px-3 rounded-lg bg-primary/10 text-primary text-[11px] font-semibold inline-flex items-center gap-1.5 cursor-pointer"
+                                                        >
+                                                            <Camera className="w-3.5 h-3.5" />
+                                                            <span>Take Photo</span>
+                                                        </button>
+
+                                                        {/* Desktop (md+): Subtle status text */}
+                                                        <span className="hidden md:block text-[11px] text-muted-foreground">
+                                                            Scan QR above on phone
+                                                        </span>
+                                                    </>
                                                 )}
                                             </div>
                                         </div>
