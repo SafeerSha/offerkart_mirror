@@ -53,9 +53,8 @@ describe("MobileHandoffCard Component", () => {
         );
 
         expect(
-            screen.getByText(/Recommended for Desktop: Take Photos with Your Smartphone/i)
+            screen.getByText(/Scan QR Code with Your Phone/i)
         ).toBeTruthy();
-        expect(screen.getByText(/Scan QR Code/i)).toBeTruthy();
         expect(screen.getByText(/Copy Mobile Link/i)).toBeTruthy();
         expect(screen.getByText(/Share via WhatsApp/i)).toBeTruthy();
 
@@ -107,7 +106,7 @@ describe("MobileHandoffCard Component", () => {
         expect(onRefresh).toHaveBeenCalledTimes(1);
     });
 
-    it("collapses gracefully when all photos are captured and allows expanding", async () => {
+    it("keeps QR code statically visible and shows Ready badge when all photos are captured", async () => {
         render(
             <MobileHandoffCard
                 shopId="shop-abc"
@@ -116,16 +115,13 @@ describe("MobileHandoffCard Component", () => {
             />
         );
 
-        // Should display the completion badge
-        expect(screen.getByText(/All 3 storefront photos captured!/i)).toBeTruthy();
+        // Should display the static retake heading and Ready badge
+        expect(screen.getByText(/Captured via Mobile · Scan QR to Retake/i)).toBeTruthy();
+        expect(screen.getByText(/3\/3 Ready/i)).toBeTruthy();
 
-        // Clicking to re-open QR code
-        const expandBtn = screen.getByText(/Show Mobile QR Code \(to retake\)/i);
-        fireEvent.click(expandBtn);
-
-        // QR code instructions should now be visible
+        // QR code should remain visible statically
         await waitFor(() => {
-            expect(screen.getByText(/Scan QR Code/i)).toBeTruthy();
+            expect(screen.getByAltText(/Scan QR code to open verification on mobile/i)).toBeTruthy();
         });
     });
 });
