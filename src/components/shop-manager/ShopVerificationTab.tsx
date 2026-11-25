@@ -1318,7 +1318,7 @@ export default function ShopVerificationTab({
                                     <SelectTrigger className="w-full h-11 bg-background/60 border border-border focus:border-primary focus:ring-1 focus:ring-primary/30 rounded-xl text-sm text-foreground transition-all outline-none cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed">
                                         <SelectValue placeholder="Select document type" />
                                     </SelectTrigger>
-                                    <SelectContent className="rounded-xl bg-card border border-border shadow-xl max-h-64 z-[100] text-foreground">
+                                    <SelectContent className="rounded-xl !bg-[#fdfaf7] border border-gray-200 shadow-xl max-h-64 z-[100] text-[#221c17]">
                                         {DOCUMENT_OPTIONS.map((opt) => (
                                             <SelectItem
                                                 key={opt.value}
