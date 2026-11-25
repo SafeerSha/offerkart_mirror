@@ -241,73 +241,8 @@ export function LiveCameraModal({
         onClose();
     }, [stopStream, clearCapturedPhoto, onClose]);
 
-    // Crop/mirror a hardware-captured Blob only if aspect ratio differs or front camera is mirrored
-    const processStillBlob = async (
-        blob: Blob,
-        targetAspect: number,
-        isFrontCamera: boolean
-    ): Promise<Blob> => {
-        const objectUrl = URL.createObjectURL(blob);
-        try {
-            const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-                const el = new Image();
-                el.onload = () => resolve(el);
-                el.onerror = reject;
-                el.src = objectUrl;
-            });
-
-            const imgAspect = img.naturalWidth / img.naturalHeight;
-            const needsCrop = Math.abs(imgAspect - targetAspect) > 0.02;
-
-            if (!needsCrop && !isFrontCamera) {
-                return blob;
-            }
-
-            let cropX = 0;
-            let cropY = 0;
-            let cropWidth = img.naturalWidth;
-            let cropHeight = img.naturalHeight;
-
-            if (needsCrop) {
-                if (imgAspect > targetAspect) {
-                    cropWidth = Math.round(img.naturalHeight * targetAspect);
-                    cropX = Math.round((img.naturalWidth - cropWidth) / 2);
-                } else {
-                    cropHeight = Math.round(img.naturalWidth / targetAspect);
-                    cropY = Math.round((img.naturalHeight - cropHeight) / 2);
-                }
-            }
-
-            const canvas = document.createElement("canvas");
-            canvas.width = cropWidth;
-            canvas.height = cropHeight;
-            const ctx = canvas.getContext("2d", { alpha: false });
-            if (!ctx) return blob;
-
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = "high";
-
-            if (isFrontCamera) {
-                ctx.translate(cropWidth, 0);
-                ctx.scale(-1, 1);
-            }
-
-            ctx.drawImage(img, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
-
-            const processed = await new Promise<Blob | null>((resolve) =>
-                canvas.toBlob(resolve, "image/jpeg", 0.98)
-            );
-            canvas.width = 0;
-            canvas.height = 0;
-
-            return processed || blob;
-        } finally {
-            URL.revokeObjectURL(objectUrl);
-        }
-    };
-
-    // Capture HQ/HDR still photo via ImageCapture API when available, falling back to high-res stream frame
-    const handleSnapPhoto = async () => {
+    // Capture photo directly from the active video stream using exact viewfinder object-cover framing
+    const handleSnapPhoto = () => {
         if (!webcamRef.current || isCapturing) return;
 
         const videoEl = webcamRef.current.video;
@@ -318,79 +253,24 @@ export function LiveCameraModal({
 
         setIsCapturing(true);
 
-        // Determine target aspect ratio (width / height)
-        let targetAspect: number;
-        if (aspectRatioMode === "9:16") {
-            targetAspect = isPortrait ? 9 / 16 : 16 / 9;
-        } else if (aspectRatioMode === "4:3") {
-            targetAspect = isPortrait ? 3 / 4 : 4 / 3;
-        } else if (aspectRatioMode === "1:1") {
-            targetAspect = 1;
-        } else {
-            const containerEl = videoEl.parentElement;
-            if (containerEl && containerEl.clientHeight > 0) {
-                targetAspect = containerEl.clientWidth / containerEl.clientHeight;
-            } else {
-                targetAspect = isPortrait ? 3 / 4 : 4 / 3;
-            }
-        }
-
-        const finishWithBlob = (blob: Blob) => {
-            setIsCapturing(false);
-            stopStream();
-            const fileName = `${categoryKey.toLowerCase().replace(/_/g, "-")}-${Date.now()}.jpg`;
-            const file = new File([blob], fileName, {
-                type: blob.type || "image/jpeg",
-                lastModified: Date.now()
-            });
-            const previewUrl = URL.createObjectURL(blob);
-            setCapturedPhoto({ file, previewUrl });
-        };
-
-        // 1. Try hardware still-image capture (ImageCapture API) for full sensor HQ + HDR ISP pipeline
-        try {
-            const stream = videoEl.srcObject as MediaStream | null;
-            const track = stream?.getVideoTracks()?.[0];
-            const ImageCaptureCtor = typeof window !== "undefined" ? (window as any).ImageCapture : undefined;
-
-            if (track && ImageCaptureCtor) {
-                const imageCapture = new ImageCaptureCtor(track);
-                const photoSettings: Record<string, any> = {};
-
-                if (typeof imageCapture.getPhotoCapabilities === "function") {
-                    try {
-                        const photoCaps = await imageCapture.getPhotoCapabilities();
-                        if (photoCaps?.imageWidth?.max) {
-                            photoSettings.imageWidth = Math.min(photoCaps.imageWidth.max, 4096);
-                        }
-                        if (photoCaps?.imageHeight?.max) {
-                            photoSettings.imageHeight = Math.min(photoCaps.imageHeight.max, 4096);
-                        }
-                        if (Array.isArray(photoCaps?.fillLightMode)) {
-                            if (torchOn && photoCaps.fillLightMode.includes("flash")) {
-                                photoSettings.fillLightMode = "flash";
-                            } else if (photoCaps.fillLightMode.includes("auto")) {
-                                photoSettings.fillLightMode = "auto";
-                            }
-                        }
-                    } catch {}
-                }
-
-                const rawBlob: Blob = await imageCapture.takePhoto(
-                    Object.keys(photoSettings).length > 0 ? photoSettings : undefined
-                );
-                const finalBlob = await processStillBlob(rawBlob, targetAspect, facingMode === "user");
-                finishWithBlob(finalBlob);
-                return;
-            }
-        } catch (err) {
-            console.warn("ImageCapture.takePhoto unavailable, using high-res stream capture:", err);
-        }
-
-        // 2. Fallback: capture directly from video stream at max resolution & 98% JPEG quality
         try {
             const naturalWidth = videoEl.videoWidth || 1920;
             const naturalHeight = videoEl.videoHeight || 1440;
+
+            // Match the exact rendered viewfinder aspect ratio so captured image equals what is visible
+            let targetAspect: number;
+            if (videoEl.clientWidth > 0 && videoEl.clientHeight > 0) {
+                targetAspect = videoEl.clientWidth / videoEl.clientHeight;
+            } else if (aspectRatioMode === "9:16") {
+                targetAspect = isPortrait ? 9 / 16 : 16 / 9;
+            } else if (aspectRatioMode === "4:3") {
+                targetAspect = isPortrait ? 3 / 4 : 4 / 3;
+            } else if (aspectRatioMode === "1:1") {
+                targetAspect = 1;
+            } else {
+                targetAspect = isPortrait ? 3 / 4 : 4 / 3;
+            }
+
             const streamAspect = naturalWidth / naturalHeight;
 
             let cropX = 0;
@@ -398,7 +278,7 @@ export function LiveCameraModal({
             let cropWidth = naturalWidth;
             let cropHeight = naturalHeight;
 
-            if (Math.abs(streamAspect - targetAspect) > 0.01) {
+            if (Math.abs(streamAspect - targetAspect) > 0.005) {
                 if (streamAspect > targetAspect) {
                     cropWidth = Math.round(naturalHeight * targetAspect);
                     cropHeight = naturalHeight;
@@ -445,12 +325,20 @@ export function LiveCameraModal({
                     canvas.width = 0;
                     canvas.height = 0;
 
+                    setIsCapturing(false);
                     if (!blob) {
                         fallbackBase64Capture();
                         return;
                     }
 
-                    finishWithBlob(blob);
+                    stopStream();
+                    const fileName = `${categoryKey.toLowerCase().replace(/_/g, "-")}-${Date.now()}.jpg`;
+                    const file = new File([blob], fileName, {
+                        type: "image/jpeg",
+                        lastModified: Date.now()
+                    });
+                    const previewUrl = URL.createObjectURL(blob);
+                    setCapturedPhoto({ file, previewUrl });
                 },
                 "image/jpeg",
                 0.98
