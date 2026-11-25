@@ -35,7 +35,10 @@ describe("MobileHandoffCard Component", () => {
     it("renders guidance banner when shopId is missing", () => {
         render(<MobileHandoffCard shopId={null} capturedCount={0} />);
         expect(
-            screen.getByText(/Save basic shop details in the 'Basic Details' tab first/i)
+            screen.getByText(/Save basic shop details/i)
+        ).toBeTruthy();
+        expect(
+            screen.getByText(/Basic Details/i)
         ).toBeTruthy();
     });
 

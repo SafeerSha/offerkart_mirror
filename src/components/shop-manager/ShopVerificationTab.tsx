@@ -223,6 +223,12 @@ export function DocumentUploadField({
     const isImg = Boolean(fileName && isImageDocument(file, previewUrl, fileName));
     const safeImgSrc = isImg ? getSafeImagePreviewUrl(previewUrl, fileName) : null;
     const displayName = fileName ? fileName.split("/").pop()?.split("?")[0] || fileName : "";
+    const [imgError, setImgError] = useState(false);
+
+    useEffect(() => {
+        setImgError(false);
+    }, [safeImgSrc]);
+
     const canViewLocalPdf = Boolean(
         !isImg &&
             fileName &&
@@ -261,30 +267,30 @@ export function DocumentUploadField({
         <div className="space-y-2">
             <label
                 htmlFor={!fileName && !isReadOnly ? inputId : undefined}
-                className="text-sm font-medium text-gray-700 flex items-center justify-between"
+                className="text-sm font-medium text-foreground flex items-center justify-between"
             >
                 <span>{label}</span>
             </label>
 
             <div
                 className={cn(
-                    "relative border-2 border-dashed rounded-xl p-4 transition-all flex flex-col items-center justify-center text-center",
+                    "relative border border-dashed rounded-xl p-3.5 min-h-[84px] transition-all flex flex-col items-center justify-center text-center",
                     fileName
-                        ? "border-emerald-300 bg-emerald-50/20"
+                        ? "border-emerald-300/90 bg-emerald-50/30"
                         : isReadOnly
-                            ? "border-gray-200 bg-gray-50/40"
-                            : "border-gray-200 hover:border-blue-400 bg-gray-50/40",
+                            ? "border-border bg-background/40"
+                            : "border-border hover:border-primary/50 bg-background/40 hover:bg-primary/[0.02]",
                     isReadOnly && "opacity-90"
                 )}
             >
                 {fileName ? (
-                    <div className="relative z-10 flex items-center justify-between gap-2 w-full p-2 bg-white rounded-lg border border-emerald-200 shadow-2xs">
+                    <div className="relative z-10 flex items-center justify-between gap-2.5 w-full px-2.5 py-2 bg-white rounded-lg border border-emerald-200/80 shadow-2xs">
                         <div className="flex items-center gap-2.5 overflow-hidden min-w-0">
-                            {isImg && safeImgSrc ? (
+                            {isImg && safeImgSrc && !imgError ? (
                                 <button
                                     type="button"
                                     onClick={handleOpenImage}
-                                    className="relative w-10 h-10 rounded-lg overflow-hidden border border-emerald-200 bg-gray-50 shrink-0 cursor-pointer group"
+                                    className="relative w-10 h-10 rounded-lg overflow-hidden border border-border bg-secondary/40 shrink-0 cursor-pointer group"
                                     title={`Preview ${previewAlt}`}
                                 >
                                     <Image
@@ -293,21 +299,22 @@ export function DocumentUploadField({
                                         fill
                                         className="object-cover"
                                         unoptimized
+                                        onError={() => setImgError(true)}
                                     />
                                     <span className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
                                         <Eye className="w-3.5 h-3.5" />
                                     </span>
                                 </button>
                             ) : (
-                                <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                                <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200/60 flex items-center justify-center shrink-0">
                                     <FileText className="w-4 h-4" />
                                 </div>
                             )}
                             <div className="text-left overflow-hidden min-w-0">
-                                <p className="text-xs font-semibold text-gray-800 truncate max-w-[140px] sm:max-w-[200px]">
+                                <p className="text-xs font-semibold text-foreground truncate max-w-[140px] sm:max-w-[200px]">
                                     {displayName}
                                 </p>
-                                <span className="text-[10px] text-emerald-600 font-medium">
+                                <span className="text-[11px] text-emerald-700 font-medium">
                                     {isReadOnly ? submittedLabel : attachedLabel}
                                 </span>
                             </div>
@@ -319,10 +326,10 @@ export function DocumentUploadField({
                                     <button
                                         type="button"
                                         onClick={handleOpenImage}
-                                        className="py-1 px-2.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                                        className="py-1 px-2.5 rounded-lg bg-secondary/70 hover:bg-secondary text-foreground text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer"
                                         title={`View ${previewAlt}`}
                                     >
-                                        <Eye className="w-3.5 h-3.5" />
+                                        <Eye className="w-3.5 h-3.5 text-muted-foreground" />
                                         <span className="text-[11px]">View</span>
                                     </button>
                                     {safeExternalUrl && (
@@ -331,7 +338,7 @@ export function DocumentUploadField({
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             onClick={(e) => e.stopPropagation()}
-                                            className="p-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200 transition-colors"
+                                            className="p-1.5 rounded-lg bg-background hover:bg-secondary/60 text-muted-foreground hover:text-foreground border border-border transition-colors"
                                             title="Open document in new tab"
                                             aria-label="Open document in new tab"
                                         >
@@ -345,20 +352,20 @@ export function DocumentUploadField({
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     onClick={(e) => e.stopPropagation()}
-                                    className="py-1 px-2.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold flex items-center gap-1 transition-colors"
+                                    className="py-1 px-2.5 rounded-lg bg-secondary/70 hover:bg-secondary text-foreground text-xs font-medium flex items-center gap-1 transition-colors"
                                     title={`View ${previewAlt}`}
                                 >
-                                    <ExternalLink className="w-3.5 h-3.5" />
+                                    <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
                                     <span className="text-[11px]">View</span>
                                 </a>
                             ) : canViewLocalPdf ? (
                                 <button
                                     type="button"
                                     onClick={handleOpenLocalPdf}
-                                    className="py-1 px-2.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                                    className="py-1 px-2.5 rounded-lg bg-secondary/70 hover:bg-secondary text-foreground text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer"
                                     title={`View ${previewAlt}`}
                                 >
-                                    <Eye className="w-3.5 h-3.5" />
+                                    <Eye className="w-3.5 h-3.5 text-muted-foreground" />
                                     <span className="text-[11px]">View</span>
                                 </button>
                             ) : null}
@@ -370,7 +377,7 @@ export function DocumentUploadField({
                                         e.stopPropagation();
                                         onRemove();
                                     }}
-                                    className="p-1.5 rounded-md text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
+                                    className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
                                     title="Remove file"
                                     aria-label="Remove file"
                                 >
@@ -391,31 +398,31 @@ export function DocumentUploadField({
                                 onChange={onFileChange}
                             />
                         )}
-                        <div className="py-4 space-y-2">
+                        <div className="flex items-center gap-3 py-1">
                             <div
                                 className={cn(
-                                    "w-10 h-10 rounded-full flex items-center justify-center mx-auto",
+                                    "w-9 h-9 rounded-lg flex items-center justify-center shrink-0",
                                     emptyAccent === "blue"
-                                        ? "bg-blue-50 text-blue-600"
-                                        : "bg-gray-50 text-gray-500"
+                                        ? "bg-primary/10 text-primary"
+                                        : "bg-secondary text-muted-foreground"
                                 )}
                             >
-                                <UploadCloud className="w-5 h-5" />
+                                <UploadCloud className="w-4 h-4" />
                             </div>
-                            <div className="space-y-0.5">
+                            <div className="text-left space-y-0.5">
                                 <p
                                     className={cn(
                                         "text-xs font-semibold",
                                         isReadOnly
-                                            ? "text-gray-500"
+                                            ? "text-muted-foreground"
                                             : emptyAccent === "blue"
-                                                ? "text-blue-600 hover:underline"
-                                                : "text-gray-600"
+                                                ? "text-primary"
+                                                : "text-foreground"
                                     )}
                                 >
                                     {isReadOnly ? "No document uploaded" : emptyTitle}
                                 </p>
-                                <p className="text-[10px] text-gray-400">
+                                <p className="text-[11px] text-muted-foreground">
                                     {isReadOnly ? "Not submitted for this verification" : emptySubtitle}
                                 </p>
                             </div>
@@ -510,6 +517,7 @@ export default function ShopVerificationTab({
 
     // In-browser WebRTC Live Camera slot state
     const [activeCameraSlot, setActiveCameraSlot] = useState<VerificationImageCategory | null>(null);
+    const [failedSlotPreviews, setFailedSlotPreviews] = useState<Record<string, boolean>>({});
 
     // Submission states
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1136,58 +1144,50 @@ export default function ShopVerificationTab({
     const isReadOnly = isUnderReview || isApproved;
 
     return (
-        <div className="space-y-3">
-            {/* Verification Status Card if verification record exists */}
+        <div className="space-y-6">
+            {/* Verification Status Banner (Distinct dark espresso theme card) */}
             {existingVerification && (
-                <div
-                    className={cn(
-                        "rounded-2xl border p-4 sm:p-5 transition-all shadow-xs",
-                        isUnderReview && "bg-amber-50/70 border-amber-200 text-amber-950",
-                        isApproved && "bg-emerald-50/70 border-emerald-200 text-emerald-950",
-                        isRejected && "bg-rose-50/70 border-rose-200 text-rose-950",
-                        !isUnderReview && !isApproved && !isRejected && "bg-blue-50/70 border-blue-200 text-blue-950"
-                    )}
-                >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3 mb-3 border-black/5">
-                        <div className="flex items-center gap-3">
+                <div className="rounded-2xl bg-gradient-to-br from-[#221c17] via-[#2a221c] to-[#332922] text-[#fff9f5] p-4 sm:p-6 shadow-md border border-white/10">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-start sm:items-center gap-3.5">
                             <div
                                 className={cn(
-                                    "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-xs",
-                                    isUnderReview && "bg-amber-100 text-amber-700",
-                                    isApproved && "bg-emerald-100 text-emerald-700",
-                                    isRejected && "bg-rose-100 text-rose-700",
-                                    !isUnderReview && !isApproved && !isRejected && "bg-blue-100 text-blue-700"
+                                    "w-11 h-11 rounded-xl flex items-center justify-center shrink-0",
+                                    isUnderReview && "bg-amber-500/20 text-amber-300",
+                                    isApproved && "bg-emerald-500/20 text-emerald-300",
+                                    isRejected && "bg-rose-500/20 text-rose-300",
+                                    !isUnderReview && !isApproved && !isRejected && "bg-primary/20 text-primary"
                                 )}
                             >
-                                {isUnderReview && <Clock className="w-5 h-5 animate-pulse" />}
+                                {isUnderReview && <Clock className="w-5 h-5" />}
                                 {isApproved && <CheckCircle2 className="w-5 h-5" />}
                                 {isRejected && <AlertCircle className="w-5 h-5" />}
                                 {!isUnderReview && !isApproved && !isRejected && <ShieldCheck className="w-5 h-5" />}
                             </div>
                             <div>
-                                <div className="flex items-center gap-2 flex-wrap">
-                                    <h4 className="text-sm font-bold leading-tight">
-                                        {isUnderReview && "Shop Verification Under Review"}
-                                        {isApproved && "Shop Successfully Verified"}
-                                        {isRejected && "Verification Application Rejected"}
-                                        {!isUnderReview && !isApproved && !isRejected && `Verification Status: ${existingVerification.status}`}
+                                <div className="flex items-center gap-2.5 flex-wrap">
+                                    <h4 className="text-base font-semibold text-white">
+                                        {isUnderReview && "Verification Under Review"}
+                                        {isApproved && "Shop Verified"}
+                                        {isRejected && "Verification Rejected"}
+                                        {!isUnderReview && !isApproved && !isRejected && `Verification: ${existingVerification.status}`}
                                     </h4>
                                     <span
                                         className={cn(
-                                            "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border",
-                                            isUnderReview && "bg-amber-100 text-amber-800 border-amber-300",
-                                            isApproved && "bg-emerald-100 text-emerald-800 border-emerald-300",
-                                            isRejected && "bg-rose-100 text-rose-800 border-rose-300",
-                                            !isUnderReview && !isApproved && !isRejected && "bg-blue-100 text-blue-800 border-blue-300"
+                                            "px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider",
+                                            isUnderReview && "bg-amber-500/20 text-amber-200 border border-amber-400/30",
+                                            isApproved && "bg-emerald-500/20 text-emerald-200 border border-emerald-400/30",
+                                            isRejected && "bg-rose-500/20 text-rose-200 border border-rose-400/30",
+                                            !isUnderReview && !isApproved && !isRejected && "bg-white/10 text-white/90"
                                         )}
                                     >
                                         {existingVerification.status?.replace(/_/g, " ")}
                                     </span>
                                 </div>
-                                <p className="text-[11px] opacity-75 mt-0.5">
+                                <p className="text-xs text-[#c7bdb3] mt-0.5">
                                     Attempt #{existingVerification.attemptNumber || 1}
-                                    {existingVerification.submittedAt && ` • Submitted ${formatDateTime(existingVerification.submittedAt)}`}
-                                    {existingVerification.reviewedAt && ` • Reviewed ${formatDateTime(existingVerification.reviewedAt)}`}
+                                    {existingVerification.submittedAt && ` · Submitted ${formatDateTime(existingVerification.submittedAt)}`}
+                                    {existingVerification.reviewedAt && ` · Reviewed ${formatDateTime(existingVerification.reviewedAt)}`}
                                 </p>
                             </div>
                         </div>
@@ -1197,76 +1197,62 @@ export default function ShopVerificationTab({
                                 type="button"
                                 onClick={() => loadVerification()}
                                 disabled={isLoadingExisting}
-                                className="py-1.5 px-2.5 rounded-xl bg-white hover:bg-gray-50 text-gray-700 border border-black/10 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs hover:shadow-xs disabled:opacity-50"
+                                className="py-1.5 px-3 rounded-lg bg-white/10 hover:bg-white/15 text-white border border-white/15 text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
                                 title="Refresh verification status"
                             >
-                                <RefreshCw className={cn("w-3.5 h-3.5", isLoadingExisting && "animate-spin")} />
+                                <RefreshCw className={cn("w-3.5 h-3.5", isLoadingExisting && "animate-spin text-primary")} />
                                 <span>Refresh</span>
                             </button>
                             <button
                                 type="button"
                                 onClick={() => router.push("/shop-manager")}
-                                className="py-1.5 px-3 rounded-xl bg-white hover:bg-gray-50 text-gray-800 border border-black/10 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs hover:shadow-xs"
+                                className="py-1.5 px-3 rounded-lg bg-white/10 hover:bg-white/15 text-white border border-white/15 text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer"
                             >
                                 <span>Dashboard</span>
                             </button>
                         </div>
                     </div>
 
-                    {/* Rejection feedback */}
+                    {/* Rejection feedback inline callout */}
                     {isRejected && (
-                        <div className="p-3 rounded-xl bg-white/90 border border-rose-200 text-xs space-y-1 mb-3">
-                            <div className="font-bold text-rose-900 flex items-center gap-1.5">
-                                <AlertCircle className="w-4 h-4 text-rose-600" />
-                                <span>Feedback / Rejection Reason:</span>
-                            </div>
-                            <p className="text-gray-700 pl-5">
+                        <div className="mt-4 rounded-xl bg-rose-500/15 border border-rose-400/25 px-4 py-3 text-xs space-y-1">
+                            <p className="font-semibold text-rose-100">
                                 {existingVerification.rejectionReason || "Verification criteria were not met."}
                             </p>
                             {existingVerification.adminRemarks && (
-                                <div className="mt-2 pt-2 border-t border-rose-100 pl-5 text-[11px] text-gray-600">
-                                    <span className="font-semibold text-gray-800">Admin Remarks: </span>
-                                    {existingVerification.adminRemarks}
-                                </div>
+                                <p className="text-rose-200/80">
+                                    <span className="font-medium">Admin note:</span> {existingVerification.adminRemarks}
+                                </p>
                             )}
                         </div>
                     )}
 
-                    {/* Metadata Badges: Physical Audit, Owner Details, Proximity, GPS */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-[11px]">
-                        <div className="p-2 rounded-lg bg-white/60 border border-black/5">
-                            <span className="text-[10px] text-gray-500 block">Physical Audit</span>
-                            <span className="font-semibold text-gray-800">
-                                {existingVerification.physicalStatus?.replace(/_/g, " ") || "Pending"}
-                            </span>
-                        </div>
-                        <div className="p-2 rounded-lg bg-white/60 border border-black/5">
-                            <span className="text-[10px] text-gray-500 block">Licence Status</span>
-                            <span className="font-semibold text-gray-800">
-                                {existingVerification.ownerStatus?.replace(/_/g, " ") || "Submitted"}
-                            </span>
-                        </div>
-                        <div className="p-2 rounded-lg bg-white/60 border border-black/5">
-                            <span className="text-[10px] text-gray-500 block">Distance to Shop</span>
-                            <span className="font-semibold text-gray-800">
+                    {/* Clean inline metadata strip */}
+                    <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 mt-4 pt-3.5 border-t border-white/10 text-xs text-[#c7bdb3]">
+                        <span>
+                            Physical Audit: <strong className="font-medium text-white">{existingVerification.physicalStatus?.replace(/_/g, " ") || "Pending"}</strong>
+                        </span>
+                        <span>
+                            Licence: <strong className="font-medium text-white">{existingVerification.ownerStatus?.replace(/_/g, " ") || "Submitted"}</strong>
+                        </span>
+                        <span>
+                            Distance:{" "}
+                            <strong className="font-medium text-white">
                                 {existingVerification.verificationLocation?.distanceMeters !== undefined
                                     ? existingVerification.verificationLocation.distanceMeters < 100
                                         ? "On-site (< 100m)"
                                         : `${(existingVerification.verificationLocation.distanceMeters / 1000).toFixed(1)} km away`
                                     : "GPS recorded"}
-                            </span>
-                        </div>
-                        <div className="p-2 rounded-lg bg-white/60 border border-black/5">
-                            <span className="text-[10px] text-gray-500 block">GPS Accuracy</span>
-                            <span className="font-semibold text-gray-800">
-                                ±{existingVerification.verificationLocation?.gpsAccuracyMeters || 12}m
-                            </span>
-                        </div>
+                            </strong>
+                        </span>
+                        <span>
+                            GPS Accuracy: <strong className="font-medium text-white">±{existingVerification.verificationLocation?.gpsAccuracyMeters || 12}m</strong>
+                        </span>
                     </div>
 
                     {isUnderReview && (
-                        <p className="text-[11px] text-amber-800 mt-3 pt-2 border-t border-amber-200/50">
-                            🔒 <strong>Notice:</strong> Your verification request is currently locked under administrative review. Once our team approves your establishment photos and documents, your shop will receive the verified badge.
+                        <p className="text-xs text-amber-200/90 mt-3 pt-3 border-t border-white/10">
+                            Your verification is locked while under review. Your shop will receive the verified badge once approved.
                         </p>
                     )}
                 </div>
@@ -1274,19 +1260,19 @@ export default function ShopVerificationTab({
 
             {/* Verification Guidance Notice */}
             {!existingVerification && (
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 px-4 rounded-xl bg-orange-50/50 border border-orange-100 text-xs text-gray-600">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 py-3 rounded-xl bg-primary/5 border border-primary/15 text-xs text-muted-foreground">
                     <div className="flex items-center gap-2.5">
-                        <ShieldCheck className="w-4 h-4 text-orange-600 shrink-0" />
-                        <span>Upload business registration documents and storefront photos to verify your shop.</span>
+                        <ShieldCheck className="w-4 h-4 text-primary shrink-0" />
+                        <span>Upload your business licence and 3 storefront photos to verify your shop.</span>
                     </div>
 
                     {!shopId && (
-                        <span className="text-[11px] text-amber-800 shrink-0">
+                        <span className="text-xs text-foreground shrink-0">
                             New shop?{" "}
                             <button
                                 type="button"
                                 onClick={onSwitchToDetails}
-                                className="font-semibold underline hover:text-amber-900 cursor-pointer"
+                                className="font-semibold text-primary underline hover:text-primary/80 cursor-pointer"
                             >
                                 Save details first
                             </button>
@@ -1295,31 +1281,30 @@ export default function ShopVerificationTab({
                 </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-2">
-                {/* 1. Document & Legal Verification */}
-                <PremiumCard padding="none" className="w-full overflow-hidden bg-white">
-                    <div className="px-4 md:px-8 py-5 border-b border-gray-100">
+            <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Desktop Two-Column Split: Left = Legal Proof (5 cols), Right = Storefront Photos (7 cols) */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                    {/* 1. Document & Legal Verification (Elevated crisp card) */}
+                    <div className="lg:col-span-5 rounded-2xl bg-card border border-border/80 shadow-xs p-5 sm:p-6 space-y-5">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
-                                <FileCheck2 className="w-5 h-5" />
-                            </div>
+                            <span className="w-7 h-7 rounded-lg bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0">
+                                01
+                            </span>
                             <div>
-                                <h4 className="text-base font-semibold text-gray-900">
-                                    Business Licence & Legal Proof
+                                <h4 className="text-base font-semibold text-foreground leading-tight">
+                                    Business Licence & Proof
                                 </h4>
-                                <p className="text-xs text-gray-500">
-                                    Upload official government business registration and authorization documents
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    Government registration & authorization
                                 </p>
                             </div>
                         </div>
-                    </div>
 
-                    <div className="p-4 md:p-8 space-y-2">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div className="space-y-4">
                             {/* Document Type */}
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-700">
-                                    Document Type <span className="text-red-500">*</span>
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium text-foreground block">
+                                    Document Type <span className="text-destructive">*</span>
                                 </label>
                                 <Select
                                     value={documentType}
@@ -1329,30 +1314,27 @@ export default function ShopVerificationTab({
                                         saveFieldToDraft("documentType", val);
                                     }}
                                 >
-                                    <SelectTrigger className="w-full h-11 bg-background/40 border border-primary/20 focus:border-primary focus:ring-1 focus:ring-primary/30 rounded-xl text-sm text-gray-900 transition-all outline-none cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed">
+                                    <SelectTrigger className="w-full h-11 bg-background/60 border border-border focus:border-primary focus:ring-1 focus:ring-primary/30 rounded-xl text-sm text-foreground transition-all outline-none cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed">
                                         <SelectValue placeholder="Select document type" />
                                     </SelectTrigger>
-                                    <SelectContent className="rounded-xl !bg-white border border-gray-200 shadow-xl max-h-64 z-[100] text-gray-900">
+                                    <SelectContent className="rounded-xl bg-card border border-border shadow-xl max-h-64 z-[100] text-foreground">
                                         {DOCUMENT_OPTIONS.map((opt) => (
                                             <SelectItem
                                                 key={opt.value}
                                                 value={opt.value}
-                                                className="text-sm font-medium cursor-pointer hover:bg-orange-50 hover:text-orange-600 focus:bg-orange-50 focus:text-orange-600 py-2.5 rounded-lg"
+                                                className="text-sm font-medium cursor-pointer hover:bg-primary/10 hover:text-primary focus:bg-primary/10 focus:text-primary py-2.5 rounded-lg"
                                             >
                                                 {opt.label}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
-                                <p className="text-[11px] text-gray-400">
-                                    Select the business document you are submitting for licence verification.
-                                </p>
                             </div>
 
                             {/* Document Number */}
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-700">
-                                    Document / Licence Number <span className="text-red-500">*</span>
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium text-foreground block">
+                                    Document / Licence Number <span className="text-destructive">*</span>
                                 </label>
                                 <PremiumInput
                                     placeholder="e.g. LIC123456 or 32AABCU9603R1ZM"
@@ -1365,20 +1347,14 @@ export default function ShopVerificationTab({
                                     }}
                                     required
                                 />
-                                <p className="text-[11px] text-gray-400">
-                                    Enter registration or licence identification number as stated on document.
-                                </p>
                             </div>
-                        </div>
 
-                        {/* File Uploads Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
                             {/* Primary Document File */}
                             <DocumentUploadField
                                 inputId="doc-file-input"
                                 label={
                                     <>
-                                        Business Licence Document <span className="text-red-500">*</span>
+                                        Business Licence Document <span className="text-destructive">*</span>
                                     </>
                                 }
                                 file={documentFile}
@@ -1387,7 +1363,7 @@ export default function ShopVerificationTab({
                                 isReadOnly={isReadOnly}
                                 attachedLabel="Document attached"
                                 submittedLabel="Submitted Document"
-                                emptyTitle="Click to browse or drop document"
+                                emptyTitle="Upload business licence"
                                 emptySubtitle="PDF, JPG, PNG up to 5MB"
                                 emptyAccent="blue"
                                 previewAlt="Business Licence Document"
@@ -1411,7 +1387,7 @@ export default function ShopVerificationTab({
                                 inputId="auth-file-input"
                                 label={
                                     <>
-                                        Authorization Letter <span className="text-gray-400 font-normal text-xs">(If Representative)</span>
+                                        Authorization Letter <span className="text-muted-foreground font-normal text-xs">(Optional)</span>
                                     </>
                                 }
                                 file={authorizationFile}
@@ -1420,8 +1396,8 @@ export default function ShopVerificationTab({
                                 isReadOnly={isReadOnly}
                                 attachedLabel="Letter attached"
                                 submittedLabel="Submitted Authorization"
-                                emptyTitle="Upload Authorization Letter"
-                                emptySubtitle="Optional: PDF, JPG, PNG up to 5MB"
+                                emptyTitle="Upload authorization letter"
+                                emptySubtitle="If representative · PDF, JPG, PNG up to 5MB"
                                 emptyAccent="gray"
                                 previewAlt="Authorization Letter"
                                 onFileChange={handleAuthorizationFileChange}
@@ -1440,27 +1416,26 @@ export default function ShopVerificationTab({
                             />
                         </div>
                     </div>
-                </PremiumCard>
 
-                {/* 2. Physical Establishment Verification Photos */}
-                <PremiumCard id="storefront-photos" padding="none" className="w-full overflow-hidden bg-white scroll-mt-24">
-                    <div className="px-4 md:px-8 py-5 border-b border-gray-100">
+                    {/* 2. Physical Establishment Verification Photos (Soft warm-sand container) */}
+                    <div
+                        id="storefront-photos"
+                        className="lg:col-span-7 rounded-2xl bg-secondary/35 border border-border/70 p-4 sm:p-6 space-y-4 scroll-mt-24"
+                    >
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center">
-                                <Camera className="w-5 h-5" />
-                            </div>
+                            <span className="w-7 h-7 rounded-lg bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0">
+                                02
+                            </span>
                             <div>
-                                <h4 className="text-base font-semibold text-gray-900">
-                                    Physical Storefront Verification Photographs
+                                <h4 className="text-base font-semibold text-foreground leading-tight">
+                                    Storefront Verification Photos
                                 </h4>
-                                <p className="text-xs text-gray-500">
-                                    Mandatory on-premise photographs embedded with live device geotags & timestamps
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    On-premise photographs with live device geotags & timestamps
                                 </p>
                             </div>
                         </div>
-                    </div>
 
-                    <div className="p-4 md:p-8 space-y-4">
                         {/* Mobile Handoff QR Code card (Desktop only, completely hidden on mobile) */}
                         {!isReadOnly && (
                             <MobileHandoffCard
@@ -1474,172 +1449,210 @@ export default function ShopVerificationTab({
                                 totalCount={3}
                                 onRefresh={loadVerification}
                                 isRefreshing={isLoadingExisting}
+                                className="bg-card/90"
                             />
                         )}
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        {/* Responsive Photo Cards: Compact horizontal rows on mobile, 3-col tiles on sm/desktop */}
+                        <div className="flex flex-col gap-3 sm:grid sm:grid-cols-3 sm:gap-3.5">
                             {(
                                 ["SHOP_NAME_BOARD", "SHOP_EXTERIOR", "SHOP_INTERIOR"] as VerificationImageCategory[]
                             ).map((categoryKey) => {
                                 const slot = imageSlots[categoryKey];
+                                const isCaptured = Boolean(slot.previewUrl || slot.fileName);
+                                const isBrokenImg = Boolean(failedSlotPreviews[categoryKey]);
 
                                 return (
                                     <div
                                         key={categoryKey}
-                                        className="flex flex-col rounded-2xl border border-gray-200 overflow-hidden bg-gray-50/30 hover:border-orange-300 transition-all shadow-xs"
+                                        className="flex flex-row items-center p-3 gap-3.5 sm:flex-col sm:items-stretch sm:p-0 sm:gap-0 rounded-xl bg-card border border-border/80 shadow-2xs overflow-hidden hover:border-primary/40 transition-all"
                                     >
-                                        {/* Card Header */}
-                                        <div className="p-3.5 border-b border-gray-100 bg-white">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-xs font-bold text-gray-900">
-                                                    {slot.title}
-                                                </span>
-                                                <span
-                                                    className={cn(
-                                                        "text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider",
-                                                        slot.previewUrl || slot.fileName
-                                                            ? "bg-emerald-100 text-emerald-700"
-                                                            : "bg-orange-100 text-orange-700"
-                                                    )}
-                                                >
-                                                    {slot.previewUrl || slot.fileName ? "Captured" : "Required"}
-                                                </span>
-                                            </div>
-                                            <p className="text-[11px] text-gray-500 mt-1 line-clamp-1">
-                                                {slot.description}
-                                            </p>
-                                        </div>
+                                        {/* Thumbnail / Camera Box */}
+                                        <div className="relative w-20 h-20 rounded-lg sm:w-full sm:h-auto sm:aspect-[4/3] sm:rounded-none bg-secondary/50 overflow-hidden shrink-0 group">
+                                            {/* Status pill (desktop top-right only; mobile shows inline badge) */}
+                                            <span
+                                                className={cn(
+                                                    "hidden sm:inline-block absolute top-2 right-2 z-10 text-[10px] font-semibold px-2 py-0.5 rounded-full backdrop-blur-xs",
+                                                    isCaptured
+                                                        ? "bg-emerald-500/90 text-white"
+                                                        : "bg-black/50 text-white"
+                                                )}
+                                            >
+                                                {isCaptured ? "Captured" : "Required"}
+                                            </span>
 
-                                        {/* Photo Area */}
-                                        <div className="p-4 flex-1 flex flex-col justify-between">
-                                            {slot.previewUrl ? (
-                                                <div className="space-y-3">
-                                                    <div className="relative aspect-4/3 w-full rounded-xl overflow-hidden border border-gray-200 bg-black/5 group">
-                                                        <Image
-                                                            src={slot.previewUrl}
-                                                            alt={slot.title}
-                                                            fill
-                                                            className="object-cover"
-                                                            unoptimized
-                                                        />
-                                                        {/* Hover overlay with preview & remove */}
-                                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                            {slot.previewUrl && !isBrokenImg ? (
+                                                <>
+                                                    <Image
+                                                        src={slot.previewUrl}
+                                                        alt={slot.title}
+                                                        fill
+                                                        className="object-cover"
+                                                        unoptimized
+                                                        onError={() =>
+                                                            setFailedSlotPreviews((prev) => ({
+                                                                ...prev,
+                                                                [categoryKey]: true,
+                                                            }))
+                                                        }
+                                                    />
+                                                    {/* Tap/hover preview */}
+                                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setPreviewModalSrc(slot.previewUrl!);
+                                                                setPreviewModalAlt(slot.title);
+                                                            }}
+                                                            className="p-1.5 sm:p-2 rounded-full bg-white/95 text-foreground hover:bg-white shadow cursor-pointer"
+                                                            title="View full size"
+                                                        >
+                                                            <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                                        </button>
+                                                        {!isReadOnly && (
                                                             <button
                                                                 type="button"
-                                                                onClick={() => {
-                                                                    setPreviewModalSrc(slot.previewUrl!);
-                                                                    setPreviewModalAlt(slot.title);
-                                                                }}
-                                                                className="p-2 rounded-full bg-white/90 text-gray-800 hover:bg-white shadow transition-transform hover:scale-105 cursor-pointer"
-                                                                title="View full size"
+                                                                onClick={() => handleRemoveImage(categoryKey)}
+                                                                className="p-1.5 sm:p-2 rounded-full bg-destructive text-white hover:bg-destructive/90 shadow cursor-pointer"
+                                                                title="Remove image"
                                                             >
-                                                                <Eye className="w-4 h-4" />
+                                                                <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                                             </button>
-                                                            {!isReadOnly && (
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => handleRemoveImage(categoryKey)}
-                                                                    className="p-2 rounded-full bg-red-600 text-white hover:bg-red-700 shadow transition-transform hover:scale-105 cursor-pointer"
-                                                                    title="Remove image"
-                                                                >
-                                                                    <Trash2 className="w-4 h-4" />
-                                                                </button>
-                                                            )}
-                                                        </div>
+                                                        )}
                                                     </div>
-
-                                                    {/* Retake action when editable, or View when read-only */}
-                                                    {!isReadOnly ? (
-                                                        <div className="space-y-1.5 pt-1">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setActiveCameraSlot(categoryKey)}
-                                                                className="w-full py-1.5 px-3 rounded-lg border border-orange-200 bg-orange-50 hover:bg-orange-100 text-orange-700 text-xs font-semibold cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
-                                                            >
-                                                                <Camera className="w-3.5 h-3.5" />
-                                                                <span>Retake Photo</span>
-                                                            </button>
-                                                            {/* Desktop re-upload fallback (hidden on mobile) */}
-                                                            <div className="hidden md:flex items-center justify-center">
-                                                                <label
-                                                                    htmlFor={`desktop-reupload-${categoryKey}`}
-                                                                    className="text-[10px] text-gray-400 hover:text-orange-600 cursor-pointer underline flex items-center gap-1 transition-colors"
-                                                                >
-                                                                    <UploadCloud className="w-3 h-3" />
-                                                                    <span>or upload from computer</span>
-                                                                    <input
-                                                                        id={`desktop-reupload-${categoryKey}`}
-                                                                        type="file"
-                                                                        accept="image/png,image/jpeg,image/webp"
-                                                                        className="hidden"
-                                                                        onChange={(e) => {
-                                                                            const file = e.target.files?.[0];
-                                                                            if (file) {
-                                                                                attachImageFile(categoryKey, file);
-                                                                            }
-                                                                            e.target.value = "";
-                                                                        }}
-                                                                    />
-                                                                </label>
-                                                            </div>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex items-center justify-center pt-1">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    setPreviewModalSrc(slot.previewUrl!);
-                                                                    setPreviewModalAlt(slot.title);
-                                                                }}
-                                                                className="w-full py-1.5 px-3 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
-                                                            >
-                                                                <Eye className="w-3.5 h-3.5" />
-                                                                <span>View Full Size</span>
-                                                            </button>
-                                                        </div>
-                                                    )}
-                                                </div>
+                                                </>
+                                            ) : slot.previewUrl && isBrokenImg ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setPreviewModalSrc(slot.previewUrl!);
+                                                        setPreviewModalAlt(slot.title);
+                                                    }}
+                                                    className="h-full w-full flex flex-col items-center justify-center gap-1 p-2 text-center text-muted-foreground hover:text-primary cursor-pointer transition-colors"
+                                                    title="Open uploaded image"
+                                                >
+                                                    <Camera className="w-5 h-5 opacity-60" />
+                                                    <span className="hidden sm:inline text-[10px] font-medium">
+                                                        Tap to view
+                                                    </span>
+                                                </button>
                                             ) : (
-                                                <div className="h-full flex flex-col items-center justify-center py-6 space-y-3">
+                                                <div className="h-full w-full flex flex-col items-center justify-center p-2 text-center sm:space-y-2">
                                                     <button
                                                         type="button"
                                                         disabled={isReadOnly}
                                                         onClick={() => setActiveCameraSlot(categoryKey)}
                                                         className={cn(
-                                                            "cursor-pointer flex flex-col items-center text-center space-y-2.5 group w-full",
+                                                            "cursor-pointer flex flex-col items-center text-center space-y-1.5 group/btn",
                                                             isReadOnly && "opacity-50 cursor-not-allowed"
                                                         )}
                                                     >
-                                                        <div className="w-14 h-14 rounded-2xl bg-orange-50 text-orange-600 border border-orange-200/80 group-hover:bg-orange-500 group-hover:text-white group-hover:scale-105 transition-all flex items-center justify-center shadow-xs">
-                                                            <Camera className="w-7 h-7" />
+                                                        <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-primary/10 text-primary group-hover/btn:bg-primary group-hover/btn:text-white transition-all flex items-center justify-center">
+                                                            <Camera className="w-5 h-5" />
                                                         </div>
-                                                        <div className="space-y-1">
-                                                            <span className="text-xs font-bold text-gray-800 block group-hover:text-orange-600 transition-colors">
-                                                                Open Live Camera
-                                                            </span>
-                                                            <span className="text-[10px] text-gray-400 block max-w-[180px] leading-tight">
-                                                                {slot.recommendedAngle}
-                                                            </span>
-                                                        </div>
+                                                        <span className="hidden sm:block text-[11px] font-semibold text-foreground group-hover/btn:text-primary transition-colors">
+                                                            Open Camera
+                                                        </span>
                                                     </button>
 
                                                     {/* Desktop convenience file upload (hidden on mobile) */}
                                                     {!isReadOnly && (
-                                                        <div className="hidden md:flex items-center gap-1.5 pt-1">
-                                                            <label
-                                                                htmlFor={`desktop-upload-${categoryKey}`}
-                                                                className="text-[11px] text-gray-500 hover:text-orange-600 font-medium cursor-pointer underline flex items-center gap-1 transition-colors"
+                                                        <label
+                                                            htmlFor={`desktop-upload-${categoryKey}`}
+                                                            className="hidden md:inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary font-medium cursor-pointer underline transition-colors"
+                                                        >
+                                                            <UploadCloud className="w-3 h-3" />
+                                                            <span>or upload</span>
+                                                            <input
+                                                                id={`desktop-upload-${categoryKey}`}
+                                                                type="file"
+                                                                accept="image/png,image/jpeg,image/webp"
+                                                                className="hidden"
+                                                                onChange={(e) => {
+                                                                    const file = e.target.files?.[0];
+                                                                    if (file) {
+                                                                        setFailedSlotPreviews((prev) => ({
+                                                                            ...prev,
+                                                                            [categoryKey]: false,
+                                                                        }));
+                                                                        attachImageFile(categoryKey, file);
+                                                                    }
+                                                                    e.target.value = "";
+                                                                }}
+                                                            />
+                                                        </label>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Info & Actions */}
+                                        <div className="flex-1 min-w-0 sm:p-3 sm:flex sm:flex-col sm:justify-between sm:gap-2">
+                                            <div>
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <h5 className="text-xs font-semibold text-foreground truncate">
+                                                        {slot.title}
+                                                    </h5>
+                                                    {/* Mobile-only compact status badge */}
+                                                    <span
+                                                        className={cn(
+                                                            "sm:hidden text-[9px] font-semibold px-1.5 py-0.5 rounded-full shrink-0",
+                                                            isCaptured
+                                                                ? "bg-emerald-100 text-emerald-800"
+                                                                : "bg-primary/10 text-primary"
+                                                        )}
+                                                    >
+                                                        {isCaptured ? "Captured" : "Required"}
+                                                    </span>
+                                                </div>
+                                                <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">
+                                                    {slot.description}
+                                                </p>
+                                            </div>
+
+                                            {/* Actions */}
+                                            <div className="mt-2 sm:mt-0">
+                                                {isCaptured ? (
+                                                    !isReadOnly ? (
+                                                        <div className="flex items-center gap-1.5">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setActiveCameraSlot(categoryKey)}
+                                                                className="py-1.5 px-2.5 rounded-lg bg-primary/10 hover:bg-primary/15 text-primary text-[11px] font-semibold cursor-pointer inline-flex items-center gap-1 transition-colors flex-1 justify-center"
                                                             >
-                                                                <UploadCloud className="w-3.5 h-3.5 text-gray-400" />
-                                                                <span>or upload photo file</span>
+                                                                <Camera className="w-3.5 h-3.5" />
+                                                                <span>Retake</span>
+                                                            </button>
+
+                                                            {/* Mobile remove button for quick access */}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleRemoveImage(categoryKey)}
+                                                                className="sm:hidden p-1.5 rounded-lg border border-border text-muted-foreground hover:text-destructive cursor-pointer"
+                                                                title="Remove photo"
+                                                            >
+                                                                <Trash2 className="w-3.5 h-3.5" />
+                                                            </button>
+
+                                                            {/* Desktop re-upload fallback (hidden on mobile) */}
+                                                            <label
+                                                                htmlFor={`desktop-reupload-${categoryKey}`}
+                                                                className="hidden md:inline-flex items-center gap-1 py-1.5 px-2 rounded-lg border border-border bg-background hover:bg-secondary/60 text-muted-foreground hover:text-foreground text-[11px] font-medium cursor-pointer transition-colors"
+                                                                title="Upload photo from computer"
+                                                            >
+                                                                <UploadCloud className="w-3.5 h-3.5" />
                                                                 <input
-                                                                    id={`desktop-upload-${categoryKey}`}
+                                                                    id={`desktop-reupload-${categoryKey}`}
                                                                     type="file"
                                                                     accept="image/png,image/jpeg,image/webp"
                                                                     className="hidden"
                                                                     onChange={(e) => {
                                                                         const file = e.target.files?.[0];
                                                                         if (file) {
+                                                                            setFailedSlotPreviews((prev) => ({
+                                                                                ...prev,
+                                                                                [categoryKey]: false,
+                                                                            }));
                                                                             attachImageFile(categoryKey, file);
                                                                         }
                                                                         e.target.value = "";
@@ -1647,19 +1660,42 @@ export default function ShopVerificationTab({
                                                                 />
                                                             </label>
                                                         </div>
-                                                    )}
-                                                </div>
-                                            )}
+                                                    ) : (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setPreviewModalSrc(slot.previewUrl!);
+                                                                setPreviewModalAlt(slot.title);
+                                                            }}
+                                                            className="w-full py-1.5 px-2.5 rounded-lg border border-border bg-background hover:bg-secondary/60 text-foreground text-[11px] font-medium cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
+                                                        >
+                                                            <Eye className="w-3.5 h-3.5 text-muted-foreground" />
+                                                            <span>View</span>
+                                                        </button>
+                                                    )
+                                                ) : (
+                                                    /* Mobile-only quick Capture button when empty */
+                                                    <button
+                                                        type="button"
+                                                        disabled={isReadOnly}
+                                                        onClick={() => setActiveCameraSlot(categoryKey)}
+                                                        className="sm:hidden py-1.5 px-3 rounded-lg bg-primary/10 text-primary text-[11px] font-semibold inline-flex items-center gap-1.5 cursor-pointer"
+                                                    >
+                                                        <Camera className="w-3.5 h-3.5" />
+                                                        <span>Take Photo</span>
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 );
                             })}
                         </div>
                     </div>
-                </PremiumCard>
+                </div>
 
                 {/* Form Action Buttons */}
-                <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-gray-100">
+                <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-end gap-4 pt-2">
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
                         {isReadOnly ? (
                             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
