@@ -12,9 +12,7 @@ import {
     ExternalLink,
     ChevronDown,
     ChevronUp,
-    ShieldCheck,
     Share2,
-    Sparkles,
     CheckCircle2
 } from "lucide-react";
 import { toast } from "sonner";
@@ -53,17 +51,13 @@ export function MobileHandoffCard({
         }
     }, [isAllCaptured]);
 
-    // Construct mobile target URL with auto-scroll anchor
-    const getMobileUrl = () => {
-        if (typeof window === "undefined" || !shopId) return "";
-        return `${window.location.origin}/shop-manager/add-shop?id=${encodeURIComponent(
-            shopId
-        )}&tab=verification#storefront-photos`;
-    };
+    const mobileUrl =
+        typeof window !== "undefined" && shopId
+            ? `${window.location.origin}/shop-manager/add-shop?id=${encodeURIComponent(
+                  shopId
+              )}&tab=verification#storefront-photos`
+            : "";
 
-    const mobileUrl = getMobileUrl();
-
-    // Generate QR code Data URL
     useEffect(() => {
         if (!mobileUrl) {
             setQrDataUrl(null);
@@ -72,10 +66,10 @@ export function MobileHandoffCard({
 
         let isMounted = true;
         QRCode.toDataURL(mobileUrl, {
-            width: 220,
+            width: 200,
             margin: 1.5,
             color: {
-                dark: "#1e293b",
+                dark: "#221c17",
                 light: "#ffffff",
             },
             errorCorrectionLevel: "M",
@@ -121,15 +115,67 @@ export function MobileHandoffCard({
         return (
             <div
                 className={cn(
-                    "hidden md:block rounded-xl border border-dashed border-amber-300 bg-amber-50/60 p-4 text-xs text-amber-900",
+                    "hidden md:flex items-center gap-2.5 rounded-xl border border-dashed border-border bg-background/60 px-4 py-3 text-xs text-muted-foreground",
                     className
                 )}
             >
-                <div className="flex items-center gap-2">
-                    <Smartphone className="w-4 h-4 text-amber-600 shrink-0" />
-                    <p className="font-medium">
-                        <strong>Desktop Tip:</strong> Save basic shop details in the &apos;Basic Details&apos; tab first to generate a mobile QR code for storefront photos.
-                    </p>
+                <Smartphone className="w-4 h-4 text-primary shrink-0" />
+                <p>
+                    Save basic shop details in the <span className="font-semibold text-foreground">Basic Details</span> tab first to generate a mobile verification QR code.
+                </p>
+            </div>
+        );
+    }
+
+    // Ultra-clean single-row bar when collapsed
+    if (isCollapsed) {
+        return (
+            <div
+                className={cn(
+                    "hidden md:flex items-center justify-between gap-4 rounded-xl border border-border/80 bg-background/60 px-4 py-2.5 text-xs transition-all",
+                    className
+                )}
+            >
+                <div className="flex items-center gap-2.5 text-muted-foreground">
+                    {isAllCaptured ? (
+                        <>
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                            <span className="font-medium text-foreground">
+                                All 3 storefront photos captured!
+                            </span>
+                        </>
+                    ) : (
+                        <>
+                            <QrCode className="w-4 h-4 text-primary shrink-0" />
+                            <span>
+                                {capturedCount} of {totalCount} photos captured
+                            </span>
+                        </>
+                    )}
+                </div>
+
+                <div className="flex items-center gap-3">
+                    {onRefresh && (
+                        <button
+                            type="button"
+                            onClick={onRefresh}
+                            disabled={isRefreshing}
+                            className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer disabled:opacity-50"
+                            title="Check if photos were captured on phone"
+                        >
+                            <RefreshCw className={cn("w-3.5 h-3.5", isRefreshing && "animate-spin text-primary")} />
+                            <span>{isRefreshing ? "Syncing..." : "Sync"}</span>
+                        </button>
+                    )}
+
+                    <button
+                        type="button"
+                        onClick={() => setIsCollapsed(false)}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary/80 transition-colors cursor-pointer"
+                    >
+                        <span>{isAllCaptured ? "Show Mobile QR Code (to retake)" : "Show Mobile QR Code"}</span>
+                        <ChevronDown className="w-3.5 h-3.5" />
+                    </button>
                 </div>
             </div>
         );
@@ -138,27 +184,22 @@ export function MobileHandoffCard({
     return (
         <div
             className={cn(
-                "hidden md:block rounded-2xl border border-orange-200/90 bg-gradient-to-br from-orange-50/70 via-white to-amber-50/40 p-4 lg:p-5 shadow-xs transition-all",
+                "hidden md:block rounded-2xl border border-border/80 bg-background/60 p-4 lg:p-5 transition-all",
                 className
             )}
         >
-            {/* Header & Status Summary */}
+            {/* Header */}
             <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-orange-600 text-white flex items-center justify-center shadow-xs shrink-0">
-                        <Smartphone className="w-5 h-5" />
+                    <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                        <Smartphone className="w-4 h-4" />
                     </div>
                     <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="text-sm font-bold text-gray-900">
-                                Recommended for Desktop: Take Photos with Your Smartphone
-                            </h4>
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                Accurate GPS & High-Res
-                            </span>
-                        </div>
-                        <p className="text-xs text-gray-600 mt-0.5">
-                            Desktop webcams cannot be pointed outside. Scan this QR code with your phone camera to snap the 3 storefront photos on-site.
+                        <h4 className="text-sm font-semibold text-foreground">
+                            Recommended for Desktop: Take Photos with Your Smartphone
+                        </h4>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                            Scan with your phone camera for accurate GPS and high-resolution storefront photos.
                         </p>
                     </div>
                 </div>
@@ -169,156 +210,113 @@ export function MobileHandoffCard({
                             type="button"
                             onClick={onRefresh}
                             disabled={isRefreshing}
-                            className="py-1.5 px-3 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-2xs hover:shadow-xs cursor-pointer disabled:opacity-50"
+                            className="py-1.5 px-3 rounded-lg bg-card hover:bg-secondary/60 border border-border text-foreground text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
                             title="Check if photos were captured on phone"
                         >
-                            <RefreshCw className={cn("w-3.5 h-3.5", isRefreshing && "animate-spin text-orange-600")} />
+                            <RefreshCw className={cn("w-3.5 h-3.5", isRefreshing && "animate-spin text-primary")} />
                             <span>{isRefreshing ? "Syncing..." : "Sync Photos"}</span>
                         </button>
                     )}
 
                     <button
                         type="button"
-                        onClick={() => setIsCollapsed(!isCollapsed)}
-                        className="p-1.5 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors cursor-pointer"
-                        title={isCollapsed ? "Expand QR Code" : "Collapse QR Code"}
-                        aria-label={isCollapsed ? "Expand QR Code" : "Collapse QR Code"}
+                        onClick={() => setIsCollapsed(true)}
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors cursor-pointer"
+                        title="Collapse QR Code"
+                        aria-label="Collapse QR Code"
                     >
-                        {isCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                        <ChevronUp className="w-4 h-4" />
                     </button>
                 </div>
             </div>
 
-            {/* Collapsed state with completion badge */}
-            {isCollapsed ? (
-                <div className="mt-3 pt-3 border-t border-orange-100 flex items-center justify-between text-xs text-gray-600">
-                    <div className="flex items-center gap-2">
-                        {isAllCaptured ? (
-                            <>
-                                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                                <span className="font-semibold text-emerald-800">
-                                    All 3 storefront photos captured!
-                                </span>
-                            </>
+            {/* Expanded QR Code & Sharing Options */}
+            <div className="mt-4 pt-4 border-t border-border/60 flex flex-col md:flex-row items-center justify-between gap-6">
+                {/* Left: Minimal steps & share actions */}
+                <div className="space-y-3.5 flex-1">
+                    <ol className="space-y-2 text-xs text-muted-foreground">
+                        <li className="flex items-center gap-2.5">
+                            <span className="w-5 h-5 rounded-full bg-primary/10 text-primary font-semibold text-[11px] flex items-center justify-center shrink-0">
+                                1
+                            </span>
+                            <span>
+                                <strong className="font-medium text-foreground">Scan QR Code</strong> with your phone camera
+                            </span>
+                        </li>
+                        <li className="flex items-center gap-2.5">
+                            <span className="w-5 h-5 rounded-full bg-primary/10 text-primary font-semibold text-[11px] flex items-center justify-center shrink-0">
+                                2
+                            </span>
+                            <span>
+                                <strong className="font-medium text-foreground">Capture 3 photos</strong> on-site with automatic geotags
+                            </span>
+                        </li>
+                        <li className="flex items-center gap-2.5">
+                            <span className="w-5 h-5 rounded-full bg-primary/10 text-primary font-semibold text-[11px] flex items-center justify-center shrink-0">
+                                3
+                            </span>
+                            <span>
+                                <strong className="font-medium text-foreground">Click Sync Photos</strong> or submit directly from your phone
+                            </span>
+                        </li>
+                    </ol>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <button
+                            type="button"
+                            onClick={handleCopyLink}
+                            className="py-1.5 px-3 rounded-lg bg-card hover:bg-secondary/60 border border-border text-foreground text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+                        >
+                            {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-muted-foreground" />}
+                            <span>{copied ? "Link Copied!" : "Copy Mobile Link"}</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={handleShareWhatsApp}
+                            className="py-1.5 px-3 rounded-lg bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200/80 text-emerald-800 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+                        >
+                            <Share2 className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Share via WhatsApp</span>
+                        </button>
+
+                        <a
+                            href={mobileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="py-1.5 px-2 text-xs text-muted-foreground hover:text-foreground hover:underline inline-flex items-center gap-1"
+                        >
+                            <span>Open</span>
+                            <ExternalLink className="w-3 h-3" />
+                        </a>
+                    </div>
+                </div>
+
+                {/* Right: Clean QR Code */}
+                <div className="flex flex-col items-center shrink-0">
+                    <div className="p-2.5 bg-white rounded-xl border border-border shadow-2xs relative">
+                        {qrDataUrl ? (
+                            <div className="relative w-32 h-32">
+                                <Image
+                                    src={qrDataUrl}
+                                    alt="Scan QR code to open verification on mobile"
+                                    fill
+                                    className="object-contain"
+                                    unoptimized
+                                />
+                            </div>
+                        ) : qrError ? (
+                            <div className="w-32 h-32 flex items-center justify-center text-[11px] text-destructive text-center p-2">
+                                {qrError}
+                            </div>
                         ) : (
-                            <>
-                                <QrCode className="w-4 h-4 text-orange-600 shrink-0" />
-                                <span>
-                                    {capturedCount} of {totalCount} photos captured.
-                                </span>
-                            </>
+                            <div className="w-32 h-32 flex items-center justify-center text-muted-foreground">
+                                <RefreshCw className="w-5 h-5 animate-spin" />
+                            </div>
                         )}
                     </div>
-                    <button
-                        type="button"
-                        onClick={() => setIsCollapsed(false)}
-                        className="text-orange-600 hover:text-orange-700 font-semibold text-xs cursor-pointer underline flex items-center gap-1"
-                    >
-                        <span>{isAllCaptured ? "Show Mobile QR Code (to retake)" : "Show Mobile QR Code"}</span>
-                    </button>
                 </div>
-            ) : (
-                /* Expanded QR Code & Sharing Options */
-                <div className="mt-4 pt-4 border-t border-orange-100 grid grid-cols-1 md:grid-cols-12 gap-5 items-center">
-                    {/* Left: Step instructions */}
-                    <div className="md:col-span-7 space-y-3">
-                        <div className="space-y-2 text-xs text-gray-700">
-                            <div className="flex items-start gap-2.5">
-                                <span className="w-5 h-5 rounded-full bg-orange-100 text-orange-700 font-bold text-[11px] flex items-center justify-center shrink-0 mt-0.5">
-                                    1
-                                </span>
-                                <div>
-                                    <strong className="text-gray-900">Scan QR Code</strong> with your phone&apos;s standard camera app or Google Lens.
-                                </div>
-                            </div>
-                            <div className="flex items-start gap-2.5">
-                                <span className="w-5 h-5 rounded-full bg-orange-100 text-orange-700 font-bold text-[11px] flex items-center justify-center shrink-0 mt-0.5">
-                                    2
-                                </span>
-                                <div>
-                                    <strong className="text-gray-900">Open the link</strong> on your smartphone. It opens directly to the storefront camera section.
-                                </div>
-                            </div>
-                            <div className="flex items-start gap-2.5">
-                                <span className="w-5 h-5 rounded-full bg-orange-100 text-orange-700 font-bold text-[11px] flex items-center justify-center shrink-0 mt-0.5">
-                                    3
-                                </span>
-                                <div>
-                                    <strong className="text-gray-900">Snap on-site photos</strong> using your phone&apos;s rear camera. Geotags are embedded automatically.
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Quick action share buttons */}
-                        <div className="pt-2 flex items-center gap-2 flex-wrap">
-                            <button
-                                type="button"
-                                onClick={handleCopyLink}
-                                className="py-1.5 px-3 rounded-lg bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
-                            >
-                                {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-gray-500" />}
-                                <span>{copied ? "Link Copied!" : "Copy Mobile Link"}</span>
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={handleShareWhatsApp}
-                                className="py-1.5 px-3 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
-                            >
-                                <Share2 className="w-3.5 h-3.5 text-emerald-600" />
-                                <span>Share via WhatsApp</span>
-                            </button>
-
-                            <a
-                                href={mobileUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="py-1.5 px-2.5 text-xs text-gray-500 hover:text-gray-800 hover:underline flex items-center gap-1"
-                            >
-                                <span>Preview link</span>
-                                <ExternalLink className="w-3 h-3" />
-                            </a>
-                        </div>
-                    </div>
-
-                    {/* Right: QR Code Visual */}
-                    <div className="md:col-span-5 flex flex-col items-center justify-center">
-                        <div className="p-3 bg-white rounded-2xl border-2 border-orange-200/80 shadow-sm relative group">
-                            {qrDataUrl ? (
-                                <div className="relative w-36 h-36">
-                                    <Image
-                                        src={qrDataUrl}
-                                        alt="Scan QR code to open verification on mobile"
-                                        fill
-                                        className="object-contain"
-                                        unoptimized
-                                    />
-                                </div>
-                            ) : qrError ? (
-                                <div className="w-36 h-36 flex items-center justify-center text-[11px] text-red-500 text-center p-2">
-                                    {qrError}
-                                </div>
-                            ) : (
-                                <div className="w-36 h-36 flex items-center justify-center text-gray-400">
-                                    <RefreshCw className="w-5 h-5 animate-spin" />
-                                </div>
-                            )}
-
-                            {/* Center branding icon badge */}
-                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                <div className="w-7 h-7 rounded-lg bg-white shadow-sm border border-orange-200 flex items-center justify-center text-orange-600">
-                                    <Smartphone className="w-4 h-4" />
-                                </div>
-                            </div>
-                        </div>
-
-                        <span className="text-[11px] font-medium text-gray-500 mt-2 flex items-center gap-1">
-                            <Sparkles className="w-3 h-3 text-orange-500" />
-                            <span>Scan with any camera app</span>
-                        </span>
-                    </div>
-                </div>
-            )}
+            </div>
         </div>
     );
 }
