@@ -524,7 +524,7 @@ export default function ShopVerificationTab({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showJsonInspector, setShowJsonInspector] = useState(false);
     const [copiedJson, setCopiedJson] = useState(false);
-    const [isLoadingExisting, setIsLoadingExisting] = useState(false);
+    const [isLoadingExisting, setIsLoadingExisting] = useState(Boolean(shopId));
     const [existingVerification, setExistingVerification] = useState<ShopVerificationDetails | null>(null);
     const [backendShopName, setBackendShopName] = useState<string | null>(null);
 
@@ -1135,27 +1135,65 @@ export default function ShopVerificationTab({
         }
     };
 
+    const normalizedStatus = existingVerification?.status?.toUpperCase();
     const isUnderReview =
-        existingVerification?.status === "UNDER_REVIEW" ||
-        existingVerification?.status === "SUBMITTED" ||
-        existingVerification?.status === "MANUAL_REVIEW" ||
-        existingVerification?.status === "PENDING";
-    const isApproved = existingVerification?.status === "APPROVED";
-    const isRejected = existingVerification?.status === "REJECTED";
+        normalizedStatus === "UNDER_REVIEW" ||
+        normalizedStatus === "SUBMITTED" ||
+        normalizedStatus === "MANUAL_REVIEW" ||
+        normalizedStatus === "PENDING";
+    const isApproved = normalizedStatus === "APPROVED" || normalizedStatus === "VERIFIED";
+    const isRejected = normalizedStatus === "REJECTED";
     const isReadOnly = isUnderReview || isApproved;
 
     return (
         <div className="space-y-6">
-            {/* Verification Status Banner (Distinct dark espresso theme card) */}
+            {/* Default Verification Detail Card (Skeleton while loading initial status) */}
+            {isLoadingExisting && !existingVerification && (
+                <div className="rounded-2xl bg-gradient-to-br from-[#221c17] via-[#2a221c] to-[#332922] text-[#fff9f5] p-4 sm:p-6 shadow-md border border-white/10 animate-pulse">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-start sm:items-center gap-3.5">
+                            <div className="w-11 h-11 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+                                <ShieldCheck className="w-5 h-5 text-white/40" />
+                            </div>
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="h-4 w-40 rounded-md bg-white/15" />
+                                    <div className="h-4 w-16 rounded-full bg-white/10" />
+                                </div>
+                                <div className="h-3 w-52 rounded-md bg-white/10" />
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2 self-start sm:self-auto">
+                            <div className="h-7 w-20 rounded-lg bg-white/10" />
+                            <div className="h-7 w-24 rounded-lg bg-white/10" />
+                        </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-4 pt-3.5 border-t border-white/10">
+                        <div className="h-3 w-28 rounded bg-white/10" />
+                        <div className="h-3 w-24 rounded bg-white/10" />
+                        <div className="h-3 w-28 rounded bg-white/10" />
+                        <div className="h-3 w-24 rounded bg-white/10" />
+                    </div>
+                </div>
+            )}
+
+            {/* Verification Status Banner (Orange theme when verified, dark espresso otherwise) */}
             {existingVerification && (
-                <div className="rounded-2xl bg-gradient-to-br from-[#221c17] via-[#2a221c] to-[#332922] text-[#fff9f5] p-4 sm:p-6 shadow-md border border-white/10">
+                <div
+                    className={cn(
+                        "rounded-2xl p-4 sm:p-6 shadow-md border",
+                        isApproved
+                            ? "bg-gradient-to-br from-orange-600 via-orange-500 to-amber-500 text-white border-orange-400/50 shadow-orange-500/20"
+                            : "bg-gradient-to-br from-[#221c17] via-[#2a221c] to-[#332922] text-[#fff9f5] border-white/10"
+                    )}
+                >
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="flex items-start sm:items-center gap-3.5">
                             <div
                                 className={cn(
                                     "w-11 h-11 rounded-xl flex items-center justify-center shrink-0",
                                     isUnderReview && "bg-amber-500/20 text-amber-300",
-                                    isApproved && "bg-emerald-500/20 text-emerald-300",
+                                    isApproved && "bg-white/20 text-white",
                                     isRejected && "bg-rose-500/20 text-rose-300",
                                     !isUnderReview && !isApproved && !isRejected && "bg-primary/20 text-primary"
                                 )}
@@ -1177,7 +1215,7 @@ export default function ShopVerificationTab({
                                         className={cn(
                                             "px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider",
                                             isUnderReview && "bg-amber-500/20 text-amber-200 border border-amber-400/30",
-                                            isApproved && "bg-emerald-500/20 text-emerald-200 border border-emerald-400/30",
+                                            isApproved && "bg-white/20 text-white border border-white/30",
                                             isRejected && "bg-rose-500/20 text-rose-200 border border-rose-400/30",
                                             !isUnderReview && !isApproved && !isRejected && "bg-white/10 text-white/90"
                                         )}
@@ -1185,7 +1223,7 @@ export default function ShopVerificationTab({
                                         {existingVerification.status?.replace(/_/g, " ")}
                                     </span>
                                 </div>
-                                <p className="text-xs text-[#c7bdb3] mt-0.5">
+                                <p className={cn("text-xs mt-0.5", isApproved ? "text-orange-50/90" : "text-[#c7bdb3]")}>
                                     Attempt #{existingVerification.attemptNumber || 1}
                                     {existingVerification.submittedAt && ` · Submitted ${formatDateTime(existingVerification.submittedAt)}`}
                                     {existingVerification.reviewedAt && ` · Reviewed ${formatDateTime(existingVerification.reviewedAt)}`}
@@ -1198,16 +1236,26 @@ export default function ShopVerificationTab({
                                 type="button"
                                 onClick={() => loadVerification()}
                                 disabled={isLoadingExisting}
-                                className="py-1.5 px-3 rounded-lg bg-white/10 hover:bg-white/15 text-white border border-white/15 text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                                className={cn(
+                                    "py-1.5 px-3 rounded-lg text-white border text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50",
+                                    isApproved
+                                        ? "bg-white/15 hover:bg-white/25 border-white/25"
+                                        : "bg-white/10 hover:bg-white/15 border-white/15"
+                                )}
                                 title="Refresh verification status"
                             >
-                                <RefreshCw className={cn("w-3.5 h-3.5", isLoadingExisting && "animate-spin text-primary")} />
+                                <RefreshCw className={cn("w-3.5 h-3.5", isLoadingExisting && "animate-spin text-white")} />
                                 <span>Refresh</span>
                             </button>
                             <button
                                 type="button"
                                 onClick={() => router.push("/shop-manager")}
-                                className="py-1.5 px-3 rounded-lg bg-white/10 hover:bg-white/15 text-white border border-white/15 text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                                className={cn(
+                                    "py-1.5 px-3 rounded-lg text-white border text-xs font-medium inline-flex items-center gap-1.5 transition-colors cursor-pointer",
+                                    isApproved
+                                        ? "bg-white/15 hover:bg-white/25 border-white/25"
+                                        : "bg-white/10 hover:bg-white/15 border-white/15"
+                                )}
                             >
                                 <span>Dashboard</span>
                             </button>
@@ -1229,7 +1277,12 @@ export default function ShopVerificationTab({
                     )}
 
                     {/* Clean inline metadata strip */}
-                    <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 mt-4 pt-3.5 border-t border-white/10 text-xs text-[#c7bdb3]">
+                    <div
+                        className={cn(
+                            "flex flex-wrap items-center gap-x-6 gap-y-1.5 mt-4 pt-3.5 border-t text-xs",
+                            isApproved ? "border-white/20 text-orange-50/90" : "border-white/10 text-[#c7bdb3]"
+                        )}
+                    >
                         <span>
                             Physical Audit: <strong className="font-medium text-white">{existingVerification.physicalStatus?.replace(/_/g, " ") || "Pending"}</strong>
                         </span>
@@ -1260,7 +1313,7 @@ export default function ShopVerificationTab({
             )}
 
             {/* Verification Guidance Notice */}
-            {!existingVerification && (
+            {!isLoadingExisting && !existingVerification && (
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 py-3 rounded-xl bg-primary/5 border border-primary/15 text-xs text-muted-foreground">
                     <div className="flex items-center gap-2.5">
                         <ShieldCheck className="w-4 h-4 text-primary shrink-0" />
@@ -1437,8 +1490,8 @@ export default function ShopVerificationTab({
                             </div>
                         </div>
 
-                        {/* Mobile Handoff QR Code card (Desktop only, completely hidden on mobile) */}
-                        {!isReadOnly && (
+                        {/* Mobile Handoff QR Code card (Desktop only, hidden while loading or when read-only/verified) */}
+                        {!isLoadingExisting && !isReadOnly && (
                             <MobileHandoffCard
                                 shopId={shopId}
                                 shopName={shopName || backendShopName || undefined}
@@ -1659,7 +1712,7 @@ export default function ShopVerificationTab({
 
                                                         {/* Desktop (md+): Subtle status text */}
                                                         <span className="hidden md:block text-[11px] text-muted-foreground">
-                                                            Scan QR above on phone
+                                                            {isReadOnly ? "No photo uploaded" : isLoadingExisting ? "Loading verification..." : "Scan QR above on phone"}
                                                         </span>
                                                     </>
                                                 )}
@@ -1681,16 +1734,16 @@ export default function ShopVerificationTab({
                                     type="button"
                                     disabled
                                     className={cn(
-                                        "rounded-xl px-5 py-2.5 text-xs font-bold border flex items-center justify-center gap-2 cursor-not-allowed",
+                                        "rounded-xl px-6 py-2.5 text-xs font-bold border flex items-center justify-center gap-2 cursor-not-allowed opacity-85",
                                         isApproved
-                                            ? "bg-emerald-50 text-emerald-800 border-emerald-300"
+                                            ? "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800"
                                             : "bg-amber-50 text-amber-800 border-amber-300"
                                     )}
                                 >
                                     {isApproved ? (
                                         <>
-                                            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                                            <span>Shop Verified & Active</span>
+                                            <CheckCircle2 className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                                            <span>Shop Verified</span>
                                         </>
                                     ) : (
                                         <>
