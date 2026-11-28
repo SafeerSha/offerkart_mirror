@@ -86,8 +86,8 @@ export default function ShopRegistrationForm() {
             user_type: "BUSINESS"
         });
         if (response.success) {
-            const anyData = response.data as any;
-            const extractedId = anyData?.id || anyData?.data?.id || anyData?.user?.id;
+            const resData = response.data as { id?: number | string; data?: { id?: number | string }; user?: { id?: number | string } } | undefined;
+            const extractedId = resData?.id || resData?.data?.id || resData?.user?.id;
             console.log("[Registration] Extracted ID:", extractedId, "Raw response:", response);
             setUserId(extractedId ? Number(extractedId) : undefined);
             setShowOtpModal(true);
@@ -102,15 +102,15 @@ export default function ShopRegistrationForm() {
         router.push("/login");
     }
 
-    const inputClassName = "pl-12 h-12 bg-gray-50 border-gray-200 focus:border-orange-500 focus:ring-orange-500 rounded-xl text-base";
-    const labelClassName = "text-gray-700 font-medium";
+    const inputClassName = "pl-11 h-12 bg-[#fcfaf7] dark:bg-slate-950 border-stone-200/90 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 rounded-xl text-sm sm:text-base transition-all";
+    const labelClassName = "text-stone-800 dark:text-slate-200 font-medium text-sm";
 
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <div className="space-y-4">
-                    <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                        <User className="w-4 h-4" /> Basic Information
+                    <h3 className="text-xs font-bold text-stone-500 dark:text-slate-400 uppercase tracking-[0.14em] flex items-center gap-2">
+                        <User className="w-4 h-4 text-orange-500" /> Basic Information
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField
@@ -161,8 +161,8 @@ export default function ShopRegistrationForm() {
                 </div>
 
                 <div className="space-y-4">
-                    <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                        <Phone className="w-4 h-4" /> Contact Details
+                    <h3 className="text-xs font-bold text-stone-500 dark:text-slate-400 uppercase tracking-[0.14em] flex items-center gap-2">
+                        <Phone className="w-4 h-4 text-orange-500" /> Contact Details
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField
@@ -214,8 +214,8 @@ export default function ShopRegistrationForm() {
                 </div>
 
                 <div className="space-y-4">
-                    <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                        <Lock className="w-4 h-4" /> Security
+                    <h3 className="text-xs font-bold text-stone-500 dark:text-slate-400 uppercase tracking-[0.14em] flex items-center gap-2">
+                        <Lock className="w-4 h-4 text-orange-500" /> Security
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField
@@ -305,7 +305,7 @@ export default function ShopRegistrationForm() {
                 <button
                     type="submit"
                     disabled={form.formState.isSubmitting || !form.formState.isValid}
-                    className="w-full h-12 bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white font-semibold rounded-xl shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-70 cursor-pointer"
+                    className="w-full h-12 bg-gradient-to-r from-orange-600 via-orange-500 to-amber-500 hover:from-orange-500 hover:to-amber-500 text-white font-semibold rounded-xl shadow-lg shadow-orange-500/25 hover:shadow-orange-500/35 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-70 cursor-pointer"
                 >
                     {form.formState.isSubmitting ? (
                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />

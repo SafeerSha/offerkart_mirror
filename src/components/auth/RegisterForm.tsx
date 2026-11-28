@@ -4,10 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { User, Mail, Lock, Loader2, AlertCircle, Eye, EyeOff, ArrowRight } from "lucide-react";
+import { User, Mail, Lock, AlertCircle, Eye, EyeOff, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { UserRegistrationSchema, UserRegistrationFormData } from "@/lib/types/auth";
 import { registerShop } from "@/lib/api/shop"; // Reusing the register API logic
@@ -58,16 +57,16 @@ export function RegisterForm() {
     };
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-            <div className="space-y-2">
-                <Label htmlFor="full_name" className="text-gray-700 font-medium">Full Name</Label>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div className="space-y-1.5">
+                <Label htmlFor="full_name" className="text-stone-800 dark:text-slate-200 font-medium text-sm">Full Name</Label>
                 <div className="relative">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-stone-400" />
                     <Input
                         id="full_name"
                         type="text"
                         placeholder="John Doe"
-                        className={`pl-12 h-12 bg-gray-50 border-gray-200 focus:border-orange-500 focus:ring-orange-500 rounded-xl text-base ${errors.full_name ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                        className={`pl-11 h-12 bg-[#fcfaf7] dark:bg-slate-950 border-stone-200/90 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 rounded-xl text-sm sm:text-base transition-all ${errors.full_name ? 'border-red-500 focus:border-red-500 focus:ring-red-500/15' : ''}`}
                         {...register("full_name")}
                     />
                 </div>
@@ -79,15 +78,15 @@ export function RegisterForm() {
                 )}
             </div>
 
-            <div className="space-y-2">
-                <Label htmlFor="email" className="text-gray-700 font-medium">Email Address</Label>
+            <div className="space-y-1.5">
+                <Label htmlFor="email" className="text-stone-800 dark:text-slate-200 font-medium text-sm">Email Address</Label>
                 <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-stone-400" />
                     <Input
                         id="email"
                         type="email"
                         placeholder="you@example.com"
-                        className={`pl-12 h-12 bg-gray-50 border-gray-200 focus:border-orange-500 focus:ring-orange-500 rounded-xl text-base ${errors.email ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                        className={`pl-11 h-12 bg-[#fcfaf7] dark:bg-slate-950 border-stone-200/90 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 rounded-xl text-sm sm:text-base transition-all ${errors.email ? 'border-red-500 focus:border-red-500 focus:ring-red-500/15' : ''}`}
                         {...register("email")}
                     />
                 </div>
@@ -99,23 +98,24 @@ export function RegisterForm() {
                 )}
             </div>
 
-            <div className="space-y-2">
-                <Label htmlFor="password" className="text-gray-700 font-medium">Password</Label>
+            <div className="space-y-1.5">
+                <Label htmlFor="password" className="text-stone-800 dark:text-slate-200 font-medium text-sm">Password</Label>
                 <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-stone-400" />
                     <Input
                         id="password"
                         type={showPassword ? "text" : "password"}
                         placeholder="••••••••"
-                        className={`pl-12 pr-12 h-12 bg-gray-50 border-gray-200 focus:border-orange-500 focus:ring-orange-500 rounded-xl text-base ${errors.password ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                        className={`pl-11 pr-12 h-12 bg-[#fcfaf7] dark:bg-slate-950 border-stone-200/90 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 rounded-xl text-sm sm:text-base transition-all ${errors.password ? 'border-red-500 focus:border-red-500 focus:ring-red-500/15' : ''}`}
                         {...register("password")}
                     />
                     <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-slate-200 hover:bg-stone-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                     >
-                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                        {showPassword ? <EyeOff className="w-[18px] h-[18px]" /> : <Eye className="w-[18px] h-[18px]" />}
                     </button>
                 </div>
                 {errors.password && (
@@ -126,15 +126,15 @@ export function RegisterForm() {
                 )}
             </div>
 
-            <div className="space-y-2">
-                <Label htmlFor="confirm_password" className="text-gray-700 font-medium">Confirm Password</Label>
+            <div className="space-y-1.5">
+                <Label htmlFor="confirm_password" className="text-stone-800 dark:text-slate-200 font-medium text-sm">Confirm Password</Label>
                 <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-stone-400" />
                     <Input
                         id="confirm_password"
                         type={showPassword ? "text" : "password"}
                         placeholder="••••••••"
-                        className={`pl-12 pr-12 h-12 bg-gray-50 border-gray-200 focus:border-orange-500 focus:ring-orange-500 rounded-xl text-base ${errors.confirm_password ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                        className={`pl-11 pr-12 h-12 bg-[#fcfaf7] dark:bg-slate-950 border-stone-200/90 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 rounded-xl text-sm sm:text-base transition-all ${errors.confirm_password ? 'border-red-500 focus:border-red-500 focus:ring-red-500/15' : ''}`}
                         {...register("confirm_password")}
                     />
                 </div>
@@ -149,7 +149,7 @@ export function RegisterForm() {
             <button
                 type="submit"
                 disabled={!isValid || isLoading}
-                className="w-full h-12 bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white font-semibold rounded-xl shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-70 mt-6"
+                className="w-full h-12 bg-gradient-to-r from-orange-600 via-orange-500 to-amber-500 hover:from-orange-500 hover:to-amber-500 text-white font-semibold rounded-xl shadow-lg shadow-orange-500/25 hover:shadow-orange-500/35 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-70 mt-5 cursor-pointer"
             >
                 {isLoading ? (
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
