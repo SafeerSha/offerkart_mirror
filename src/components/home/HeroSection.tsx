@@ -214,7 +214,7 @@ export default function HeroSection({ children, initialIndustries }: HeroSection
   return (
     <section
       aria-label="Hero discovery section"
-      className="relative isolate min-h-[calc(100dvh-4rem)] sm:min-h-[calc(100dvh-4.5rem)] lg:min-h-[calc(100dvh-4.5rem)] flex flex-col justify-between pt-24 sm:pt-28 lg:pt-24 pb-4 sm:pb-6 overflow-x-clip bg-[#faf5ee] dark:bg-slate-950 border-b border-orange-100/60 dark:border-slate-800/80"
+      className="relative isolate min-h-0 lg:min-h-[calc(100dvh-4.5rem)] flex flex-col justify-start lg:justify-between pt-32 sm:pt-36 lg:pt-24 pb-6 overflow-x-clip bg-[#faf5ee] dark:bg-slate-950 border-b border-orange-100/60 dark:border-slate-800/80"
     >
       {/* Hero Background Illustration */}
       <div
@@ -252,9 +252,9 @@ export default function HeroSection({ children, initialIndustries }: HeroSection
         className="absolute -top-32 left-1/2 -translate-x-1/2 w-[900px] h-[400px] bg-gradient-to-r from-orange-500/10 via-amber-400/10 to-rose-400/5 rounded-full blur-[120px] pointer-events-none z-0"
       />
 
-      <div className="relative z-10 container mx-auto px-4 flex-1 flex flex-col justify-center">
+      <div className="relative z-10 container mx-auto px-4 flex-1 flex flex-col justify-start lg:justify-center">
         {/* Top Header & Value Proposition */}
-        <div className={cn("max-w-4xl mx-auto lg:mr-auto lg:ml-0 xl:ml-4 lg:max-w-2xl xl:max-w-3xl text-center lg:text-left", children ? "mb-8 lg:mb-12" : "mb-0")}>
+        <div className={cn("w-full max-w-4xl mx-auto lg:mr-auto lg:ml-0 xl:ml-4 lg:max-w-2xl xl:max-w-3xl text-center lg:text-left", children ? "mb-8 lg:mb-12" : "mb-0")}>
           {/* H1 Main Heading */}
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-slate-950 dark:text-white leading-[1.14] mb-3 sm:mb-4">
             Your Neighborhood <br />
@@ -505,38 +505,103 @@ export default function HeroSection({ children, initialIndustries }: HeroSection
           </div>
 
           {/* Quick Categories Bar */}
-          <div className="flex flex-col items-center lg:items-start gap-2.5 sm:gap-3">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-950 dark:text-white">
+          <div className="flex flex-col items-center lg:items-start gap-2.5 sm:gap-3 w-full min-w-0">
+            <span className="text-xs font-bold uppercase tracking-wider text-orange-600 dark:text-orange-400">
               Popular Categories
             </span>
-            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2 sm:gap-2.5 max-w-3xl min-h-[42px]">
-              {isLoading && displayIndustries.length === 0 ? (
-                Array.from({ length: 6 }).map((_, i) => (
+
+            {isLoading && displayIndustries.length === 0 ? (
+              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2 sm:gap-2.5 w-full max-w-3xl min-h-[42px]">
+                {Array.from({ length: 6 }).map((_, i) => (
                   <div
                     key={i}
-                    className="h-9 w-28 sm:w-32 rounded-xl bg-slate-200/70 dark:bg-slate-800/70 animate-pulse border border-slate-200/50 dark:border-slate-800/50"
+                    className="h-9 w-28 sm:w-32 shrink-0 rounded-xl bg-slate-200/70 dark:bg-slate-800/70 animate-pulse border border-slate-200/50 dark:border-slate-800/50"
                   />
-                ))
-              ) : (
-                displayIndustries.map((ind, index) => {
-                  const Icon = getIndustryIcon(ind.name, ind.slug);
-                  const colorClass = COLOR_PALETTES[index % COLOR_PALETTES.length];
-                  return (
-                    <button
-                      key={ind.id}
-                      type="button"
-                      onClick={() => handleCategoryClick(ind.id)}
-                      className="group inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/90 dark:bg-slate-900/90 border border-slate-200/90 dark:border-slate-800 hover:border-orange-500/50 hover:bg-orange-50/50 dark:hover:bg-orange-950/20 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300 hover:text-orange-600 dark:hover:text-orange-400 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer hover:-translate-y-0.5 active:translate-y-0"
-                    >
-                      <div className={cn("p-1 rounded-lg border transition-colors", colorClass)}>
-                        <Icon className="w-3.5 h-3.5" />
+                ))}
+              </div>
+            ) : (
+              <>
+                {/* Mobile (< lg): Staggered 2-Row Slow Horizontal Marquee */}
+                <div className="lg:hidden w-full overflow-hidden space-y-2.5">
+                  {[
+                    {
+                      items: displayIndustries.filter((_, i) => i % 2 === 0),
+                      animClass: "animate-hero-categories-mobile",
+                      offset: 0,
+                    },
+                    {
+                      items: displayIndustries.filter((_, i) => i % 2 === 1),
+                      animClass: "animate-hero-categories-mobile-staggered",
+                      offset: 1,
+                    },
+                  ].map((row, rowIdx) => {
+                    const rowItems = row.items.length > 0 ? row.items : displayIndustries;
+                    return (
+                      <div key={rowIdx} className="w-full overflow-hidden">
+                        <div className={cn("flex flex-nowrap items-center gap-2.5 w-max will-change-transform", row.animClass)}>
+                          {rowItems.map((ind, idx) => {
+                            const Icon = getIndustryIcon(ind.name, ind.slug);
+                            const colorClass = COLOR_PALETTES[(idx * 2 + row.offset) % COLOR_PALETTES.length];
+                            return (
+                              <button
+                                key={`m-${rowIdx}-${ind.id}`}
+                                type="button"
+                                onClick={() => handleCategoryClick(ind.id)}
+                                className="group shrink-0 inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/90 dark:bg-slate-900/90 border border-slate-200/90 dark:border-slate-800 hover:border-orange-500/50 hover:bg-orange-50/50 dark:hover:bg-orange-950/20 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-orange-600 dark:hover:text-orange-400 shadow-xs transition-all duration-200 cursor-pointer"
+                              >
+                                <div className={cn("p-1 rounded-lg border transition-colors", colorClass)}>
+                                  <Icon className="w-3.5 h-3.5" />
+                                </div>
+                                <span>{ind.name}</span>
+                              </button>
+                            );
+                          })}
+                          {/* Seamless loop clone */}
+                          {rowItems.map((ind, idx) => {
+                            const Icon = getIndustryIcon(ind.name, ind.slug);
+                            const colorClass = COLOR_PALETTES[(idx * 2 + row.offset) % COLOR_PALETTES.length];
+                            return (
+                              <div
+                                key={`m-clone-${rowIdx}-${ind.id}`}
+                                aria-hidden="true"
+                                onClick={() => handleCategoryClick(ind.id)}
+                                className="group shrink-0 inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/90 dark:bg-slate-900/90 border border-slate-200/90 dark:border-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 shadow-xs cursor-pointer"
+                              >
+                                <div className={cn("p-1 rounded-lg border transition-colors", colorClass)}>
+                                  <Icon className="w-3.5 h-3.5" />
+                                </div>
+                                <span>{ind.name}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                      <span>{ind.name}</span>
-                    </button>
-                  );
-                })
-              )}
-            </div>
+                    );
+                  })}
+                </div>
+
+                {/* Desktop (lg+): Wrapped Category Pills */}
+                <div className="hidden lg:flex flex-wrap items-center justify-start gap-2.5 max-w-3xl min-h-[42px]">
+                  {displayIndustries.map((ind, index) => {
+                    const Icon = getIndustryIcon(ind.name, ind.slug);
+                    const colorClass = COLOR_PALETTES[index % COLOR_PALETTES.length];
+                    return (
+                      <button
+                        key={ind.id}
+                        type="button"
+                        onClick={() => handleCategoryClick(ind.id)}
+                        className="group inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/90 dark:bg-slate-900/90 border border-slate-200/90 dark:border-slate-800 hover:border-orange-500/50 hover:bg-orange-50/50 dark:hover:bg-orange-950/20 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:text-orange-600 dark:hover:text-orange-400 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer hover:-translate-y-0.5 active:translate-y-0"
+                      >
+                        <div className={cn("p-1 rounded-lg border transition-colors", colorClass)}>
+                          <Icon className="w-3.5 h-3.5" />
+                        </div>
+                        <span>{ind.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
 
           {/* Trust Metrics Pill */}

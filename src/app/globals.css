@@ -475,6 +475,53 @@
   animation: slideOutRight 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
+@keyframes heroCategoryMarquee {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@keyframes heroCategoryMarqueeStaggered {
+  0% {
+    transform: translate3d(-12.5%, 0, 0);
+  }
+  100% {
+    transform: translate3d(-62.5%, 0, 0);
+  }
+}
+
+.animate-hero-categories-mobile {
+  animation: heroCategoryMarquee 28s linear infinite;
+}
+
+.animate-hero-categories-mobile-staggered {
+  animation: heroCategoryMarqueeStaggered 38s linear infinite;
+}
+
+.animate-hero-categories-mobile:hover,
+.animate-hero-categories-mobile:focus-within,
+.animate-hero-categories-mobile-staggered:hover,
+.animate-hero-categories-mobile-staggered:focus-within {
+  animation-play-state: paused;
+}
+
+@media (min-width: 1024px) {
+  .animate-hero-categories-mobile,
+  .animate-hero-categories-mobile-staggered {
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-hero-categories-mobile,
+  .animate-hero-categories-mobile-staggered {
+    animation: none !important;
+  }
+}
+
 /* Tailwind v4 Container Fallback */
 .container {
   width: 100%;

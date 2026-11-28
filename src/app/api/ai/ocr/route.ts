@@ -61,11 +61,30 @@ const extractionSchema = {
 const GEMINI_MODELS = [
     'gemini-3.1-flash-lite',
     'gemini-3.5-flash-lite',
-    'gemini-3.6-flash'
+    'gemini-3.8-flash'
 ];
 
-async function generateContentWithRetry(ai: GoogleGenAI, params: any, imageDimensions?: { sentWidth?: number; sentHeight?: number }, maxRetries = 3) {
-    let lastError: any = null;
+interface GeminiApiError {
+    status?: number;
+    statusCode?: number;
+    message?: string;
+}
+
+function toGeminiError(error: unknown): GeminiApiError {
+    if (error && typeof error === 'object') {
+        return error as GeminiApiError;
+    }
+    return { message: typeof error === 'string' ? error : String(error) };
+}
+
+async function generateContentWithRetry(
+    ai: GoogleGenAI,
+    params: Omit<Parameters<GoogleGenAI['models']['generateContent']>[0], 'model'>,
+    imageDimensions?: { sentWidth?: number; sentHeight?: number },
+    maxRetries = 3
+) {
+    let lastError: unknown = null;
+    let lastRateLimitError: unknown = null;
 
     for (const modelName of GEMINI_MODELS) {
         let attempt = 0;
@@ -112,26 +131,31 @@ async function generateContentWithRetry(ai: GoogleGenAI, params: any, imageDimen
                         },
                     },
                 };
-            } catch (error: any) {
+            } catch (error: unknown) {
                 attempt++;
                 lastError = error;
+                const err = toGeminiError(error);
                 const duration = Date.now() - startTime;
                 const durationSec = (duration / 1000).toFixed(2);
-                console.error(`❌ [Gemini AI OCR API] Call Failed | Model: ${modelName} | Attempt ${attempt} | Time Elapsed: ${duration}ms (${durationSec}s):`, error?.message || error);
+                console.error(`❌ [Gemini AI OCR API] Call Failed | Model: ${modelName} | Attempt ${attempt} | Time Elapsed: ${duration}ms (${durationSec}s):`, err.message || error);
 
                 const isRateLimit =
-                    error?.status === 429 ||
-                    error?.statusCode === 429 ||
-                    error?.message?.includes('429') ||
-                    error?.message?.toLowerCase().includes('rate') ||
-                    error?.message?.toLowerCase().includes('resource_exhausted');
+                    err.status === 429 ||
+                    err.statusCode === 429 ||
+                    err.message?.includes('429') ||
+                    err.message?.toLowerCase().includes('rate') ||
+                    err.message?.toLowerCase().includes('resource_exhausted');
+
+                if (isRateLimit) {
+                    lastRateLimitError = error;
+                }
 
                 if (isRateLimit && attempt < maxRetries) {
                     const delayMs = Math.pow(2, attempt) * 1000;
                     logger.warn(`[OCR API] Gemini 429 Rate Limit hit. Retrying attempt ${attempt}/${maxRetries} after ${delayMs}ms...`);
                     await new Promise((resolve) => setTimeout(resolve, delayMs));
                 } else if (!isRateLimit) {
-                    if (error?.status === 404 || error?.message?.includes('404') || error?.message?.toLowerCase().includes('not found')) {
+                    if (err.status === 404 || err.message?.includes('404') || err.message?.toLowerCase().includes('not found')) {
                         logger.warn(`[OCR API] Model ${modelName} not found (404). Skipping to next model...`);
                         break;
                     }
@@ -144,7 +168,7 @@ async function generateContentWithRetry(ai: GoogleGenAI, params: any, imageDimen
         }
     }
 
-    throw lastError;
+    throw lastRateLimitError || lastError;
 }
 
 export async function POST(req: NextRequest) {
@@ -239,7 +263,7 @@ export async function POST(req: NextRequest) {
 
         const jsonText = response.text || '{}';
 
-        let parsedData: any;
+        let parsedData: unknown;
         try {
             parsedData = JSON.parse(jsonText);
         } catch {
@@ -257,13 +281,15 @@ export async function POST(req: NextRequest) {
             executionTimeMs,
             usage,
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
         logger.error('[OCR API] Error:', error);
+        const err = toGeminiError(error);
 
         if (
-            error?.status === 429 ||
-            error?.message?.includes('429') ||
-            error?.message?.toLowerCase().includes('resource_exhausted')
+            err.status === 429 ||
+            err.statusCode === 429 ||
+            err.message?.includes('429') ||
+            err.message?.toLowerCase().includes('resource_exhausted')
         ) {
             return NextResponse.json(
                 { error: 'Gemini API rate limit exceeded. Please wait 1 minute before trying again.' },
@@ -273,7 +299,7 @@ export async function POST(req: NextRequest) {
 
         const isProd = process.env.NODE_ENV === "production";
         return NextResponse.json(
-            { error: isProd ? 'Internal server error during image extraction.' : (error?.message || 'Internal server error during image extraction.') },
+            { error: isProd ? 'Internal server error during image extraction.' : (err.message || 'Internal server error during image extraction.') },
             { status: 500 }
         );
     }
